@@ -1,65 +1,135 @@
-import Image from "next/image";
+"use client";
 
-export default function Home() {
+import Button from "@/components/Button";
+import Heading1 from "@/components/Heading1";
+import Heading6 from "@/components/Heading6";
+import Paragraph from "@/components/Paragraph";
+import Image from "@/components/Image";
+import Card from "@/components/Card";
+import Link from "next/link";
+import { PiGraduationCapLight, PiShieldCheck } from "react-icons/pi";
+import { HiOutlinePresentationChartBar, HiOutlineUserGroup } from "react-icons/hi";
+
+export default function LandingPage() {
   return (
-    <div className="flex min-h-screen items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex min-h-screen w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
-        </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
+    <>
+      
+      <div className="w-full max-w-7xl mx-auto px-6 py-10">
+
+        {/* HERO SECTION */}
+        <section className="flex flex-col-reverse lg:flex-row-reverse items-center gap-12 mt-10">
+
+          {/* Text Section */}
+          <div className="flex-1 text-left">
+            <Heading1>Ace Your WAEC Exams with Study Buddy</Heading1>
+
+            <Paragraph size="lg">
+              Prepare for your West African Examinations Council (WAEC) exams with 
+              our AI-powered platform. Get personalized study plans, practice tests, 
+              and expert guidance to achieve your academic goals.
+            </Paragraph>
+
+            {/* Buttons */}
+            <div className="flex gap-4 mt-8">
+              <Link href="/sign-up">
+                <Button variant="primary" size="lg" className="rounded-3xl">
+                  Get Started
+                </Button>
+              </Link>
+              <Button variant="neutral" size="md" className="rounded-3xl pl-6 pr-6">
+                Learn More
+              </Button>
+            </div>
+          </div>
+
+          {/* Illustration */}
+          <div className="flex-1 flex justify-center">
             <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
+              src="https://picsum.photos/400/400"
+              alt="Students studying"
+              rounded="xl"
+              shadow="md"
+              className="w-full max-w-md"
             />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
-      </main>
-    </div>
+          </div>
+        </section>
+
+        {/* WHY CHOOSE SECTION */}
+        <section className="mt-28">
+          <Heading1 align="center" gutter="md" className="mb-10">
+            Why Choose Study Buddy?
+          </Heading1>
+
+          <div className="flex gap-6 justify-center">
+
+            {/* Card 1 */}
+            <Card className="w-fit" padding="sm" shadow="sm" hover>
+              <div className="flex items-center justify-center w-14 h-14 rounded-lg mb-4">
+                <PiGraduationCapLight strokeWidth={10} size={40} />
+              </div>
+
+              <Heading6 gutter="sm" weight="bold" className="text-left">
+                Personalized Study Plans
+              </Heading6>
+
+              <Paragraph variant="superMuted" className="w-56 text-left">
+                Get a study plan tailored to your learning style and pace, ensuring 
+                you cover all the necessary material effectively.
+              </Paragraph>
+            </Card>
+
+            {/* Card 2 */}
+            <Card className="w-fit" padding="sm" shadow="sm" hover>
+              <div className="flex items-center justify-center w-14 h-14 rounded-lg mb-4">
+                <HiOutlinePresentationChartBar size={40} />
+              </div>
+
+              <Heading6 gutter="sm" weight="bold" className="max-w-48 text-left">
+                Comprehensive Practice Tests
+              </Heading6>
+
+              <Paragraph variant="superMuted" className="w-56 text-left">
+                Access a wide range of practice tests that simulate the actual 
+                WAEC exam environment, helping you build confidence and identify 
+                areas for improvement.
+              </Paragraph>
+            </Card>
+
+            {/* Card 3 */}
+            <Card className="w-fit" padding="sm" shadow="sm" hover>
+              <div className="flex items-center justify-center w-14 h-14 rounded-lg mb-4">
+                <HiOutlineUserGroup size={40} />
+              </div>
+
+              <Heading6 gutter="sm" weight="bold" className="text-left">
+                Expert Guidance
+              </Heading6>
+
+              <Paragraph variant="superMuted" className="w-56 text-left">
+                Connect with experienced tutors and mentors who can provide 
+                valuable insights and support throughout your preparation journey.
+              </Paragraph>
+            </Card>
+
+            {/* Card 4 */}
+            <Card className="w-fit" padding="sm" shadow="sm" hover>
+              <div className="flex items-center justify-center w-14 h-14 rounded-lg mb-4">
+                <PiShieldCheck strokeWidth={5} size={40} />
+              </div>
+
+              <Heading6 gutter="sm" weight="bold" className="text-left">
+                Secure and Reliable
+              </Heading6>
+
+              <Paragraph variant="superMuted" className="mt-2 w-56 text-left">
+                Our platform is built with security in mind, ensuring your data is 
+                protected and your learning experience is seamless and reliable.
+              </Paragraph>
+            </Card>
+
+          </div>
+        </section>
+      </div>
+    </>
   );
 }
