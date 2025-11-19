@@ -4,7 +4,7 @@ interface CardProps {
   children: React.ReactNode;
   variant?: 'default' | 'elevated' | 'outlined' | 'filled' | 'interactive';
   size?: 'sm' | 'md' | 'lg';
-  padding?: 'none' | 'sm' | 'md' | 'lg';
+  padding?: 'none' | 'xs' | 'sm' | 'md' | 'lg';
   shadow?: 'none' | 'sm' | 'md' | 'lg' | 'xl';
   hover?: boolean;
   onClick?: () => void;
@@ -54,6 +54,7 @@ export default function Card({
   // Padding classes
   const paddingClasses = {
     none: "",
+    xs: "p-1",
     sm: "p-3",
     md: "p-6",
     lg: "p-8"

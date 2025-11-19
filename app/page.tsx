@@ -60,10 +60,10 @@ export default function LandingPage() {
             Why Choose Study Buddy?
           </Heading1>
 
-          <div className="flex gap-6 justify-center">
+          <div className="flex gap-6 justify-center flex-wrap lg:w-max left-[-3em] position-relative">
 
             {/* Card 1 */}
-            <Card className="w-fit" padding="sm" shadow="sm" hover>
+            <Card className="w-fit" padding="xs" shadow="sm" hover>
               <div className="flex items-center justify-center w-14 h-14 rounded-lg mb-4">
                 <PiGraduationCapLight strokeWidth={10} size={40} />
               </div>
@@ -79,7 +79,7 @@ export default function LandingPage() {
             </Card>
 
             {/* Card 2 */}
-            <Card className="w-fit" padding="sm" shadow="sm" hover>
+            <Card className="w-fit" padding="xs" shadow="sm" hover>
               <div className="flex items-center justify-center w-14 h-14 rounded-lg mb-4">
                 <HiOutlinePresentationChartBar size={40} />
               </div>
@@ -96,7 +96,7 @@ export default function LandingPage() {
             </Card>
 
             {/* Card 3 */}
-            <Card className="w-fit" padding="sm" shadow="sm" hover>
+            <Card className="w-fit" padding="xs" shadow="sm" hover>
               <div className="flex items-center justify-center w-14 h-14 rounded-lg mb-4">
                 <HiOutlineUserGroup size={40} />
               </div>
@@ -112,7 +112,7 @@ export default function LandingPage() {
             </Card>
 
             {/* Card 4 */}
-            <Card className="w-fit" padding="sm" shadow="sm" hover>
+            <Card className="w-fit" padding="xs" shadow="sm" hover>
               <div className="flex items-center justify-center w-14 h-14 rounded-lg mb-4">
                 <PiShieldCheck strokeWidth={5} size={40} />
               </div>

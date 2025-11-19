@@ -16,13 +16,13 @@ export default function Footer({
   brand = "Study Buddy",
   links = [
     { label: "About Us", href: "/about-us" },
-    { label: "Contact", href: "/contact" },
+    { label: "Contact", href: "/contact-us" },
     { label: "Privacy Policy", href: "/privacy-policy" },
     { label: "Terms of Service", href: "/terms-of-service" },
   ],
 }: Readonly<FooterProps>) {
   return (
-    <footer className="bg-accent-500 py-6 text-center text-sm mt-24">
+    <footer className="bg-accent-500 py-6 text-center text-sm mt-16">
       {/* Top links */}
       <nav className="flex justify-around space-x-8 mb-3">
         {links.map((link) => (

@@ -48,7 +48,7 @@ export default function NavBar({
       {/* Left: Logo */}
       <div className="flex items-center space-x-2">
         <Link href="/">
-          <Logo variant="full" size="lg" />
+          <Logo variant="full" size="lg" animation="rotate" />
         </Link>
       </div>
 
