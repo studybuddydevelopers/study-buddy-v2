@@ -1,26 +1,44 @@
 "use client";
 
+import { useState } from "react";
+
 import Button from "@/components/Button";
 import Heading1 from "@/components/Heading1";
 import Heading6 from "@/components/Heading6";
 import Paragraph from "@/components/Paragraph";
 import Image from "@/components/Image";
 import Card from "@/components/Card";
-import Link from "next/link";
+
 import { PiGraduationCapLight, PiShieldCheck } from "react-icons/pi";
 import { HiOutlinePresentationChartBar, HiOutlineUserGroup } from "react-icons/hi";
 
 export default function LandingPage() {
+  const [loadingStart, setLoadingStart] = useState(false);
+  const [loadingLearn, setLoadingLearn] = useState(false);
+
+  const handleStart = () => {
+    setLoadingStart(true);
+    setTimeout(() => {
+      window.location.href = "/sign-up";
+    }, 600);
+  };
+
+  const handleLearn = () => {
+    setLoadingLearn(true);
+    setTimeout(() => {
+      setLoadingLearn(false);
+      // You can replace this with actual navigation later
+    }, 600);
+  };
+
   return (
     <>
-      
       <div className="w-full max-w-7xl mx-auto px-6 py-10">
-
         {/* HERO SECTION */}
         <section className="flex flex-col-reverse lg:flex-row-reverse items-center gap-12 mt-10">
 
           {/* Text Section */}
-          <div className="flex-1 text-left">
+          <div className="text-left w-1/2">
             <Heading1>Ace Your WAEC Exams with Study Buddy</Heading1>
 
             <Paragraph size="lg">
@@ -31,25 +49,39 @@ export default function LandingPage() {
 
             {/* Buttons */}
             <div className="flex gap-4 mt-8">
-              <Link href="/sign-up">
-                <Button variant="primary" size="lg" className="rounded-3xl">
-                  Get Started
-                </Button>
-              </Link>
-              <Button variant="neutral" size="md" className="rounded-3xl pl-6 pr-6">
+
+              <Button
+                variant="primary"
+                size="lg"
+                loading={loadingStart}
+                disabled={loadingStart}
+                onClick={handleStart}
+                className="rounded-3xl"
+              >
+                Get Started
+              </Button>
+
+              <Button
+                variant="neutral"
+                size="md"
+                loading={loadingLearn}
+                disabled={loadingLearn}
+                onClick={handleLearn}
+                className="rounded-3xl pl-6 pr-6"
+              >
                 Learn More
               </Button>
             </div>
           </div>
 
           {/* Illustration */}
-          <div className="flex-1 flex justify-center">
+          <div className="flex">
             <Image
-              src="https://picsum.photos/400/400"
+              src="https://picsum.photos/600/600"
               alt="Students studying"
               rounded="xl"
               shadow="md"
-              className="w-full max-w-md"
+              className="w-full min-w-[-webkit-fill-available]"
             />
           </div>
         </section>

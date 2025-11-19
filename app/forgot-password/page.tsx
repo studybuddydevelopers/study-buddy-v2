@@ -10,19 +10,18 @@ import Card from "@/components/Card";
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
 
-  // NEW: Loading state
+  // NEW: loading state
   const [loading, setLoading] = useState(false);
 
-  const handleLogin = () => {
+  const handleSubmit = () => {
     setLoading(true);
 
     setTimeout(() => {
       setLoading(false);
 
-      // Replace this later with actual login logic (API or router)
-      console.log("Login submitted!");
+      // Replace this with actual password-reset logic later
+      console.log("Password reset request submitted!");
     }, 600);
   };
 
@@ -33,7 +32,7 @@ export default function LoginPage() {
   useEffect(() => {
     const interval = setInterval(() => {
       setIndex((i) => (i + 1) % icons.length);
-    }, 1000);
+    }, 1000); 
 
     return () => clearInterval(interval);
   }, []);
@@ -61,7 +60,7 @@ export default function LoginPage() {
       <Card shadow="md" hover className="flex flex-col min-w-min">
         <div className="flex flex-row justify-center">
           <Heading2 gutter="lg" className="text-center">
-            Welcome back
+            New Password Request
           </Heading2>
 
           {/* Animated Icon */}
@@ -82,33 +81,23 @@ export default function LoginPage() {
             className="text-left mb-5"
           />
 
-          <TextField
-            label="Password"
-            type="password"
-            placeholder="Enter your password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            required
-            className="text-left mb-3"
-          />
-
           <a
-            href="/forgot-password"
+            href="/login"
             className="underline text-left mb-6 text-gray-600 visited:text-primary-500 hover:text-info w-fit"
           >
-            Forgot Password?
+            Remember Your Password? Login
           </a>
 
-          {/* LOGIN BUTTON WITH LOADING */}
+          {/* SUBMIT BUTTON WITH LOADING */}
           <Button
             variant="primary"
             size="lg"
             className="w-full rounded-xl"
             loading={loading}
             disabled={loading}
-            onClick={handleLogin}
+            onClick={handleSubmit}
           >
-            Log In
+            Submit
           </Button>
         </div>
       </Card>

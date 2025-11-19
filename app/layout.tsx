@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
-import NavBar from "@/components/NavBar";
-import "./globals.css";
 import ClientLayoutWrapper from "./ClientLayoutWrapper";
+import "./globals.css";
 
 export const metadata: Metadata = {
   title: "Study Buddy",

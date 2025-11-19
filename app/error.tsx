@@ -1,9 +1,10 @@
 "use client";
 
+import { useState } from "react";
+
 import Heading1 from "@/components/Heading1";
 import Paragraph from "@/components/Paragraph";
 import Button from "@/components/Button";
-import Link from "next/link";
 
 interface ErrorProps {
   error: Error;
@@ -11,10 +12,26 @@ interface ErrorProps {
 }
 
 export default function GlobalError({ error, reset }: ErrorProps) {
+  const [loadingHome, setLoadingHome] = useState(false);
+  const [loadingReset, setLoadingReset] = useState(false);
+
+  const handleHome = () => {
+    setLoadingHome(true);
+    setTimeout(() => {
+      window.location.href = "/";
+    }, 600);
+  };
+
+  const handleReset = () => {
+    setLoadingReset(true);
+    setTimeout(() => {
+      reset();
+    }, 300);
+  };
+
   return (
-    <div
-      className="flex flex-col justify-center items-center text-center h-full"
-    >
+    <div className="flex flex-col justify-center items-center text-center h-full">
+
       <Heading1 gutter="sm">Something went wrong</Heading1>
 
       <Paragraph variant="muted">
@@ -29,17 +46,30 @@ export default function GlobalError({ error, reset }: ErrorProps) {
       )}
 
       <div className="flex justify-center gap-4 mt-4">
-        <Button variant="primary" size="md" onClick={reset}>
+
+        {/* Try Again */}
+        <Button
+          variant="primary"
+          size="md"
+          onClick={handleReset}
+          loading={loadingReset}
+          disabled={loadingReset}
+        >
           Try Again
         </Button>
 
-        <Link href="/" >
-          <Button variant="primary" size="md">
-            Go Home
-          </Button>
-        </Link>
+        {/* Go Home */}
+        <Button
+          variant="primary"
+          size="md"
+          onClick={handleHome}
+          loading={loadingHome}
+          disabled={loadingHome}
+        >
+          Go Home
+        </Button>
+
       </div>
     </div>
-
   );
 }

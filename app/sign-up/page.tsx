@@ -8,7 +8,6 @@ import { FaHandPeace, FaHandPointDown } from "react-icons/fa6";
 import { FaHandPaper } from "react-icons/fa";
 import Card from "@/components/Card";
 
-
 export default function SignUpPage() {
   const [email, setEmail] = useState("");
   const [phoneNumber, setPhoneNumber] = useState("");
@@ -18,6 +17,20 @@ export default function SignUpPage() {
   const [middleNames, setMiddleNames] = useState("");
   const [lastNames, setLastNames] = useState("");
 
+  // NEW: Loading state
+  const [loading, setLoading] = useState(false);
+
+  const handleSignUp = () => {
+    setLoading(true);
+
+    setTimeout(() => {
+      setLoading(false);
+
+      // Later you can replace this with API call or router.push("/dashboard")
+      console.log("Sign up submitted!");
+    }, 600);
+  };
+
   // ICON ROTATION
   const icons = [FaHandPeace, FaHandPaper, FaHandPointDown];
   const [index, setIndex] = useState(0);
@@ -25,14 +38,14 @@ export default function SignUpPage() {
   useEffect(() => {
     const interval = setInterval(() => {
       setIndex((i) => (i + 1) % icons.length);
-    }, 1000); // Change every 1 second
+    }, 1000);
 
     return () => clearInterval(interval);
   }, []);
 
   const CurrentIcon = icons[index];
 
-  // Inject custom keyframes once 
+  // Inject custom keyframes
   useEffect(() => {
     if (typeof document === "undefined") return;
     if (!document.getElementById("logo-float-keyframes")) {
@@ -131,9 +144,8 @@ export default function SignUpPage() {
             />
           </div>
           
-
-          <div className="text-left mb-4">
-            <span className="text-left text-gray-600 w-fit mr-2" >
+          <div className="text-left mb-8">
+            <span className="text-left text-gray-600 w-fit mr-2">
               Already part of the Family? 
             </span>
             <a
@@ -144,7 +156,15 @@ export default function SignUpPage() {
             </a>
           </div>
 
-          <Button variant="primary" size="lg" className="w-full rounded-xl">
+          {/* Sign Up Button WITH loading */}
+          <Button
+            variant="primary"
+            size="lg"
+            className="w-full rounded-xl"
+            loading={loading}
+            disabled={loading}
+            onClick={handleSignUp}
+          >
             Sign Up
           </Button>
         </div>
