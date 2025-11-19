@@ -2,7 +2,7 @@
 
 interface LogoNameProps {
   color?: "default" | "white" | "primary" | "secondary";
-  size?: "sm" | "md" | "lg" | "xl";
+  size?: "sm" | "md" | "lg" | "xl" | "5xl";
 }
 
 export default function LogoName({
@@ -14,6 +14,7 @@ export default function LogoName({
     md: "text-xl",
     lg: "text-2xl",
     xl: "text-3xl",
+    "5xl": "text-6xl",
   };
 
   const colorClasses: Record<NonNullable<LogoNameProps["color"]>, string> = {

@@ -2,7 +2,7 @@
 
 import { useEffect } from "react";
 
-type Size = "sm" | "md" | "lg" | "xl";
+type Size = "sm" | "md" | "lg" | "xl" | "5xl";
 type Color = "default" | "primary" | "secondary" | "white";
 
 interface LogoIconProps {
@@ -41,6 +41,7 @@ export default function LogoIcon({
     md: "h-6 w-6",
     lg: "h-8 w-8",
     xl: "h-10 w-10",
+    "5xl": "h-30 w-30",
   };
 
   const colorClasses: Record<Color, string> = {

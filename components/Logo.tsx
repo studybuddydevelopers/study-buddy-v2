@@ -6,7 +6,7 @@ import LogoName from "./LogoName";
 
 interface LogoProps {
   variant?: "full" | "icon" | "text";
-  size?: "sm" | "md" | "lg" | "xl";
+  size?: "sm" | "md" | "lg" | "xl" | "5xl";
   color?: "default" | "white" | "primary" | "secondary";
   animated?: boolean;
   animation?:
