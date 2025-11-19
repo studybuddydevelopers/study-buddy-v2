@@ -8,7 +8,6 @@ import { FaHandPeace, FaHandPointDown } from "react-icons/fa6";
 import { FaHandPaper } from "react-icons/fa";
 import Card from "@/components/Card";
 
-
 export default function SignUpPage() {
   const [email, setEmail] = useState("");
   const [phoneNumber, setPhoneNumber] = useState("");
@@ -17,6 +16,9 @@ export default function SignUpPage() {
   const [firstName, setFirstName] = useState("");
   const [middleNames, setMiddleNames] = useState("");
   const [lastNames, setLastNames] = useState("");
+
+  const [msg, setMsg] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
 
   // ICON ROTATION
   const icons = [FaHandPeace, FaHandPaper, FaHandPointDown];
@@ -32,7 +34,7 @@ export default function SignUpPage() {
 
   const CurrentIcon = icons[index];
 
-  // Inject custom keyframes once 
+  // Inject custom keyframes once
   useEffect(() => {
     if (typeof document === "undefined") return;
     if (!document.getElementById("logo-float-keyframes")) {
@@ -48,12 +50,52 @@ export default function SignUpPage() {
     }
   }, []);
 
+  // 👉 form submit handler
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setMsg(null);
+
+    if (password !== confirmedPassword) {
+      setMsg("Passwords do not match");
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const res = await fetch("/api/signup", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email,
+          password,
+          // you can send the other fields later once the DB supports them
+        }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        setMsg(data?.error || "Signup failed");
+      } else {
+        setMsg(`Signed up as ${data.user.email}`);
+        // optional: clear fields
+        // setEmail("");
+        // setPassword("");
+        // setConfirmedPassword("");
+      }
+    } catch (err) {
+      setMsg("Network error");
+    } finally {
+      setLoading(false);
+    }
+  }
+
   return (
     <div className="flex items-center justify-center p-7 mt-7">
       <Card shadow="md" hover padding="md" className="flex flex-col self-center min-w-min">
         <div className="flex flex-row self-center justify-center">
           <Heading2 gutter="lg" className="text-center">
-            Sign Up 
+            Sign Up
           </Heading2>
 
           {/* Animated Icon */}
@@ -64,7 +106,10 @@ export default function SignUpPage() {
         </div>
 
         {/* Form fields */}
-        <div className="flex flex-col w-fit self-center min-w-[30em]">
+        <form
+          onSubmit={handleSubmit}
+          className="flex flex-col w-fit self-center min-w-[30em]"
+        >
           <TextField
             label="First Name"
             placeholder="Enter your first name"
@@ -90,7 +135,7 @@ export default function SignUpPage() {
             className="text-left mb-5"
             required
           />
-          
+
           <div className="flex flex-row gap-3">
             <TextField
               label="Email"
@@ -99,7 +144,7 @@ export default function SignUpPage() {
               onChange={(e) => setEmail(e.target.value)}
               className="text-left mb-5 w-full"
             />
-            
+
             <TextField
               label="Phone Number"
               placeholder="Enter your phone number"
@@ -130,11 +175,10 @@ export default function SignUpPage() {
               className="text-left mb-3 w-full"
             />
           </div>
-          
 
           <div className="text-left mb-4">
-            <span className="text-left text-gray-600 w-fit mr-2" >
-              Already part of the Family? 
+            <span className="text-left text-gray-600 w-fit mr-2">
+              Already part of the Family?
             </span>
             <a
               href="/login"
@@ -144,10 +188,22 @@ export default function SignUpPage() {
             </a>
           </div>
 
-          <Button variant="primary" size="lg" className="w-full rounded-xl">
-            Sign Up
+          <Button
+            variant="primary"
+            size="lg"
+            className="w-full rounded-xl"
+            type="submit"
+            disabled={loading}
+          >
+            {loading ? "Signing up..." : "Sign Up"}
           </Button>
-        </div>
+
+          {msg && (
+            <p className="mt-2 text-sm text-red-500">
+              {msg}
+            </p>
+          )}
+        </form>
       </Card>
     </div>
   );
