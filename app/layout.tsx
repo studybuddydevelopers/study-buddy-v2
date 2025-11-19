@@ -1,10 +1,14 @@
 import type { Metadata } from "next";
 import ClientLayoutWrapper from "./ClientLayoutWrapper";
+import LogoIcon from "@/components/LogoIcon";
 import "./globals.css";
 
 export const metadata: Metadata = {
   title: "Study Buddy",
   description: "The no 1 platform to get high grades at WAEC exams",
+  icons: [
+    "logo-icon.svg",
+  ],
 };
 
 export default function RootLayout({
