@@ -102,6 +102,13 @@ export default function LoginPage() {
     }
   }, []);
 
+  const isLoginDisabled =
+    loading ||
+    !identifier ||               // disable when empty
+    !password ||                 // disable when empty
+    !!identifierError ||
+    !!passwordError;
+
   return (
     <div className="flex items-center justify-center p-7 mt-7">
       <Card shadow="md" hover className="flex flex-col min-w-min">
@@ -155,7 +162,7 @@ export default function LoginPage() {
             size="lg"
             className="w-full rounded-xl"
             loading={loading}
-            disabled={loading || !!identifierError || !!passwordError}
+            disabled={isLoginDisabled}
             onClick={handleLogin}
           >
             Log In

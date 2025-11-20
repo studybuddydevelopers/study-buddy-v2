@@ -1,73 +1,61 @@
+// middleware.ts
 import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 
-// All pages that REQUIRE the user to be logged in
-const protectedPaths = [
-  "/dashboard",
-  "/materials",
-  "/exams",
-  "/progress",
-  "/chat",
-  "/profile",
-  "/account",
-];
-
-// Pages where logged-in users SHOULD NOT be allowed
-// (they should be redirected to dashboard)
-const authPages = ["/login", "/sign-up"];
-
 export async function middleware(req: NextRequest) {
-  const res = NextResponse.next();
+  let res = NextResponse.next();
 
-  // Create a Supabase client that reads/writes cookies
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
       cookies: {
-        getAll() {
-          return req.cookies.getAll(); // read cookies from request
+        get(name) {
+          return req.cookies.get(name)?.value;
         },
-        setAll(cookies) {
-          cookies.forEach(({ name, value, options }) => {
-            res.cookies.set(name, value, options); // write updated cookies
-          });
+        set(name, value, options) {
+          res.cookies.set(name, value, options);
+        },
+        remove(name, options) {
+          res.cookies.set(name, "", { ...options, maxAge: 0 });
         },
       },
     }
   );
 
-  // Get authenticated user (safe for middleware)
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  // Refresh session AND read the user
+  const { data: { session }, error: sessionError } =
+    await supabase.auth.getSession();
 
-  const pathname = req.nextUrl.pathname;
+  // Sync refreshed cookies into the response
+  const { data: { user }, error: userError } =
+    await supabase.auth.getUser();
 
-  // 1️⃣ PROTECTED ROUTES — must be logged in
-  const isProtected = protectedPaths.some((path) =>
-    pathname.startsWith(path)
-  );
+  const path = req.nextUrl.pathname;
 
-  if (isProtected && !user) {
+  const protectedPaths = [
+    "/dashboard",
+    "/materials",
+    "/exams",
+    "/progress",
+    "/chat",
+    "/profile",
+    "/account",
+  ];
+
+  const authPages = ["/login", "/sign-up"];
+
+  if (protectedPaths.some((x) => path.startsWith(x)) && !user) {
     return NextResponse.redirect(new URL("/login", req.url));
   }
 
-  // 2️⃣ AUTH PAGES — logged-in users should be redirected away
-  const isAuthPage = authPages.some((path) =>
-    pathname.startsWith(path)
-  );
-
-  if (isAuthPage && user) {
+  if (authPages.some((x) => path.startsWith(x)) && user) {
     return NextResponse.redirect(new URL("/dashboard", req.url));
   }
 
   return res;
 }
 
-// Match ALL pages except static assets & Next.js internals
 export const config = {
-  matcher: [
-    "/((?!_next/static|_next/image|favicon.ico|logo-icon.svg).*)",
-  ],
+  matcher: ["/((?!_next/static|_next/image|favicon.ico).*)"],
 };

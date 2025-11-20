@@ -12,7 +12,6 @@ export default function ClientLayoutWrapper({ children }: { children: React.Reac
             signInLink="/login"
             signUpLink="/sign-up"
             onNotificationsClick={() => alert("Notifications clicked")}
-            showNotifications={false}
         />
         {children}
         <Footer />

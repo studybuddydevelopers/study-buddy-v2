@@ -5,6 +5,7 @@ import Logo from "./Logo";
 import Button from "./Button";
 import Link from "next/link";
 import { supabase } from "@/lib/supabaseClient";
+import type { User } from "@supabase/supabase-js";
 
 interface NavLink {
   label: string;
@@ -37,32 +38,40 @@ export default function NavBar({
   onNotificationsClick,
   showNotifications = true,
 }: Readonly<NavBarProps>) {
-
   const [mobileOpen, setMobileOpen] = useState(false);
 
-  // NEW: loading states
   const [loadingLogin, setLoadingLogin] = useState(false);
   const [loadingSignup, setLoadingSignup] = useState(false);
   const [loadingLogOut, setLoadingLogOut] = useState(false);
 
-  // NEW: user session state
-  const [user, setUser] = useState(null);
+  // 🟢 AUTH STATE (no flicker)
+  const [user, setUser] = useState<User | null>(null);
+  const [loadingUser, setLoadingUser] = useState(true);
 
-  // 🔥 Check login state on mount
   useEffect(() => {
-    const checkSession = async () => {
+    let active = true;
+
+    const loadUser = async () => {
       const { data } = await supabase.auth.getSession();
-      setUser(data.session?.user ?? null);
+
+      if (active) {
+        setUser(data.session?.user ?? null);
+        setLoadingUser(false);
+      }
     };
 
-    checkSession();
+    loadUser();
 
-    // 🔥 Listen for login/logout in real-time
-    const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUser(session?.user ?? null);
-    });
+    const { data: listener } = supabase.auth.onAuthStateChange(
+      (_event, session) => {
+        if (active) {
+          setUser(session?.user ?? null);
+        }
+      }
+    );
 
     return () => {
+      active = false;
       listener.subscription.unsubscribe();
     };
   }, []);
@@ -70,9 +79,9 @@ export default function NavBar({
   const handleLogout = async () => {
     setLoadingLogOut(true);
     await supabase.auth.signOut();
+
     setTimeout(() => {
       window.location.href = "/login";
-      setLoadingLogOut(false);
     }, 600);
   };
 
@@ -80,8 +89,7 @@ export default function NavBar({
     setLoadingLogin(true);
     setTimeout(() => {
       if (onSignIn) onSignIn();
-      else if (signInLink) window.location.href = signInLink;
-      setLoadingLogin(false);
+      else window.location.href = signInLink ?? "/login";
     }, 600);
   };
 
@@ -89,8 +97,7 @@ export default function NavBar({
     setLoadingSignup(true);
     setTimeout(() => {
       if (onSignUp) onSignUp();
-      else if (signUpLink) window.location.href = signUpLink;
-      setLoadingSignup(false);
+      else window.location.href = signUpLink ?? "/sign-up";
     }, 600);
   };
 
@@ -101,14 +108,12 @@ export default function NavBar({
 
   return (
     <header className="flex items-center justify-between bg-white shadow px-6 py-3">
-      {/* Left: Logo */}
-      <div className="flex items-center space-x-2">
-        <Link href="/">
-          <Logo variant="full" size="lg" animation="rotate" />
-        </Link>
-      </div>
+      {/* Logo */}
+      <Link href="/">
+        <Logo variant="full" size="lg" animation="rotate" />
+      </Link>
 
-      {/* Center: Desktop Links */}
+      {/* Desktop nav */}
       <nav className="hidden md:flex space-x-8">
         {links.map((link) => (
           <a
@@ -121,63 +126,60 @@ export default function NavBar({
         ))}
       </nav>
 
-      {/* Right: Notifications + Buttons */}
+      {/* Right side */}
       <div className="flex items-center space-x-4">
-        {showNotifications && (
-          <button
-            className="text-xl cursor-pointer p-2 rounded-full hover:bg-accent-200 transition"
-            aria-label="Notifications"
-            onClick={onNotificationsClick}
-          >
-            🔔
-          </button>
+
+        {/* AUTH BUTTONS — no flicker */}
+        {!loadingUser && (
+          <div className="hidden md:flex items-center space-x-3">
+            {!user && (
+              <>
+                <Button
+                  variant="primary"
+                  size="sm"
+                  loading={loadingLogin}
+                  disabled={loadingLogin}
+                  onClick={handleLogin}
+                >
+                  Log In
+                </Button>
+
+                <Button
+                  variant="outline"
+                  size="sm"
+                  loading={loadingSignup}
+                  disabled={loadingSignup}
+                  onClick={handleSignup}
+                >
+                  Sign Up
+                </Button>
+              </>
+            )}
+
+            {user && (
+              <>
+                <button
+                  className="text-xl cursor-pointer p-2 rounded-full hover:bg-accent-200 transition"
+                  aria-label="Notifications"
+                  onClick={onNotificationsClick}
+                >
+                  🔔
+                </button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  loading={loadingLogOut}
+                  disabled={loadingLogOut}
+                  onClick={handleLogout}
+                >
+                  Log Out
+                </Button>
+              </>
+            )}
+          </div>
         )}
 
-        {/* Desktop buttons */}
-        <div className="hidden md:flex items-center space-x-3">
-
-          {/* 🔥 CONDITIONAL BUTTONS */}
-
-          {!user && (
-            <>
-              {/* LOGIN BUTTON */}
-              <Button
-                variant="primary"
-                size="sm"
-                loading={loadingLogin}
-                disabled={loadingLogin}
-                onClick={handleLogin}
-              >
-                Log In
-              </Button>
-
-              {/* SIGNUP BUTTON */}
-              <Button
-                variant="outline"
-                size="sm"
-                loading={loadingSignup}
-                disabled={loadingSignup}
-                onClick={handleSignup}
-              >
-                Sign Up
-              </Button>
-            </>
-          )}
-
-          {user && (
-            <Button
-              variant="outline"
-              size="sm"
-              loading={loadingLogOut}
-              disabled={loadingLogOut}
-              onClick={handleLogout}
-            >
-              Log Out
-            </Button>
-          )}
-        </div>
-
-        {/* Mobile menu button */}
+        {/* Mobile toggle */}
         <button
           className="md:hidden p-2 rounded-md hover:bg-accent-200"
           onClick={() => setMobileOpen(!mobileOpen)}
@@ -187,8 +189,8 @@ export default function NavBar({
         </button>
       </div>
 
-      {/* Mobile Menu */}
-      {mobileOpen && (
+      {/* Mobile menu */}
+      {mobileOpen && !loadingUser && (
         <div className="md:hidden mt-3 flex flex-col space-y-3 bg-white shadow rounded-lg p-4">
           {links.map((link) => (
             <a
@@ -201,8 +203,6 @@ export default function NavBar({
           ))}
 
           <div className="flex flex-col space-y-2 mt-4">
-            
-            {/* MOBILE CONDITIONAL BUTTONS */}
             {!user && (
               <>
                 <Button

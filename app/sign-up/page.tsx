@@ -102,8 +102,8 @@ export default function SignUpPage() {
       return;
     }
 
-    alert("Sign up successful! Check your email for verification.");
-    window.location.href = "/login";
+    window.location.href = `/verify-email?email=${encodeURIComponent(email)}`;
+
   };
 
   // ICON ROTATION
