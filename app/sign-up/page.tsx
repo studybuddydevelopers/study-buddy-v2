@@ -7,28 +7,103 @@ import Button from "@/components/Button";
 import { FaHandPeace, FaHandPointDown } from "react-icons/fa6";
 import { FaHandPaper } from "react-icons/fa";
 import Card from "@/components/Card";
+import { supabase } from "@/lib/supabaseClient";
 
 export default function SignUpPage() {
+  // FIELD STATES
+  const [firstName, setFirstName] = useState("");
+  const [middleNames, setMiddleNames] = useState("");
+  const [lastNames, setLastNames] = useState("");
   const [email, setEmail] = useState("");
   const [phoneNumber, setPhoneNumber] = useState("");
   const [password, setPassword] = useState("");
   const [confirmedPassword, setConfirmedPassword] = useState("");
-  const [firstName, setFirstName] = useState("");
-  const [middleNames, setMiddleNames] = useState("");
-  const [lastNames, setLastNames] = useState("");
 
-  // NEW: Loading state
+  // TRACK TOUCHED FIELDS
+  const [touched, setTouched] = useState({
+    firstName: false,
+    lastNames: false,
+    email: false,
+    phoneNumber: false,
+    password: false,
+    confirmedPassword: false,
+  });
+
   const [loading, setLoading] = useState(false);
 
-  const handleSignUp = () => {
+  // VALIDATION HELPERS
+  const isValidEmail = (v: string) =>
+    /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v);
+
+  const isValidPhone = (v: string) =>
+    /^[0-9+\-() ]{6,}$/.test(v);
+
+  // FIELD ERRORS
+  const errors = {
+    firstName: firstName ? "" : "First name is required",
+
+    lastNames: lastNames ? "" : "Last name is required",
+
+    email: !email
+      ? "Email is required"
+      : !isValidEmail(email)
+      ? "Invalid email format"
+      : "",
+
+    phoneNumber: !phoneNumber
+      ? "Phone number is required"
+      : !isValidPhone(phoneNumber)
+      ? "Invalid phone number"
+      : "",
+
+    password:
+      password.length < 6
+        ? "Password must be at least 6 characters"
+        : "",
+
+    confirmedPassword:
+      confirmedPassword !== password
+        ? "Passwords do not match"
+        : "",
+  };
+
+  // FORM VALIDITY
+  const isFormValid =
+    firstName &&
+    lastNames &&
+    isValidEmail(email) &&
+    isValidPhone(phoneNumber) &&
+    password.length >= 6 &&
+    confirmedPassword === password;
+
+  // SIGN UP HANDLER
+  const handleSignUp = async () => {
+    if (!isFormValid) return;
+
     setLoading(true);
 
-    setTimeout(() => {
-      setLoading(false);
+    const { error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        data: {
+          firstName,
+          middleNames,
+          lastNames,
+          phoneNumber,
+        },
+      },
+    });
 
-      // Later you can replace this with API call or router.push("/dashboard")
-      console.log("Sign up submitted!");
-    }, 600);
+    setLoading(false);
+
+    if (error) {
+      alert(error.message);
+      return;
+    }
+
+    alert("Sign up successful! Check your email for verification.");
+    window.location.href = "/login";
   };
 
   // ICON ROTATION
@@ -39,134 +114,136 @@ export default function SignUpPage() {
     const interval = setInterval(() => {
       setIndex((i) => (i + 1) % icons.length);
     }, 1000);
-
     return () => clearInterval(interval);
   }, []);
 
   const CurrentIcon = icons[index];
 
-  // Inject custom keyframes
-  useEffect(() => {
-    if (typeof document === "undefined") return;
-    if (!document.getElementById("logo-float-keyframes")) {
-      const styleEl = document.createElement("style");
-      styleEl.id = "logo-float-keyframes";
-      styleEl.textContent = `
-        @keyframes logoFloat {
-          0%, 100% { transform: translateY(0); }
-          50% { transform: translateY(-5px); }
-        }
-      `;
-      document.head.appendChild(styleEl);
-    }
-  }, []);
-
   return (
     <div className="flex items-center justify-center p-7 mt-7">
       <Card shadow="md" hover padding="md" className="flex flex-col self-center min-w-min">
+
+        {/* HEADER */}
         <div className="flex flex-row self-center justify-center">
           <Heading2 gutter="lg" className="text-center">
-            Sign Up 
+            Sign Up
           </Heading2>
-
-          {/* Animated Icon */}
           <CurrentIcon
             className="transition-opacity duration-500 ease-in-out animate-[logoFloat_3s_ease-in-out_infinite]"
             size={28}
           />
         </div>
 
-        {/* Form fields */}
+        {/* FORM */}
         <div className="flex flex-col w-fit self-center min-w-[30em]">
+
+          {/* FIRST NAME */}
           <TextField
             label="First Name"
-            placeholder="Enter your first name"
+            required
             value={firstName}
             onChange={(e) => setFirstName(e.target.value)}
-            className="text-left mb-5"
-            required
+            onFocus={() => setTouched((t) => ({ ...t, firstName: true }))}
+            error={touched.firstName ? errors.firstName : ""}
+            className="mb-5"
           />
 
+          {/* MIDDLE NAMES */}
           <TextField
             label="Middle Names"
-            placeholder="Enter your middle names"
             value={middleNames}
             onChange={(e) => setMiddleNames(e.target.value)}
-            className="text-left mb-5"
+            className="mb-5"
           />
 
+          {/* LAST NAMES */}
           <TextField
             label="Last Names"
-            placeholder="Enter your last names"
+            required
             value={lastNames}
             onChange={(e) => setLastNames(e.target.value)}
-            className="text-left mb-5"
-            required
+            onFocus={() => setTouched((t) => ({ ...t, lastNames: true }))}
+            error={touched.lastNames ? errors.lastNames : ""}
+            className="mb-5"
           />
-          
+
+          {/* EMAIL + PHONE */}
           <div className="flex flex-row gap-3">
             <TextField
               label="Email"
-              placeholder="Enter your email"
+              required
+              placeholder="Enter email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="text-left mb-5 w-full"
+              onFocus={() => setTouched((t) => ({ ...t, email: true }))}
+              error={touched.email ? errors.email : ""}
+              className="mb-5 w-full"
             />
-            
+
             <TextField
               label="Phone Number"
-              placeholder="Enter your phone number"
+              required
+              placeholder="Enter phone number"
               value={phoneNumber}
               onChange={(e) => setPhoneNumber(e.target.value)}
-              className="text-left mb-5 w-full"
+              onFocus={() =>
+                setTouched((t) => ({ ...t, phoneNumber: true }))
+              }
+              error={touched.phoneNumber ? errors.phoneNumber : ""}
+              className="mb-5 w-full"
             />
           </div>
 
+          {/* PASSWORDS */}
           <div className="flex flex-row gap-3">
             <TextField
               label="Password"
               type="password"
-              placeholder="Enter your password"
+              required
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              required
-              className="text-left mb-3 w-full"
+              onFocus={() => setTouched((t) => ({ ...t, password: true }))}
+              error={touched.password ? errors.password : ""}
+              className="mb-3 w-full"
             />
 
             <TextField
               label="Confirm Password"
               type="password"
-              placeholder="Confirm the password"
+              required
               value={confirmedPassword}
               onChange={(e) => setConfirmedPassword(e.target.value)}
-              required
-              className="text-left mb-3 w-full"
+              onFocus={() =>
+                setTouched((t) => ({ ...t, confirmedPassword: true }))
+              }
+              error={touched.confirmedPassword ? errors.confirmedPassword : ""}
+              className="mb-3 w-full"
             />
           </div>
-          
+
+          {/* LOGIN LINK */}
           <div className="text-left mb-8">
-            <span className="text-left text-gray-600 w-fit mr-2">
-              Already part of the Family? 
-            </span>
+            <span className="text-gray-600 mr-2">Already part of the Family?</span>
             <a
               href="/login"
-              className="underline text-left text-gray-600 visited:text-primary-500 hover:text-info w-fit"
+              className="underline text-gray-600 hover:text-info"
             >
               Log in
             </a>
           </div>
 
-          {/* Sign Up Button WITH loading */}
+          {/* SUBMIT BUTTON */}
           <Button
             variant="primary"
             size="lg"
             className="w-full rounded-xl"
             loading={loading}
-            disabled={loading}
+            disabled={loading || !isFormValid}
             onClick={handleSignUp}
           >
             Sign Up
           </Button>
+
         </div>
       </Card>
     </div>

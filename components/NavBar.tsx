@@ -1,9 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Logo from "./Logo";
 import Button from "./Button";
 import Link from "next/link";
+import { supabase } from "@/lib/supabaseClient";
 
 interface NavLink {
   label: string;
@@ -36,15 +37,47 @@ export default function NavBar({
   onNotificationsClick,
   showNotifications = true,
 }: Readonly<NavBarProps>) {
+
   const [mobileOpen, setMobileOpen] = useState(false);
 
   // NEW: loading states
   const [loadingLogin, setLoadingLogin] = useState(false);
   const [loadingSignup, setLoadingSignup] = useState(false);
+  const [loadingLogOut, setLoadingLogOut] = useState(false);
+
+  // NEW: user session state
+  const [user, setUser] = useState(null);
+
+  // 🔥 Check login state on mount
+  useEffect(() => {
+    const checkSession = async () => {
+      const { data } = await supabase.auth.getSession();
+      setUser(data.session?.user ?? null);
+    };
+
+    checkSession();
+
+    // 🔥 Listen for login/logout in real-time
+    const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user ?? null);
+    });
+
+    return () => {
+      listener.subscription.unsubscribe();
+    };
+  }, []);
+
+  const handleLogout = async () => {
+    setLoadingLogOut(true);
+    await supabase.auth.signOut();
+    setTimeout(() => {
+      window.location.href = "/login";
+      setLoadingLogOut(false);
+    }, 600);
+  };
 
   const handleLogin = () => {
     setLoadingLogin(true);
-
     setTimeout(() => {
       if (onSignIn) onSignIn();
       else if (signInLink) window.location.href = signInLink;
@@ -54,7 +87,6 @@ export default function NavBar({
 
   const handleSignup = () => {
     setLoadingSignup(true);
-
     setTimeout(() => {
       if (onSignUp) onSignUp();
       else if (signUpLink) window.location.href = signUpLink;
@@ -101,34 +133,53 @@ export default function NavBar({
           </button>
         )}
 
+        {/* Desktop buttons */}
         <div className="hidden md:flex items-center space-x-3">
 
-          {/* LOGIN BUTTON */}
-          <Button
-            variant="primary"
-            size="sm"
-            loading={loadingLogin}
-            disabled={loadingLogin}
-            onClick={handleLogin}
-          >
-            Log In
-          </Button>
+          {/* 🔥 CONDITIONAL BUTTONS */}
 
-          {/* SIGNUP BUTTON */}
-          <Button
-            variant="outline"
-            size="sm"
-            loading={loadingSignup}
-            disabled={loadingSignup}
-            onClick={handleSignup}
-          >
-            Sign Up
-          </Button>
+          {!user && (
+            <>
+              {/* LOGIN BUTTON */}
+              <Button
+                variant="primary"
+                size="sm"
+                loading={loadingLogin}
+                disabled={loadingLogin}
+                onClick={handleLogin}
+              >
+                Log In
+              </Button>
+
+              {/* SIGNUP BUTTON */}
+              <Button
+                variant="outline"
+                size="sm"
+                loading={loadingSignup}
+                disabled={loadingSignup}
+                onClick={handleSignup}
+              >
+                Sign Up
+              </Button>
+            </>
+          )}
+
+          {user && (
+            <Button
+              variant="outline"
+              size="sm"
+              loading={loadingLogOut}
+              disabled={loadingLogOut}
+              onClick={handleLogout}
+            >
+              Log Out
+            </Button>
+          )}
         </div>
 
         {/* Mobile menu button */}
         <button
-          className="md:hidden p-2 rounded-md hover:bg-accent-200 focus:outline-none focus:ring-2 focus:ring-primary-500"
+          className="md:hidden p-2 rounded-md hover:bg-accent-200"
           onClick={() => setMobileOpen(!mobileOpen)}
           aria-label="Toggle menu"
         >
@@ -150,27 +201,43 @@ export default function NavBar({
           ))}
 
           <div className="flex flex-col space-y-2 mt-4">
+            
+            {/* MOBILE CONDITIONAL BUTTONS */}
+            {!user && (
+              <>
+                <Button
+                  variant="primary"
+                  size="sm"
+                  loading={loadingLogin}
+                  disabled={loadingLogin}
+                  onClick={handleLogin}
+                >
+                  Sign In
+                </Button>
 
-            <Button
-              variant="primary"
-              size="sm"
-              loading={loadingLogin}
-              disabled={loadingLogin}
-              onClick={handleLogin}
-            >
-              Sign In
-            </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  loading={loadingSignup}
+                  disabled={loadingSignup}
+                  onClick={handleSignup}
+                >
+                  Sign Up
+                </Button>
+              </>
+            )}
 
-            <Button
-              variant="outline"
-              size="sm"
-              loading={loadingSignup}
-              disabled={loadingSignup}
-              onClick={handleSignup}
-            >
-              Sign Up
-            </Button>
-
+            {user && (
+              <Button
+                variant="outline"
+                size="sm"
+                loading={loadingLogOut}
+                disabled={loadingLogOut}
+                onClick={handleLogout}
+              >
+                Log Out
+              </Button>
+            )}
           </div>
         </div>
       )}

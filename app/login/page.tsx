@@ -7,42 +7,88 @@ import Button from "@/components/Button";
 import { FaHandPeace, FaHandPointDown } from "react-icons/fa6";
 import { FaHandPaper } from "react-icons/fa";
 import Card from "@/components/Card";
+import { supabase } from "@/lib/supabaseClient";
 
 export default function LoginPage() {
-  const [email, setEmail] = useState("");
+  const [identifier, setIdentifier] = useState(""); // email or phone
   const [password, setPassword] = useState("");
 
-  // NEW: Loading state
   const [loading, setLoading] = useState(false);
 
-  const handleLogin = () => {
+  // Validation errors
+  const [identifierError, setIdentifierError] = useState("");
+  const [passwordError, setPasswordError] = useState("");
+
+  // NEW: touched states
+  const [touchedIdentifier, setTouchedIdentifier] = useState(false);
+  const [touchedPassword, setTouchedPassword] = useState(false);
+
+  // Validators
+  const isEmail = (value: string) => /\S+@\S+\.\S+/.test(value);
+  const isPhone = (value: string) => /^[0-9+\-\s().]{6,}$/.test(value);
+
+  // Realtime validation, but only after touch
+  useEffect(() => {
+    if (!touchedIdentifier) return;
+
+    if (!identifier) setIdentifierError("Please enter email or phone number");
+    else if (!isEmail(identifier) && !isPhone(identifier))
+      setIdentifierError("Enter a valid email or phone number");
+    else setIdentifierError("");
+  }, [identifier, touchedIdentifier]);
+
+  useEffect(() => {
+    if (!touchedPassword) return;
+
+    if (!password) setPasswordError("Password is required");
+    else setPasswordError("");
+  }, [password, touchedPassword]);
+
+  const handleLogin = async () => {
+    setTouchedIdentifier(true);
+    setTouchedPassword(true);
+
+    if (identifierError || passwordError) return;
+
     setLoading(true);
 
-    setTimeout(() => {
-      setLoading(false);
+    let response;
 
-      // Replace this later with actual login logic (API or router)
-      console.log("Login submitted!");
-    }, 600);
+    if (isEmail(identifier)) {
+      response = await supabase.auth.signInWithPassword({
+        email: identifier,
+        password,
+      });
+    } else if (isPhone(identifier)) {
+      response = await supabase.auth.signInWithPassword({
+        phone: identifier,
+        password,
+      });
+    }
+
+    const { error } = response || {};
+    setLoading(false);
+
+    if (error) {
+      alert(error.message);
+      return;
+    }
+
+    window.location.href = "/dashboard";
   };
 
-  // ICON ROTATION
+  // Animated icons (unchanged)
   const icons = [FaHandPeace, FaHandPaper, FaHandPointDown];
   const [index, setIndex] = useState(0);
-
   useEffect(() => {
     const interval = setInterval(() => {
       setIndex((i) => (i + 1) % icons.length);
     }, 1000);
-
     return () => clearInterval(interval);
   }, []);
-
   const CurrentIcon = icons[index];
 
-  // Inject custom keyframes once 
   useEffect(() => {
-    if (typeof document === "undefined") return;
     if (!document.getElementById("logo-float-keyframes")) {
       const styleEl = document.createElement("style");
       styleEl.id = "logo-float-keyframes";
@@ -64,32 +110,37 @@ export default function LoginPage() {
             Welcome back
           </Heading2>
 
-          {/* Animated Icon */}
           <CurrentIcon
             className="transition-opacity duration-500 ease-in-out animate-[logoFloat_3s_ease-in-out_infinite]"
             size={28}
           />
         </div>
 
-        {/* Form fields */}
         <div className="flex flex-col w-fit self-center min-w-sm">
+
+          {/* IDENTIFIER FIELD */}
           <TextField
             label="Email or Phone Number"
             placeholder="Enter your email or phone number"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            required
+            value={identifier}
+            onFocus={() => setTouchedIdentifier(true)}
+            onChange={(e) => setIdentifier(e.target.value)}
+            error={touchedIdentifier ? identifierError : ""}
             className="text-left mb-5"
+            required
           />
 
+          {/* PASSWORD FIELD */}
           <TextField
             label="Password"
             type="password"
             placeholder="Enter your password"
             value={password}
+            onFocus={() => setTouchedPassword(true)}
             onChange={(e) => setPassword(e.target.value)}
+            error={touchedPassword ? passwordError : ""}
+            className="text-left mb-5"
             required
-            className="text-left mb-3"
           />
 
           <a
@@ -99,13 +150,12 @@ export default function LoginPage() {
             Forgot Password?
           </a>
 
-          {/* LOGIN BUTTON WITH LOADING */}
           <Button
             variant="primary"
             size="lg"
             className="w-full rounded-xl"
             loading={loading}
-            disabled={loading}
+            disabled={loading || !!identifierError || !!passwordError}
             onClick={handleLogin}
           >
             Log In
