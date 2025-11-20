@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 import ClientLayoutWrapper from "./ClientLayoutWrapper";
-import LogoIcon from "@/components/LogoIcon";
 import "./globals.css";
 
 export const metadata: Metadata = {

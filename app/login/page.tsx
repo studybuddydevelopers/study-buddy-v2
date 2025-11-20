@@ -1,91 +1,166 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useState, useEffect } from "react";
 import Heading2 from "@/components/Heading2";
 import TextField from "@/components/TextField";
 import Button from "@/components/Button";
+import { FaHandPeace, FaHandPointDown } from "react-icons/fa6";
+import { FaHandPaper } from "react-icons/fa";
 import Card from "@/components/Card";
+import { supabase } from "@/lib/supabaseClient";
 
 export default function LoginPage() {
-  const [email, setEmail] = useState("");
+  const [identifier, setIdentifier] = useState(""); // email or phone
   const [password, setPassword] = useState("");
-  const [msg, setMsg] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
-  const router = useRouter();
 
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    setMsg(null);
+  const [loading, setLoading] = useState(false);
+
+  // Validation errors
+  const [identifierError, setIdentifierError] = useState("");
+  const [passwordError, setPasswordError] = useState("");
+
+  // NEW: touched states
+  const [touchedIdentifier, setTouchedIdentifier] = useState(false);
+  const [touchedPassword, setTouchedPassword] = useState(false);
+
+  // Validators
+  const isEmail = (value: string) => /\S+@\S+\.\S+/.test(value);
+  const isPhone = (value: string) => /^[0-9+\-\s().]{6,}$/.test(value);
+
+  // Realtime validation, but only after touch
+  useEffect(() => {
+    if (!touchedIdentifier) return;
+
+    if (!identifier) setIdentifierError("Please enter email or phone number");
+    else if (!isEmail(identifier) && !isPhone(identifier))
+      setIdentifierError("Enter a valid email or phone number");
+    else setIdentifierError("");
+  }, [identifier, touchedIdentifier]);
+
+  useEffect(() => {
+    if (!touchedPassword) return;
+
+    if (!password) setPasswordError("Password is required");
+    else setPasswordError("");
+  }, [password, touchedPassword]);
+
+  const handleLogin = async () => {
+    setTouchedIdentifier(true);
+    setTouchedPassword(true);
+
+    if (identifierError || passwordError) return;
+
     setLoading(true);
 
-    try {
-      const res = await fetch("/api/login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password }),
+    let response;
+
+    if (isEmail(identifier)) {
+      response = await supabase.auth.signInWithPassword({
+        email: identifier,
+        password,
       });
-
-      const data = await res.json();
-
-      if (!res.ok) {
-        setMsg(data?.error || "Login failed");
-      } else {
-        // cookie is set by the server
-        // redirect wherever you want after login
-        router.push("/");
-      }
-    } catch (err) {
-      setMsg("Network error");
-    } finally {
-      setLoading(false);
+    } else if (isPhone(identifier)) {
+      response = await supabase.auth.signInWithPassword({
+        phone: identifier,
+        password,
+      });
     }
-  }
+
+    const { error } = response || {};
+    setLoading(false);
+
+    if (error) {
+      alert(error.message);
+      return;
+    }
+
+    window.location.href = "/dashboard";
+  };
+
+  // Animated icons (unchanged)
+  const icons = [FaHandPeace, FaHandPaper, FaHandPointDown];
+  const [index, setIndex] = useState(0);
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setIndex((i) => (i + 1) % icons.length);
+    }, 1000);
+    return () => clearInterval(interval);
+  }, []);
+  const CurrentIcon = icons[index];
+
+  useEffect(() => {
+    if (!document.getElementById("logo-float-keyframes")) {
+      const styleEl = document.createElement("style");
+      styleEl.id = "logo-float-keyframes";
+      styleEl.textContent = `
+        @keyframes logoFloat {
+          0%, 100% { transform: translateY(0); }
+          50% { transform: translateY(-5px); }
+        }
+      `;
+      document.head.appendChild(styleEl);
+    }
+  }, []);
 
   return (
     <div className="flex items-center justify-center p-7 mt-7">
-      <Card shadow="md" padding="md" className="flex flex-col self-center min-w-min">
-        <Heading2 className="text-center" gutter="lg">
-          Log In
-        </Heading2>
+      <Card shadow="md" hover className="flex flex-col min-w-min">
+        <div className="flex flex-row justify-center">
+          <Heading2 gutter="lg" className="text-center">
+            Welcome back
+          </Heading2>
 
-        <form
-          onSubmit={handleSubmit}
-          className="flex flex-col w-fit self-center min-w-[30em]"
-        >
+          <CurrentIcon
+            className="transition-opacity duration-500 ease-in-out animate-[logoFloat_3s_ease-in-out_infinite]"
+            size={28}
+          />
+        </div>
+
+        <div className="flex flex-col w-fit self-center min-w-sm">
+
+          {/* IDENTIFIER FIELD */}
           <TextField
-            label="Email"
-            placeholder="Enter your email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
+            label="Email or Phone Number"
+            placeholder="Enter your email or phone number"
+            value={identifier}
+            onFocus={() => setTouchedIdentifier(true)}
+            onChange={(e) => setIdentifier(e.target.value)}
+            error={touchedIdentifier ? identifierError : ""}
             className="text-left mb-5"
+            required
           />
 
+          {/* PASSWORD FIELD */}
           <TextField
             label="Password"
             type="password"
             placeholder="Enter your password"
             value={password}
+            onFocus={() => setTouchedPassword(true)}
             onChange={(e) => setPassword(e.target.value)}
+            error={touchedPassword ? passwordError : ""}
             className="text-left mb-5"
+            required
           />
+
+          <a
+            href="/forgot-password"
+            className="underline text-left mb-6 text-gray-600 visited:text-primary-500 hover:text-info w-fit"
+          >
+            Forgot Password?
+          </a>
 
           <Button
             variant="primary"
             size="lg"
             className="w-full rounded-xl"
-            type="submit"
-            disabled={loading}
+            loading={loading}
+            disabled={loading || !!identifierError || !!passwordError}
+            onClick={handleLogin}
           >
-            {loading ? "Logging in..." : "Log In"}
+            Log In
           </Button>
-
-          {msg && (
-            <p className="mt-2 text-sm text-red-500">
-              {msg}
-            </p>
-          )}
-        </form>
+        </div>
       </Card>
     </div>
   );

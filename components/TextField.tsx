@@ -9,6 +9,8 @@ interface TextFieldProps {
   placeholder?: string;
   value?: string;
   onChange?: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  onFocus?: (e: React.FocusEvent<HTMLInputElement>) => void;  
+  onBlur?: (e: React.FocusEvent<HTMLInputElement>) => void;    
   error?: string;
   disabled?: boolean;
   required?: boolean;
@@ -21,6 +23,8 @@ export default function TextField({
   placeholder,
   value,
   onChange,
+  onFocus,                  
+  onBlur,                   
   error,
   disabled = false,
   required = false,
@@ -44,6 +48,8 @@ export default function TextField({
           placeholder={placeholder}
           value={value}
           onChange={onChange}
+          onFocus={onFocus}      
+          onBlur={onBlur}        
           disabled={disabled}
           className={`w-full px-4 py-3 rounded-xl border border-transparent bg-gray-50 text-gray-900 text-[0.95rem] transition-all duration-200
             placeholder:text-gray-400
