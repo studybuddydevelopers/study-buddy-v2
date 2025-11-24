@@ -1,19 +1,20 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import Logo from "./Logo";
 import Button from "./Button";
 import Link from "next/link";
-import { supabase } from "@/lib/supabaseClient";
+import { usePathname } from "next/navigation";
 import type { User } from "@supabase/supabase-js";
+import { supabase } from "@/lib/supabaseClient";
 
 interface NavLink {
   label: string;
   href: string;
-  active?: boolean;
 }
 
 interface NavBarProps {
+  user: User | null;
   links?: NavLink[];
   onSignIn?: () => void;
   onSignUp?: () => void;
@@ -24,13 +25,14 @@ interface NavBarProps {
 }
 
 export default function NavBar({
-  links = [
-    { label: "Dashboard", href: "/dashboard", active: true },
+  user,
+  links = user ? [
+    { label: "Dashboard", href: "/dashboard" },
     { label: "Study Materials", href: "/materials" },
     { label: "Mock Exams", href: "/exams" },
     { label: "Progress", href: "/progress" },
     { label: "Chat Bot", href: "/chat" },
-  ],
+  ] : [],
   onSignIn,
   onSignUp,
   signInLink,
@@ -38,168 +40,124 @@ export default function NavBar({
   onNotificationsClick,
   showNotifications = true,
 }: Readonly<NavBarProps>) {
+  const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
-
   const [loadingLogin, setLoadingLogin] = useState(false);
   const [loadingSignup, setLoadingSignup] = useState(false);
   const [loadingLogOut, setLoadingLogOut] = useState(false);
 
-  // 🟢 AUTH STATE (no flicker)
-  const [user, setUser] = useState<User | null>(null);
-  const [loadingUser, setLoadingUser] = useState(true);
+  const linkBase =
+    "text-gray-700 hover:text-primary-500 font-medium transition-colors content-center";
 
-  useEffect(() => {
-    let active = true;
-
-    const loadUser = async () => {
-      const { data } = await supabase.auth.getSession();
-
-      if (active) {
-        setUser(data.session?.user ?? null);
-        setLoadingUser(false);
-      }
-    };
-
-    loadUser();
-
-    const { data: listener } = supabase.auth.onAuthStateChange(
-      (_event, session) => {
-        if (active) {
-          setUser(session?.user ?? null);
-        }
-      }
-    );
-
-    return () => {
-      active = false;
-      listener.subscription.unsubscribe();
-    };
-  }, []);
+  const linkActive =
+    "text-primary-500 font-semibold bg-accent-100 px-3 py-1 rounded-lg";
 
   const handleLogout = async () => {
     setLoadingLogOut(true);
     await supabase.auth.signOut();
-
-    setTimeout(() => {
-      window.location.href = "/login";
-    }, 600);
+    window.location.href = "/login";
   };
 
   const handleLogin = () => {
     setLoadingLogin(true);
-    setTimeout(() => {
-      if (onSignIn) onSignIn();
-      else window.location.href = signInLink ?? "/login";
-    }, 600);
+    window.location.href = signInLink ?? "/login";
   };
 
   const handleSignup = () => {
     setLoadingSignup(true);
-    setTimeout(() => {
-      if (onSignUp) onSignUp();
-      else window.location.href = signUpLink ?? "/sign-up";
-    }, 600);
+    window.location.href = signUpLink ?? "/sign-up";
   };
-
-  const linkBase =
-    "text-gray-700 hover:text-primary-500 font-medium transition-colors";
-  const linkActive =
-    "text-primary-500 font-semibold bg-accent-100 px-3 py-1 rounded-lg";
 
   return (
     <header className="flex items-center justify-between bg-white shadow px-6 py-3">
-      {/* Logo */}
-      <Link href="/">
+      <Link href={user ? "/dashboard" : "/"}>
         <Logo variant="full" size="lg" animation="rotate" />
       </Link>
 
-      {/* Desktop nav */}
       <nav className="hidden md:flex space-x-8">
         {links.map((link) => (
-          <a
+          <Link
             key={link.href}
             href={link.href}
-            className={`${linkBase} ${link.active ? linkActive : ""}`}
+            className={`${linkBase} ${
+              pathname.startsWith(link.href) ? linkActive : ""
+            }`}
           >
             {link.label}
-          </a>
+          </Link>
         ))}
       </nav>
 
-      {/* Right side */}
       <div className="flex items-center space-x-4">
+        <div className="hidden md:flex items-center space-x-3">
+          {!user && (
+            <>
+              <Button
+                variant="primary"
+                size="sm"
+                loading={loadingLogin}
+                disabled={loadingLogin}
+                onClick={handleLogin}
+              >
+                Log In
+              </Button>
 
-        {/* AUTH BUTTONS — no flicker */}
-        {!loadingUser && (
-          <div className="hidden md:flex items-center space-x-3">
-            {!user && (
-              <>
-                <Button
-                  variant="primary"
-                  size="sm"
-                  loading={loadingLogin}
-                  disabled={loadingLogin}
-                  onClick={handleLogin}
-                >
-                  Log In
-                </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                loading={loadingSignup}
+                disabled={loadingSignup}
+                onClick={handleSignup}
+              >
+                Sign Up
+              </Button>
+            </>
+          )}
 
-                <Button
-                  variant="outline"
-                  size="sm"
-                  loading={loadingSignup}
-                  disabled={loadingSignup}
-                  onClick={handleSignup}
-                >
-                  Sign Up
-                </Button>
-              </>
-            )}
-
-            {user && (
-              <>
+          {user && (
+            <>
+              {showNotifications && (
                 <button
                   className="text-xl cursor-pointer p-2 rounded-full hover:bg-accent-200 transition"
-                  aria-label="Notifications"
                   onClick={onNotificationsClick}
                 >
                   🔔
                 </button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  loading={loadingLogOut}
-                  disabled={loadingLogOut}
-                  onClick={handleLogout}
-                >
-                  Log Out
-                </Button>
-              </>
-            )}
-          </div>
-        )}
+              )}
 
-        {/* Mobile toggle */}
+              <Button
+                variant="outline"
+                size="sm"
+                loading={loadingLogOut}
+                disabled={loadingLogOut}
+                onClick={handleLogout}
+              >
+                Log Out
+              </Button>
+            </>
+          )}
+        </div>
+
         <button
           className="md:hidden p-2 rounded-md hover:bg-accent-200"
           onClick={() => setMobileOpen(!mobileOpen)}
-          aria-label="Toggle menu"
         >
           {mobileOpen ? "✖" : "☰"}
         </button>
       </div>
 
-      {/* Mobile menu */}
-      {mobileOpen && !loadingUser && (
+      {mobileOpen && (
         <div className="md:hidden mt-3 flex flex-col space-y-3 bg-white shadow rounded-lg p-4">
           {links.map((link) => (
-            <a
+            <Link
               key={link.href}
               href={link.href}
-              className={`${linkBase} ${link.active ? linkActive : ""}`}
+              className={`${linkBase} ${
+                pathname.startsWith(link.href) ? linkActive : ""
+              }`}
             >
               {link.label}
-            </a>
+            </Link>
           ))}
 
           <div className="flex flex-col space-y-2 mt-4">

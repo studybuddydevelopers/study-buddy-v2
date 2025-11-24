@@ -43,12 +43,14 @@ export async function middleware(req: NextRequest) {
     "/account",
   ];
 
-  const authPages = ["/login", "/sign-up"];
+  const authPages = ["/login", "/sign-up", "/forgot-password"];
 
   if (protectedPaths.some((x) => path.startsWith(x)) && !user) {
     return NextResponse.redirect(new URL("/login", req.url));
   }
 
+  console.log(path);
+  
   if (authPages.some((x) => path.startsWith(x)) && user) {
     return NextResponse.redirect(new URL("/dashboard", req.url));
   }

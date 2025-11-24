@@ -22,7 +22,7 @@ export default function Footer({
   ],
 }: Readonly<FooterProps>) {
   return (
-    <footer className="bg-accent-500 py-6 text-center text-sm mt-16">
+    <footer className="bg-accent-500 py-6 text-center text-sm mt-2 mb-2">
       {/* Top links */}
       <nav className="flex justify-around space-x-8 mb-3">
         {links.map((link) => (

@@ -11,7 +11,15 @@ export default function NavBarDemo() {
       <NavBar
         onSignIn={() => alert("Sign In clicked")}
         onSignUp={() => alert("Sign Up clicked")}
+        links={[]}
+      />
+
+      <NavBar
         onNotificationsClick={() => alert("Notifications clicked")}
+      />
+
+      <NavBar
+        loading={true}
       />
     </div>
   );

@@ -1,20 +1,35 @@
-// app/ClientLayoutWrapper.tsx
 "use client";
 
-import Footer from "@/components/Footer";
+import { createContext, useContext } from "react";
 import Navbar from "@/components/NavBar";
+import Footer from "@/components/Footer";
+import type { User } from "@supabase/supabase-js";
 
-export default function ClientLayoutWrapper({ children }: { children: React.ReactNode }) {
+export const UserContext = createContext<User | null>(null);
+
+export function useUser() {
+  return useContext(UserContext);
+}
+
+export default function ClientLayoutWrapper({
+  children,
+  user,
+}: {
+  children: React.ReactNode;
+  user: User | null;
+}) {
   return (
-    <>
-        <Navbar
-            links={[]}
-            signInLink="/login"
-            signUpLink="/sign-up"
-            onNotificationsClick={() => alert("Notifications clicked")}
-        />
-        {children}
-        <Footer />
-    </>
+    <UserContext.Provider value={user}>
+      <Navbar
+        user={user}
+        signInLink="/login"
+        signUpLink="/sign-up"
+        onNotificationsClick={() => alert("Notifications clicked")}
+      />
+      
+      {children}
+
+      <Footer />
+    </UserContext.Provider>
   );
 }

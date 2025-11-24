@@ -1,31 +1,40 @@
 import type { Metadata } from "next";
 import ClientLayoutWrapper from "./ClientLayoutWrapper";
 import "./globals.css";
+import { cookies } from "next/headers";
+import { createServerClient } from "@supabase/ssr";
 
 export const metadata: Metadata = {
   title: "Study Buddy",
   description: "The no 1 platform to get high grades at WAEC exams",
-  icons: [
-    "logo-icon.svg",
-  ],
+  icons: ["logo-icon.svg"],
 };
 
-export default function RootLayout({
-  children,
-}: Readonly<{
-  children: React.ReactNode;
-}>) {
+export default async function RootLayout({ children }: { children: React.ReactNode }) {
+  const cookieStore = await cookies();
+
+  const supabase = createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      cookies: {
+        getAll() {
+          return cookieStore.getAll();
+        },
+      },
+    }
+  );
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
 
   return (
     <html lang="en">
       <body>
-        <div id="root">
-          <div>
-            <main className="p-6 flex justify-between flex-col min-h-svh">
-              <ClientLayoutWrapper>{children}</ClientLayoutWrapper>
-            </main>
-          </div>
-        </div>
+        <ClientLayoutWrapper user={user}>
+          {children}
+        </ClientLayoutWrapper>
       </body>
     </html>
   );

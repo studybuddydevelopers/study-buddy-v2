@@ -1,7 +1,6 @@
 "use client";
 
 import { useSearchParams } from "next/navigation";
-import Heading2 from "@/components/Heading2";
 import Paragraph from "@/components/Paragraph";
 import Button from "@/components/Button";
 import Card from "@/components/Card";
