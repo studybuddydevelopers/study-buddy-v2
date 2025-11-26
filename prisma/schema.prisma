@@ -1,18 +1,327 @@
-// prisma/schema.prisma
+// =========================================================
+//  GENERATOR & DATASOURCE
+// =========================================================
+
 generator client {
-  provider = "prisma-client-js"  // or "prisma-client", depending
+  provider = "prisma-client-js"
   output   = "../lib/generated/prisma"
 }
 
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
-  // no url, no directUrl
 }
 
-model TestItem {
+// =========================================================
+//  ENUMS
+// =========================================================
+
+enum Sender {
+  user
+  ai
+}
+
+enum SubscriptionPlan {
+  free
+  premium
+}
+
+enum SubscriptionStatus {
+  active
+  expired
+  canceled
+}
+
+// =========================================================
+//  AUTH & USER PROFILES
+// =========================================================
+
+model User {
   id        String   @id @default(uuid())
-  name      String
+  createdAt DateTime @default(now())
+  isAdmin   Boolean  @default(false)
+
+  profile         UserProfile?
+  aiQuestions     AiQuestion[]
+  attempts        PastQuestionAttempt[]
+  mockExams       MockExamInstance[]
+  recommendations Recommendation[]
+  progress        ProgressTrack[]
+  subscriptions   Subscription[]
+  schoolStudents  SchoolStudent[]
+  transactions    Transaction[]
+}
+
+model UserProfile {
+  userId            String   @id
+  firstName         String
+  middleNames       String?
+  lastNames         String
+  phoneNumber       String
+  gradeLevel        String?
+  waecYear          Int?
+  preferredSubjects String[] // fixed: no optional list
+  avatarUrl         String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+// =========================================================
+//  SUBJECTS & TOPICS
+// =========================================================
+
+model Subject {
+  id          String  @id @default(uuid())
+  name        String
+  waecCode    String?
+  description String?
+
+  topics          Topic[]
+  pastQuestions   PastQuestion[]
+  recommendations Recommendation[]
+  progressTracks  ProgressTrack[]
+  mockTemplates   MockExamTemplate[]
+  aiQuestions     AiQuestion[]
+  curriculumFiles CurriculumFile[]
+}
+
+model Topic {
+  id             String  @id @default(uuid())
+  subjectId      String
+  title          String
+  waecOutlineRef String?
+  difficulty     Int?
+
+  subject         Subject          @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+  pastQuestions   PastQuestion[]
+  recommendations Recommendation[]
+  aiQuestions     AiQuestion[]
+}
+
+// =========================================================
+//  PAST QUESTIONS
+// =========================================================
+
+model PastQuestion {
+  id               String  @id @default(uuid())
+  subjectId        String
+  topicId          String?
+  questionText     String
+  questionImageUrl String?
+  answerText       String
+  explanationText  String?
+  year             Int?
+  questionNumber   String?
+  difficulty       Int?
+
+  subject Subject @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+  topic   Topic?  @relation(fields: [topicId], references: [id], onDelete: SetNull)
+
+  attempts    PastQuestionAttempt[]
+  mockAnswers MockExamAnswer[]
+}
+
+// =========================================================
+//  USER PAST QUESTION ATTEMPTS
+// =========================================================
+
+model PastQuestionAttempt {
+  id               String   @id @default(uuid())
+  userId           String
+  questionId       String
+  userAnswer       String?
+  isCorrect        Boolean
+  score            Int?
+  timeTakenSeconds Int?
+  attemptedAt      DateTime @default(now())
+
+  user     User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  question PastQuestion @relation(fields: [questionId], references: [id], onDelete: Cascade)
+}
+
+// =========================================================
+//  AI Q&A SYSTEM
+// =========================================================
+
+model AiQuestion {
+  id           String   @id @default(uuid())
+  userId       String
+  subjectId    String?
+  topicId      String?
+  questionText String
+  createdAt    DateTime @default(now())
+
+  user    User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  subject Subject? @relation(fields: [subjectId], references: [id], onDelete: SetNull)
+  topic   Topic?   @relation(fields: [topicId], references: [id], onDelete: SetNull)
+
+  messages AiQuestionMessage[]
+}
+
+model AiQuestionMessage {
+  id           String   @id @default(uuid())
+  aiQuestionId String
+  sender       Sender
+  message      String
+  createdAt    DateTime @default(now())
+
+  aiQuestion AiQuestion @relation(fields: [aiQuestionId], references: [id], onDelete: Cascade)
+}
+
+// =========================================================
+//  MOCK EXAMS
+// =========================================================
+
+model MockExamTemplate {
+  id            String  @id @default(uuid())
+  subjectId     String
+  title         String
+  description   String?
+  questionCount Int
+
+  subject   Subject            @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+  instances MockExamInstance[]
+}
+
+model MockExamInstance {
+  id          String    @id @default(uuid())
+  userId      String
+  templateId  String
+  startedAt   DateTime  @default(now())
+  submittedAt DateTime?
+  totalScore  Int?
+  graded      Boolean   @default(false)
+
+  user     User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  template MockExamTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  answers  MockExamAnswer[]
+}
+
+model MockExamAnswer {
+  id                 String   @id @default(uuid())
+  mockExamInstanceId String
+  pastQuestionId     String
+  userAnswer         String?
+  isCorrect          Boolean?
+  aiExplanation      String?
+  score              Int?
+
+  instance MockExamInstance @relation(fields: [mockExamInstanceId], references: [id], onDelete: Cascade)
+  question PastQuestion     @relation(fields: [pastQuestionId], references: [id], onDelete: Cascade)
+}
+
+// =========================================================
+//  AI RECOMMENDATIONS
+// =========================================================
+
+model Recommendation {
+  id                 String   @id @default(uuid())
+  userId             String
+  subjectId          String?
+  topicId            String?
+  recommendationText String
+  createdAt          DateTime @default(now())
+
+  user    User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  subject Subject? @relation(fields: [subjectId], references: [id], onDelete: SetNull)
+  topic   Topic?   @relation(fields: [topicId], references: [id], onDelete: SetNull)
+}
+
+// =========================================================
+//  PROGRESS TRACKING
+// =========================================================
+
+model ProgressTrack {
+  id                 String   @id @default(uuid())
+  userId             String
+  subjectId          String
+  progressPercentage Int      @default(0)
+  updatedAt          DateTime @default(now())
+
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  subject Subject @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+}
+
+// =========================================================
+//  SUBSCRIPTIONS
+// =========================================================
+
+model Subscription {
+  id            String             @id @default(uuid())
+  userId        String
+  plan          SubscriptionPlan   @default(free)
+  status        SubscriptionStatus @default(active)
+  startDate     DateTime           @default(now())
+  endDate       DateTime?
+  renewalMethod String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+// =========================================================
+//  ADMIN + CONTENT MGMT
+// =========================================================
+
+model CurriculumFile {
+  id         String   @id @default(uuid())
+  subjectId  String
+  fileUrl    String
+  uploadedBy String
+  uploadedAt DateTime @default(now())
+
+  subject Subject @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+}
+
+model PastQuestionSource {
+  id          String   @id @default(uuid())
+  paperYear   Int
+  paperPdfUrl String?
+  importedBy  String
+  importedAt  DateTime @default(now())
+}
+
+model AdminUser {
+  id        String   @id @default(uuid())
+  userId    String   @unique
+  role      String
   createdAt DateTime @default(now())
 }
 
+// =========================================================
+//  SCHOOLS - B2B FEATURES
+// =========================================================
+
+model School {
+  id         String  @id @default(uuid())
+  name       String
+  location   String?
+  adminEmail String?
+
+  students SchoolStudent[]
+}
+
+model SchoolStudent {
+  id       String   @id @default(uuid())
+  schoolId String
+  userId   String
+  joinedAt DateTime @default(now())
+
+  school School @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+// =========================================================
+//  PAYMENTS (LOGS)
+// =========================================================
+
+model Transaction {
+  id        String   @id @default(uuid())
+  userId    String
+  amount    Float
+  currency  String   @default("NGN")
+  status    String
+  reference String
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
