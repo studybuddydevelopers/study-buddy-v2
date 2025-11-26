@@ -5,6 +5,7 @@ import Paragraph from "@/components/Paragraph";
 import Button from "@/components/Button";
 import Card from "@/components/Card";
 import Heading1 from "@/components/Heading1";
+import Link from "next/link";
 
 export default async function VerifyEmailPage() {
   await new Promise(r => setTimeout(r, 1000)); // simulate loading
@@ -36,14 +37,15 @@ export default async function VerifyEmailPage() {
         <br />
 
         <div className="flex justify-center">
-          <Button
-            variant="primary"
-            size="lg"
-            onClick={() => (window.location.href = "/login")}
-            className="rounded-xl"
-          >
-            Go to Login
-          </Button>
+          <Link href={"/login"}>
+            <Button
+              variant="primary"
+              size="lg"
+              className="rounded-xl"
+            >
+              Go to Login
+            </Button>
+          </Link>
         </div>
 
       </Card>
