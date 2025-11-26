@@ -9,6 +9,7 @@ import { FaHandPaper } from "react-icons/fa";
 import Card from "@/components/Card";
 
 export default function LoginPage() {
+  // await new Promise(r => setTimeout(r, 1000)); // simulate loading
   const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
 
@@ -104,7 +105,7 @@ export default function LoginPage() {
 
   return (
     <div className="flex items-center justify-center p-7 mt-7">
-      <Card shadow="md" hover className="flex flex-col min-w-min">
+      <Card shadow="md" hover className="flex flex-col min-w-min flex-1">
         <div className="flex flex-row justify-center">
           <Heading2 gutter="lg" className="text-center">
             Welcome back
@@ -116,7 +117,7 @@ export default function LoginPage() {
           />
         </div>
 
-        <div className="flex flex-col w-fit self-center min-w-sm">
+        <div className="flex flex-col self-center min-w-[-webkit-fill-available]">
           <TextField
             label="Email or Phone Number"
             placeholder="Enter your email or phone number"

@@ -2,8 +2,8 @@
 
 import { useEffect } from "react";
 
-type Size = "sm" | "md" | "lg" | "xl" | "5xl";
-type Color = "default" | "primary" | "secondary" | "white";
+type Size = "xs" | "sm" | "md" | "lg" | "xl" | "2xl" | "3xl" | "4xl" | "5xl" | "6xl" | "max";
+type Color = "default" | "primary" | "secondary" | "accent" | "background" | "foreground" | "success" | "warning" | "error" | "info";
 
 interface LogoIconProps {
   animated?: boolean;
@@ -37,18 +37,30 @@ export default function LogoIcon({
   }, []);
 
   const sizeClasses: Record<Size, string> = {
+    xs: "h-5 w-5",
     sm: "h-5 w-5",
-    md: "h-6 w-6",
-    lg: "h-8 w-8",
-    xl: "h-10 w-10",
-    "5xl": "h-30 w-30",
+    md: "h-5 w-5",
+    lg: "h-7 w-7",
+    xl: "h-8 w-8",
+    "2xl": "h-9 w-9",
+    "3xl": "h-10 w-10",
+    "4xl": "h-12 w-12",
+    "5xl": "h-14 w-14",
+    "6xl": "h-20 w-20",
+    "max": "h-[25em] w-[25em]",
   };
 
   const colorClasses: Record<Color, string> = {
-    default: "text-gray-800",
+    default: "text-secondary-500",
     primary: "text-primary-500",
     secondary: "text-secondary-500",
-    white: "text-white",
+    accent: "text-accent-500",
+    background: "text-background-500",
+    foreground: "text-foreground-500",
+    success: "text-success-500",
+    warning: "text-warning-500",
+    error: "text-error-500",
+    info: "text-info-500",
   };
 
   return (
@@ -59,6 +71,7 @@ export default function LogoIcon({
       viewBox="0 0 1024 1024"
       role="img"
       aria-label={title}
+      key={animated ? "anim" : "no-anim"}
       className={`${sizeClasses[size]} ${colorClasses[color]} ${
         animated ? "animate-[logoFloat_3s_ease-in-out_infinite]" : ""
       } ${className}`}

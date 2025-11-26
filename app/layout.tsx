@@ -1,8 +1,11 @@
-import type { Metadata } from "next";
+import { Suspense } from "react";
 import ClientLayoutWrapper from "./ClientLayoutWrapper";
 import "./globals.css";
 import { cookies } from "next/headers";
 import { createServerClient } from "@supabase/ssr";
+import { Metadata } from "next";
+
+export const runtime = "nodejs"; // <-- required
 
 export const metadata: Metadata = {
   title: "Study Buddy",
@@ -10,11 +13,7 @@ export const metadata: Metadata = {
   icons: ["logo-icon.svg"],
 };
 
-export default async function RootLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+export default async function RootLayout({ children }: { children: React.ReactNode }) {
   const cookieStore = await cookies();
 
   const supabase = createServerClient(
@@ -24,12 +23,11 @@ export default async function RootLayout({
       cookies: {
         get(name) {
           return cookieStore.get(name)?.value;
-        },
-      },
+        }
+      }
     }
   );
 
-  // Fetch logged-in user (SSR)
   const {
     data: { user },
   } = await supabase.auth.getUser();
@@ -37,11 +35,18 @@ export default async function RootLayout({
   return (
     <html lang="en">
       <body>
-        {/* Pass SSR user ONLY once */}
         <main className="p-6 flex justify-between flex-col min-h-svh">
+
+          {/* Provide the user instantly to the client wrapper */}
           <ClientLayoutWrapper user={user}>
-            {children}
+            
+            {/* 🔥 <Suspense> here makes loading.tsx appear */}
+            <Suspense fallback={""}>
+              {children}
+            </Suspense>
+
           </ClientLayoutWrapper>
+
         </main>
       </body>
     </html>

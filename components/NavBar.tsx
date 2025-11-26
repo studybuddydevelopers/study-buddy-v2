@@ -65,7 +65,7 @@ export default function NavBar({
   };
 
   return (
-    <header className="flex items-center justify-between bg-white shadow px-6 py-3">
+    <header className="flex items-center justify-between bg-background shadow px-6 py-3">
       <Link href={user ? "/dashboard" : "/"}>
         <Logo variant="full" size="lg" animation="rotate" />
       </Link>
@@ -143,7 +143,7 @@ export default function NavBar({
       </div>
 
       {mobileOpen && (
-        <div className="md:hidden mt-3 flex flex-col space-y-3 bg-white shadow rounded-lg p-4">
+        <div className="md:hidden mt-3 flex flex-col space-y-3 bg-background shadow rounded-lg p-4">
           {links.map((link) => (
             <Link
               key={link.href}

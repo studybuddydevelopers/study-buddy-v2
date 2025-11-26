@@ -1,6 +1,6 @@
 "use client";
 
-type Variant = "default" | "muted" | "primary" | "secondary" | "accent" | "white";
+type Variant = "default" | "muted" | "primary" | "secondary" | "accent";
 type Align = "left" | "center" | "right";
 type Gutter = "none" | "sm" | "md" | "auto";
 
@@ -24,7 +24,6 @@ const variantTokens: Record<Variant, string> = {
   primary: "text-primary-600",
   secondary: "text-secondary-500",
   accent: "text-accent-500",
-  white: "text-white",
 };
 
 const alignTokens: Record<Align, string> = {

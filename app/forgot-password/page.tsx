@@ -9,6 +9,7 @@ import { FaHandPaper } from "react-icons/fa";
 import Card from "@/components/Card";
 
 export default function ForgotPasswordPage() {
+  // await new Promise(r => setTimeout(r, 1000)); // simulate loading
   const [identifier, setIdentifier] = useState("");
   const [loading, setLoading] = useState(false);
 

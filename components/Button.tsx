@@ -102,19 +102,19 @@ export default function Button({
 
   const variantClasses: Record<Variant, string> = {
     primary:
-      "border-2 border-primary-500 bg-primary-500 hover:bg-primary-400 text-white shadow-md hover:shadow-lg focus:ring-primary-400",
+      "border-2 border-primary-500 bg-primary-500 hover:bg-primary-400 text-background shadow-md hover:shadow-lg focus:ring-primary-400",
     secondary:
-      "bg-secondary-500 hover:bg-secondary-600 text-white shadow-md hover:shadow-lg focus:ring-secondary-400",
+      "bg-secondary-500 hover:bg-secondary-600 text-background shadow-md hover:shadow-lg focus:ring-secondary-400",
     outline:
-      "border-2 border-primary-500 text-primary-500 hover:bg-primary-500 hover:text-white focus:ring-primary-400",
+      "border-2 border-primary-500 text-primary-500 hover:bg-primary-500 hover:text-background focus:ring-primary-400",
     ghost:
       "bg-transparent text-primary-500 hover:bg-primary-100 focus:ring-primary-300",
     link:
       "bg-transparent text-primary-600 hover:underline px-0 py-0 focus:ring-0",
     destructive:
-      "bg-red-600 hover:bg-red-700 text-white focus:ring-red-400",
+      "bg-red-600 hover:bg-red-700 text-background focus:ring-red-400",
     success:
-      "bg-green-600 hover:bg-green-700 text-white focus:ring-green-400",
+      "bg-green-600 hover:bg-green-700 text-background focus:ring-green-400",
     neutral:
       "bg-gray-200 hover:bg-gray-300 text-gray-900 focus:ring-gray-400",
     disabledPlain:

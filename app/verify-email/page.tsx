@@ -6,7 +6,8 @@ import Button from "@/components/Button";
 import Card from "@/components/Card";
 import Heading1 from "@/components/Heading1";
 
-export default function VerifyEmailPage() {
+export default async function VerifyEmailPage() {
+  await new Promise(r => setTimeout(r, 1000)); // simulate loading
   const params = useSearchParams();
   const email = params.get("email");
 

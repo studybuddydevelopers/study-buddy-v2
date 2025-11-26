@@ -53,7 +53,7 @@ export default function TextField({
           disabled={disabled}
           className={`w-full px-4 py-3 rounded-xl border border-transparent bg-gray-50 text-gray-900 text-[0.95rem] transition-all duration-200
             placeholder:text-gray-400
-            focus:border-primary-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-primary-300
+            focus:border-primary-500 focus:bg-background focus:outline-none focus:ring-2 focus:ring-primary-300
             ${error ? "border-red-500 bg-red-50" : ""}
             ${disabled ? "bg-gray-200 cursor-not-allowed" : ""}
           `}

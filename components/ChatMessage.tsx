@@ -33,7 +33,7 @@ export default function ChatMessage({
         <div
           className={`px-4 py-2 rounded-2xl text-sm leading-relaxed max-w-xs ${
             isUser
-              ? "bg-primary-500 text-white"
+              ? "bg-primary-500 text-background"
               : "bg-gray-100 text-gray-900"
           }`}
         >

@@ -31,13 +31,13 @@ export default function MultiSelectOptionCard({
       {/* Custom checkbox square */}
       <span
         className={`mr-3 h-5 w-5 rounded-md border-2 p-2.5 flex items-center justify-center 
-          ${checked ? "border-primary-500" : "bg-white border-gray-400 "}
+          ${checked ? "border-primary-500" : "bg-background border-gray-400 "}
         `}
       >
         <div className={checked? "border bg-primary-500 rounded-sm " : ""}>
           {checked && (
             <svg
-              className="h-3 w-3 text-white"
+              className="h-3 w-3 text-background"
               fill="none"
               stroke="currentColor"
               strokeWidth={4}

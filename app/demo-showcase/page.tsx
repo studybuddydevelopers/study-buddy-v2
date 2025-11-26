@@ -1,3 +1,4 @@
+import Logo from '@/components/Logo';
 import BadgeDemo from '@/demo/BadgeDemo';
 import ButtonsDemo from '@/demo/ButtonsDemo';
 import CardsDemo from '@/demo/CardsDemo';
@@ -16,26 +17,39 @@ import TableDemo from '@/demo/TableDemo';
 import TextFieldDemo from '@/demo/TextFieldDemo';
 import TypographyDemo from '@/demo/TypographyDemo';
 
-export default function DemoShowCasePage() {
+export default async function DemoShowCasePage() {
+  await new Promise(r => setTimeout(r, 1000)); // simulate loading
   return (
     <>
-        <HeadingsDemo />
-        <TypographyDemo />
-        <ButtonsDemo />
-        <CardsDemo />
-        <OptionsDemo />
-        <ChatMessageDemo />
-        <ChatMessageContainerDemo />
-        <ImageDemo />
-        <LogoDemo />
-        <ProgressBarDemo />
-        <BadgeDemo />
-        <TableDemo />
-        <TextFieldDemo />
-        <SelectFieldDemo />
-        <MultiSelectFieldDemo />
-        <FooterDemo />
-        <NavBarDemo />
+      <Logo size="xs" animated animation='rotate'/>
+      <Logo size="sm" animated animation='rotate'/>
+      <Logo size="md" animated animation='rotate'/>
+      <Logo size="lg" animated animation='rotate'/>
+      <Logo size="xl" animated animation='rotate'/>
+      <Logo size="2xl" animated animation='rotate'/>
+      <Logo size="3xl" animated animation='rotate'/>
+      <Logo size="4xl" animated animation='rotate'/>
+      <Logo size="5xl" animated animation='rotate'/>
+      <Logo size="6xl" animated animation='rotate'/>
+      <Logo size="max" animated animation='rotate' variant='icon'/>
+
+      <HeadingsDemo />
+      <TypographyDemo />
+      <ButtonsDemo />
+      <CardsDemo />
+      <OptionsDemo />
+      <ChatMessageDemo />
+      <ChatMessageContainerDemo />
+      <ImageDemo />
+      <LogoDemo />
+      <ProgressBarDemo />
+      <BadgeDemo />
+      <TableDemo />
+      <TextFieldDemo />
+      <SelectFieldDemo />
+      <MultiSelectFieldDemo />
+      <FooterDemo />
+      <NavBarDemo />
     </>
   );
 }

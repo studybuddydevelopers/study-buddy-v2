@@ -1,6 +1,10 @@
-@import "tailwindcss";
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
 
-/* Light Mode Defaults */
+/* ----------------------------------------------------------
+   LIGHT MODE VARIABLES
+-----------------------------------------------------------*/
 :root {
   --background: #ffffff;
   --foreground: #171717;
@@ -29,7 +33,13 @@
   --secondary-800: #0A1924;
   --secondary-900: #08131B;
 
-  /* Accent palette */
+  /* Semantic colors */
+  --success: #10B981;
+  --warning: #F59E0B;
+  --error:   #EF4444;
+  --info:    #3B82F6;
+
+  /* Accent (light neutral UI) */
   --accent-50:  #FEFEFE;
   --accent-100: #FDFDFD;
   --accent-200: #FBFBFB;
@@ -41,14 +51,18 @@
   --accent-800: #D0D0D0;
   --accent-900: #B0B0B0;
 
-  /* Semantic colors */
-  --success: #10B981;
-  --warning: #F59E0B;
-  --error:   #EF4444;
-  --info:    #3B82F6;
+  /* Fonts */
+  --font-sans: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue",
+               Arial, "Noto Sans", "Apple Color Emoji", "Segoe UI Emoji",
+               "Segoe UI Symbol", sans-serif;
+
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, 
+               "Liberation Mono", monospace;
 }
 
-/* Dark Mode */
+/* ----------------------------------------------------------
+   DARK MODE OVERRIDE
+-----------------------------------------------------------*/
 @media (prefers-color-scheme: light) {
   :root {
     --background: #0a0a0a;
@@ -56,81 +70,33 @@
   }
 }
 
-/* Tailwind v4 Theme Definitions */
-@theme inline {
-  /* Light/Dark background + text */
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-
-  /* Primary */
-  --color-primary-50: var(--primary-50);
-  --color-primary-100: var(--primary-100);
-  --color-primary-200: var(--primary-200);
-  --color-primary-300: var(--primary-300);
-  --color-primary-400: var(--primary-400);
-  --color-primary-500: var(--primary-500);
-  --color-primary-600: var(--primary-600);
-  --color-primary-700: var(--primary-700);
-  --color-primary-800: var(--primary-800);
-  --color-primary-900: var(--primary-900);
-
-  /* Secondary */
-  --color-secondary-50:  var(--secondary-50);
-  --color-secondary-100: var(--secondary-100);
-  --color-secondary-200: var(--secondary-200);
-  --color-secondary-300: var(--secondary-300);
-  --color-secondary-400: var(--secondary-400);
-  --color-secondary-500: var(--secondary-500);
-  --color-secondary-600: var(--secondary-600);
-  --color-secondary-700: var(--secondary-700);
-  --color-secondary-800: var(--secondary-800);
-  --color-secondary-900: var(--secondary-900);
-
-  /* Accent */
-  --color-accent-50:  var(--accent-50);
-  --color-accent-100: var(--accent-100);
-  --color-accent-200: var(--accent-200);
-  --color-accent-300: var(--accent-300);
-  --color-accent-400: var(--accent-400);
-  --color-accent-500: var(--accent-500);
-  --color-accent-600: var(--accent-600);
-  --color-accent-700: var(--accent-700);
-  --color-accent-800: var(--accent-800);
-  --color-accent-900: var(--accent-900);
-
-  /* Semantic */
-  --color-success: var(--success);
-  --color-warning: var(--warning);
-  --color-error:   var(--error);
-  --color-info:    var(--info);
-
-  /* Fonts */
-  --font-sans: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue",
-                 Arial, "Noto Sans", "Apple Color Emoji", "Segoe UI Emoji",
-                 "Segoe UI Symbol", sans-serif;
-  --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
-}
-
-/* Body Reset */
-html, body { height: 100%; margin: 0; }
-
-body {
-  color: var(--color-foreground);
-  background: var(--color-background);
-}
-
-/* Base Font Layer */
+/* ----------------------------------------------------------
+   TAILWIND BASE EXTENSIONS
+-----------------------------------------------------------*/
 @layer base {
   html {
     font-family: var(--font-sans);
     font-size: 16px;
     line-height: 1.6;
+    background: var(--background);
+    color: var(--foreground);
   }
+
+  body {
+    margin: 0;
+    min-height: 100%;
+    background: var(--background);
+    color: var(--foreground);
+  }
+
   code, pre, kbd, samp {
     font-family: var(--font-mono);
   }
 }
 
+/* ----------------------------------------------------------
+   APP RESET + UTILS
+-----------------------------------------------------------*/
 #root {
   max-width: 1280px;
   margin: 0 auto;
@@ -140,15 +106,20 @@ body {
   overflow-wrap: break-word;
 }
 
+/* ----------------------------------------------------------
+   LOGO ANIMATION
+-----------------------------------------------------------*/
 .logo {
   height: 6em;
   padding: 1.5em;
   will-change: filter;
   transition: filter 300ms;
 }
+
 .logo:hover {
   filter: drop-shadow(0 0 2em #646cffaa);
 }
+
 .logo.react:hover {
   filter: drop-shadow(0 0 2em #61dafbaa);
 }

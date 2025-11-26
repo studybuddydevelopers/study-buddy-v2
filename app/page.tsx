@@ -13,6 +13,7 @@ import { PiGraduationCapLight, PiShieldCheck } from "react-icons/pi";
 import { HiOutlinePresentationChartBar, HiOutlineUserGroup } from "react-icons/hi";
 
 export default function LandingPage() {
+  // await new Promise(r => setTimeout(r, 1000)); // simulate loading
   const [loadingStart, setLoadingStart] = useState(false);
   const [loadingLearn, setLoadingLearn] = useState(false);
 

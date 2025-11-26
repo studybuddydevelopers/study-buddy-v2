@@ -100,7 +100,7 @@ export default function MultiSelectField({
 
       {/* Dropdown */}
       {isOpen && !disabled && (
-        <div className="absolute top-full left-0 right-0 mt-1 bg-white rounded-xl border border-gray-200 shadow-md max-h-52 overflow-y-auto z-20">
+        <div className="absolute top-full left-0 right-0 mt-1 bg-background rounded-xl border border-gray-200 shadow-md max-h-52 overflow-y-auto z-20">
           {options.map((opt) => (
             <label
               key={opt.value}

@@ -5,7 +5,7 @@ import { useEffect } from "react";
 type Level = 1 | 2 | 3 | 4 | 5 | 6;
 type Align = "left" | "center" | "right";
 type Variant = "default" | "gradient" | "outlined" | "decorative";
-type Color = "default" | "primary" | "secondary" | "accent" | "white";
+type Color = "default" | "primary" | "secondary" | "accent" | "background" | "foreground" | "success" | "warning" | "error" | "info";
 type Size = "sm" | "md" | "lg" | "xl";
 type Weight = "normal" | "medium" | "semibold" | "bold" | "extrabold";
 type Gutter = "none" | "sm" | "md" | "lg" | "auto";
@@ -67,10 +67,15 @@ const alignTokens: Record<Align, string> = {
 
 const colorTokens: Record<Color, string> = {
   default: "text-gray-900",
-  primary: "text-primary-600",
-  secondary: "text-secondary-600",
+  primary: "text-primary-500",
+  secondary: "text-secondary-500",
   accent: "text-accent-500",
-  white: "text-white",
+  background: "text-background",
+  foreground: "text-foreground",
+  success: "text-success",
+  warning: "text-warning",
+  error: "text-error",
+  info: "text-info",
 };
 
 const defaultColorByLevel: Record<Level, Color> = {

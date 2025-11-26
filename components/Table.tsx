@@ -16,7 +16,7 @@ interface TableProps {
 
 export default function Table({ columns, data }: TableProps) {
   return (
-    <div className="overflow-x-auto rounded-xl border border-gray-200 bg-white">
+    <div className="overflow-x-auto rounded-xl border border-gray-200 bg-background">
       <table className="w-full border-collapse text-[0.95rem]">
         <thead>
           <tr>

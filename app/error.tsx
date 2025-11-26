@@ -11,7 +11,8 @@ interface ErrorProps {
   reset: () => void;
 }
 
-export default function GlobalError({ error, reset }: ErrorProps) {
+export default async function GlobalError({ error, reset }: ErrorProps) {
+  await new Promise(r => setTimeout(r, 1000)); // simulate loading
   const [loadingHome, setLoadingHome] = useState(false);
   const [loadingReset, setLoadingReset] = useState(false);
 

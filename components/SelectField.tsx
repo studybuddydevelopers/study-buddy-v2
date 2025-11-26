@@ -47,7 +47,7 @@ export default function SelectField({
           onChange={onChange}
           disabled={disabled}
           className={`w-full appearance-none px-4 py-3 pr-10 rounded-xl border border-transparent bg-gray-50 text-gray-900 text-[0.95rem] transition-all duration-200 cursor-pointer
-            focus:border-primary-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-primary-300
+            focus:border-primary-500 focus:bg-background focus:outline-none focus:ring-2 focus:ring-primary-300
             ${error ? "border-red-500 bg-red-50" : ""}
             ${disabled ? "bg-gray-300 cursor-not-allowed" : ""}
           `}

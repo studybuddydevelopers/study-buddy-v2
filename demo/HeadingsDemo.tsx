@@ -25,11 +25,14 @@ export default function HeadingsDemo() {
       <section className="space-y-4">
         <Heading2 color="primary">Primary color</Heading2>
         <Heading2 color="secondary">Secondary color</Heading2>
-        <Heading2 color="accent">Accent color</Heading2>
+        {/* Accent needs dark background to be visible */}
+        <div className="rounded-xl p-2 bg-foreground">
+          <Heading2 color="accent" className="bg-foreground">Accent color</Heading2>
+        </div>
 
         {/* White needs dark background to be visible */}
-        <div className="rounded-xl p-6 bg-gray-900 overflow-auto">
-          <Heading2 color="white">White on dark background</Heading2>
+        <div className="rounded-xl p-2 bg-foreground">
+          <Heading2 color="background" className="">White on dark background</Heading2>
         </div>
       </section>
 

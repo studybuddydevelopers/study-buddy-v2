@@ -25,11 +25,11 @@ export default function Badge({
   };
 
   const variantClasses: Record<NonNullable<BadgeProps["variant"]>, string> = {
-    primary: "bg-primary-600 text-white",
-    secondary: "bg-secondary-700 text-white",
-    success: "bg-green-500 text-white",
-    warning: "bg-yellow-500 text-white",
-    error: "bg-red-500 text-white",
+    primary: "bg-primary-600 text-background",
+    secondary: "bg-secondary-700 text-background",
+    success: "bg-green-500 text-background",
+    warning: "bg-yellow-500 text-background",
+    error: "bg-red-500 text-background",
   };
 
   const outlinedClasses = outlined

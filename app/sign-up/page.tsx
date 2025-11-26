@@ -9,6 +9,7 @@ import { FaHandPaper } from "react-icons/fa";
 import Card from "@/components/Card";
 
 export default function SignUpPage() {
+  // await new Promise(r => setTimeout(r, 1000)); // simulate loading
   // FIELD STATES
   const [firstName, setFirstName] = useState("");
   const [middleNames, setMiddleNames] = useState("");
@@ -120,7 +121,7 @@ export default function SignUpPage() {
 
         <div className="flex flex-row self-center justify-center">
           <Heading2 gutter="lg" className="text-center">
-            Sign Up
+            Welcome, Sign Up
           </Heading2>
           <CurrentIcon
             className="transition-opacity duration-500 ease-in-out animate-[logoFloat_3s_ease-in-out_infinite]"

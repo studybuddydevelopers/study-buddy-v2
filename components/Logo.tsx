@@ -6,8 +6,8 @@ import LogoName from "./LogoName";
 
 interface LogoProps {
   variant?: "full" | "icon" | "text";
-  size?: "sm" | "md" | "lg" | "xl" | "5xl";
-  color?: "default" | "white" | "primary" | "secondary";
+  size?: "xs" | "sm" | "md" | "lg" | "xl" | "2xl" | "3xl" | "4xl" | "5xl" | "6xl" | "max";
+  color?: "default" | "primary" | "secondary" | "accent" | "background" | "foreground" | "success" | "warning" | "error" | "info";
   animated?: boolean;
   animation?:
     | "float"

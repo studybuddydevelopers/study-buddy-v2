@@ -4,7 +4,8 @@ import Button from "@/components/Button";
 import Heading1 from "@/components/Heading1";
 import Paragraph from "@/components/Paragraph";
 
-export default function AlreadyLoggedIn() {
+export default async function AlreadyLoggedIn() {
+  await new Promise(r => setTimeout(r, 1000)); // simulate loading
   return (
     <div className="flex flex-col items-center justify-center min-h-[60vh] text-center">
       <Heading1 gutter="sm">You Are Already Logged In</Heading1>

@@ -1,7 +1,6 @@
-const PrivacyPolicyPage = () => {
+export default async function PrivacyPolicyPage() {
+  await new Promise(r => setTimeout(r, 1000)); // simulate loading
   return (
     <div>PrivacyPolicyPage</div>
   )
 }
-
-export default PrivacyPolicyPage

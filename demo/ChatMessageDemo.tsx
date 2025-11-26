@@ -5,7 +5,7 @@ import Heading1 from "../components/Heading1";
 
 export default function ChatMessageDemo() {
   return (
-    <div className="p-8 space-y-6 bg-white">
+    <div className="p-8 space-y-6 bg-background">
       <Heading1 gutter="md">Chat Message Demo</Heading1>
       <ChatMessage
         sender="ai"

@@ -8,7 +8,7 @@ export default function Loading() {
     <div className="flex flex-col items-center justify-center min-h-[60vh] p-8">
       {/* Spinning icon logo */}
       <div className="spin mb-6">
-        <Logo variant="icon" size="5xl" />
+        <Logo variant="icon" size="max" animated animation="rotate"/>
       </div>
 
       <Paragraph variant="muted" size="md">
