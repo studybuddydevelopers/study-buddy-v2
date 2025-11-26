@@ -1,0 +1,17 @@
+// prisma/schema.prisma
+generator client {
+  provider = "prisma-client-js"  // or "prisma-client", depending
+  output   = "../lib/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  // no url, no directUrl
+}
+
+model TestItem {
+  id        String   @id @default(uuid())
+  name      String
+  createdAt DateTime @default(now())
+}
+

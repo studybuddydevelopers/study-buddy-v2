@@ -1,9 +1,26 @@
-// middleware.ts
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import { createServerClient } from "@supabase/ssr";
+import type { NextRequest } from "next/server";
+
+const protectedPaths = [
+  "/dashboard",
+  "/materials",
+  "/exams",
+  "/progress",
+  "/chat",
+  "/profile",
+  "/account",
+];
+
+const guestOnlyPaths = [
+  "/login",
+  "/sign-up",
+  "/forgot-password",
+  "/verify-email",
+];
 
 export async function middleware(req: NextRequest) {
-  let res = NextResponse.next();
+  const res = NextResponse.next();
 
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -14,50 +31,34 @@ export async function middleware(req: NextRequest) {
           return req.cookies.get(name)?.value;
         },
         set(name, value, options) {
-          res.cookies.set(name, value, options);
+          res.cookies.set(name, value, { ...options, path: "/" });
         },
         remove(name, options) {
-          res.cookies.set(name, "", { ...options, maxAge: 0 });
+          res.cookies.set(name, "", { ...options, maxAge: 0, path: "/" });
         },
       },
     }
   );
 
-  // Refresh session AND read the user
-  const { data: { session }, error: sessionError } =
-    await supabase.auth.getSession();
-
-  // Sync refreshed cookies into the response
-  const { data: { user }, error: userError } =
-    await supabase.auth.getUser();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
 
   const path = req.nextUrl.pathname;
 
-  const protectedPaths = [
-    "/dashboard",
-    "/materials",
-    "/exams",
-    "/progress",
-    "/chat",
-    "/profile",
-    "/account",
-  ];
-
-  const authPages = ["/login", "/sign-up", "/forgot-password"];
-
-  if (protectedPaths.some((x) => path.startsWith(x)) && !user) {
-    return NextResponse.redirect(new URL("/login", req.url));
+  // PROTECTED PAGES
+  if (protectedPaths.some((p) => path.startsWith(p)) && !user) {
+    return NextResponse.redirect(new URL("/unauthorized", req.url));
   }
 
-  console.log(path);
-  
-  if (authPages.some((x) => path.startsWith(x)) && user) {
-    return NextResponse.redirect(new URL("/dashboard", req.url));
+  // GUEST ONLY PAGES
+  if (guestOnlyPaths.some((p) => path.startsWith(p)) && user) {
+    return NextResponse.redirect(new URL("/already-logged-in", req.url));
   }
 
   return res;
 }
 
 export const config = {
-  matcher: ["/((?!_next/static|_next/image|favicon.ico).*)"],
+  matcher: ["/((?!_next|.*\\..*|favicon.svg).*)"],
 };

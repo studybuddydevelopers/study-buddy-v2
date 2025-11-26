@@ -7,10 +7,9 @@ import Button from "@/components/Button";
 import { FaHandPeace, FaHandPointDown } from "react-icons/fa6";
 import { FaHandPaper } from "react-icons/fa";
 import Card from "@/components/Card";
-import { supabase } from "@/lib/supabaseClient";
 
 export default function LoginPage() {
-  const [identifier, setIdentifier] = useState(""); // email or phone
+  const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
 
   const [loading, setLoading] = useState(false);
@@ -19,15 +18,13 @@ export default function LoginPage() {
   const [identifierError, setIdentifierError] = useState("");
   const [passwordError, setPasswordError] = useState("");
 
-  // NEW: touched states
   const [touchedIdentifier, setTouchedIdentifier] = useState(false);
   const [touchedPassword, setTouchedPassword] = useState(false);
 
-  // Validators
   const isEmail = (value: string) => /\S+@\S+\.\S+/.test(value);
   const isPhone = (value: string) => /^[0-9+\-\s().]{6,}$/.test(value);
 
-  // Realtime validation, but only after touch
+  // VALIDATION EFFECTS
   useEffect(() => {
     if (!touchedIdentifier) return;
 
@@ -44,6 +41,7 @@ export default function LoginPage() {
     else setPasswordError("");
   }, [password, touchedPassword]);
 
+  // CALLS API ROUTE INSTEAD OF SUPABASE CLIENT
   const handleLogin = async () => {
     setTouchedIdentifier(true);
     setTouchedPassword(true);
@@ -52,40 +50,35 @@ export default function LoginPage() {
 
     setLoading(true);
 
-    let response;
+    const response = await fetch("/api/login", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ identifier, password }),
+    });
 
-    if (isEmail(identifier)) {
-      response = await supabase.auth.signInWithPassword({
-        email: identifier,
-        password,
-      });
-    } else if (isPhone(identifier)) {
-      response = await supabase.auth.signInWithPassword({
-        phone: identifier,
-        password,
-      });
-    }
-
-    const { error } = response || {};
     setLoading(false);
 
-    if (error) {
-      alert(error.message);
+    if (!response.ok) {
+      const { error } = await response.json();
+      alert(error || "Login failed");
       return;
     }
 
+    // SUCCESS
     window.location.href = "/dashboard";
   };
 
-  // Animated icons (unchanged)
+  // ICON ANIMATION
   const icons = [FaHandPeace, FaHandPaper, FaHandPointDown];
   const [index, setIndex] = useState(0);
+
   useEffect(() => {
     const interval = setInterval(() => {
       setIndex((i) => (i + 1) % icons.length);
     }, 1000);
     return () => clearInterval(interval);
   }, []);
+
   const CurrentIcon = icons[index];
 
   useEffect(() => {
@@ -104,8 +97,8 @@ export default function LoginPage() {
 
   const isLoginDisabled =
     loading ||
-    !identifier ||               // disable when empty
-    !password ||                 // disable when empty
+    !identifier ||
+    !password ||
     !!identifierError ||
     !!passwordError;
 
@@ -124,8 +117,6 @@ export default function LoginPage() {
         </div>
 
         <div className="flex flex-col w-fit self-center min-w-sm">
-
-          {/* IDENTIFIER FIELD */}
           <TextField
             label="Email or Phone Number"
             placeholder="Enter your email or phone number"
@@ -137,7 +128,6 @@ export default function LoginPage() {
             required
           />
 
-          {/* PASSWORD FIELD */}
           <TextField
             label="Password"
             type="password"

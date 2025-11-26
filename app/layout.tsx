@@ -10,7 +10,11 @@ export const metadata: Metadata = {
   icons: ["logo-icon.svg"],
 };
 
-export default async function RootLayout({ children }: { children: React.ReactNode }) {
+export default async function RootLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   const cookieStore = await cookies();
 
   const supabase = createServerClient(
@@ -18,13 +22,14 @@ export default async function RootLayout({ children }: { children: React.ReactNo
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
       cookies: {
-        getAll() {
-          return cookieStore.getAll();
+        get(name) {
+          return cookieStore.get(name)?.value;
         },
       },
     }
   );
 
+  // Fetch logged-in user (SSR)
   const {
     data: { user },
   } = await supabase.auth.getUser();
@@ -32,9 +37,12 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   return (
     <html lang="en">
       <body>
-        <ClientLayoutWrapper user={user}>
-          {children}
-        </ClientLayoutWrapper>
+        {/* Pass SSR user ONLY once */}
+        <main className="p-6 flex justify-between flex-col min-h-svh">
+          <ClientLayoutWrapper user={user}>
+            {children}
+          </ClientLayoutWrapper>
+        </main>
       </body>
     </html>
   );

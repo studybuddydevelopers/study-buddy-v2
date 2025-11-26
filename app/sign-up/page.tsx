@@ -7,7 +7,6 @@ import Button from "@/components/Button";
 import { FaHandPeace, FaHandPointDown } from "react-icons/fa6";
 import { FaHandPaper } from "react-icons/fa";
 import Card from "@/components/Card";
-import { supabase } from "@/lib/supabaseClient";
 
 export default function SignUpPage() {
   // FIELD STATES
@@ -19,7 +18,6 @@ export default function SignUpPage() {
   const [password, setPassword] = useState("");
   const [confirmedPassword, setConfirmedPassword] = useState("");
 
-  // TRACK TOUCHED FIELDS
   const [touched, setTouched] = useState({
     firstName: false,
     lastNames: false,
@@ -31,17 +29,14 @@ export default function SignUpPage() {
 
   const [loading, setLoading] = useState(false);
 
-  // VALIDATION HELPERS
   const isValidEmail = (v: string) =>
     /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v);
 
   const isValidPhone = (v: string) =>
     /^[0-9+\-() ]{6,}$/.test(v);
 
-  // FIELD ERRORS
   const errors = {
     firstName: firstName ? "" : "First name is required",
-
     lastNames: lastNames ? "" : "Last name is required",
 
     email: !email
@@ -67,7 +62,6 @@ export default function SignUpPage() {
         : "",
   };
 
-  // FORM VALIDITY
   const isFormValid =
     firstName &&
     lastNames &&
@@ -76,37 +70,38 @@ export default function SignUpPage() {
     password.length >= 6 &&
     confirmedPassword === password;
 
-  // SIGN UP HANDLER
+  // 🔥 NEW: uses API route instead of Supabase client
   const handleSignUp = async () => {
     if (!isFormValid) return;
 
     setLoading(true);
 
-    const { error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        data: {
-          firstName,
-          middleNames,
-          lastNames,
-          phoneNumber,
-        },
-      },
+    const response = await fetch("/api/signup", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        firstName,
+        middleNames,
+        lastNames,
+        email,
+        phoneNumber,
+        password,
+      }),
     });
 
     setLoading(false);
 
-    if (error) {
-      alert(error.message);
+    if (!response.ok) {
+      const { error } = await response.json();
+      alert(error || "Signup failed");
       return;
     }
 
+    // Redirect to verify email
     window.location.href = `/verify-email?email=${encodeURIComponent(email)}`;
-
   };
 
-  // ICON ROTATION
+  // ICON animation
   const icons = [FaHandPeace, FaHandPaper, FaHandPointDown];
   const [index, setIndex] = useState(0);
 
@@ -123,7 +118,6 @@ export default function SignUpPage() {
     <div className="flex items-center justify-center p-7 mt-7">
       <Card shadow="md" hover padding="md" className="flex flex-col self-center min-w-min">
 
-        {/* HEADER */}
         <div className="flex flex-row self-center justify-center">
           <Heading2 gutter="lg" className="text-center">
             Sign Up
@@ -134,10 +128,8 @@ export default function SignUpPage() {
           />
         </div>
 
-        {/* FORM */}
         <div className="flex flex-col w-fit self-center min-w-[30em]">
 
-          {/* FIRST NAME */}
           <TextField
             label="First Name"
             required
@@ -148,7 +140,6 @@ export default function SignUpPage() {
             className="mb-5"
           />
 
-          {/* MIDDLE NAMES */}
           <TextField
             label="Middle Names"
             value={middleNames}
@@ -156,7 +147,6 @@ export default function SignUpPage() {
             className="mb-5"
           />
 
-          {/* LAST NAMES */}
           <TextField
             label="Last Names"
             required
@@ -167,7 +157,6 @@ export default function SignUpPage() {
             className="mb-5"
           />
 
-          {/* EMAIL + PHONE */}
           <div className="flex flex-row gap-3">
             <TextField
               label="Email"
@@ -194,7 +183,6 @@ export default function SignUpPage() {
             />
           </div>
 
-          {/* PASSWORDS */}
           <div className="flex flex-row gap-3">
             <TextField
               label="Password"
@@ -221,7 +209,6 @@ export default function SignUpPage() {
             />
           </div>
 
-          {/* LOGIN LINK */}
           <div className="text-left mb-8">
             <span className="text-gray-600 mr-2">Already part of the Family?</span>
             <a
@@ -232,7 +219,6 @@ export default function SignUpPage() {
             </a>
           </div>
 
-          {/* SUBMIT BUTTON */}
           <Button
             variant="primary"
             size="lg"

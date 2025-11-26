@@ -16,8 +16,6 @@ interface NavLink {
 interface NavBarProps {
   user: User | null;
   links?: NavLink[];
-  onSignIn?: () => void;
-  onSignUp?: () => void;
   signInLink?: string;
   signUpLink?: string;
   onNotificationsClick?: () => void;
@@ -33,8 +31,6 @@ export default function NavBar({
     { label: "Progress", href: "/progress" },
     { label: "Chat Bot", href: "/chat" },
   ] : [],
-  onSignIn,
-  onSignUp,
   signInLink,
   signUpLink,
   onNotificationsClick,
