@@ -1,3 +1,5 @@
+// prisma/schema.prisma
+
 // =========================================================
 //  GENERATOR & DATASOURCE
 // =========================================================
@@ -9,7 +11,7 @@ generator client {
 
 datasource db {
   provider = "postgresql"
-  url      = env("DATABASE_URL")
+  url      = env("DIRECT_URL")
 }
 
 // =========================================================
@@ -73,7 +75,7 @@ model UserProfile {
 model Subject {
   id          String  @id @default(uuid())
   name        String
-  waecCode    String?
+  waecCode    String? // this should be changed to SAT (assuming SATs have codes) as thats what we are doing to showcase a demo
   description String?
 
   topics          Topic[]
@@ -278,7 +280,7 @@ model PastQuestionSource {
   paperPdfUrl String?
   importedBy  String
   importedAt  DateTime @default(now())
-}
+} // this can be safely deleted as there is no apparent use of it
 
 model AdminUser {
   id        String   @id @default(uuid())
