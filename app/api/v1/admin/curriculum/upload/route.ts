@@ -1,106 +1,116 @@
-// app/api/admin/curriculum/upload/route.ts
+// app/api/v1/admin/curriculum/upload/route.ts
 import { NextResponse } from "next/server";
-import { cookies } from "next/headers";
-import { createServerClient } from "@supabase/ssr";
 import { prisma } from "@/lib/prisma";
+import { requireAdmin } from "@/lib/auth";
+import { createServerClient } from "@supabase/ssr";
 
 export async function POST(req: Request) {
-  try {
-    // ---------- 1) Auth via Supabase cookies ----------
-    const cookieStore = cookies();
+  // -------------------------------------
+  // 1. AUTH
+  // -------------------------------------
+  const auth = await requireAdmin();
+  if ("errorResponse" in auth) return auth.errorResponse;
+  const { dbUser } = auth;
 
-    const supabase = createServerClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-      {
-        cookies: {
-          get(name) {
-            return cookieStore.get(name)?.value;
-          },
-          // For this route we only *read* cookies, but helpers require set/remove:
-          set() {
-            /* no-op for this route */
-          },
-          remove() {
-            /* no-op for this route */
-          },
+  // -------------------------------------
+  // 2. PARSE FORM
+  // -------------------------------------
+  const formData = await req.formData();
+  const subjectId = formData.get("subjectId")?.toString();
+  const file = formData.get("file") as File | null;
+
+  if (!subjectId) {
+    return NextResponse.json({ error: "subjectId is required" }, { status: 400 });
+  }
+  if (!file) {
+    return NextResponse.json({ error: "file is required" }, { status: 400 });
+  }
+  if (file.type !== "application/pdf") {
+    return NextResponse.json({ error: "Only PDF files are allowed" }, { status: 400 });
+  }
+
+  // -------------------------------------
+  // 3. CHECK SUBJECT
+  // -------------------------------------
+  const subject = await prisma.subject.findUnique({ where: { id: subjectId } });
+  if (!subject) {
+    return NextResponse.json({ error: "Subject not found" }, { status: 404 });
+  }
+
+  // -------------------------------------
+  // 4. CREATE EDITABLE RESPONSE
+  // -------------------------------------
+  let res = new NextResponse(); // IMPORTANT: empty, editable response object!
+
+  const supabase = createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      cookies: {
+        get(name: string) {
+          return req.headers
+            .get("cookie")
+            ?.split("; ")
+            .find((c) => c.startsWith(name + "="))
+            ?.split("=")?.[1];
         },
-      }
-    );
-
-    const {
-      data: { user },
-      error: authError,
-    } = await supabase.auth.getUser();
-
-    if (authError || !user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    // ---------- 2) Check admin privileges ----------
-    const dbUser = await prisma.user.findUnique({
-      where: { id: user.id },
-    });
-
-    if (!dbUser) {
-      return NextResponse.json(
-        { error: "User record not found" },
-        { status: 403 }
-      );
-    }
-
-    const adminRecord = await prisma.adminUser.findUnique({
-      where: { userId: dbUser.id },
-    });
-
-    const isAdmin = dbUser.isAdmin || !!adminRecord;
-
-    if (!isAdmin) {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-    }
-
-    // ---------- 3) Parse & validate body ----------
-    const body = await req.json();
-
-    const { subjectId, fileUrl } = body as {
-      subjectId?: string;
-      fileUrl?: string;
-    };
-
-    if (!subjectId || !fileUrl) {
-      return NextResponse.json(
-        { error: "subjectId and fileUrl are required" },
-        { status: 400 }
-      );
-    }
-
-    const subjectExists = await prisma.subject.findUnique({
-      where: { id: subjectId },
-      select: { id: true },
-    });
-
-    if (!subjectExists) {
-      return NextResponse.json(
-        { error: "Subject not found" },
-        { status: 404 }
-      );
-    }
-
-    // ---------- 4) Create CurriculumFile ----------
-    const curriculumFile = await prisma.curriculumFile.create({
-      data: {
-        subjectId,
-        fileUrl,
-        uploadedBy: user.id,
+        set(name: string, value: string, options: any) {
+          res.cookies.set(name, value, { ...options, path: "/" });
+        },
+        remove(name: string, options: any) {
+          res.cookies.set(name, "", { ...options, maxAge: 0, path: "/" });
+        },
       },
+    }
+  );
+
+  // -------------------------------------
+  // 5. UPLOAD TO STORAGE
+  // -------------------------------------
+  const arrayBuffer = await file.arrayBuffer();
+  const buffer = Buffer.from(arrayBuffer);
+
+  const filePath = `curriculum/${subjectId}/${Date.now()}-${file.name}`;
+
+  const { error: uploadError } = await supabase.storage
+    .from("curriculum")
+    .upload(filePath, buffer, {
+      contentType: "application/pdf",
+      upsert: false,
     });
 
-    return NextResponse.json({ curriculumFile }, { status: 201 });
-  } catch (err) {
-    console.error("upload-curriculum error:", err);
-    return NextResponse.json(
-      { error: "Internal server error" },
+  if (uploadError) {
+    res = NextResponse.json(
+      { error: "Upload failed: " + uploadError.message },
       { status: 500 }
     );
+    return res;
   }
+
+  const {
+    data: { publicUrl },
+  } = supabase.storage.from("curriculum").getPublicUrl(filePath);
+
+  // -------------------------------------
+  // 6. SAVE DB RECORD
+  // -------------------------------------
+  const record = await prisma.curriculumFile.create({
+    data: {
+      subjectId,
+      uploadedBy: dbUser.id,
+      fileUrl: publicUrl,
+    },
+  });
+
+  // -------------------------------------
+  // 7. RESPOND USING *THE SAME RES*
+  // -------------------------------------
+  res = NextResponse.json({
+    id: record.id,
+    subjectId: record.subjectId,
+    fileUrl: record.fileUrl,
+    uploadedAt: record.uploadedAt,
+  });
+
+  return res; // MUST return same response object
 }
