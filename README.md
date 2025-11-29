@@ -33,13 +33,13 @@ The platform has **12 major API domains**:
 
 # 1️⃣ AUTH API
 
-(Handled by Supabase, but you create wrappers like `/api/login`, `/api/signup`, `/api/logout`)
+(Handled by Supabase, but you create wrappers like `/api/v1/login`, `/api/v1/signup`, `/api/logout`)
 
 ### **Routes**
 
 ```
-POST /api/signup
-POST /api/login
+POST /api/v1/signup
+POST /api/v1/login
 POST /api/logout
 GET  /api/me
 ```

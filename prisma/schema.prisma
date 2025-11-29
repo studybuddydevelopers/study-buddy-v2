@@ -43,6 +43,8 @@ model User {
   createdAt DateTime @default(now())
   isAdmin   Boolean  @default(false)
 
+  adminUser AdminUser?
+
   profile         UserProfile?
   aiQuestions     AiQuestion[]
   attempts        PastQuestionAttempt[]
@@ -53,6 +55,7 @@ model User {
   schoolStudents  SchoolStudent[]
   transactions    Transaction[]
 }
+
 
 model UserProfile {
   userId            String   @id
@@ -280,14 +283,18 @@ model PastQuestionSource {
   paperPdfUrl String?
   importedBy  String
   importedAt  DateTime @default(now())
-} // this can be safely deleted as there is no apparent use of it
+}
+// this can be safely deleted as there is no apparent use of it
 
 model AdminUser {
   id        String   @id @default(uuid())
   userId    String   @unique
   role      String
   createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
+
 
 // =========================================================
 //  SCHOOLS - B2B FEATURES
