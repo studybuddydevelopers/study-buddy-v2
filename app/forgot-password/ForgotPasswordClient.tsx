@@ -1,3 +1,5 @@
+// app/forgot-password/ForgotPasswordClient.tsx
+
 "use client";
 
 import { useState, useEffect } from "react";
@@ -8,7 +10,7 @@ import { FaHandPeace, FaHandPointDown } from "react-icons/fa6";
 import { FaHandPaper } from "react-icons/fa";
 import Card from "@/components/Card";
 
-export default function ForgotPasswordClient() {
+export default function ResetPasswordClient() {
   const [identifier, setIdentifier] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -23,7 +25,7 @@ export default function ForgotPasswordClient() {
     const res = await fetch("/api/v1/reset-password", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ identifier }),
+      body: JSON.stringify({ email: identifier }),
     });
 
     setLoading(false);
@@ -85,8 +87,8 @@ export default function ForgotPasswordClient() {
 
         <div className="flex flex-col w-fit self-center min-w-sm min-w-[-webkit-fill-available]">
           <TextField
-            label="Email or Phone Number"
-            placeholder="Enter your email or phone number"
+            label="Email"
+            placeholder="Enter your email"
             value={identifier}
             onChange={(e) => setIdentifier(e.target.value)}
             required
