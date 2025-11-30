@@ -1,4 +1,5 @@
 // app/forgot-password/page.tsx
+
 import ForgotPasswordClient from "./ForgotPasswordClient";
 
 export default async function ForgotPasswordPage() {
