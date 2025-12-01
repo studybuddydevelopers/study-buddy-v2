@@ -1,32 +1,10 @@
+// app/api/v1/reset-password/route.ts
 import { NextResponse } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 
 export async function POST(req: Request) {
-  // ---------------------------------------------------------
-  // 1. PARSE INPUT
-  // ---------------------------------------------------------
-  let body;
-  try {
-    body = await req.json();
-  } catch {
-    return NextResponse.json(
-      { error: "Invalid JSON body" },
-      { status: 400 }
-    );
-  }
+  const { email } = await req.json();
 
-  const { email } = body;
-
-  if (!email || typeof email !== "string") {
-    return NextResponse.json(
-      { error: "email is required" },
-      { status: 400 }
-    );
-  }
-
-  // ---------------------------------------------------------
-  // 2. CREATE EDITABLE RESPONSE (for supabase cookies)
-  // ---------------------------------------------------------
   let res = new NextResponse();
 
   const supabase = createServerClient(
@@ -34,39 +12,33 @@ export async function POST(req: Request) {
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
       cookies: {
-        get(name) {
+        get(name: string) {
           return req.headers
             .get("cookie")
             ?.split("; ")
             .find((c) => c.startsWith(name + "="))
-            ?.split("=")?.[1];
+            ?.split("=")?.[1] ?? null;
         },
-        set(name: string, value: string, options: any) {
+        set(name: string, value: string, options?: any) {
           res.cookies.set(name, value, { ...options, path: "/" });
         },
-        remove(name: string, options: any) {
+        remove(name: string, options?: any) {
           res.cookies.set(name, "", { ...options, maxAge: 0, path: "/" });
         },
       },
     }
   );
 
-  // ---------------------------------------------------------
-  // 3. SEND PASSWORD RESET EMAIL
-  // ---------------------------------------------------------
+  // ⭐ IMPORTANT ⭐
+  // emailRedirectTo makes Supabase put the PKCE token into *your* redirect URL
   const { error } = await supabase.auth.resetPasswordForEmail(email, {
-    redirectTo: `${process.env.NEXT_PUBLIC_APP_URL}/reset-password/update`,
+    redirectTo: `${process.env.NEXT_PUBLIC_APP_URL}/auth/password-reset`,
+    // emailRedirectTo: `${process.env.NEXT_PUBLIC_APP_URL}/auth/password-reset`,
   });
 
   if (error) {
-    return NextResponse.json(
-      { error: "Unable to send reset email: " + error.message },
-      { status: 400 }
-    );
+    return NextResponse.json({ error: error.message }, { status: 400 });
   }
 
-  // ---------------------------------------------------------
-  // 4. SUCCESS RESPONSE
-  // ---------------------------------------------------------
-  return NextResponse.json({ ok: true, email: email });
+  return NextResponse.json({ ok: true });
 }
