@@ -11,6 +11,7 @@ interface LogoProps {
   animated?: boolean;
   animation?:
     | "float"
+    | "floatReverse"
     | "slideIn"
     | "bounce"
     | "pulse"
@@ -38,8 +39,18 @@ export default function Logo({
     styleEl.id = "logo-keyframes";
     styleEl.textContent = `
       @keyframes logoFloat {
-        0%,100% { transform: translateY(0); }
-        50% { transform: translateY(-5px); }
+        0%   { transform: translateY(-10px); } /* top */
+        25%  { transform: translateY(0); }     /* middle */
+        50%  { transform: translateY(10px); }  /* bottom */
+        75%  { transform: translateY(0); }     /* middle */
+        100% { transform: translateY(-10px); } /* top */
+      }
+      @keyframes logoFloatReverse {
+        0%   { transform: translateY(10px); } /* top */
+        25%  { transform: translateY(0); }     /* middle */
+        50%  { transform: translateY(-10px); }  /* bottom */
+        75%  { transform: translateY(0); }     /* middle */
+        100% { transform: translateY(10px); } /* top */
       }
       @keyframes logoSlideIn {
         from { opacity: 0; transform: translateY(-20px); }
@@ -47,13 +58,13 @@ export default function Logo({
       }
       @keyframes logoBounce {
         0% { transform: scale(0.3); opacity: 0; }
-        50% { transform: scale(1.05); }
-        70% { transform: scale(0.9); }
+        50% { transform: scale(1.35); }
+        70% { transform: scale(0.6); }
         100% { transform: scale(1); opacity: 1; }
       }
       @keyframes logoPulse {
         0%,100% { transform: scale(1); }
-        50% { transform: scale(1.05); }
+        50% { transform: scale(1.35); }
       }
       @keyframes logoRotate {
         from { transform: rotate(0deg); }
@@ -69,9 +80,10 @@ export default function Logo({
     string
   > = {
     none: "",
-    float: "animate-[logoFloat_3s_ease-in-out_infinite]",
-    slideIn: "animate-[logoSlideIn_0.6s_ease-out]",
-    bounce: "animate-[logoBounce_0.8s_ease-out]",
+    float: "animate-[logoFloat_0.8s_ease-in-out_infinite]",
+    floatReverse: "animate-[logoFloatReverse_0.8s_ease-in-out_infinite]",
+    slideIn: "animate-[logoSlideIn_1.4s_ease-out_infinite]",
+    bounce: "animate-[logoBounce_0.8s_ease-out_infinite]",
     pulse: "animate-[logoPulse_2s_infinite]",
     rotate: "animate-[logoRotate_2s_linear_infinite]",
   };
