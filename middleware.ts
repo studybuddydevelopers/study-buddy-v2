@@ -17,25 +17,34 @@ const guestOnlyPaths = [
   "/sign-up",
   "/forgot-password",
   "/check-email",
+  "/auth/password-reset",
 ];
 
 export async function middleware(req: NextRequest) {
-  const res = NextResponse.next({ request: { headers: req.headers } });
   const pathname = req.nextUrl.pathname;
+  const res = NextResponse.next();
 
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
       cookies: {
-        get: (name) => req.cookies.get(name)?.value,
-        set: (name, value, opts) => res.cookies.set(name, value, opts),
-        remove: (name, opts) => res.cookies.set(name, "", { ...opts, maxAge: 0 }),
+        get(name: string) {
+          return req.cookies.get(name)?.value ?? null;
+        },
+        set(name: string, value: string, options: any) {
+          res.cookies.set(name, value, options);
+        },
+        remove(name: string, options: any) {
+          res.cookies.set(name, "", { ...options, maxAge: 0 });
+        },
       },
     }
   );
 
-  const { data: { user } } = await supabase.auth.getUser();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
 
   if (protectedPaths.some((p) => pathname.startsWith(p)) && !user) {
     return NextResponse.redirect(new URL("/unauthorized", req.url));
@@ -53,4 +62,3 @@ export const config = {
     "/((?!_next/static|_next/image|favicon.ico|icons|logo-icon.svg).*)",
   ],
 };
-
