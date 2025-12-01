@@ -12,6 +12,27 @@ import { FaHandPaper } from "react-icons/fa";
 import Logo from "@/components/Logo";
 
 export default function ResetPasswordUpdateClient() {
+
+  const [valid, setValid] = useState(false);
+
+  useEffect(() => {
+    const url = new URL(window.location.href);
+    const token = url.searchParams.get("token");
+    const email = url.searchParams.get("email");
+
+    // If either is missing, redirect immediately
+    if (!token || !email) {
+      window.location.href = "/forgot-password";
+    } else {
+      setValid(true);
+    }
+  }, []);
+
+  // Block UI until validated
+  if (!valid) return null;
+
+
+  
   // ----------------------------------
   // ICON ANIMATION
   // ----------------------------------
@@ -137,9 +158,9 @@ export default function ResetPasswordUpdateClient() {
 
   return (
     <div className="flex items-center justify-center p-7 mt-7 flex-1">
-      <Card shadow="md" hover className="flex flex-col w-full max-w-md">
-        <div className="flex flex-row justify-center gap-3 items-center">
-          <Heading2 gutter="lg">Set a New Password</Heading2>
+      <Card shadow="md" hover className="flex flex-col w-full min-w-max">
+        <div className="flex flex-row justify-center w-full">
+          <Heading2 gutter="lg" className="min-w-max">Set New Password</Heading2>
           <CurrentIcon
             className="transition-opacity duration-500 ease-in-out animate-[logoFloat_3s_ease-in-out_infinite]"
             size={28}
