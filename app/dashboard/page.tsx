@@ -1,3 +1,5 @@
+// app/dashboard/page.tsx
+
 import DashboardClient from "./DashboardClient";
 import { cookies } from "next/headers";
 import {
@@ -25,10 +27,12 @@ export default async function DashboardPage() {
       cache: "no-store",
     }
   );
+  
 
   const progress: ProgressFullReport | null = progressRes.ok
     ? await progressRes.json()
     : null;
+
 
   // Temporary demo — will later use the real endpoint 
   // TODO: @chindju
