@@ -50,7 +50,7 @@ export async function GET() {
           lastNames: userData.profile.lastNames,
           phoneNumber: userData.profile.phoneNumber,
           gradeLevel: userData.profile.gradeLevel,
-          waecYear: userData.profile.waecYear,
+          examYear: userData.profile.examYear,
           preferredSubjects: userData.profile.preferredSubjects,
           avatarUrl: userData.profile.avatarUrl,
         }
