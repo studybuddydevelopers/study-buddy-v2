@@ -2,7 +2,9 @@
   "name": "study-buddy-v2",
   "version": "0.1.0",
   "private": true,
-  "prisma": { "seed": "ts-node prisma/seed/index.ts" },
+  "prisma": {
+    "seed": "tsx prisma/seed/index.ts"
+  },
   "scripts": {
     "dev": "next dev",
     "build": "next build",
@@ -31,6 +33,7 @@
     "eslint-config-next": "14.2.15",
     "prisma": "5.17.0",
     "ts-node": "10.9.2",
+    "tsx": "^4.21.0",
     "typescript": "5.3.3"
   }
 }
