@@ -21,7 +21,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
   }
 
-  const { subjectId, title, waecOutlineRef, difficulty } = body;
+  const { subjectId, title, examOutlineRef, difficulty } = body;
 
   // -------------------------------------
   // 3. VALIDATION
@@ -40,9 +40,9 @@ export async function POST(req: Request) {
     );
   }
 
-  if (waecOutlineRef && typeof waecOutlineRef !== "string") {
+  if (examOutlineRef && typeof examOutlineRef !== "string") {
     return NextResponse.json(
-      { error: "waecOutlineRef must be a string" },
+      { error: "examOutlineRef must be a string" },
       { status: 400 }
     );
   }
@@ -75,7 +75,7 @@ export async function POST(req: Request) {
     data: {
       subjectId,
       title,
-      waecOutlineRef: waecOutlineRef ?? null,
+      examOutlineRef: examOutlineRef ?? null,
       difficulty: difficulty ?? null,
     },
   });
@@ -88,7 +88,7 @@ export async function POST(req: Request) {
       id: topic.id,
       subjectId: topic.subjectId,
       title: topic.title,
-      waecOutlineRef: topic.waecOutlineRef,
+      examOutlineRef: topic.examOutlineRef,
       difficulty: topic.difficulty,
     },
     { status: 201 }
