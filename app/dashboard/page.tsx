@@ -33,23 +33,28 @@ export default async function DashboardPage() {
     ? await progressRes.json()
     : null;
 
+  // Fetch AI recommendations (auto-generates if stale)
+  const recRes = await fetch(
+    `${process.env.NEXT_PUBLIC_APP_URL}/api/v1/ai/recommendations`,
+    {
+      headers: { Cookie: cookieStore.toString() },
+      cache: "no-store",
+    }
+  );
 
-  // Temporary demo — will later use the real endpoint 
-  // TODO: @chindju
-  const aiRecommendations: AIRecommendation[] = [
-    {
-      title: "Focus on Algebra",
-      body: "Based on your recent performance, we recommend focusing on Algebra to improve your score.",
-      image: "https://picsum.photos/500/500",
-      alt: "Random picture",
-    },
-    {
-      title: "Review Grammar Rules",
-      body: "Brush up on your grammar to enhance your writing skills.",
-      image: "https://picsum.photos/700/700",
-      alt: "Random picture",
-    },
-  ];
+  let aiRecommendations: AIRecommendation[] = [];
+  if (recRes.ok) {
+    const data = await recRes.json();
+    aiRecommendations = data?.recommendations ?? [];
+  }
+  if (aiRecommendations.length === 0) {
+    aiRecommendations = [
+      {
+        title: "AI Recommendation",
+        body: "No recommendations available yet. Keep practicing to receive personalized guidance.",
+      },
+    ];
+  }
 
   return (
     <DashboardClient
