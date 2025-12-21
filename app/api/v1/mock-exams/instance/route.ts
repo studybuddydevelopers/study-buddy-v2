@@ -29,7 +29,7 @@ export async function GET(req: Request) {
         },
       },
       answers: {
-        orderBy: { createdAt: "asc" },
+        orderBy: { id: "asc" },
         include: {
           question: true,
         },
@@ -59,6 +59,7 @@ export async function GET(req: Request) {
     },
     template: {
       id: instance.template.id,
+      subjectId: instance.template.subjectId,
       title: instance.template.title,
       description: instance.template.description,
       questionCount: instance.template.questionCount,
@@ -78,6 +79,7 @@ export async function GET(req: Request) {
       userAnswer: a.userAnswer,
       isCorrect: a.isCorrect,
       score: a.score,
+      correctAnswer: a.question.answerText,
     })),
   };
 
