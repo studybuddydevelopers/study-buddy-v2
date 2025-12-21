@@ -10,6 +10,7 @@ import Heading1 from "@/components/Heading1";
 import Paragraph from "@/components/Paragraph";
 import Image from "@/components/Image";
 import { useMemo } from "react";
+import Link from "next/link";
 
 export default function DashboardClient({
   me,
@@ -72,7 +73,7 @@ export default function DashboardClient({
             {aiRecommendations.map((rec, index) => (
             <div
                 key={index}
-                className="min-w-[-webkit-fill-available] mb-4 flex flex-row p-4 pl-0"
+                className="min-w-[-webkit-fill-available] mb-4 flex flex-row p-4 pl-0 gap-5"
             >
                 <div className="flex-1">
                 <h3 className="font-semibold mb-2">{rec.title}</h3>
@@ -105,13 +106,17 @@ export default function DashboardClient({
         </Heading2>
 
         <div className="flex justify-between">
-            <Button variant="primary" size="lg" className="rounded-xl">
-            AI Q&A Panel
-            </Button>
-
-            <Button variant="neutral" size="lg" className="rounded-xl">
-            Mock Exams
-            </Button>
+            <Link href="/chat">
+                <Button variant="primary" size="lg" className="rounded-xl">
+                AI Q&A Panel
+                </Button>
+            </Link>
+            
+            <Link href="/exams">
+                <Button variant="neutral" size="lg" className="rounded-xl">
+                Mock Exams
+                </Button>
+            </Link>
         </div>
       </>
 
