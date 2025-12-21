@@ -90,5 +90,25 @@ export async function POST(req: Request) {
     update: {},
   });
 
+  // 3. Initialize subject progress at 0% for all subjects
+  const subjects = await prisma.subject.findMany({ select: { id: true } });
+  if (subjects.length > 0) {
+    const existing = await prisma.progressTrack.findMany({
+      where: { userId },
+      select: { subjectId: true },
+    });
+    const existingSet = new Set(existing.map((e) => e.subjectId));
+    const newTracks = subjects
+      .filter((s) => !existingSet.has(s.id))
+      .map((s) => ({
+        userId,
+        subjectId: s.id,
+        progressPercentage: 0,
+      }));
+    if (newTracks.length > 0) {
+      await prisma.progressTrack.createMany({ data: newTracks });
+    }
+  }
+
   return res; // return SAME RESPONSE INSTANCE
 }
