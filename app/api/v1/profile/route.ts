@@ -58,7 +58,7 @@ export async function PATCH(req: Request) {
     lastNames,
     phoneNumber,
     gradeLevel,
-    waecYear,
+    examYear,
     preferredSubjects,
     avatarUrl,
   } = body;
@@ -82,7 +82,7 @@ export async function PATCH(req: Request) {
           lastNames: lastNames ?? existing.lastNames,
           phoneNumber: phoneNumber ?? existing.phoneNumber,
           gradeLevel: gradeLevel ?? existing.gradeLevel,
-          waecYear: waecYear ?? existing.waecYear,
+          examYear: examYear ?? existing.examYear,
           preferredSubjects:
             preferredSubjects ?? existing.preferredSubjects,
           avatarUrl: avatarUrl ?? existing.avatarUrl,
@@ -96,7 +96,7 @@ export async function PATCH(req: Request) {
           lastNames,
           phoneNumber,
           gradeLevel,
-          waecYear,
+          examYear,
           preferredSubjects: preferredSubjects ?? [],
           avatarUrl,
         },
