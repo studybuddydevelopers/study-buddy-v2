@@ -9,6 +9,7 @@ import { DashboardClientProps } from "./dashboard.types";
 import Heading1 from "@/components/Heading1";
 import Paragraph from "@/components/Paragraph";
 import Image from "@/components/Image";
+import { useMemo } from "react";
 
 export default function DashboardClient({
   me,
@@ -17,7 +18,19 @@ export default function DashboardClient({
 }: DashboardClientProps) {
   const firstName = me?.profile?.firstName ?? "Student";
   const subjects = progress?.subjects ?? [];
-  console.log(me);
+  console.log("Me: ", me);
+  console.log("Progress: ", progress);
+
+  const randomRecommendationImages = useMemo(
+    () =>
+      aiRecommendations.map(
+        (_, index) =>
+          `https://picsum.photos/seed/${Math.random()
+            .toString(36)
+            .slice(2)}-${index}/500/500`
+      ),
+    [aiRecommendations]
+  );
 
   return (
     <div className="px-6 py-10 w-[90vw] self-center">
@@ -66,18 +79,20 @@ export default function DashboardClient({
                 <p className="text-gray-700 text-sm">{rec.body}</p>
                 </div>
 
-                {rec.image && rec.alt && (
-                //   <img
-                //     src={rec.image}
-                //     alt=""
-                //     className="w-28 h-24 object-cover rounded-lg"
-                //   />
+                {rec.image ? (
                     <Image
                         src={rec.image}
-                        alt={rec.alt}
+                        alt={rec.alt ?? "No Alt Available"}
+                        className="max-w-[20em] max-h-[12em] object-cover rounded-lg"
+                    />
+                ) : (
+                    <Image
+                        src={randomRecommendationImages[index]}
+                        alt="Random Image"
                         className="max-w-[20em] max-h-[12em] object-cover rounded-lg"
                     />
                 )}
+
             </div>
             ))}
         </div>
