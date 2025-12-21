@@ -18,7 +18,7 @@ Auth & Account
 Profile
 -------
 - GET `/profile` (auth) — Fetch current user profile or `null`.
-- PATCH `/profile` (auth) — Partial update/create of profile fields (`firstName`, `middleNames`, `lastNames`, `phoneNumber`, `gradeLevel`, `waecYear`, `preferredSubjects`, `avatarUrl`). Returns `{ success: true, profile }`.
+- PATCH `/profile` (auth) — Partial update/create of profile fields (`firstName`, `middleNames`, `lastNames`, `phoneNumber`, `gradeLevel`, `examYear`, `preferredSubjects`, `avatarUrl`). Returns `{ success: true, profile }`.
 
 Schools (admin)
 ---------------
@@ -66,8 +66,8 @@ Payments
 
 Admin Content
 -------------
-- POST `/admin/subjects/create` (admin) — Body: `name` (req), `waecCode?`, `description?`. Returns created subject.
-- POST `/admin/topics/create` (admin) — Body: `subjectId`, `title` (req), `waecOutlineRef?`, `difficulty?`. Returns created topic.
+- POST `/admin/subjects/create` (admin) — Body: `name` (req), `examCode?`, `description?`. Returns created subject.
+- POST `/admin/topics/create` (admin) — Body: `subjectId`, `title` (req), `examOutlineRef?`, `difficulty?`. Returns created topic.
 - POST `/admin/curriculum/upload` (admin) — Multipart form: `subjectId`, `file` (PDF). Uploads to Supabase storage and records `{ id, subjectId, fileUrl, uploadedAt }`.
 - POST `/admin/past-questions/upload` (admin) — Multipart form with `subjectId`, `questionText`, `answerText` (req); optional `topicId`, `explanationText`, `year`, `questionNumber`, `difficulty`, `image` (png/jpeg). Uploads image if provided, creates question record, returns stored fields.
 - POST `/admin/past-questions/batch` (admin) — Body: array of past-question objects (`subjectId`, `questionText`, `answerText`, optional metadata). Inserts each and returns per-index results plus counts.
