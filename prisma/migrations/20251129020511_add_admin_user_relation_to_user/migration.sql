@@ -34,7 +34,7 @@ CREATE TABLE "UserProfile" (
     "lastNames" TEXT NOT NULL,
     "phoneNumber" TEXT NOT NULL,
     "gradeLevel" TEXT,
-    "waecYear" INTEGER,
+    "examYear" INTEGER,
     "preferredSubjects" TEXT[],
     "avatarUrl" TEXT,
 
@@ -45,7 +45,7 @@ CREATE TABLE "UserProfile" (
 CREATE TABLE "Subject" (
     "id" TEXT NOT NULL,
     "name" TEXT NOT NULL,
-    "waecCode" TEXT,
+    "examCode" TEXT,
     "description" TEXT,
 
     CONSTRAINT "Subject_pkey" PRIMARY KEY ("id")
@@ -56,7 +56,7 @@ CREATE TABLE "Topic" (
     "id" TEXT NOT NULL,
     "subjectId" TEXT NOT NULL,
     "title" TEXT NOT NULL,
-    "waecOutlineRef" TEXT,
+    "examOutlineRef" TEXT,
     "difficulty" INTEGER,
 
     CONSTRAINT "Topic_pkey" PRIMARY KEY ("id")
