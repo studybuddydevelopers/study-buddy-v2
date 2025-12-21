@@ -5,6 +5,137 @@ import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/auth";
 import OpenAI from "openai";
 
+const FRESH_WINDOW_MS = 23 * 60 * 60 * 1000;
+const DAILY_CAP = 2; // max recommendations per user per ~24h
+
+async function generateRecommendationText(prompt: string) {
+  const client = new OpenAI({
+    apiKey: process.env.OPENAI_API_KEY!,
+  });
+
+  const completion = await client.chat.completions.create({
+    model: "gpt-4o-mini",
+    messages: [{ role: "user", content: prompt }],
+    max_tokens: 300,
+    temperature: 0.4,
+  });
+
+  return (
+    completion.choices?.[0]?.message?.content ||
+    "Focus on a high-impact topic and practice 10 questions daily."
+  );
+}
+
+async function buildProgressContext(userId: string) {
+  const tracks = await prisma.progressTrack.findMany({
+    where: { userId },
+    include: { subject: { select: { name: true } } },
+  });
+
+  const summary = tracks.length
+    ? tracks.map((t) => `${t.subject.name}: ${t.progressPercentage}%`).join("; ")
+    : "No progress data yet.";
+
+  const ranked = tracks
+    .slice()
+    .sort((a, b) => a.progressPercentage - b.progressPercentage)
+    .map((t) => t.subject.name);
+
+  return { summary, ranked };
+}
+
+export async function GET() {
+  // -------------------------------------
+  // 1. AUTH
+  // -------------------------------------
+  const auth = await requireUser();
+  if ("errorResponse" in auth) return auth.errorResponse;
+  const { dbUser } = auth;
+
+  // -------------------------------------
+  // 2. CHECK RECENT RECOMMENDATION
+  // -------------------------------------
+  const now = Date.now();
+  const since = new Date(now - FRESH_WINDOW_MS);
+
+  const recent = await prisma.recommendation.findMany({
+    where: { userId: dbUser.id, createdAt: { gte: since } },
+    orderBy: { createdAt: "desc" },
+    take: DAILY_CAP,
+  });
+
+  if (recent.length >= DAILY_CAP) {
+    return NextResponse.json({
+      recommendations: recent.map((r) => ({
+        title: "AI Recommendation",
+        body: r.recommendationText,
+      })),
+    });
+  }
+
+  // -------------------------------------
+  // 3. GENERATE NEW RECOMMENDATION (fill up to cap)
+  // -------------------------------------
+  const progressContext = await buildProgressContext(dbUser.id);
+  const { summary: progressSummary, ranked } = progressContext;
+
+  let generated: string[] = [];
+  const apiKey = process.env.OPENAI_API_KEY;
+  if (apiKey) {
+    try {
+      generated = await Promise.all(
+        Array.from({ length: DAILY_CAP - recent.length }).map((_, idx) => {
+          const focus =
+            ranked[idx] ||
+            ranked[(idx + 1) % (ranked.length || 1)] ||
+            "any weak subject";
+          const prompt = `
+You are StudyBuddy AI. Generate one concise study recommendation (1-3 sentences).
+Make it specific, actionable, and tied to the subject(s). Avoid repeating the same advice across multiple recommendations.
+User progress: ${progressSummary}
+Focus this recommendation on: ${focus}
+If no progress data, suggest a smart starting point.
+Include a concrete action and target (e.g., number of questions, time block). Output only the recommendation text.`;
+
+          return generateRecommendationText(prompt);
+        })
+      );
+    } catch (err: any) {
+      generated = [
+        "Review your lowest-progress subject today and complete one focused practice set.",
+      ];
+    }
+  } else {
+    generated = [
+      "Start with your weakest subject and aim for one focused practice block today.",
+    ];
+  }
+
+  const toCreate = generated.map((text) => ({
+    userId: dbUser.id,
+    recommendationText: text,
+  }));
+
+  let created = [];
+  if (toCreate.length) {
+    await prisma.recommendation.createMany({ data: toCreate });
+    created = await prisma.recommendation.findMany({
+      where: { userId: dbUser.id },
+      orderBy: { createdAt: "desc" },
+      take: DAILY_CAP,
+    });
+  }
+
+  const all = [...recent, ...created].slice(0, DAILY_CAP);
+
+  return NextResponse.json({
+    recommendations: all.map((r) => ({
+      title: "AI Recommendation",
+      body: r.recommendationText,
+    })),
+  });
+}
+
 export async function POST(req: Request) {
   // -------------------------------------
   // 1. AUTH
