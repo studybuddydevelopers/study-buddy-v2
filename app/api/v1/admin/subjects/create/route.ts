@@ -24,7 +24,7 @@ export async function POST(req: Request) {
     );
   }
 
-  const { name, waecCode, description } = body;
+  const { name, examCode, description } = body;
 
   if (!name || typeof name !== "string") {
     return NextResponse.json(
@@ -33,10 +33,10 @@ export async function POST(req: Request) {
     );
   }
 
-  // waecCode + description are optional strings
-  if (waecCode && typeof waecCode !== "string") {
+  // examCode + description are optional strings
+  if (examCode && typeof examCode !== "string") {
     return NextResponse.json(
-      { error: "waecCode must be a string" },
+      { error: "examCode must be a string" },
       { status: 400 }
     );
   }
@@ -68,7 +68,7 @@ export async function POST(req: Request) {
   const subject = await prisma.subject.create({
     data: {
       name,
-      waecCode: waecCode ?? null,
+      examCode: examCode ?? null,
       description: description ?? null,
     },
   });
@@ -80,7 +80,7 @@ export async function POST(req: Request) {
     {
       id: subject.id,
       name: subject.name,
-      waecCode: subject.waecCode,
+      examCode: subject.examCode,
       description: subject.description,
     },
     { status: 201 }
