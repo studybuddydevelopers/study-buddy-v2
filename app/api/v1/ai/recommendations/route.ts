@@ -4,6 +4,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/auth";
 import OpenAI from "openai";
+import { Recommendation } from "@prisma/client";
 
 const FRESH_WINDOW_MS = 23 * 60 * 60 * 1000;
 const DAILY_CAP = 2; // max recommendations per user per ~24h
@@ -78,6 +79,8 @@ export async function GET() {
   // -------------------------------------
   const progressContext = await buildProgressContext(dbUser.id);
   const { summary: progressSummary, ranked } = progressContext;
+  console.log("progressContext: ", progressContext);
+  console.log("progressSummary: ", progressSummary);
 
   let generated: string[] = [];
   const apiKey = process.env.OPENAI_API_KEY;
@@ -89,6 +92,7 @@ export async function GET() {
             ranked[idx] ||
             ranked[(idx + 1) % (ranked.length || 1)] ||
             "any weak subject";
+          console.log("focus: ", focus);
           const prompt = `
 You are StudyBuddy AI. Generate one concise study recommendation (1-3 sentences).
 Make it specific, actionable, and tied to the subject(s). Avoid repeating the same advice across multiple recommendations.
@@ -96,16 +100,19 @@ User progress: ${progressSummary}
 Focus this recommendation on: ${focus}
 If no progress data, suggest a smart starting point.
 Include a concrete action and target (e.g., number of questions, time block). Output only the recommendation text.`;
+          console.log("prompt: ", prompt);
 
           return generateRecommendationText(prompt);
         })
       );
     } catch (err: any) {
+      console.log("There is an error that occured, err: ", err);
       generated = [
         "Review your lowest-progress subject today and complete one focused practice set.",
       ];
     }
   } else {
+    console.log("There is no opeani key")
     generated = [
       "Start with your weakest subject and aim for one focused practice block today.",
     ];
@@ -116,7 +123,7 @@ Include a concrete action and target (e.g., number of questions, time block). Ou
     recommendationText: text,
   }));
 
-  let created = [];
+  let created: Recommendation[] = [];
   if (toCreate.length) {
     await prisma.recommendation.createMany({ data: toCreate });
     created = await prisma.recommendation.findMany({
