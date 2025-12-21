@@ -2,6 +2,7 @@
   "name": "study-buddy-v2",
   "version": "0.1.0",
   "private": true,
+  "prisma": { "seed": "ts-node prisma/seed/index.ts" },
   "scripts": {
     "dev": "next dev",
     "build": "next build",
