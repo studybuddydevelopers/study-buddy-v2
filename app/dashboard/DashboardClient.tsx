@@ -74,7 +74,7 @@ export default function DashboardClient({
                     <Image
                         src={rec.image}
                         alt={rec.alt}
-                        className="w-[20em] h-[12em] object-cover rounded-lg"
+                        className="max-w-[20em] max-h-[12em] object-cover rounded-lg"
                     />
                 )}
             </div>
