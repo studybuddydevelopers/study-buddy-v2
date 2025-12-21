@@ -10,7 +10,7 @@ export interface UserProfile {
   lastNames: string | null;
   phoneNumber?: string | null;
   gradeLevel?: string | null;
-  waecYear?: number | null;
+  examYear?: number | null;
   preferredSubjects?: string[] | null;
   avatarUrl?: string | null;
 }
