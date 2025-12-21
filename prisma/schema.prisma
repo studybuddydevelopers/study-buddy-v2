@@ -64,7 +64,7 @@ model UserProfile {
   lastNames         String
   phoneNumber       String
   gradeLevel        String?
-  waecYear          Int?
+  examYear          Int?
   preferredSubjects String[] // fixed: no optional list
   avatarUrl         String?
 
@@ -78,23 +78,23 @@ model UserProfile {
 model Subject {
   id          String  @id @default(uuid())
   name        String
-  waecCode    String? // this should be changed to SAT (assuming SATs have codes) as thats what we are doing to showcase a demo
+  examCode    String?
   description String?
 
   topics          Topic[]
-  pastQuestions   PastQuestion[]
-  recommendations Recommendation[]
-  progressTracks  ProgressTrack[]
   mockTemplates   MockExamTemplate[]
-  aiQuestions     AiQuestion[]
+  pastQuestions   PastQuestion[]
   curriculumFiles CurriculumFile[]
+  progressTracks  ProgressTrack[]
+  aiQuestions     AiQuestion[]
+  recommendations Recommendation[]
 }
 
 model Topic {
   id             String  @id @default(uuid())
   subjectId      String
   title          String
-  waecOutlineRef String?
+  examOutlineRef String?
   difficulty     Int?
 
   subject         Subject          @relation(fields: [subjectId], references: [id], onDelete: Cascade)
@@ -283,8 +283,9 @@ model PastQuestionSource {
   paperPdfUrl String?
   importedBy  String
   importedAt  DateTime @default(now())
+
+  @@ignore
 }
-// this can be safely deleted as there is no apparent use of it
 
 model AdminUser {
   id        String   @id @default(uuid())
