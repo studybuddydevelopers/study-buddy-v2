@@ -17,6 +17,7 @@ export default function DashboardClient({
 }: DashboardClientProps) {
   const firstName = me?.profile?.firstName ?? "Student";
   const subjects = progress?.subjects ?? [];
+  console.log(me);
 
   return (
     <div className="px-6 py-10 w-[90vw] self-center">
