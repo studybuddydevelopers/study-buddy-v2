@@ -42,9 +42,9 @@ export default function ClientLanding() {
             <Heading1>Ace Your WAEC Exams with Study Buddy</Heading1>
 
             <Paragraph size="lg">
-              Prepare for your West African Examinations Council (WAEC) exams with 
-              our AI-powered platform. Get personalized study plans, practice tests, 
-              and expert guidance to achieve your academic goals.
+              Prepare for your SAT exams with our AI-powered learning platform. Get personalized study plans, 
+              realistic SAT-style practice tests, and expert guidance designed to help you boost your scores 
+              and reach your college goals. Study smarter, track your progress, and walk into test day with confidence.
             </Paragraph>
 
             {/* Buttons */}
@@ -120,9 +120,8 @@ export default function ClientLanding() {
               </Heading6>
 
               <Paragraph variant="superMuted" className="w-56 text-left">
-                Access a wide range of practice tests that simulate the actual 
-                WAEC exam environment, helping you build confidence and identify 
-                areas for improvement.
+                Take full-length SAT practice exams that replicate test-day conditions, 
+                empowering you to build confidence, track progress, and improve your score.
               </Paragraph>
             </Card>
 
