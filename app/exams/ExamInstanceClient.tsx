@@ -10,6 +10,7 @@ import Image from "@/components/Image";
 
 interface TemplateMeta {
   id: string;
+  subjectId: string;
   title: string;
   description?: string | null;
   questionCount: number;
@@ -34,6 +35,7 @@ interface MockExamAnswerRow {
   userAnswer: string | null;
   isCorrect: boolean | null;
   score: number | null;
+  correctAnswer?: string | null;
 }
 
 interface ExamInstanceData {
@@ -77,6 +79,9 @@ export default function ExamInstanceClient({
   const [saving, setSaving] = useState(false);
   const [lastSaved, setLastSaved] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [submitted, setSubmitted] = useState(
+    Boolean(data.instance.submittedAt || data.instance.graded)
+  );
   const saveIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const latestAnswersRef = useRef<Record<string, string>>(answers);
 
@@ -91,6 +96,7 @@ export default function ExamInstanceClient({
   }, [answers]);
 
   useEffect(() => {
+    if (submitted) return;
     const interval = setInterval(() => {
       void saveProgress(latestAnswersRef.current);
     }, 15000);
@@ -98,10 +104,10 @@ export default function ExamInstanceClient({
     return () => {
       if (saveIntervalRef.current) clearInterval(saveIntervalRef.current);
     };
-  }, [data.instance.id]);
+  }, [data.instance.id, submitted]);
 
   const saveProgress = async (snapshot: Record<string, string> = answers) => {
-    if (saving) return;
+    if (saving || submitted) return;
     setSaving(true);
     setError(null);
     try {
@@ -178,6 +184,27 @@ export default function ExamInstanceClient({
       );
 
       if (saveIntervalRef.current) clearInterval(saveIntervalRef.current);
+      setSubmitted(true);
+
+      if (data.template.subjectId) {
+        const progressPercentage = Math.max(
+          0,
+          Math.min(
+            100,
+            Math.round(
+              (gradeData.totalScore / data.questions.length) * 100
+            )
+          )
+        );
+        void fetch("/api/v1/progress/subject", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            subjectId: data.template.subjectId,
+            progressPercentage,
+          }),
+        }).catch((err) => console.error("Progress update failed", err));
+      }
     } catch (err) {
       console.error(err);
       setError("Something went wrong while submitting your answers.");
@@ -192,12 +219,26 @@ export default function ExamInstanceClient({
   ).length;
 
   const gradedByAnswerId = useMemo(() => {
-    const map = new Map<string, { isCorrect: boolean; score: number }>();
-    gradeResult?.answers.forEach((a) =>
-      map.set(a.id, { isCorrect: a.isCorrect, score: a.score })
+    const map = new Map<string, { isCorrect: boolean | null; score: number | null }>();
+    if (gradeResult?.answers) {
+      gradeResult.answers.forEach((a) =>
+        map.set(a.id, { isCorrect: a.isCorrect, score: a.score })
+      );
+    } else {
+      data.answers.forEach((a) =>
+        map.set(a.id, { isCorrect: a.isCorrect, score: a.score })
+      );
+    }
+    return map;
+  }, [gradeResult, data.answers]);
+
+  const correctAnswerByQuestionId = useMemo(() => {
+    const map = new Map<string, string | null>();
+    data.answers.forEach((a) =>
+      map.set(a.pastQuestionId, a.correctAnswer ?? null)
     );
     return map;
-  }, [gradeResult]);
+  }, [data.answers]);
 
   return (
     <div className="w-[90vw] max-w-5xl mx-auto py-10 space-y-6">
@@ -220,6 +261,7 @@ export default function ExamInstanceClient({
           const answerId = answerIdByQuestionId.get(q.id);
           const gradeInfo = answerId ? gradedByAnswerId.get(answerId) : null;
           const value = answerId ? answers[answerId] ?? "" : "";
+          const correctAnswer = correctAnswerByQuestionId.get(q.id);
 
           return (
             <div
@@ -246,7 +288,18 @@ export default function ExamInstanceClient({
                 />
               )}
 
-              {answerId ? (
+              {submitted ? (
+                <div className="border border-accent-200 rounded-lg p-3 bg-accent-50">
+                  <p className="text-sm text-gray-800">
+                    <span className="font-semibold">Your answer:</span>{" "}
+                    {value || "—"}
+                  </p>
+                  <p className="text-sm text-gray-800 mt-2">
+                    <span className="font-semibold">Correct answer:</span>{" "}
+                    {correctAnswer ?? "Not available"}
+                  </p>
+                </div>
+              ) : answerId ? (
                 <textarea
                   className="w-full border border-accent-200 rounded-lg p-3 focus:outline-none focus:ring-2 focus:ring-primary-400 text-gray-900"
                   placeholder="Type your answer here"
@@ -265,7 +318,7 @@ export default function ExamInstanceClient({
                 </Paragraph>
               )}
 
-              {gradeInfo && (
+              {gradeInfo && gradeInfo.isCorrect !== null && (
                 <div className="text-sm font-medium">
                   {gradeInfo.isCorrect ? (
                     <span className="text-green-600">Correct</span>
@@ -300,7 +353,7 @@ export default function ExamInstanceClient({
             variant="outline"
             onClick={saveProgress}
             loading={saving}
-            disabled={saving}
+            disabled={saving || submitted}
           >
             Save now
           </Button>
@@ -309,7 +362,7 @@ export default function ExamInstanceClient({
             size="lg"
             onClick={handleSubmitAndGrade}
             loading={submitting}
-            disabled={submitting}
+            disabled={submitting || submitted}
           >
             Submit & Grade
           </Button>
