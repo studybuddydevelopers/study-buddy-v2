@@ -131,7 +131,7 @@ export default function ChatClient() {
   };
 
   return (
-    <div className="w-[90vw] max-w-5xl mx-auto py-10 flex flex-col gap-4">
+    <div className="w-[90vw] max-w-5xl mx-auto py-6 flex flex-col gap-4 min-h-[calc(100vh-120px)]">
       <div className="flex items-start justify-between gap-4 flex-wrap">
         <div>
           <Heading1 gutter="sm">AI Chat</Heading1>
@@ -157,7 +157,7 @@ export default function ChatClient() {
 
       <div
         ref={listRef}
-        className="flex-1 max-h-56 min-h-44 overflow-y-auto border border-accent-200 rounded-2xl bg-white shadow-sm p-4"
+        className="flex-1 overflow-y-auto border border-accent-200 rounded-2xl bg-white shadow-sm p-4"
       >
         <ChatMessageContainer messages={messages} />
         {loading && (
@@ -174,7 +174,7 @@ export default function ChatClient() {
         </Paragraph>
       )}
 
-      <div className="border border-accent-200 rounded-2xl bg-white shadow-sm p-4 space-y-3 max-h-52">
+      <div className="border border-accent-200 rounded-2xl bg-white shadow-sm p-4 space-y-3">
         <textarea
           className="w-full border border-accent-200 rounded-lg p-3 focus:outline-none focus:ring-2 focus:ring-primary-400 text-gray-900 max-h-28"
           placeholder="Ask anything... Shift+Enter for new line"

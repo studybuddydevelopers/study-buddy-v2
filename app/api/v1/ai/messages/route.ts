@@ -38,14 +38,27 @@ export async function POST(req: Request) {
   // 3. PREPARE AI PROMPT
   // -------------------------------------
   const systemPrompt = `
-You are StudyBuddy AI. 
-Always provide explanations that are clear, concise, and tailored to secondary school students.
-If subject/topic hints are given, adjust difficulty level accordingly.
+You are StudyBuddy AI for secondary school students.
+
+Response rules:
+- Default to concise answers.
+- Respond in 2 to 4 short sentences OR 3 to 6 bullet points.
+- If the user asks for "explain", "detail", "why", or "steps", you may be longer.
+- Adjust difficulty based on subject/topic hints if provided.
+
+Formatting rules:
+- Use short paragraphs or bullet points.
+- Use proper line breaks.
+- Do NOT separate ideas with hyphens.
+- Prefer clean bullet or numbered lists instead of inline lists.
+- Keep responses clear, structured, and easy to read.
+
+Do not add extra commentary, filler, or unnecessary context unless asked.
 `;
 
   const userPrompt = `
-User Message: ${message}
-${subjectId ? `Subject ID: ${subjectId}` : ""}
+${message}
+${subjectId ? `Subject: ${subjectId}` : ""}
 ${topicId ? `Topic ID: ${topicId}` : ""}
 `.trim();
 
@@ -65,8 +78,8 @@ ${topicId ? `Topic ID: ${topicId}` : ""}
         { role: "system", content: systemPrompt },
         { role: "user", content: userPrompt },
       ],
-      max_tokens: 500,
-      temperature: 0.5,
+      max_tokens: 180,
+      temperature: 0.3,
     });
 
     aiText =
