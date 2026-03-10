@@ -82,6 +82,21 @@ export default function Button({
     document.head.appendChild(styleEl);
   }, []);
 
+  useEffect(() => {
+    const body = document.body;
+
+    if (loading) {
+      body.classList.add("cursor-wait");
+    } else {
+      body.classList.remove("cursor-wait");
+    }
+
+    return () => {
+      body.classList.remove("cursor-wait");
+    };
+  }, [loading]);
+
+
   const baseClasses =
     "inline-flex items-center justify-center font-medium transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 active:scale-95 select-none";
 

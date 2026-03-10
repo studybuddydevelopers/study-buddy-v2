@@ -38,6 +38,30 @@ export default function NavBar({
 }: Readonly<NavBarProps>) {
   const [mobileOpen, setMobileOpen] = useState(false);
 
+  // NEW: loading states
+  const [loadingLogin, setLoadingLogin] = useState(false);
+  const [loadingSignup, setLoadingSignup] = useState(false);
+
+  const handleLogin = () => {
+    setLoadingLogin(true);
+
+    setTimeout(() => {
+      if (onSignIn) onSignIn();
+      else if (signInLink) window.location.href = signInLink;
+      setLoadingLogin(false);
+    }, 600);
+  };
+
+  const handleSignup = () => {
+    setLoadingSignup(true);
+
+    setTimeout(() => {
+      if (onSignUp) onSignUp();
+      else if (signUpLink) window.location.href = signUpLink;
+      setLoadingSignup(false);
+    }, 600);
+  };
+
   const linkBase =
     "text-gray-700 hover:text-primary-500 font-medium transition-colors";
   const linkActive =
@@ -78,34 +102,28 @@ export default function NavBar({
         )}
 
         <div className="hidden md:flex items-center space-x-3">
-          {!onSignIn && signInLink && 
-            <Link href={signInLink}>
-              <Button variant="primary" size="sm">
-                Log In
-              </Button>
-            </Link>
-          }
-          {
-            onSignIn && !signInLink &&
-            <Button variant="primary" size="sm" onClick={onSignIn}>
-              Log In
-            </Button>
-          }
-          
-          {!onSignUp && signUpLink && 
-            <Link href={signUpLink}>
-              <Button variant="outline" size="sm">
-                Sign Up
-              </Button>
-            </Link>
-          }
-          {
-            onSignUp && !signUpLink &&
-            <Button variant="outline" size="sm" onClick={onSignUp}>
-              Sign Up
-            </Button>
-          }
-          
+
+          {/* LOGIN BUTTON */}
+          <Button
+            variant="primary"
+            size="sm"
+            loading={loadingLogin}
+            disabled={loadingLogin}
+            onClick={handleLogin}
+          >
+            Log In
+          </Button>
+
+          {/* SIGNUP BUTTON */}
+          <Button
+            variant="outline"
+            size="sm"
+            loading={loadingSignup}
+            disabled={loadingSignup}
+            onClick={handleSignup}
+          >
+            Sign Up
+          </Button>
         </div>
 
         {/* Mobile menu button */}
@@ -132,12 +150,27 @@ export default function NavBar({
           ))}
 
           <div className="flex flex-col space-y-2 mt-4">
-            <Button variant="primary" size="sm" onClick={onSignIn}>
+
+            <Button
+              variant="primary"
+              size="sm"
+              loading={loadingLogin}
+              disabled={loadingLogin}
+              onClick={handleLogin}
+            >
               Sign In
             </Button>
-            <Button variant="outline" size="sm" onClick={onSignUp}>
+
+            <Button
+              variant="outline"
+              size="sm"
+              loading={loadingSignup}
+              disabled={loadingSignup}
+              onClick={handleSignup}
+            >
               Sign Up
             </Button>
+
           </div>
         </div>
       )}
