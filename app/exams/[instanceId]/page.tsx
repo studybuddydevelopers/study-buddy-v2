@@ -9,12 +9,16 @@ export default async function ExamInstancePage({
 }: {
   params: { instanceId: string };
 }) {
-  const cookieStore = cookies();
+  const cookieStore = await cookies();
+  const cookieHeader = cookieStore
+    .getAll()
+    .map(({ name, value }) => `${name}=${value}`)
+    .join("; ");
 
   const res = await fetch(
     `${process.env.NEXT_PUBLIC_APP_URL}/api/v1/mock-exams/instance?instanceId=${params.instanceId}`,
     {
-      headers: { Cookie: cookieStore.toString() },
+      headers: { Cookie: cookieHeader },
       cache: "no-store",
     }
   );
