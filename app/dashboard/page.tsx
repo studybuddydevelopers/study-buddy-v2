@@ -9,11 +9,15 @@ import {
 } from "./dashboard.types";
 
 export default async function DashboardPage() {
-  const cookieStore = cookies();
+  const cookieStore = await cookies();
+  const cookieHeader = cookieStore
+    .getAll()
+    .map(({ name, value }) => `${name}=${value}`)
+    .join("; ");
 
   // Fetch /me
   const meRes = await fetch(`${process.env.NEXT_PUBLIC_APP_URL}/api/v1/me`, {
-    headers: { Cookie: cookieStore.toString() },
+    headers: { Cookie: cookieHeader },
     cache: "no-store",
   });
 
@@ -23,7 +27,7 @@ export default async function DashboardPage() {
   const progressRes = await fetch(
     `${process.env.NEXT_PUBLIC_APP_URL}/api/v1/progress/full-report`,
     {
-      headers: { Cookie: cookieStore.toString() },
+      headers: { Cookie: cookieHeader },
       cache: "no-store",
     }
   );
@@ -37,7 +41,7 @@ export default async function DashboardPage() {
   const recRes = await fetch(
     `${process.env.NEXT_PUBLIC_APP_URL}/api/v1/ai/recommendations`,
     {
-      headers: { Cookie: cookieStore.toString() },
+      headers: { Cookie: cookieHeader },
       cache: "no-store",
     }
   );
