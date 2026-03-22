@@ -5,7 +5,7 @@ import { createServerClient } from "@supabase/ssr";
 import { prisma } from "@/lib/prisma";
 
 export async function requireUser() {
-  const cookieStore = cookies();
+  const cookieStore = await cookies();
 
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
