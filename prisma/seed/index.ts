@@ -31,12 +31,25 @@ async function main() {
     const subjectId = subjectMap.get(subjectName);
     if (!subjectId) continue;
     const newTopics = topicList
-      .map((title) => ({ title, subjectId }))
+      .map(({ title, sortOrder }) => ({ title, subjectId, sortOrder }))
       .filter((t) => !existingTopicKeys.has(`${t.subjectId}::${t.title}`));
     if (newTopics.length) {
       await prisma.topic.createMany({ data: newTopics });
       newTopics.forEach((t) => existingTopicKeys.add(`${t.subjectId}::${t.title}`));
     }
+  }
+
+  for (const [subjectName, topicList] of Object.entries(topicsBySubject)) {
+    const subjectId = subjectMap.get(subjectName);
+    if (!subjectId) continue;
+    await Promise.all(
+      topicList.map(({ title, sortOrder }) =>
+        prisma.topic.updateMany({
+          where: { subjectId, title },
+          data: { sortOrder },
+        })
+      )
+    );
   }
 
   // Map topic titles → ids

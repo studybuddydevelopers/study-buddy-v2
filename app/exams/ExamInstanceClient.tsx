@@ -20,6 +20,11 @@ interface TemplateMeta {
   } | null;
 }
 
+interface McqChoice {
+  letter: string;
+  text: string;
+}
+
 interface MockExamQuestion {
   id: string;
   questionText: string;
@@ -27,6 +32,7 @@ interface MockExamQuestion {
   year?: number | null;
   questionNumber?: number | null;
   difficulty?: string | null;
+  choices?: McqChoice[];
 }
 
 interface MockExamAnswerRow {
@@ -240,6 +246,11 @@ export default function ExamInstanceClient({
     return map;
   }, [data.answers]);
 
+  const letterForSelection = (q: MockExamQuestion, selectedText: string) => {
+    const choice = q.choices?.find((c) => c.text === selectedText);
+    return choice?.letter ?? null;
+  };
+
   return (
     <div className="w-[90vw] max-w-5xl mx-auto py-10 space-y-6">
       <div className="flex items-start justify-between gap-4 flex-wrap">
@@ -262,6 +273,9 @@ export default function ExamInstanceClient({
           const gradeInfo = answerId ? gradedByAnswerId.get(answerId) : null;
           const value = answerId ? answers[answerId] ?? "" : "";
           const correctAnswer = correctAnswerByQuestionId.get(q.id);
+          const userLetter = value ? letterForSelection(q, value) : null;
+          const correctLetter =
+            correctAnswer && letterForSelection(q, correctAnswer);
 
           return (
             <div
@@ -289,29 +303,89 @@ export default function ExamInstanceClient({
               )}
 
               {submitted ? (
-                <div className="border border-accent-200 rounded-lg p-3 bg-accent-50">
+                <div className="border border-accent-200 rounded-lg p-3 bg-accent-50 space-y-2">
                   <p className="text-sm text-gray-800">
                     <span className="font-semibold">Your answer:</span>{" "}
-                    {value || "—"}
+                    {value ? (
+                      <>
+                        {userLetter ? (
+                          <span className="tabular-nums font-medium text-primary-700">
+                            ({userLetter}){" "}
+                          </span>
+                        ) : null}
+                        {value}
+                      </>
+                    ) : (
+                      "—"
+                    )}
                   </p>
-                  <p className="text-sm text-gray-800 mt-2">
+                  <p className="text-sm text-gray-800">
                     <span className="font-semibold">Correct answer:</span>{" "}
                     {correctAnswer ?? "Not available"}
+                    {correctLetter ? (
+                      <span className="tabular-nums font-medium text-primary-700">
+                        {" "}
+                        ({correctLetter})
+                      </span>
+                    ) : null}
                   </p>
                 </div>
               ) : answerId ? (
-                <textarea
-                  className="w-full border border-accent-200 rounded-lg p-3 focus:outline-none focus:ring-2 focus:ring-primary-400 text-gray-900"
-                  placeholder="Type your answer here"
-                  value={value}
-                  onChange={(e) =>
-                    setAnswers((prev) => ({
-                      ...prev,
-                      [answerId]: e.target.value,
-                    }))
-                  }
-                  rows={3}
-                />
+                q.choices && q.choices.length === 4 ? (
+                  <div
+                    className="space-y-2"
+                    role="radiogroup"
+                    aria-label={`Question ${idx + 1}`}
+                  >
+                    {q.choices.map((c) => {
+                      const inputId = `q-${answerId}-${c.letter}`;
+                      return (
+                        <label
+                          key={c.letter}
+                          htmlFor={inputId}
+                          className={`flex gap-3 items-start cursor-pointer rounded-lg border p-3 transition-colors ${
+                            value === c.text
+                              ? "border-primary-400 bg-primary-50"
+                              : "border-accent-200 bg-white hover:border-primary-200"
+                          }`}
+                        >
+                          <input
+                            id={inputId}
+                            type="radio"
+                            name={`question-${answerId}`}
+                            className="mt-1 h-4 w-4 text-primary-600 border-accent-300 focus:ring-primary-400"
+                            checked={value === c.text}
+                            onChange={() =>
+                              setAnswers((prev) => ({
+                                ...prev,
+                                [answerId]: c.text,
+                              }))
+                            }
+                          />
+                          <span className="font-semibold text-primary-600 tabular-nums w-6 shrink-0">
+                            {c.letter}.
+                          </span>
+                          <span className="text-gray-900 whitespace-pre-line flex-1">
+                            {c.text}
+                          </span>
+                        </label>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <textarea
+                    className="w-full border border-accent-200 rounded-lg p-3 focus:outline-none focus:ring-2 focus:ring-primary-400 text-gray-900"
+                    placeholder="Type your answer here"
+                    value={value}
+                    onChange={(e) =>
+                      setAnswers((prev) => ({
+                        ...prev,
+                        [answerId]: e.target.value,
+                      }))
+                    }
+                    rows={3}
+                  />
+                )
               ) : (
                 <Paragraph variant="error" gutter="none">
                   Unable to capture answer for this question.

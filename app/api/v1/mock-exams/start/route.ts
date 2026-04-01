@@ -2,6 +2,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/auth";
+import { buildMockExamMcqChoices } from "@/lib/mock-exam-multiple-choice";
 
 export async function POST(req: Request) {
   // -------------------------------------
@@ -87,6 +88,8 @@ export async function POST(req: Request) {
   // -------------------------------------
   // 8. FORMAT RETURN DATA
   // -------------------------------------
+  const answerPool = allQuestions.map((q) => q.answerText);
+
   const response = {
     instance: {
       id: instance.id,
@@ -104,6 +107,12 @@ export async function POST(req: Request) {
       questionNumber: q.questionNumber,
       difficulty: q.difficulty,
       topicId: q.topicId,
+      choices: buildMockExamMcqChoices({
+        correctAnswer: q.answerText,
+        answerPool,
+        instanceId: instance.id,
+        questionId: q.id,
+      }),
     })),
     answers: answerRows.map((a) => ({
       id: a.id,

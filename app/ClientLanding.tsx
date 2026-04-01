@@ -39,7 +39,7 @@ export default function ClientLanding() {
 
           {/* Text Section */}
           <div className="text-left w-1/2">
-            <Heading1>Ace Your WAEC Exams with Study Buddy</Heading1>
+            <Heading1>Ace your SAT exams with study buddy</Heading1>
 
             <Paragraph size="lg">
               Prepare for your SAT exams with our AI-powered learning platform. Get personalized study plans, 

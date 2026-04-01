@@ -2,6 +2,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/auth";
+import { buildMockExamMcqChoices } from "@/lib/mock-exam-multiple-choice";
 
 export async function GET(req: Request) {
   const url = new URL(req.url);
@@ -48,6 +49,12 @@ export async function GET(req: Request) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
+  const poolRows = await prisma.pastQuestion.findMany({
+    where: { subjectId: instance.template.subjectId },
+    select: { answerText: true },
+  });
+  const subjectAnswerPool = poolRows.map((r) => r.answerText);
+
   const response = {
     instance: {
       id: instance.id,
@@ -72,6 +79,12 @@ export async function GET(req: Request) {
       year: a.question.year,
       questionNumber: a.question.questionNumber,
       difficulty: a.question.difficulty,
+      choices: buildMockExamMcqChoices({
+        correctAnswer: a.question.answerText,
+        answerPool: subjectAnswerPool,
+        instanceId: instance.id,
+        questionId: a.question.id,
+      }),
     })),
     answers: instance.answers.map((a) => ({
       id: a.id,

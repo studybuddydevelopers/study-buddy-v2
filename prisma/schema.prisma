@@ -96,6 +96,7 @@ model Topic {
   title          String
   examOutlineRef String?
   difficulty     Int?
+  sortOrder      Int     @default(0)
 
   subject         Subject          @relation(fields: [subjectId], references: [id], onDelete: Cascade)
   pastQuestions   PastQuestion[]

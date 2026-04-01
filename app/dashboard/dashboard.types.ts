@@ -45,6 +45,7 @@ export interface SubjectProgress {
 // -------------------------------------------------------------
 export interface PastQuestionSubjectBreakdown {
   subjectId: string;
+  subjectName: string;
   attempts: number;
   correct: number;
   accuracyRate: number;
@@ -64,17 +65,33 @@ export interface MockExamEntry {
   instanceId: string;
   subjectId: string;
   templateTitle: string;
-  score: number | null;
+  score: number;
+  questionCount: number;
+  scorePercent: number | null;
   graded: boolean;
   startedAt: string;
   submittedAt: string | null;
+  durationMinutes: number | null;
 }
 
 export interface MockExamReport {
   count: number;
+  inProgressCount: number;
   totalScore: number;
   averageScore: number;
+  averageScorePercent: number;
+  averageDurationMinutes: number | null;
   exams: MockExamEntry[];
+}
+
+export interface StudyMaterialsProgress {
+  topicsTotal: number;
+  topicsWithPractice: number;
+  topicsCoveragePercent: number;
+  questionsInBank: number;
+  distinctQuestionsPracticed: number;
+  bankCoveragePercent: number;
+  lastActivityAt: string | null;
 }
 
 // -------------------------------------------------------------
@@ -89,6 +106,7 @@ export interface AIActivity {
 // -------------------------------------------------------------
 export interface ProgressFullReport {
   subjects: SubjectProgress[];
+  studyMaterials: StudyMaterialsProgress;
   pastQuestions: PastQuestionsReport;
   mockExams: MockExamReport;
   aiActivity: AIActivity;
