@@ -72,3 +72,10 @@ Admin Content
 - POST `/admin/past-questions/upload` (admin) — Multipart form with `subjectId`, `questionText`, `answerText` (req); optional `topicId`, `explanationText`, `year`, `questionNumber`, `difficulty`, `image` (png/jpeg). Uploads image if provided, creates question record, returns stored fields.
 - POST `/admin/past-questions/batch` (admin) — Body: array of past-question objects (`subjectId`, `questionText`, `answerText`, optional metadata). Inserts each and returns per-index results plus counts.
 - GET `/admin/users/query` (admin) — Query: `search?`, `isAdmin?=true|false`, `page?=1`, `pageSize?=20`. Returns paginated users with limited profile info.
+
+Notes
+-----
+- This file documents the current implemented API under `app/api/v1`.
+- Route handlers rely on Supabase cookie auth plus Prisma-backed user records.
+- Some frontend flows use server pages that call these endpoints internally with forwarded cookies.
+- If route behavior changes, update this file together with the handler.
