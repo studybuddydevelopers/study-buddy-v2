@@ -1,209 +1,150 @@
-# Study Buddy v2 — How the website works
+# Study Buddy v2 Website Guide
+
+This guide maps the current website implementation to the codebase using exact file locations.
+
+## 1. Stack
+
+| Layer | Technology | Main location |
+|--------|------------|---------------|
+| Framework | Next.js 16 App Router | `app/` |
+| UI | React 18 + Tailwind CSS | `app/**/*.tsx`, `components/`, `app/globals.css` |
+| Auth | Supabase SSR cookies | `app/layout.tsx`, `lib/auth.ts`, `lib/getSession.ts`, `lib/supabaseClient.ts` |
+| Database | Prisma + PostgreSQL | `prisma/schema.prisma`, `lib/prisma.ts` |
+| AI | OpenAI API | `app/api/v1/ai/**` |
 
-This document explains architecture, styling, and behavior of the app, with **exact file paths** for each area. Paths are relative to the repository root unless noted.
+## 2. App Shell
 
----
+- [`app/layout.tsx`](/Users/efeon/study-buddy-v2/app/layout.tsx): root layout, metadata, global CSS, server-side user lookup
+- [`app/ClientLayoutWrapper.tsx`](/Users/efeon/study-buddy-v2/app/ClientLayoutWrapper.tsx): wraps content with nav, footer, and user context
+- [`app/globals.css`](/Users/efeon/study-buddy-v2/app/globals.css): Tailwind layers and design tokens
 
-## 1. Tech stack
+## 3. Navigation and Branding
 
-| Layer | Technology | Where it shows up |
-|--------|------------|-------------------|
-| Framework | **Next.js** (App Router) | `app/` |
-| UI | **React** + **Tailwind CSS** | `app/**/*.tsx`, `components/`, `app/globals.css` |
-| Auth | **Supabase** (SSR cookies) | `app/layout.tsx`, `lib/auth.ts`, `lib/supabaseClient.ts`, `lib/getSession.ts` |
-| Database | **PostgreSQL** via **Prisma** | `prisma/schema.prisma`, `lib/prisma.ts` |
-| AI | **OpenAI** (API routes) | `app/api/v1/ai/**` |
+- [`components/NavBar.tsx`](/Users/efeon/study-buddy-v2/components/NavBar.tsx): main navigation and auth-aware links
+- [`components/Footer.tsx`](/Users/efeon/study-buddy-v2/components/Footer.tsx): footer links
+- [`components/Logo.tsx`](/Users/efeon/study-buddy-v2/components/Logo.tsx)
+- [`components/LogoIcon.tsx`](/Users/efeon/study-buddy-v2/components/LogoIcon.tsx)
+- [`components/LogoName.tsx`](/Users/efeon/study-buddy-v2/components/LogoName.tsx)
 
----
+## 4. Auth and Session Flow
 
-## 2. App shell, layout, and global styling
+- [`lib/auth.ts`](/Users/efeon/study-buddy-v2/lib/auth.ts): `requireUser()` and `requireAdmin()` for route handlers
+- [`lib/getSession.ts`](/Users/efeon/study-buddy-v2/lib/getSession.ts): session helper
+- [`lib/supabaseClient.ts`](/Users/efeon/study-buddy-v2/lib/supabaseClient.ts): browser client
+- [`app/api/v1/signup/route.ts`](/Users/efeon/study-buddy-v2/app/api/v1/signup/route.ts)
+- [`app/api/v1/login/route.ts`](/Users/efeon/study-buddy-v2/app/api/v1/login/route.ts)
+- [`app/api/v1/logout/route.ts`](/Users/efeon/study-buddy-v2/app/api/v1/logout/route.ts)
+- [`app/api/v1/me/route.ts`](/Users/efeon/study-buddy-v2/app/api/v1/me/route.ts)
+- [`app/api/v1/reset-password/route.ts`](/Users/efeon/study-buddy-v2/app/api/v1/reset-password/route.ts)
+- [`app/auth/password-reset/route.ts`](/Users/efeon/study-buddy-v2/app/auth/password-reset/route.ts)
 
-### 2.1 Root layout and metadata
+## 5. Shared UI Building Blocks
 
-- **`app/layout.tsx`** — Root layout for every page: imports `globals.css`, creates a Supabase server client with `cookies()`, calls `getUser()`, passes `user` into `ClientLayoutWrapper`. Sets `metadata` (title, description, favicon). Uses `runtime = "nodejs"`.
+- headings: [`components/Heading1.tsx`](/Users/efeon/study-buddy-v2/components/Heading1.tsx) through [`components/Heading6.tsx`](/Users/efeon/study-buddy-v2/components/Heading6.tsx)
+- text: [`components/Paragraph.tsx`](/Users/efeon/study-buddy-v2/components/Paragraph.tsx), [`components/Caption.tsx`](/Users/efeon/study-buddy-v2/components/Caption.tsx), [`components/Small.tsx`](/Users/efeon/study-buddy-v2/components/Small.tsx)
+- forms: [`components/TextField.tsx`](/Users/efeon/study-buddy-v2/components/TextField.tsx), [`components/SelectField.tsx`](/Users/efeon/study-buddy-v2/components/SelectField.tsx), [`components/MultiSelectField.tsx`](/Users/efeon/study-buddy-v2/components/MultiSelectField.tsx)
+- general UI: [`components/Button.tsx`](/Users/efeon/study-buddy-v2/components/Button.tsx), [`components/Card.tsx`](/Users/efeon/study-buddy-v2/components/Card.tsx), [`components/Badge.tsx`](/Users/efeon/study-buddy-v2/components/Badge.tsx), [`components/ProgressBar.tsx`](/Users/efeon/study-buddy-v2/components/ProgressBar.tsx), [`components/Table.tsx`](/Users/efeon/study-buddy-v2/components/Table.tsx)
+- chat UI: [`components/ChatMessage.tsx`](/Users/efeon/study-buddy-v2/components/ChatMessage.tsx), [`components/ChatMessageContainer.tsx`](/Users/efeon/study-buddy-v2/components/ChatMessageContainer.tsx)
 
-### 2.2 Global layout wrapper (Nav + Footer)
+## 6. Public Pages
 
-- **`app/ClientLayoutWrapper.tsx`** — Client component wrapping all page content. Provides `UserContext`, renders **`components/NavBar.tsx`**, `children` inside `Suspense`, then **`components/Footer.tsx`**.
+- landing: [`app/page.tsx`](/Users/efeon/study-buddy-v2/app/page.tsx), [`app/ClientLanding.tsx`](/Users/efeon/study-buddy-v2/app/ClientLanding.tsx)
+- about: [`app/about-us/page.tsx`](/Users/efeon/study-buddy-v2/app/about-us/page.tsx)
+- contact: [`app/contact-us/page.tsx`](/Users/efeon/study-buddy-v2/app/contact-us/page.tsx)
+- privacy: [`app/privacy-policy/page.tsx`](/Users/efeon/study-buddy-v2/app/privacy-policy/page.tsx)
+- terms: [`app/terms-of-service/page.tsx`](/Users/efeon/study-buddy-v2/app/terms-of-service/page.tsx)
+- demo: [`app/demo-showcase/page.tsx`](/Users/efeon/study-buddy-v2/app/demo-showcase/page.tsx)
 
-### 2.3 Global CSS and design tokens
+## 7. Auth Pages
 
-- **`app/globals.css`** — Tailwind layers, **CSS custom properties** for the design system:
-  - `--primary-*` (purple scale)
-  - `--secondary-*` (navy / cool neutrals)
-  - `--accent-*` (light UI neutrals)
-  - semantic `--success`, `--warning`, `--error`, `--info`
-  - `--background`, `--foreground`, font stacks  
-  Typography and base `html` / `body` rules live here.
+- login: [`app/login/page.tsx`](/Users/efeon/study-buddy-v2/app/login/page.tsx), [`app/login/LoginClient.tsx`](/Users/efeon/study-buddy-v2/app/login/LoginClient.tsx)
+- sign-up: [`app/sign-up/page.tsx`](/Users/efeon/study-buddy-v2/app/sign-up/page.tsx), [`app/sign-up/SignUpClient.tsx`](/Users/efeon/study-buddy-v2/app/sign-up/SignUpClient.tsx)
+- forgot password: [`app/forgot-password/page.tsx`](/Users/efeon/study-buddy-v2/app/forgot-password/page.tsx), [`app/forgot-password/ForgotPasswordClient.tsx`](/Users/efeon/study-buddy-v2/app/forgot-password/ForgotPasswordClient.tsx)
+- reset password update: [`app/reset-password/update/page.tsx`](/Users/efeon/study-buddy-v2/app/reset-password/update/page.tsx), [`app/reset-password/update/ResetPasswordUpdateClient.tsx`](/Users/efeon/study-buddy-v2/app/reset-password/update/ResetPasswordUpdateClient.tsx)
+- email check: [`app/check-email/page.tsx`](/Users/efeon/study-buddy-v2/app/check-email/page.tsx), [`app/check-email/CheckEmailClient.tsx`](/Users/efeon/study-buddy-v2/app/check-email/CheckEmailClient.tsx)
+- verify email: [`app/verify-email/page.tsx`](/Users/efeon/study-buddy-v2/app/verify-email/page.tsx), [`app/verify-email/ClientEmailVerify.tsx`](/Users/efeon/study-buddy-v2/app/verify-email/ClientEmailVerify.tsx)
+- state pages: [`app/unauthorized/page.tsx`](/Users/efeon/study-buddy-v2/app/unauthorized/page.tsx), [`app/already-logged-in/page.tsx`](/Users/efeon/study-buddy-v2/app/already-logged-in/page.tsx)
 
-### 2.4 Tailwind
+## 8. Dashboard
 
-- **`tailwind.config.js`**, **`postcss.config.js`** / **`postcss.config.mjs`** — wire Tailwind into the build. Utility classes are used throughout (e.g. `bg-primary-500`, `border-accent-200`).
+- [`app/dashboard/page.tsx`](/Users/efeon/study-buddy-v2/app/dashboard/page.tsx): fetches current user, full progress, and AI recommendations
+- [`app/dashboard/DashboardClient.tsx`](/Users/efeon/study-buddy-v2/app/dashboard/DashboardClient.tsx): renders dashboard content
+- [`app/dashboard/dashboard.types.ts`](/Users/efeon/study-buddy-v2/app/dashboard/dashboard.types.ts): shared response types
 
-**Styling pattern:** Pages compose **shared components** (`Heading1`–`Heading6`, `Paragraph`, `Button`, `Card`, `ProgressBar`, etc.) plus Tailwind utility classes. There is no separate CSS-in-JS theme file beyond `globals.css`.
+## 9. Study Materials
 
----
+- [`app/materials/page.tsx`](/Users/efeon/study-buddy-v2/app/materials/page.tsx): loads materials overview
+- [`app/materials/MaterialsClient.tsx`](/Users/efeon/study-buddy-v2/app/materials/MaterialsClient.tsx): subject/topic cards and progress
+- [`app/materials/practice/[topicId]/page.tsx`](/Users/efeon/study-buddy-v2/app/materials/practice/[topicId]/page.tsx): topic shell for practice route
+- [`app/materials/practice/[topicId]/TopicPracticeClient.tsx`](/Users/efeon/study-buddy-v2/app/materials/practice/[topicId]/TopicPracticeClient.tsx): question drill flow
+- [`lib/materials-display.ts`](/Users/efeon/study-buddy-v2/lib/materials-display.ts): subject ordering and display labels
 
-## 3. Navigation and chrome
+Supporting APIs:
 
-- **`components/NavBar.tsx`** — Logo link (home vs dashboard when logged in), main nav links for authenticated users (Dashboard, Study Materials, Mock Exams, Progress, Chat), sign-in / sign-up / logout, mobile menu. Active route styling via `usePathname()`.
-- **`components/Footer.tsx`** — Footer links: About Us, Contact, Privacy, Terms; copyright. Defaults include `/about-us`, `/contact-us`, etc.
-- **`components/Logo.tsx`**, **`components/LogoIcon.tsx`**, **`components/LogoName.tsx`** — Brand assets.
+- [`app/api/v1/materials/overview/route.ts`](/Users/efeon/study-buddy-v2/app/api/v1/materials/overview/route.ts)
+- [`app/api/v1/past-questions/by-topic/route.ts`](/Users/efeon/study-buddy-v2/app/api/v1/past-questions/by-topic/route.ts)
+- [`app/api/v1/past-questions/attempt/route.ts`](/Users/efeon/study-buddy-v2/app/api/v1/past-questions/attempt/route.ts)
+- [`app/api/v1/past-questions/explanation/route.ts`](/Users/efeon/study-buddy-v2/app/api/v1/past-questions/explanation/route.ts)
 
-### Route protection (reference)
+## 10. Mock Exams
 
-- **`proxy.ts`** (repo root) — Defines **intended** `protectedPaths` (e.g. `/dashboard`, `/materials`, `/exams`, `/progress`, `/chat`) and `guestOnlyPaths`. If you rename this file to `middleware.ts` and export a default matcher, it can enforce redirects; as shipped it may exist only as a reference—**individual pages and API routes still rely on session checks where needed.**
+- [`app/exams/page.tsx`](/Users/efeon/study-buddy-v2/app/exams/page.tsx): exam template listing page
+- [`app/exams/MockExamsClient.tsx`](/Users/efeon/study-buddy-v2/app/exams/MockExamsClient.tsx): start-exam flow
+- [`app/exams/[instanceId]/page.tsx`](/Users/efeon/study-buddy-v2/app/exams/[instanceId]/page.tsx): exam instance shell
+- [`app/exams/ExamInstanceClient.tsx`](/Users/efeon/study-buddy-v2/app/exams/ExamInstanceClient.tsx): exam-taking UI
+- [`lib/mock-exam-multiple-choice.ts`](/Users/efeon/study-buddy-v2/lib/mock-exam-multiple-choice.ts): deterministic option generation
 
----
+Supporting APIs:
 
-## 4. Authentication and user context
+- [`app/api/v1/mock-exams/mock-exam-templates/route.ts`](/Users/efeon/study-buddy-v2/app/api/v1/mock-exams/mock-exam-templates/route.ts)
+- [`app/api/v1/mock-exams/start/route.ts`](/Users/efeon/study-buddy-v2/app/api/v1/mock-exams/start/route.ts)
+- [`app/api/v1/mock-exams/instance/route.ts`](/Users/efeon/study-buddy-v2/app/api/v1/mock-exams/instance/route.ts)
+- [`app/api/v1/mock-exams/save-progress/route.ts`](/Users/efeon/study-buddy-v2/app/api/v1/mock-exams/save-progress/route.ts)
+- [`app/api/v1/mock-exams/submit/route.ts`](/Users/efeon/study-buddy-v2/app/api/v1/mock-exams/submit/route.ts)
+- [`app/api/v1/mock-exams/grade/route.ts`](/Users/efeon/study-buddy-v2/app/api/v1/mock-exams/grade/route.ts)
 
-- **`lib/auth.ts`** — `requireUser()`: reads Supabase session from cookies, loads `User` from Prisma, returns either `{ dbUser, ... }` or `{ errorResponse }` for API routes.
-- **`lib/supabaseClient.ts`** — Browser Supabase client (client components).
-- **`app/api/v1/login/route.ts`**, **`app/api/v1/logout/route.ts`**, **`app/api/v1/signup/route.ts`** — Server-side auth flows tied to your backend user creation.
-- **`app/api/v1/me/route.ts`** — Current user + profile payload for the dashboard.
+## 11. Progress
 
-**Client usage:** **`app/ClientLayoutWrapper.tsx`** passes `user` into **`NavBar`**. Some pages use **`useUser()`** from the same file’s `UserContext` where needed.
+- [`app/progress/page.tsx`](/Users/efeon/study-buddy-v2/app/progress/page.tsx): fetches full report
+- [`app/progress/ProgressClient.tsx`](/Users/efeon/study-buddy-v2/app/progress/ProgressClient.tsx): renders user performance summary
 
----
+Supporting APIs:
 
-## 5. Typography and UI building blocks
+- [`app/api/v1/progress/full-report/route.ts`](/Users/efeon/study-buddy-v2/app/api/v1/progress/full-report/route.ts)
+- [`app/api/v1/progress/subject/route.ts`](/Users/efeon/study-buddy-v2/app/api/v1/progress/subject/route.ts)
+- [`app/api/v1/progress/update/route.ts`](/Users/efeon/study-buddy-v2/app/api/v1/progress/update/route.ts)
 
-Headings share **`components/AbstractHeading.tsx`**; paragraphs use **`components/Paragraph.tsx`** (variants: default, muted, success, error, etc.).
+## 12. Chat and AI
 
-| Component | File |
-|-----------|------|
-| Heading1–Heading6 | `components/Heading1.tsx` … `Heading6.tsx` (thin wrappers over `AbstractHeading`) |
-| Paragraph | `components/Paragraph.tsx` |
-| Button | `components/Button.tsx` |
-| Card | `components/Card.tsx` |
-| Progress bar | `components/ProgressBar.tsx` |
-| Form fields | `components/TextField.tsx`, `SelectField.tsx`, `MultiSelectField.tsx`, etc. |
-| Chat UI | `components/ChatMessage.tsx`, `components/ChatMessageContainer.tsx` |
-| Images | `components/Image.tsx` |
+- [`app/chat/page.tsx`](/Users/efeon/study-buddy-v2/app/chat/page.tsx)
+- [`app/chat/ChatClient.tsx`](/Users/efeon/study-buddy-v2/app/chat/ChatClient.tsx)
 
----
+Supporting APIs:
 
-## 6. Public marketing and legal pages
+- [`app/api/v1/ai/messages/route.ts`](/Users/efeon/study-buddy-v2/app/api/v1/ai/messages/route.ts)
+- [`app/api/v1/ai/questions/create/route.ts`](/Users/efeon/study-buddy-v2/app/api/v1/ai/questions/create/route.ts)
+- [`app/api/v1/ai/questions/list/route.ts`](/Users/efeon/study-buddy-v2/app/api/v1/ai/questions/list/route.ts)
+- [`app/api/v1/ai/questions/[id]/reply/route.ts`](/Users/efeon/study-buddy-v2/app/api/v1/ai/questions/[id]/reply/route.ts)
+- [`app/api/v1/ai/recommendations/route.ts`](/Users/efeon/study-buddy-v2/app/api/v1/ai/recommendations/route.ts)
+- [`app/api/v1/ai/recommendations/cron/route.ts`](/Users/efeon/study-buddy-v2/app/api/v1/ai/recommendations/cron/route.ts)
 
-| Section | Files |
-|---------|--------|
-| **Landing** | `app/page.tsx` (server) → `app/ClientLanding.tsx` (hero, features, CTAs) |
-| **About Us** | `app/about-us/page.tsx` |
-| **Contact** (placeholder) | `app/contact-us/page.tsx` |
-| **Privacy** | `app/privacy-policy/page.tsx` |
-| **Terms** | `app/terms-of-service/page.tsx` |
-| **Demo** | `app/demo-showcase/page.tsx` |
+## 13. Other Backend Domains
 
----
+- profile: [`app/api/v1/profile/route.ts`](/Users/efeon/study-buddy-v2/app/api/v1/profile/route.ts)
+- schools: [`app/api/v1/schools/create/route.ts`](/Users/efeon/study-buddy-v2/app/api/v1/schools/create/route.ts), [`app/api/v1/schools/list/route.ts`](/Users/efeon/study-buddy-v2/app/api/v1/schools/list/route.ts), [`app/api/v1/schools/[id]/students/route.ts`](/Users/efeon/study-buddy-v2/app/api/v1/schools/[id]/students/route.ts)
+- subscriptions: [`app/api/v1/subscriptions/list/route.ts`](/Users/efeon/study-buddy-v2/app/api/v1/subscriptions/list/route.ts), [`app/api/v1/subscriptions/[id]/status/route.ts`](/Users/efeon/study-buddy-v2/app/api/v1/subscriptions/[id]/status/route.ts)
+- payments: [`app/api/v1/payments/verify/route.ts`](/Users/efeon/study-buddy-v2/app/api/v1/payments/verify/route.ts), [`app/api/v1/payments/webhook/route.ts`](/Users/efeon/study-buddy-v2/app/api/v1/payments/webhook/route.ts)
+- admin: [`app/api/v1/admin/subjects/create/route.ts`](/Users/efeon/study-buddy-v2/app/api/v1/admin/subjects/create/route.ts), [`app/api/v1/admin/topics/create/route.ts`](/Users/efeon/study-buddy-v2/app/api/v1/admin/topics/create/route.ts), [`app/api/v1/admin/curriculum/upload/route.ts`](/Users/efeon/study-buddy-v2/app/api/v1/admin/curriculum/upload/route.ts), [`app/api/v1/admin/past-questions/upload/route.ts`](/Users/efeon/study-buddy-v2/app/api/v1/admin/past-questions/upload/route.ts), [`app/api/v1/admin/past-questions/batch/route.ts`](/Users/efeon/study-buddy-v2/app/api/v1/admin/past-questions/batch/route.ts), [`app/api/v1/admin/users/query/route.ts`](/Users/efeon/study-buddy-v2/app/api/v1/admin/users/query/route.ts)
 
-## 7. Auth screens (sign-in / sign-up / password)
+## 14. Data Layer
 
-| Flow | Files |
-|------|--------|
-| Login | `app/login/page.tsx`, `app/login/LoginClient.tsx` |
-| Sign up | `app/sign-up/page.tsx`, `app/sign-up/SignUpClient.tsx` |
-| Forgot password | `app/forgot-password/page.tsx`, `app/forgot-password/ForgotPasswordClient.tsx` |
-| Reset password UI | `app/reset-password/update/page.tsx`, `ResetPasswordUpdateClient.tsx` |
-| Email check | `app/check-email/page.tsx`, `CheckEmailClient.tsx` |
-| Verify email | `app/verify-email/page.tsx`, `ClientEmailVerify.tsx` |
-| Unauthorized | `app/unauthorized/page.tsx`, `UnauthorizedClient.tsx` |
-| Already logged in | `app/already-logged-in/page.tsx`, `AlreadyLoggedInClient.tsx` |
-| Auth callback | `app/auth/password-reset/route.ts` (if used) |
+- Prisma schema: [`prisma/schema.prisma`](/Users/efeon/study-buddy-v2/prisma/schema.prisma)
+- migrations: [`prisma/migrations`](/Users/efeon/study-buddy-v2/prisma/migrations)
+- seed orchestrator: [`prisma/seed/index.ts`](/Users/efeon/study-buddy-v2/prisma/seed/index.ts)
+- seed content: [`prisma/seed/subjects.ts`](/Users/efeon/study-buddy-v2/prisma/seed/subjects.ts), [`prisma/seed/topics.ts`](/Users/efeon/study-buddy-v2/prisma/seed/topics.ts), [`prisma/seed/questions.ts`](/Users/efeon/study-buddy-v2/prisma/seed/questions.ts), [`prisma/seed/mockTemplates.ts`](/Users/efeon/study-buddy-v2/prisma/seed/mockTemplates.ts)
 
----
+## 15. Operational Notes
 
-## 8. Authenticated app sections
-
-### 8.1 Dashboard
-
-- **`app/dashboard/page.tsx`** — Server page: fetches `/api/v1/me`, `/api/v1/progress/full-report`, `/api/v1/ai/recommendations` with cookies, passes data to client.
-- **`app/dashboard/DashboardClient.tsx`** — Welcome, subject **ProgressBar** list from `ProgressTrack`, AI recommendations, quick links (chat, exams).
-- **`app/dashboard/dashboard.types.ts`** — TypeScript types for API responses (`MeResponse`, `ProgressFullReport`, etc.).
-
-### 8.2 Study materials (topics + progress + practice)
-
-- **`app/materials/page.tsx`** — Fetches **`GET /api/v1/materials/overview`**, renders **`app/materials/MaterialsClient.tsx`**.
-- **`app/materials/MaterialsClient.tsx`** — Lists subjects (Math, English Reading, English Writing) with 10 topics each, progress bars, **Practice this topic** button.
-- **`lib/materials-display.ts`** — `MATERIALS_SUBJECT_ORDER`, `MATERIALS_SUBJECT_LABELS` map DB `examCode` to display names.
-- **`app/api/v1/materials/overview/route.ts`** — Topics + coverage stats for the three SAT subjects.
-- **Topic practice drill**
-  - **`app/materials/practice/[topicId]/page.tsx`** — Loads topic from Prisma for title/breadcrumb.
-  - **`app/materials/practice/[topicId]/TopicPracticeClient.tsx`** — Loads questions, submits answers, shows explanations.
-  - **`app/api/v1/past-questions/by-topic/route.ts`** — Lists `PastQuestion` rows for a topic (no answers in list).
-  - **`app/api/v1/past-questions/attempt/route.ts`** — Saves attempt, grades short answer.
-  - **`app/api/v1/past-questions/explanation/route.ts`** — Full question + answer + explanation after practice.
-
-### 8.3 Mock exams
-
-- **`app/exams/page.tsx`** — Fetches **`GET /api/v1/mock-exams/mock-exam-templates`**, renders **`app/exams/MockExamsClient.tsx`**.
-- **`app/exams/MockExamsClient.tsx`** — Starts exam via **`POST /api/v1/mock-exams/start`**, navigates to instance.
-- **`app/exams/[instanceId]/page.tsx`** — Fetches **`GET /api/v1/mock-exams/instance`**, renders **`app/exams/ExamInstanceClient.tsx`**.
-- **`app/exams/ExamInstanceClient.tsx`** — Multiple-choice UI (A–D), autosave **`POST /api/v1/mock-exams/save-progress`**, submit + **`POST /api/v1/mock-exams/submit`** + **`POST /api/v1/mock-exams/grade`**, optional **`POST /api/v1/progress/subject`** after grade.
-- **`lib/mock-exam-multiple-choice.ts`** — Deterministic 4-option MCQ generation per instance + question.
-- **API routes:** `app/api/v1/mock-exams/start/route.ts`, `instance/route.ts`, `save-progress/route.ts`, `submit/route.ts`, `grade/route.ts`, `mock-exam-templates/route.ts`.
-
-### 8.4 Progress report
-
-- **`app/progress/page.tsx`** — Fetches **`GET /api/v1/progress/full-report`**.
-- **`app/progress/ProgressClient.tsx`** — Study materials coverage, mock exam table (score, %, duration), practice accuracy by subject, subject goals, AI thread count.
-- **`app/api/v1/progress/full-report/route.ts`** — Aggregates `ProgressTrack`, materials bank coverage, graded mocks (timing from `startedAt` / `submittedAt`), `PastQuestionAttempt`, AI counts.
-- **`app/api/v1/progress/subject/route.ts`**, **`app/api/v1/progress/update/route.ts`** — Upsert subject-level progress (used e.g. after mocks).
-
-### 8.5 Chat (AI Q&A)
-
-- **`app/chat/page.tsx`**, **`app/chat/ChatClient.tsx`** — Chat UI; uses **`app/api/v1/ai/messages/route.ts`** and related question/thread APIs under **`app/api/v1/ai/questions/`**.
-
----
-
-## 9. Past questions and content APIs (summary)
-
-| Purpose | File |
-|---------|------|
-| Attempt (practice grading) | `app/api/v1/past-questions/attempt/route.ts` |
-| Explanation | `app/api/v1/past-questions/explanation/route.ts` |
-| Query (legacy / thin) | `app/api/v1/past-questions/query/route.ts` |
-| By topic (for materials practice) | `app/api/v1/past-questions/by-topic/route.ts` |
-
-**Admin / ingestion:** `app/api/v1/admin/past-questions/upload/route.ts`, `batch/route.ts`, plus `admin/subjects/create/route.ts`, `admin/topics/create/route.ts`, `admin/curriculum/upload/route.ts`, `admin/users/query/route.ts`.
-
----
-
-## 10. Other API domains (reference)
-
-- **AI recommendations:** `app/api/v1/ai/recommendations/route.ts`, `app/api/v1/ai/recommendations/cron/route.ts`
-- **Profile:** `app/api/v1/profile/route.ts`
-- **Schools (B2B):** `app/api/v1/schools/*/route.ts`
-- **Subscriptions / payments:** `app/api/v1/subscriptions/**`, `app/api/v1/payments/**`
-- **Docs in repo:** `app/api/v1/README.md` — route list and behaviors
-
----
-
-## 11. Data model and seed content
-
-- **`prisma/schema.prisma`** — Single source of truth: `User`, `UserProfile`, `Subject`, `Topic`, `PastQuestion`, `PastQuestionAttempt`, `MockExamTemplate`, `MockExamInstance`, `MockExamAnswer`, `ProgressTrack`, `AiQuestion`, `Recommendation`, `Subscription`, schools, etc.
-- **`lib/prisma.ts`** — Shared `PrismaClient` instance.
-- **Seed:** **`prisma/seed/index.ts`** orchestrates **`prisma/seed/subjects.ts`**, **`topics.ts`**, **`questions.ts`**, **`mockTemplates.ts`** — populates subjects, topics (10 per subject + `sortOrder`), generated practice questions, mock templates.
-
----
-
-## 12. Global UX utilities
-
-- **`app/loading.tsx`** — App Router loading UI.
-- **`app/error.tsx`** — Error boundary UI.
-- **`app/not-found.tsx`**, **`app/NotFoundClient.tsx`** — 404 experience.
-
----
-
-## 13. How the pieces connect (short flows)
-
-1. **Landing** → **`ClientLanding.tsx`** → sign-up / login.
-2. **Study materials** → **`materials/overview`** builds topic list → user opens **`/materials/practice/[topicId]`** → **`by-topic`** + **`/attempt`** + **`/explanation`**.
-3. **Mock exam** → **`/mock-exams/start`** creates instance + answers → **`ExamInstanceClient`** uses **`buildMockExamMcqChoices`** → submit → grade → optional **`progress/subject`**.
-4. **Progress** → **`full-report`** reads attempts, mocks, materials scope (`MATERIALS_SUBJECT_ORDER` in **`full-report/route.ts`** and **`lib/materials-display.ts`**).
-
----
-
-## 14. Updating this guide
-
-When you add pages or APIs, append rows to the tables above with the **exact path** of new `page.tsx` / `route.ts` / components so the map stays accurate. For deeper API contracts, keep **`app/api/v1/README.md`** in sync with behavior changes.
+- dynamic route pages such as materials practice and exam instances use App Router route params
+- app routes and API handlers assume Supabase cookies for auth
+- route-level API behavior is documented in [`app/api/v1/README.md`](/Users/efeon/study-buddy-v2/app/api/v1/README.md)
