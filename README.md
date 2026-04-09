@@ -1,371 +1,130 @@
-Perfect — **this schema is correct**, consistent, relationally sound, AND suitable for an enterprise-level educational platform.
+# Study Buddy v2
 
-Now I will give you the **complete API architecture plan** for Study Buddy based on your final schema — this will map directly to:
-✔️ your frontend pages
-✔️ Next.js `/app/api/...` route structure
-✔️ prisma-powered backend logic
-✔️ Phase 1 + Phase 2 + future features
+Study Buddy v2 is a Next.js learning platform for exam preparation. It combines practice questions, mock exams, progress tracking, AI-assisted study support, subscriptions, and school/admin workflows in a single app.
 
-This is a **ready-to-build blueprint** for all the features.
+## Stack
 
----
+- Next.js 16 App Router
+- React 18
+- TypeScript
+- Tailwind CSS
+- Prisma + PostgreSQL
+- Supabase Auth
+- OpenAI API
 
-# 🚀 **Study Buddy — Complete API Architecture Plan**
+## Core Product Areas
 
-(Aligned with your Prisma schema & MVP → Phase 2 requirements)
+- Study materials: subject/topic browsing and topic-level practice drills
+- Past questions: answer submission, grading, and explanations
+- Mock exams: start, save progress, submit, and grade full exam instances
+- Progress: subject progress, practice accuracy, and exam history
+- AI: quick chat, saved AI question threads, and study recommendations
+- Accounts and billing: auth, profile, subscriptions, and payments
+- Admin and schools: content upload, user lookup, and school membership management
 
-The platform has **12 major API domains**:
+## Repo Shape
 
-1. **Auth**
-2. **User profiles**
-3. **Subjects & Topics**
-4. **Past questions**
-5. **Past question attempts**
-6. **AI Q&A**
-7. **Mock exams**
-8. **Recommendations**
-9. **Progress tracking**
-10. **Subscriptions & Payments**
-11. **Admin content upload**
-12. **Schools (B2B)**
-
----
-
-# 1️⃣ AUTH API
-
-(Handled by Supabase, but you create wrappers like `/api/v1/login`, `/api/v1/signup`, `/api/logout`)
-
-### **Routes**
-
-```
-POST /api/v1/signup
-POST /api/v1/login
-POST /api/logout
-GET  /api/me
+```text
+study-buddy-v2/
+├── app/                 # Pages and API routes
+├── components/          # Shared UI components
+├── lib/                 # Auth, Prisma, Supabase, and feature helpers
+├── prisma/              # Schema, migrations, and seed data
+├── docs/                # Supporting documentation
+└── public/              # Static assets
 ```
 
-### **Responsibilities**
+## Main App Routes
 
-* Sign up users with Supabase + metadata
-* Login using email/phone
-* Logout & clear session cookies
-* Fetch current authenticated user
+- `/` landing page
+- `/dashboard`
+- `/materials`
+- `/materials/practice/[topicId]`
+- `/exams`
+- `/exams/[instanceId]`
+- `/progress`
+- `/chat`
+- auth pages under `/login`, `/sign-up`, `/forgot-password`, `/reset-password/update`
 
----
+## API Surface
 
-# 2️⃣ USER PROFILE API
+All app APIs live under [`app/api/v1`](/Users/efeon/study-buddy-v2/app/api/v1).
 
-Connected to `UserProfile` model.
+Main domains:
 
-### **Routes**
+- auth and account
+- profile
+- schools
+- AI
+- past questions
+- mock exams
+- progress
+- subscriptions
+- payments
+- admin content
 
-```
-GET    /api/profile
-PATCH  /api/profile
-```
+See [`app/api/v1/README.md`](/Users/efeon/study-buddy-v2/app/api/v1/README.md) for the route-level reference.
 
-### **Responsibilities**
+## Database
 
-* Get the current user's profile
-* Update personal info (name, grade, avatar, preferredSubjects)
+The schema is defined in [`prisma/schema.prisma`](/Users/efeon/study-buddy-v2/prisma/schema.prisma).
 
----
+Key models:
 
-# 3️⃣ SUBJECTS & TOPICS API
+- `User`, `UserProfile`, `AdminUser`
+- `Subject`, `Topic`, `PastQuestion`
+- `PastQuestionAttempt`
+- `MockExamTemplate`, `MockExamInstance`, `MockExamAnswer`
+- `AiQuestion`, `AiQuestionMessage`, `Recommendation`
+- `ProgressTrack`
+- `Subscription`, `Transaction`
+- `School`, `SchoolStudent`
 
-Connected to `Subject` and `Topic`.
+## Local Setup
 
-### **Routes**
+Install dependencies:
 
-```
-GET /api/subjects
-GET /api/subjects/:id
-GET /api/subjects/:id/topics
-```
-
-### **Responsibilities**
-
-* List subjects for homepage
-* Fetch full subject data
-* Fetch topics under a subject
-
----
-
-# 4️⃣ PAST QUESTIONS API
-
-Connected to `PastQuestion`.
-
-### **Routes**
-
-```
-GET /api/questions
-GET /api/questions/:id
-GET /api/questions/by-subject/:subjectId
-GET /api/questions/by-topic/:topicId
+```bash
+npm install
 ```
 
-### **Responsibilities**
+Run the app:
 
-* Display practice questions
-* Provide detailed explanations
-* Used by mock exam generator
-
----
-
-# 5️⃣ USER ATTEMPTS API
-
-Connected to `PastQuestionAttempt`.
-
-### **Routes**
-
-```
-POST /api/attempts
-GET  /api/attempts/recent
-GET  /api/attempts/by-subject/:subjectId
+```bash
+npm run dev
 ```
 
-### **Responsibilities**
+Apply migrations:
 
-* Save each attempt
-* Score correctness
-* Track time spent
-* Feed AI personalization engine
-
----
-
-# 6️⃣ AI Q&A API
-
-Connected to `AiQuestion`, `AiQuestionMessage`.
-
-### **Routes**
-
-```
-POST /api/ai/ask
-GET  /api/ai/history
-GET  /api/ai/:questionId
-POST /api/ai/:questionId/reply
+```bash
+npx prisma migrate deploy
 ```
 
-### **Responsibilities**
+Generate Prisma client if the schema has changed:
 
-* Save user question
-* Call Gemini API
-* Save AI response
-* Maintain multi-message conversation threads
-
----
-
-# 7️⃣ MOCK EXAM SYSTEM API
-
-Connected to:
-
-* `MockExamTemplate`
-* `MockExamInstance`
-* `MockExamAnswer`
-
-### **Routes**
-
-#### 📌 Templates (Admin / Public)
-
-```
-GET /api/mock/templates
-GET /api/mock/templates/:id
+```bash
+npx prisma generate
 ```
 
-#### 📌 User exam flow
+Seed the database:
 
-```
-POST /api/mock/start
-GET  /api/mock/:instanceId
-POST /api/mock/:instanceId/submit
+```bash
+npx prisma db seed
 ```
 
-### **Flow**
+## Environment
 
-1. User selects subject
-2. System generates random questions
-3. Saves instance
-4. User answers
-5. AI can explain
-6. Score stored → affects recommendations
+The app expects environment variables for:
 
----
+- Supabase URL and anon key
+- database connection strings
+- OpenAI API key
+- payment provider secrets
+- optional cron secret for recommendation generation
 
-# 8️⃣ AI RECOMMENDATIONS API
+## Recommended Docs
 
-Connected to `Recommendation`.
-
-### **Routes**
-
-```
-GET  /api/recommendations
-POST /api/recommendations/generate
-```
-
-### **Responsibilities**
-
-* Show personalized learning suggestions
-* Use:
-
-  * attempts history
-  * mock exam scores
-  * subjects user is weak in
-
----
-
-# 9️⃣ PROGRESS TRACKING API
-
-Connected to `ProgressTrack`.
-
-### **Routes**
-
-```
-GET /api/progress
-POST /api/progress/update
-```
-
-### **Logic:**
-
-Progress is updated based on:
-
-* % of questions attempted
-* mock exam performance
-* AI recommendation follow-through
-
----
-
-# 🔟 SUBSCRIPTIONS & PAYMENTS API
-
-Connected to:
-
-* `Subscription`
-* `Transaction`
-
-### **Routes**
-
-```
-GET  /api/subscription
-POST /api/subscription/upgrade
-POST /api/subscription/cancel
-
-POST /api/payments/verify
-POST /api/payments/webhook
-```
-
-### **Responsibilities**
-
-* Freemium → premium transitions
-* Flutterwave/Paystack transaction verification
-* Save all payments in `Transaction`
-
----
-
-# 1️⃣1️⃣ ADMIN CONTENT MGMT API
-
-Connected to:
-
-* `CurriculumFile`
-* `PastQuestionSource`
-* `AdminUser`
-
-### **Routes**
-
-```
-POST /api/admin/upload-curriculum
-POST /api/admin/upload-past-questions
-GET  /api/admin/users
-```
-
----
-
-# 1️⃣2️⃣ SCHOOL / B2B API
-
-Connected to:
-
-* `School`
-* `SchoolStudent`
-
-### **Routes**
-
-```
-POST /api/schools
-GET  /api/schools/:id
-POST /api/schools/:id/add-student
-GET  /api/schools/:id/students
-```
-
-### **B2B Features**
-
-* Schools manage student accounts
-* Bulk premium subscriptions
-
----
-
-# 🔥 **FINAL ARCHITECTURE MAP (VISUAL)**
-
-This is the mental map of your API:
-
-```
-/api
- ├── auth
- │    ├── login
- │    ├── signup
- │    ├── logout
- │    └── me
- │
- ├── profile
- │
- ├── subjects
- │    └── [id]
- │
- ├── topics
- │
- ├── questions
- │    ├── by-subject/[subjectId]
- │    ├── by-topic/[topicId]
- │    └── [id]
- │
- ├── attempts
- │
- ├── ai
- │    ├── ask
- │    ├── history
- │    └── [questionId]/reply
- │
- ├── mock
- │    ├── templates
- │    ├── start
- │    └── [instanceId]
- │
- ├── recommendations
- │
- ├── progress
- │
- ├── subscription
- │
- ├── payments
- │
- ├── admin
- │
- └── schools
-```
-
----
-
-# 🎁 Want the NEXT step?
-
-I can generate:
-
-### ✅ Full folder tree for `/app/api/...`
-
-### ✅ Every API route fully implemented (actual TS code)
-
-### ✅ Service layer (clean architecture)
-
-### ✅ A full README of the backend architecture
-
-### ✅ A Postman collection for all endpoints
-
-Just tell me:
-
-**Do you want the full API implementation next?**
+- [`CODEBASE_BREAKDOWN.md`](/Users/efeon/study-buddy-v2/CODEBASE_BREAKDOWN.md): broad codebase map
+- [`docs/WEBSITE_GUIDE.md`](/Users/efeon/study-buddy-v2/docs/WEBSITE_GUIDE.md): path-by-path app walkthrough
+- [`AI_FEATURES_GUIDE.md`](/Users/efeon/study-buddy-v2/AI_FEATURES_GUIDE.md): AI-specific implementation notes
+- [`app/api/v1/README.md`](/Users/efeon/study-buddy-v2/app/api/v1/README.md): API contracts
