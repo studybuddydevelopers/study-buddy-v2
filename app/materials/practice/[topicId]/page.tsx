@@ -6,9 +6,14 @@ import { MATERIALS_SUBJECT_LABELS } from "@/lib/materials-display";
 export default async function TopicPracticePage({
   params,
 }: {
-  params: { topicId: string };
+  params: Promise<{ topicId: string }>;
 }) {
-  const { topicId } = params;
+  const { topicId } = await params;
+
+  if (!topicId) {
+    notFound();
+  }
+
   const topic = await prisma.topic.findUnique({
     where: { id: topicId },
     include: { subject: true },
