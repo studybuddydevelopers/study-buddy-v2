@@ -4,10 +4,11 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/auth";
 import OpenAI from "openai";
+import type { ChatCompletionMessageParam } from "openai/resources/chat/completions";
 
 export async function POST(
   req: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   // -------------------------------------
   // 1. AUTH
@@ -16,7 +17,7 @@ export async function POST(
   if ("errorResponse" in auth) return auth.errorResponse;
   const { dbUser } = auth;
 
-  const aiQuestionId = params.id;
+  const aiQuestionId = (await params).id;
 
   // -------------------------------------
   // 2. VALIDATE INPUT
@@ -76,14 +77,14 @@ export async function POST(
     orderBy: { createdAt: "asc" },
   });
 
-  const openAIMessages = [
+  const openAIMessages: ChatCompletionMessageParam[] = [
     {
       role: "system",
       content:
         "You are StudyBuddy AI. Provide clear and helpful educational explanations to secondary-school students.",
     },
     ...previousMessages.map((m) => ({
-      role: m.sender === "ai" ? "assistant" : "user",
+      role: m.sender === "ai" ? ("assistant" as const) : ("user" as const),
       content: m.message,
     })),
   ];

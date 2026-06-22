@@ -5,7 +5,7 @@ import { requireAdmin } from "@/lib/auth";
 
 export async function GET(
   req: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   // -------------------------------------
   // 1. AUTH (Admin required)
@@ -13,7 +13,7 @@ export async function GET(
   const auth = await requireAdmin();
   if ("errorResponse" in auth) return auth.errorResponse;
 
-  const schoolId = params.id;
+  const schoolId = (await params).id;
 
   // -------------------------------------
   // 2. VALIDATE SCHOOL
@@ -57,7 +57,7 @@ export async function GET(
 
 export async function POST(
   req: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   // -------------------------------------
   // 1. AUTH (Admin required)
@@ -65,7 +65,7 @@ export async function POST(
   const auth = await requireAdmin();
   if ("errorResponse" in auth) return auth.errorResponse;
 
-  const schoolId = params.id;
+  const schoolId = (await params).id;
 
   // -------------------------------------
   // 2. PARSE INPUT

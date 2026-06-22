@@ -23,8 +23,8 @@ export async function GET() {
     },
   });
 
-  const orderIndex = new Map(
-    MATERIALS_SUBJECT_ORDER.map((code, i) => [code, i] as const)
+  const orderIndex = new Map<string, number>(
+    MATERIALS_SUBJECT_ORDER.map((code, i) => [code, i])
   );
   subjects.sort((a, b) => {
     const ai = orderIndex.get(a.examCode ?? "") ?? 99;

@@ -34,7 +34,7 @@ export default function LogoDemo() {
       <section className="space-y-4">
         <Heading2 gutter="md">Colors</Heading2>
         <div className="flex gap-6 items-center flex-wrap bg-gray-900 p-6 rounded-xl">
-          <Logo variant="full" color="white" />
+          <Logo variant="full" color="background" />
           <Logo variant="full" color="primary" />
           <Logo variant="full" color="secondary" />
         </div>

@@ -4,7 +4,7 @@ import { requireUser } from "@/lib/auth";
 
 export async function GET(
   req: Request,
-  context: { params: { id: string } }
+  context: { params: Promise<{ id: string }> }
 ) {
   // ---------------------------------------------------------
   // 1. AUTH
@@ -14,7 +14,7 @@ export async function GET(
 
   const { dbUser } = auth;
 
-  const subscriptionId = context.params.id;
+  const subscriptionId = (await context.params).id;
 
   if (!subscriptionId) {
     return NextResponse.json(

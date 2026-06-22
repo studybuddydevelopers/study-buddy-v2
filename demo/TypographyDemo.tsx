@@ -78,7 +78,9 @@ export default function TypographyDemo() {
         <Caption eyebrow>Eyebrow label</Caption>
         <br />
         <div className="rounded-md p-3 bg-gray-900 inline-block">
-          <Caption variant="white">White caption on dark</Caption>
+          <Caption variant="default" className="!text-white">
+            White caption on dark
+          </Caption>
         </div>
         <Caption as="kbd" kbd>
           ⌘K
