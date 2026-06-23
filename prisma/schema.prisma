@@ -39,9 +39,10 @@ enum SubscriptionStatus {
 // =========================================================
 
 model User {
-  id        String   @id @default(uuid())
-  createdAt DateTime @default(now())
-  isAdmin   Boolean  @default(false)
+  id            String   @id @default(uuid())
+  createdAt     DateTime @default(now())
+  isAdmin       Boolean  @default(false)
+  whatsappPhone String?  @unique // wa_id, digits only e.g. "2348012345678" — set for WhatsApp-only accounts
 
   adminUser AdminUser?
 

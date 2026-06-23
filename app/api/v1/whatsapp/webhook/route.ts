@@ -5,6 +5,7 @@ import {
   parseIncomingMessages,
   sendWhatsAppText,
 } from "@/lib/whatsapp";
+import { handleIncomingMessage } from "@/lib/whatsapp-flow";
 
 // -----------------------------------------------------
 // GET — Meta's one-time webhook verification handshake.
@@ -52,14 +53,9 @@ export async function POST(req: Request) {
       for (const message of messages) {
         console.log(`WhatsApp message from ${message.from}:`, message.text);
 
-        // TODO: Replace this placeholder with real Study Buddy routing —
-        // e.g. pipe message.text into your AI Q&A flow at
-        // app/api/v1/ai/messages/route.ts
         if (message.text) {
-          await sendWhatsAppText(
-            message.from,
-            `Got it — you said: "${message.text}". I'm still learning how to help with that!`
-          );
+          const reply = await handleIncomingMessage(message.from, message.text);
+          await sendWhatsAppText(message.from, reply);
         }
       }
     })();
