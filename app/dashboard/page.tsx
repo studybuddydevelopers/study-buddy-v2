@@ -2,6 +2,7 @@
 
 import DashboardClient from "./DashboardClient";
 import { cookies } from "next/headers";
+import { getBaseUrl } from "@/lib/getBaseUrl";
 import {
   MeResponse,
   ProgressFullReport,
@@ -15,8 +16,10 @@ export default async function DashboardPage() {
     .map(({ name, value }) => `${name}=${value}`)
     .join("; ");
 
+  const baseUrl = await getBaseUrl();
+
   // Fetch /me
-  const meRes = await fetch(`${process.env.NEXT_PUBLIC_APP_URL}/api/v1/me`, {
+  const meRes = await fetch(`${baseUrl}/api/v1/me`, {
     headers: { Cookie: cookieHeader },
     cache: "no-store",
   });
@@ -25,13 +28,13 @@ export default async function DashboardPage() {
 
   // Fetch progress report
   const progressRes = await fetch(
-    `${process.env.NEXT_PUBLIC_APP_URL}/api/v1/progress/full-report`,
+    `${baseUrl}/api/v1/progress/full-report`,
     {
       headers: { Cookie: cookieHeader },
       cache: "no-store",
     }
   );
-  
+
 
   const progress: ProgressFullReport | null = progressRes.ok
     ? await progressRes.json()
@@ -39,7 +42,7 @@ export default async function DashboardPage() {
 
   // Fetch AI recommendations (auto-generates if stale)
   const recRes = await fetch(
-    `${process.env.NEXT_PUBLIC_APP_URL}/api/v1/ai/recommendations`,
+    `${baseUrl}/api/v1/ai/recommendations`,
     {
       headers: { Cookie: cookieHeader },
       cache: "no-store",

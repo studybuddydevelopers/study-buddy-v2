@@ -1,4 +1,5 @@
 import { cookies } from "next/headers";
+import { getBaseUrl } from "@/lib/getBaseUrl";
 import MaterialsClient, {
   MaterialsSubjectSection,
 } from "./MaterialsClient";
@@ -10,8 +11,9 @@ export default async function MaterialsPage() {
     .map(({ name, value }) => `${name}=${value}`)
     .join("; ");
 
+  const baseUrl = await getBaseUrl();
   const res = await fetch(
-    `${process.env.NEXT_PUBLIC_APP_URL}/api/v1/materials/overview`,
+    `${baseUrl}/api/v1/materials/overview`,
     {
       headers: { Cookie: cookieHeader },
       cache: "no-store",

@@ -17,6 +17,7 @@
     "@supabase/ssr": "0.7.0",
     "@supabase/supabase-js": "2.83.0",
     "autoprefixer": "^10.4.22",
+    "lucide-react": "^1.21.0",
     "next": "^16.2.1",
     "openai": "^6.9.1",
     "pg": "8.16.3",

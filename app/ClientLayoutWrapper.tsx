@@ -3,6 +3,7 @@
 import { createContext, Suspense, useContext } from "react";
 import Navbar from "@/components/NavBar";
 import Footer from "@/components/Footer";
+import BottomNav from "@/components/BottomNav";
 import type { User } from "@supabase/supabase-js";
 
 export const UserContext = createContext<User | null>(null);
@@ -28,11 +29,17 @@ export default function ClientLayoutWrapper({
       />
 
       {/* Page content */}
-      <Suspense>
-        {children}
-      </Suspense>
+      <div className="pb-16 md:pb-0">
+        <Suspense>
+          {children}
+        </Suspense>
+      </div>
 
       <Footer />
+
+      <div className="md:hidden">
+        <BottomNav />
+      </div>
     </UserContext.Provider>
   );
 }

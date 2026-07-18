@@ -134,8 +134,9 @@ export default function NavBar({
           )}
         </div>
 
+        {/* Mobile nav is now handled by BottomNav (components/BottomNav.tsx); this toggle is kept but hidden everywhere. */}
         <button
-          className="md:hidden p-2 rounded-md hover:bg-accent-200"
+          className="hidden p-2 rounded-md hover:bg-accent-200"
           onClick={() => setMobileOpen(!mobileOpen)}
         >
           {mobileOpen ? "✖" : "☰"}
@@ -143,7 +144,7 @@ export default function NavBar({
       </div>
 
       {mobileOpen && (
-        <div className="md:hidden mt-3 flex flex-col space-y-3 bg-background shadow rounded-lg p-4">
+        <div className="hidden mt-3 flex flex-col space-y-3 bg-background shadow rounded-lg p-4">
           {links.map((link) => (
             <Link
               key={link.href}

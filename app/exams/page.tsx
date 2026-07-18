@@ -1,6 +1,7 @@
 // app/exams/page.tsx
 
 import { cookies } from "next/headers";
+import { getBaseUrl } from "@/lib/getBaseUrl";
 import MockExamsClient, { MockExamTemplate } from "./MockExamsClient";
 
 export default async function ExamsPage() {
@@ -10,8 +11,9 @@ export default async function ExamsPage() {
     .map(({ name, value }) => `${name}=${value}`)
     .join("; ");
 
+  const baseUrl = await getBaseUrl();
   const templateRes = await fetch(
-    `${process.env.NEXT_PUBLIC_APP_URL}/api/v1/mock-exams/mock-exam-templates`,
+    `${baseUrl}/api/v1/mock-exams/mock-exam-templates`,
     {
       headers: { Cookie: cookieHeader },
       cache: "no-store",

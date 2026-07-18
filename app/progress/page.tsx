@@ -1,4 +1,5 @@
 import { cookies } from "next/headers";
+import { getBaseUrl } from "@/lib/getBaseUrl";
 import ProgressClient from "./ProgressClient";
 import type { ProgressFullReport } from "@/app/dashboard/dashboard.types";
 
@@ -9,8 +10,9 @@ export default async function ProgressPage() {
     .map(({ name, value }) => `${name}=${value}`)
     .join("; ");
 
+  const baseUrl = await getBaseUrl();
   const progressRes = await fetch(
-    `${process.env.NEXT_PUBLIC_APP_URL}/api/v1/progress/full-report`,
+    `${baseUrl}/api/v1/progress/full-report`,
     {
       headers: { Cookie: cookieHeader },
       cache: "no-store",

@@ -2,6 +2,7 @@
 
 import { cookies } from "next/headers";
 import { notFound } from "next/navigation";
+import { getBaseUrl } from "@/lib/getBaseUrl";
 import ExamInstanceClient from "../ExamInstanceClient";
 
 export default async function ExamInstancePage({
@@ -21,8 +22,9 @@ export default async function ExamInstancePage({
     .map(({ name, value }) => `${name}=${value}`)
     .join("; ");
 
+  const baseUrl = await getBaseUrl();
   const res = await fetch(
-    `${process.env.NEXT_PUBLIC_APP_URL}/api/v1/mock-exams/instance?instanceId=${instanceId}`,
+    `${baseUrl}/api/v1/mock-exams/instance?instanceId=${instanceId}`,
     {
       headers: { Cookie: cookieHeader },
       cache: "no-store",
