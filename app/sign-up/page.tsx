@@ -2,9 +2,6 @@
 
 import SignUpClient from "./SignUpClient";
 
-export default async function SignUpPage() {
-  // Optional: Simulate loading
-  await new Promise((r) => setTimeout(r, 1000));
-
+export default function SignUpPage() {
   return <SignUpClient />;
 }
