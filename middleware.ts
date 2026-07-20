@@ -20,7 +20,7 @@ const guestOnlyPaths = [
   "/auth/password-reset",
 ];
 
-export async function proxy(req: NextRequest) {
+export async function middleware(req: NextRequest) {
   const pathname = req.nextUrl.pathname;
   const res = NextResponse.next();
 

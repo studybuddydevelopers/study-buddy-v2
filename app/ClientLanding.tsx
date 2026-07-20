@@ -39,12 +39,13 @@ export default function ClientLanding() {
 
           {/* Text Section */}
           <div className="text-left w-1/2">
-            <Heading1>Ace your SAT exams with study buddy</Heading1>
+            <Heading1>Ace your WAEC exams with Study Buddy</Heading1>
 
             <Paragraph size="lg">
-              Prepare for your SAT exams with our AI-powered learning platform. Get personalized study plans, 
-              realistic SAT-style practice tests, and expert guidance designed to help you boost your scores 
-              and reach your college goals. Study smarter, track your progress, and walk into test day with confidence.
+              Prepare for your WAEC exams with our AI-powered learning platform. Get personalised study plans,
+              realistic WAEC-style practice tests, and expert guidance designed to help Nigerian secondary school
+              students master Mathematics and beyond. Study smarter, track your progress, and walk into
+              exam day with confidence.
             </Paragraph>
 
             {/* Buttons */}
@@ -120,7 +121,7 @@ export default function ClientLanding() {
               </Heading6>
 
               <Paragraph variant="superMuted" className="w-56 text-left">
-                Take full-length SAT practice exams that replicate test-day conditions, 
+                Take full-length WAEC practice exams that replicate test-day conditions,
                 empowering you to build confidence, track progress, and improve your score.
               </Paragraph>
             </Card>

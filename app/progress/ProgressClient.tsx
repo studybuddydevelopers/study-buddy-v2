@@ -148,9 +148,9 @@ export default function ProgressClient({
       <section className="space-y-4">
         <Heading2 gutter="sm">Study materials coverage</Heading2>
         <Paragraph variant="muted" className="text-sm max-w-2xl">
-          Topics and questions are limited to Math, English Reading, and English
-          Writing. Each percentage is how much of the bank you have tried at
-          least once.
+          Topics and questions cover WAEC Mathematics (English Language coming
+          soon). Each percentage is how much of the bank you have tried at least
+          once.
         </Paragraph>
         <div className="space-y-5 max-w-xl">
           <ProgressBar

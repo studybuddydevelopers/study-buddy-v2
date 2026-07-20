@@ -1,5 +1,8 @@
 export const subjects = [
-  { name: "SAT Math", description: "Mathematics section of the SAT", examCode: "SAT-MATH" },
-  { name: "SAT Reading", description: "Reading comprehension and analysis", examCode: "SAT-READ" },
-  { name: "SAT Writing & Language", description: "Grammar and sentence structure", examCode: "SAT-WRIT" },
+  {
+    name: "WAEC Mathematics",
+    description: "Mathematics for the West African Senior School Certificate Examination",
+    examCode: "WAEC-MATH",
+  },
+  // WAEC English Language — coming soon
 ];

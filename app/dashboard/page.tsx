@@ -3,11 +3,7 @@
 import DashboardClient from "./DashboardClient";
 import { cookies } from "next/headers";
 import { getBaseUrl } from "@/lib/getBaseUrl";
-import {
-  MeResponse,
-  ProgressFullReport,
-  AIRecommendation
-} from "./dashboard.types";
+import type { MeResponse, DashboardStats } from "./dashboard.types";
 
 export default async function DashboardPage() {
   const cookieStore = await cookies();
@@ -17,57 +13,15 @@ export default async function DashboardPage() {
     .join("; ");
 
   const baseUrl = await getBaseUrl();
+  const headers = { Cookie: cookieHeader };
 
-  // Fetch /me
-  const meRes = await fetch(`${baseUrl}/api/v1/me`, {
-    headers: { Cookie: cookieHeader },
-    cache: "no-store",
-  });
+  const [meRes, statsRes] = await Promise.all([
+    fetch(`${baseUrl}/api/v1/me`, { headers, cache: "no-store" }),
+    fetch(`${baseUrl}/api/v1/dashboard/stats`, { headers, cache: "no-store" }),
+  ]);
 
   const me: MeResponse | null = meRes.ok ? await meRes.json() : null;
+  const stats: DashboardStats | null = statsRes.ok ? await statsRes.json() : null;
 
-  // Fetch progress report
-  const progressRes = await fetch(
-    `${baseUrl}/api/v1/progress/full-report`,
-    {
-      headers: { Cookie: cookieHeader },
-      cache: "no-store",
-    }
-  );
-
-
-  const progress: ProgressFullReport | null = progressRes.ok
-    ? await progressRes.json()
-    : null;
-
-  // Fetch AI recommendations (auto-generates if stale)
-  const recRes = await fetch(
-    `${baseUrl}/api/v1/ai/recommendations`,
-    {
-      headers: { Cookie: cookieHeader },
-      cache: "no-store",
-    }
-  );
-
-  let aiRecommendations: AIRecommendation[] = [];
-  if (recRes.ok) {
-    const data = await recRes.json();
-    aiRecommendations = data?.recommendations ?? [];
-  }
-  if (aiRecommendations.length === 0) {
-    aiRecommendations = [
-      {
-        title: "AI Recommendation",
-        body: "No recommendations available yet. Keep practicing to receive personalized guidance.",
-      },
-    ];
-  }
-
-  return (
-    <DashboardClient
-      me={me}
-      progress={progress}
-      aiRecommendations={aiRecommendations}
-    />
-  );
+  return <DashboardClient me={me} stats={stats} />;
 }

@@ -1,16 +1,13 @@
-// lib/materials-display.ts
-// UI labels for study materials (DB still uses SAT_* subject names in many places).
+// UI labels for study materials, keyed by subject examCode.
 
 export const MATERIALS_SUBJECT_ORDER = [
-  "SAT-MATH",
-  "SAT-READ",
-  "SAT-WRIT",
+  "WAEC-MATH",
+  // "WAEC-ENG" — English Language coming soon
 ] as const;
 
 export const MATERIALS_SUBJECT_LABELS: Record<string, string> = {
-  "SAT-MATH": "Math",
-  "SAT-READ": "English Reading",
-  "SAT-WRIT": "English Writing",
+  "WAEC-MATH": "Mathematics",
+  // "WAEC-ENG": "English Language",
 };
 
 export function materialsSubjectDisplayName(examCode: string | null | undefined): string {

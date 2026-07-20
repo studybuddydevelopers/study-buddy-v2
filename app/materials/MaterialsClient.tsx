@@ -34,9 +34,9 @@ export default function MaterialsClient({
       <div>
         <Heading1 gutter="sm">Study materials</Heading1>
         <Paragraph variant="superMuted" className="max-w-3xl">
-          Three subject areas—Math, English Reading, and English Writing—each
-          with ten topics. Open a topic to work through its question bank;
-          progress reflects how many distinct questions you have tried.
+          WAEC Mathematics — ten topics covering the full Paper 1 syllabus.
+          Open a topic to work through its question bank; progress reflects how
+          many distinct questions you have tried. English Language coming soon.
         </Paragraph>
       </div>
 

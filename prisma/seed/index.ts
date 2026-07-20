@@ -6,7 +6,19 @@ import { mockTemplates } from "./mockTemplates";
 
 const prisma = new PrismaClient();
 
+const SAT_EXAM_CODES = ["SAT-MATH", "SAT-READ", "SAT-WRIT"];
+
 async function main() {
+  // 0) Remove legacy SAT subjects (and their cascaded topics, questions, templates)
+  const satSubjects = await prisma.subject.findMany({
+    where: { examCode: { in: SAT_EXAM_CODES } },
+    select: { id: true, name: true },
+  });
+  if (satSubjects.length > 0) {
+    console.log(`Removing ${satSubjects.length} legacy SAT subject(s): ${satSubjects.map((s) => s.name).join(", ")}`);
+    await prisma.subject.deleteMany({ where: { examCode: { in: SAT_EXAM_CODES } } });
+  }
+
   // 1) Subjects (avoid duplicates by name)
   const existingSubjects = new Set(
     (await prisma.subject.findMany({ select: { name: true } })).map((s) => s.name)
@@ -58,7 +70,7 @@ async function main() {
       .map(({ id, title }) => [title, id] as const)
   );
 
-  // 3) SAT-style questions
+  // 3) WAEC-style questions
   const resolvedQuestions = questions
     .map((q) => {
       const subjectId = subjectMap.get(q.subjectName);
@@ -115,7 +127,7 @@ async function main() {
     await prisma.mockExamTemplate.createMany({ data: newTemplates });
   }
 
-  console.log("SAT seed completed");
+  console.log("WAEC seed completed");
 }
 
 main()

@@ -1,5 +1,5 @@
 // lib/mock-exam-multiple-choice.ts
-// Deterministic SAT-style 4-option MCQ so choices stay stable per instance + question.
+// Deterministic WAEC-style 4-option MCQ so choices stay stable per instance + question.
 
 export interface McqChoice {
   letter: "A" | "B" | "C" | "D";

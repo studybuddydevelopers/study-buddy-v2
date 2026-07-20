@@ -47,9 +47,9 @@ export default function AboutUsPage() {
             Exams &amp; peace of mind
           </Heading2>
           <Paragraph variant="muted" className="leading-relaxed text-base">
-            Our focus is helping students prepare for key exams like SAT,
-            while creating a learning experience that is stress-free and easy to
-            use.
+            Our focus is helping Nigerian secondary school students prepare for
+            WAEC and related exams, while creating a learning experience that is
+            stress-free and easy to use.
           </Paragraph>
         </article>
 

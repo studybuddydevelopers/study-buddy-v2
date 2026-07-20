@@ -1,8 +1,5 @@
 // app/dashboard/dashboard.types.ts
 
-// -------------------------------------------------------------
-// User Profile Types
-// -------------------------------------------------------------
 export interface UserProfile {
   id: string;
   firstName: string | null;
@@ -30,19 +27,15 @@ export interface MeResponse {
   subscription: SubscriptionInfo | null;
 }
 
-// -------------------------------------------------------------
-// Subject Progress
-// -------------------------------------------------------------
+// ── Progress full-report (kept for /progress page) ──────────────────────────
+
 export interface SubjectProgress {
   subjectId: string;
   subjectName: string;
   progressPercentage: number;
-  updatedAt: string; // serialized date
+  updatedAt: string;
 }
 
-// -------------------------------------------------------------
-// Past Question Analytics
-// -------------------------------------------------------------
 export interface PastQuestionSubjectBreakdown {
   subjectId: string;
   subjectName: string;
@@ -58,9 +51,6 @@ export interface PastQuestionsReport {
   perSubject: PastQuestionSubjectBreakdown[];
 }
 
-// -------------------------------------------------------------
-// Mock Exam Stats
-// -------------------------------------------------------------
 export interface MockExamEntry {
   instanceId: string;
   subjectId: string;
@@ -94,16 +84,10 @@ export interface StudyMaterialsProgress {
   lastActivityAt: string | null;
 }
 
-// -------------------------------------------------------------
-// AI Activity
-// -------------------------------------------------------------
 export interface AIActivity {
   totalQuestionsAsked: number;
 }
 
-// -------------------------------------------------------------
-// Full Progress Report (API Response)
-// -------------------------------------------------------------
 export interface ProgressFullReport {
   subjects: SubjectProgress[];
   studyMaterials: StudyMaterialsProgress;
@@ -112,9 +96,6 @@ export interface ProgressFullReport {
   aiActivity: AIActivity;
 }
 
-// -------------------------------------------------------------
-// AI Recommendations
-// -------------------------------------------------------------
 export interface AIRecommendation {
   title: string;
   body: string;
@@ -122,11 +103,42 @@ export interface AIRecommendation {
   alt?: string;
 }
 
-// -------------------------------------------------------------
-// Props for Dashboard Client
-// -------------------------------------------------------------
+// ── Dashboard stats (new endpoint) ──────────────────────────────────────────
+
+export interface TopicBreakdown {
+  topicId: string;
+  topicTitle: string;
+  totalQuestions: number;
+  attempted: number;
+  correct: number;
+  accuracyPct: number;
+}
+
+export interface WeeklyActivityDay {
+  day: string;   // "Mon", "Tue", …
+  date: string;  // "2026-07-14"
+  count: number;
+}
+
+export interface WeakestTopic {
+  topicId: string;
+  topicTitle: string;
+  correct: number;
+  attempted: number;
+  accuracyPct: number;
+}
+
+export interface DashboardStats {
+  topicBreakdown: TopicBreakdown[];
+  weeklyActivity: WeeklyActivityDay[];
+  streakDays: number;
+  weakestTopic: WeakestTopic | null;
+  lastInProgressMock: { instanceId: string } | null;
+}
+
+// ── Props ────────────────────────────────────────────────────────────────────
+
 export interface DashboardClientProps {
   me: MeResponse | null;
-  progress: ProgressFullReport | null;
-  aiRecommendations: AIRecommendation[];
+  stats: DashboardStats | null;
 }
