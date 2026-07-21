@@ -30,6 +30,7 @@ export default function NavBar({
     { label: "Mock Exams", href: "/exams" },
     { label: "Progress", href: "/progress" },
     { label: "Chat Bot", href: "/chat" },
+    { label: "Profile", href: "/profile" },
   ] : [],
   signInLink,
   signUpLink,
