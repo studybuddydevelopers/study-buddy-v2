@@ -22,6 +22,10 @@ Study Buddy v2 is a Next.js learning platform for exam preparation. It combines 
 - Accounts and billing: auth, profile, subscriptions, and payments
 - Admin and schools: content upload, user lookup, and school membership management
 
+## Product Strategy Reminders
+
+- Human tutoring strategy: consider an Uber/Airbnb-style marketplace model for human tutors. The platform can match students with vetted tutors, handle scheduling, trust signals, ratings, and payments, while letting tutor supply scale without Study Buddy directly employing every tutor.
+
 ## Repo Shape
 
 ```text
