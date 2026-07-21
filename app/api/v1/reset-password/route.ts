@@ -1,11 +1,14 @@
 // app/api/v1/reset-password/route.ts
 import { NextResponse } from "next/server";
-import { createServerClient } from "@supabase/ssr";
+import { createServerClient, type CookieOptions } from "@supabase/ssr";
 
 export async function POST(req: Request) {
-  const { email } = await req.json();
+  const body = await req.json();
+  const { email } = body;
+  const captchaToken =
+    typeof body?.captchaToken === "string" ? body.captchaToken : undefined;
 
-  let res = new NextResponse();
+  const res = new NextResponse();
 
   const supabase = createServerClient(
     process.env.SUPABASE_URL!,
@@ -19,10 +22,10 @@ export async function POST(req: Request) {
             .find((c) => c.startsWith(name + "="))
             ?.split("=")?.[1] ?? null;
         },
-        set(name: string, value: string, options?: any) {
+        set(name: string, value: string, options?: CookieOptions) {
           res.cookies.set(name, value, { ...options, path: "/" });
         },
-        remove(name: string, options?: any) {
+        remove(name: string, options?: CookieOptions) {
           res.cookies.set(name, "", { ...options, maxAge: 0, path: "/" });
         },
       },
@@ -33,6 +36,7 @@ export async function POST(req: Request) {
   // emailRedirectTo makes Supabase put the PKCE token into *your* redirect URL
   const { error } = await supabase.auth.resetPasswordForEmail(email, {
     redirectTo: `${process.env.NEXT_PUBLIC_APP_URL}/auth/password-reset`,
+    captchaToken,
     // emailRedirectTo: `${process.env.NEXT_PUBLIC_APP_URL}/auth/password-reset`,
   });
 
