@@ -8,6 +8,7 @@ import {
   ClipboardList,
   BarChart2,
   MessageCircle,
+  UserCircle,
 } from "lucide-react";
 
 const ACTIVE_COLOR = "#6C3483";
@@ -19,6 +20,7 @@ const TABS = [
   { label: "Exams", href: "/exams", Icon: ClipboardList },
   { label: "Progress", href: "/progress", Icon: BarChart2 },
   { label: "Chat", href: "/chat", Icon: MessageCircle },
+  { label: "Profile", href: "/profile", Icon: UserCircle },
 ];
 
 export default function BottomNav() {
