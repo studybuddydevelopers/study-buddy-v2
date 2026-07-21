@@ -1,53 +1,64 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
+import { useRouter } from "next/navigation";
 import Heading2 from "@/components/Heading2";
 import TextField from "@/components/TextField";
 import Button from "@/components/Button";
 import Logo from "@/components/Logo";
+import CaptchaChallenge, {
+  captchaEnabled,
+  type CaptchaChallengeHandle,
+} from "@/components/CaptchaChallenge";
 import { FaHandPeace, FaHandPointDown } from "react-icons/fa6";
 import { FaHandPaper } from "react-icons/fa";
 
+const HAND_ICONS = [FaHandPeace, FaHandPaper, FaHandPointDown];
+
 export default function LoginClient() {
+  const router = useRouter();
   const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
-  const [identifierError, setIdentifierError] = useState("");
-  const [passwordError, setPasswordError] = useState("");
   const [touchedIdentifier, setTouchedIdentifier] = useState(false);
   const [touchedPassword, setTouchedPassword] = useState(false);
+  const [captchaToken, setCaptchaToken] = useState<string | null>(null);
+  const captchaRef = useRef<CaptchaChallengeHandle | null>(null);
 
   const isEmail = (value: string) => /\S+@\S+\.\S+/.test(value);
   const isPhone = (value: string) => /^[0-9+\-\s().]{6,}$/.test(value);
 
-  useEffect(() => {
-    if (!touchedIdentifier) return;
-    if (!identifier) setIdentifierError("Please enter email or phone number");
-    else if (!isEmail(identifier) && !isPhone(identifier))
-      setIdentifierError("Enter a valid email or phone number");
-    else setIdentifierError("");
-  }, [identifier, touchedIdentifier]);
-
-  useEffect(() => {
-    if (!touchedPassword) return;
-    if (!password) setPasswordError("Password is required");
-    else setPasswordError("");
-  }, [password, touchedPassword]);
+  const getIdentifierError = (value: string) => {
+    if (!value) return "Please enter email or phone number";
+    if (!isEmail(value) && !isPhone(value)) {
+      return "Enter a valid email or phone number";
+    }
+    return "";
+  };
+  const getPasswordError = (value: string) =>
+    value ? "" : "Password is required";
+  const identifierError = touchedIdentifier ? getIdentifierError(identifier) : "";
+  const passwordError = touchedPassword ? getPasswordError(password) : "";
 
   const handleLogin = async () => {
     setTouchedIdentifier(true);
     setTouchedPassword(true);
-    if (identifierError || passwordError) return;
+    if (getIdentifierError(identifier) || getPasswordError(password)) return;
+    if (captchaEnabled && !captchaToken) {
+      alert("Please complete the CAPTCHA challenge.");
+      return;
+    }
 
     setLoading(true);
 
     const response = await fetch("/api/v1/login", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ identifier, password }),
+      body: JSON.stringify({ identifier, password, captchaToken }),
     });
 
     setLoading(false);
+    captchaRef.current?.reset();
 
     if (!response.ok) {
       const { error } = await response.json();
@@ -55,20 +66,19 @@ export default function LoginClient() {
       return;
     }
 
-    window.location.href = "/dashboard";
+    router.push("/dashboard");
   };
 
-  const icons = [FaHandPeace, FaHandPaper, FaHandPointDown];
   const [index, setIndex] = useState(0);
 
   useEffect(() => {
     const interval = setInterval(() => {
-      setIndex((i) => (i + 1) % icons.length);
+      setIndex((i) => (i + 1) % HAND_ICONS.length);
     }, 1000);
     return () => clearInterval(interval);
   }, []);
 
-  const CurrentIcon = icons[index];
+  const CurrentIcon = HAND_ICONS[index];
 
   useEffect(() => {
     if (!document.getElementById("logo-float-keyframes")) {
@@ -85,7 +95,12 @@ export default function LoginClient() {
   }, []);
 
   const isLoginDisabled =
-    loading || !identifier || !password || !!identifierError || !!passwordError;
+    loading ||
+    !identifier ||
+    !password ||
+    !!identifierError ||
+    !!passwordError ||
+    (captchaEnabled && !captchaToken);
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-start sm:justify-center px-4 py-8 sm:py-12 bg-background">
@@ -139,6 +154,11 @@ export default function LoginClient() {
           >
             Forgot Password?
           </a>
+
+          <CaptchaChallenge
+            ref={captchaRef}
+            onTokenChange={setCaptchaToken}
+          />
 
           <Button
             variant="primary"
