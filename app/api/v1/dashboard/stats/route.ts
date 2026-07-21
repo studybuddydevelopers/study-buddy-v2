@@ -46,23 +46,37 @@ export async function GET() {
     },
   });
 
-  // Topic breakdown
-  const byTopic = new Map<string, { distinctQ: Set<string>; correct: number }>();
+  // Topic breakdown: count each question once, using the latest submitted result.
+  const latestAttemptByTopic = new Map<
+    string,
+    Map<string, { isCorrect: boolean; attemptedAt: Date }>
+  >();
   for (const a of allAttempts) {
     const tid = a.question.topicId;
     if (!tid) continue;
-    if (!byTopic.has(tid)) byTopic.set(tid, { distinctQ: new Set(), correct: 0 });
-    const entry = byTopic.get(tid)!;
-    entry.distinctQ.add(a.questionId);
-    if (a.isCorrect) entry.correct++;
+
+    if (!latestAttemptByTopic.has(tid)) {
+      latestAttemptByTopic.set(tid, new Map());
+    }
+
+    const topicAttempts = latestAttemptByTopic.get(tid)!;
+    const existing = topicAttempts.get(a.questionId);
+    if (!existing || a.attemptedAt > existing.attemptedAt) {
+      topicAttempts.set(a.questionId, {
+        isCorrect: a.isCorrect,
+        attemptedAt: a.attemptedAt,
+      });
+    }
   }
 
   const topicBreakdown = topics
-    .filter((t) => byTopic.has(t.id))
+    .filter((t) => latestAttemptByTopic.has(t.id))
     .map((t) => {
-      const d = byTopic.get(t.id)!;
-      const attempted = d.distinctQ.size;
-      const correct = d.correct;
+      const latestAttempts = latestAttemptByTopic.get(t.id)!;
+      const attempted = latestAttempts.size;
+      const correct = Array.from(latestAttempts.values()).filter(
+        (attempt) => attempt.isCorrect
+      ).length;
       return {
         topicId: t.id,
         topicTitle: t.title,
@@ -121,7 +135,7 @@ export async function GET() {
     : null;
 
   if (streakAnchor) {
-    let cursor = new Date(streakAnchor + "T00:00:00Z");
+    const cursor = new Date(streakAnchor + "T00:00:00Z");
     while (distinctDates.has(cursor.toISOString().slice(0, 10))) {
       streakDays++;
       cursor.setUTCDate(cursor.getUTCDate() - 1);
