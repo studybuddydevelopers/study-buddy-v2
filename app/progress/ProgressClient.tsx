@@ -1,5 +1,3 @@
-"use client";
-
 import Link from "next/link";
 import Heading1 from "@/components/Heading1";
 import Heading2 from "@/components/Heading2";
@@ -7,6 +5,7 @@ import Paragraph from "@/components/Paragraph";
 import ProgressBar from "@/components/ProgressBar";
 import Button from "@/components/Button";
 import type { ProgressFullReport } from "@/app/dashboard/dashboard.types";
+import { AlignCenter } from "lucide-react";
 
 function formatDurationMinutes(m: number | null | undefined): string {
   if (m == null || m <= 0) return "—";
@@ -65,7 +64,7 @@ export default function ProgressClient({
     pq.totalAttempts > 0 ? pct(pq.accuracyRate) : null;
 
   return (
-    <div className="w-[90vw] max-w-4xl mx-auto py-10 space-y-12">
+    <div className="w-[80vw] mx-auto py-10 space-y-12">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <Heading1 gutter="sm">Your progress</Heading1>
@@ -277,15 +276,20 @@ export default function ProgressClient({
         </section>
       )}
 
-      <section className="border border-accent-200 rounded-xl p-4 bg-accent-50">
-        <Paragraph variant="muted" gutter="none" className="text-sm">
-          <strong className="text-gray-800">AI Q&amp;A:</strong>{" "}
-          {progress.aiActivity.totalQuestionsAsked} threads started.{" "}
-          <Link href="/chat" className="text-primary-600 underline">
-            Open chat
+      <section className="space-y-4">
+        <Heading2 gutter="sm">AI Q&amp;A</Heading2>
+        <div className="flex justify-between w-72 max-w-72 align-items-center">
+          <Paragraph variant="muted" className="text-sm max-w-2xl !m-0" style={{alignSelf: "center"}}>
+            {progress.aiActivity.totalQuestionsAsked} threads started.{" "}
+          </Paragraph>
+          <Link href="/chat">
+            <Button variant="primary" size="md">
+              Open Chat
+            </Button>
           </Link>
-        </Paragraph>
+        </div>
       </section>
+
     </div>
   );
 }
