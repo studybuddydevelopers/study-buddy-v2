@@ -2,22 +2,37 @@
 
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
+import { useRouter } from "next/navigation";
 import Heading2 from "@/components/Heading2";
 import TextField from "@/components/TextField";
 import Button from "@/components/Button";
+import CaptchaChallenge, {
+  captchaEnabled,
+  type CaptchaChallengeHandle,
+} from "@/components/CaptchaChallenge";
 import { FaHandPeace, FaHandPointDown } from "react-icons/fa6";
 import { FaHandPaper } from "react-icons/fa";
 import Card from "@/components/Card";
 
+const HAND_ICONS = [FaHandPeace, FaHandPaper, FaHandPointDown];
+
 export default function ResetPasswordClient() {
+  const router = useRouter();
   const [identifier, setIdentifier] = useState("");
   const [loading, setLoading] = useState(false);
 
   const [errorMessage, setErrorMessage] = useState("");
   const [success, setSuccess] = useState(false);
+  const [captchaToken, setCaptchaToken] = useState<string | null>(null);
+  const captchaRef = useRef<CaptchaChallengeHandle | null>(null);
 
   const handleSubmit = async () => {
+    if (captchaEnabled && !captchaToken) {
+      setErrorMessage("Please complete the CAPTCHA challenge.");
+      return;
+    }
+
     setLoading(true);
     setErrorMessage("");
     setSuccess(false);
@@ -25,10 +40,11 @@ export default function ResetPasswordClient() {
     const res = await fetch("/api/v1/reset-password", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email: identifier }),
+      body: JSON.stringify({ email: identifier, captchaToken }),
     });
 
     setLoading(false);
+    captchaRef.current?.reset();
 
     if (!res.ok) {
       const data = await res.json();
@@ -39,22 +55,21 @@ export default function ResetPasswordClient() {
     setSuccess(true);
 
     setTimeout(() => {
-      window.location.href = "/check-email";
+      router.push("/check-email");
     }, 800);
   };
 
   // ICON rotation animation
-  const icons = [FaHandPeace, FaHandPaper, FaHandPointDown];
   const [index, setIndex] = useState(0);
 
   useEffect(() => {
     const interval = setInterval(() => {
-      setIndex((i) => (i + 1) % icons.length);
+      setIndex((i) => (i + 1) % HAND_ICONS.length);
     }, 1000);
     return () => clearInterval(interval);
   }, []);
 
-  const CurrentIcon = icons[index];
+  const CurrentIcon = HAND_ICONS[index];
 
   // Inject float animation keyframes once
   useEffect(() => {
@@ -105,6 +120,11 @@ export default function ResetPasswordClient() {
             </p>
           )}
 
+          <CaptchaChallenge
+            ref={captchaRef}
+            onTokenChange={setCaptchaToken}
+          />
+
           <a
             href="/login"
             className="underline text-left mb-6 text-gray-600 visited:text-primary-500 hover:text-info w-fit"
@@ -117,7 +137,7 @@ export default function ResetPasswordClient() {
             size="lg"
             className="w-full rounded-xl"
             loading={loading}
-            disabled={loading || !identifier}
+            disabled={loading || !identifier || (captchaEnabled && !captchaToken)}
             onClick={handleSubmit}
           >
             Submit
