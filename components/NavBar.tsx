@@ -18,7 +18,6 @@ interface NavBarProps {
   links?: NavLink[];
   signInLink?: string;
   signUpLink?: string;
-  onNotificationsClick?: () => void;
   showNotifications?: boolean;
 }
 
@@ -34,11 +33,11 @@ export default function NavBar({
   ] : [],
   signInLink,
   signUpLink,
-  onNotificationsClick,
   showNotifications = true,
 }: Readonly<NavBarProps>) {
   const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [loadingLogin, setLoadingLogin] = useState(false);
   const [loadingSignup, setLoadingSignup] = useState(false);
   const [loadingLogOut, setLoadingLogOut] = useState(false);
@@ -114,12 +113,26 @@ export default function NavBar({
           {user && (
             <>
               {showNotifications && (
-                <button
-                  className="text-xl cursor-pointer p-2 rounded-full hover:bg-accent-200 transition"
-                  onClick={onNotificationsClick}
-                >
-                  🔔
-                </button>
+                <div className="relative">
+                  <button
+                    className="text-xl cursor-pointer p-2 rounded-full hover:bg-accent-200 transition"
+                    onClick={() => setNotificationsOpen((open) => !open)}
+                    aria-haspopup="dialog"
+                    aria-expanded={notificationsOpen}
+                    aria-label="Notifications"
+                  >
+                    🔔
+                  </button>
+
+                  {notificationsOpen && (
+                    <div
+                      className="absolute right-0 top-full z-50 mt-2 w-64 rounded-lg border border-yellow-400 bg-gray-50 px-4 py-3 text-sm text-gray-700 shadow-lg"
+                      role="dialog"
+                    >
+                      Not functional right now! <br/> New feature coming soon!
+                    </div>
+                  )}
+                </div>
               )}
 
               <Button
