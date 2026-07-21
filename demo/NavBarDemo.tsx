@@ -13,10 +13,7 @@ export default function NavBarDemo() {
 
       <NavBar user={null} links={[]} />
 
-      <NavBar
-        user={mockUser}
-        onNotificationsClick={() => alert("Notifications clicked")}
-      />
+      <NavBar user={mockUser} />
 
       <NavBar user={null} showNotifications={false} />
     </div>
