@@ -47,8 +47,10 @@ model User {
   adminUser AdminUser?
 
   profile         UserProfile?
+  settings        UserSettings?
   aiQuestions     AiQuestion[]
   attempts        PastQuestionAttempt[]
+  practiceDrafts  PracticeAnswerDraft[]
   mockExams       MockExamInstance[]
   recommendations Recommendation[]
   progress        ProgressTrack[]
@@ -68,6 +70,15 @@ model UserProfile {
   examYear          Int?
   preferredSubjects String[] // fixed: no optional list
   avatarUrl         String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model UserSettings {
+  userId                     String   @id
+  cloudPracticeDraftsEnabled Boolean  @default(false)
+  lowDataModeEnabled         Boolean  @default(false)
+  updatedAt                  DateTime @updatedAt
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
@@ -125,7 +136,22 @@ model PastQuestion {
   topic   Topic?  @relation(fields: [topicId], references: [id], onDelete: SetNull)
 
   attempts    PastQuestionAttempt[]
+  drafts      PracticeAnswerDraft[]
   mockAnswers MockExamAnswer[]
+}
+
+model PracticeAnswerDraft {
+  id         String   @id @default(uuid())
+  userId     String
+  questionId String
+  answerText String
+  updatedAt  DateTime @updatedAt
+
+  user     User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  question PastQuestion @relation(fields: [questionId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, questionId])
+  @@index([userId, updatedAt])
 }
 
 // =========================================================
