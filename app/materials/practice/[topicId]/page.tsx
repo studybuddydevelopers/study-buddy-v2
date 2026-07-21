@@ -29,6 +29,7 @@ export default async function TopicPracticePage({
 
   return (
     <TopicPracticeClient
+      key={topic.id}
       topicId={topic.id}
       topicTitle={topic.title}
       subjectDisplayName={subjectDisplayName}
