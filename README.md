@@ -138,6 +138,9 @@ The app expects environment variables for:
 - OpenAI API key
 - payment provider secrets
 - optional cron secret for recommendation generation
+- CAPTCHA frontend config when Supabase Auth CAPTCHA is enabled:
+  - `NEXT_PUBLIC_CAPTCHA_PROVIDER=hcaptcha` or `NEXT_PUBLIC_CAPTCHA_PROVIDER=turnstile`
+  - `NEXT_PUBLIC_CAPTCHA_SITE_KEY=...`
 
 ## Recommended Docs
 
