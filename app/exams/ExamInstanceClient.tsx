@@ -1,9 +1,8 @@
 // app/exams/ExamInstanceClient.tsx
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Heading1 from "@/components/Heading1";
-import Heading2 from "@/components/Heading2";
 import Paragraph from "@/components/Paragraph";
 import Button from "@/components/Button";
 import Image from "@/components/Image";
@@ -90,6 +89,8 @@ export default function ExamInstanceClient({
   );
   const saveIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const latestAnswersRef = useRef<Record<string, string>>(answers);
+  const savingRef = useRef(false);
+  const submittedRef = useRef(submitted);
 
   const answerIdByQuestionId = useMemo(() => {
     const map = new Map<string, string>();
@@ -102,6 +103,49 @@ export default function ExamInstanceClient({
   }, [answers]);
 
   useEffect(() => {
+    submittedRef.current = submitted;
+  }, [submitted]);
+
+  const saveProgress = useCallback(
+    async (snapshot: Record<string, string> = latestAnswersRef.current) => {
+      if (savingRef.current || submittedRef.current) return;
+      savingRef.current = true;
+      setSaving(true);
+      setError(null);
+      try {
+        const payloadAnswers = data.answers.map((a) => ({
+          answerId: a.id,
+          userAnswer: snapshot[a.id]?.trim() ?? "",
+        }));
+
+        const res = await fetch("/api/v1/mock-exams/save-progress", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            instanceId: data.instance.id,
+            answers: payloadAnswers,
+          }),
+        });
+
+        if (!res.ok) {
+          const body = await res.json().catch(() => null);
+          setError(body?.error || "Failed to save progress.");
+          return;
+        }
+
+        setLastSaved(new Date().toLocaleTimeString());
+      } catch (err) {
+        console.error(err);
+        setError("Unable to save progress right now.");
+      } finally {
+        savingRef.current = false;
+        setSaving(false);
+      }
+    },
+    [data.answers, data.instance.id]
+  );
+
+  useEffect(() => {
     if (submitted) return;
     const interval = setInterval(() => {
       void saveProgress(latestAnswersRef.current);
@@ -110,41 +154,7 @@ export default function ExamInstanceClient({
     return () => {
       if (saveIntervalRef.current) clearInterval(saveIntervalRef.current);
     };
-  }, [data.instance.id, submitted]);
-
-  const saveProgress = async (snapshot: Record<string, string> = answers) => {
-    if (saving || submitted) return;
-    setSaving(true);
-    setError(null);
-    try {
-      const payloadAnswers = data.answers.map((a) => ({
-        answerId: a.id,
-        userAnswer: snapshot[a.id]?.trim() ?? "",
-      }));
-
-      const res = await fetch("/api/v1/mock-exams/save-progress", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          instanceId: data.instance.id,
-          answers: payloadAnswers,
-        }),
-      });
-
-      if (!res.ok) {
-        const body = await res.json().catch(() => null);
-        setError(body?.error || "Failed to save progress.");
-        return;
-      }
-
-      setLastSaved(new Date().toLocaleTimeString());
-    } catch (err) {
-      console.error(err);
-      setError("Unable to save progress right now.");
-    } finally {
-      setSaving(false);
-    }
-  };
+  }, [saveProgress, submitted]);
 
   const handleSubmitAndGrade = async () => {
     setSubmitting(true);
