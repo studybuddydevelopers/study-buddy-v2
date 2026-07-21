@@ -27,6 +27,7 @@ interface CloudDraft {
 }
 
 type AnswersByQuestionId = Record<string, string>;
+type ResultsByQuestionId = Record<string, boolean>;
 type DraftSyncStatus = "idle" | "local" | "cloud" | "disabled" | "paused" | "error";
 type ConfettiStyle = CSSProperties & {
   "--confetti-drift": string;
@@ -279,6 +280,157 @@ function ConfettiBurst() {
   );
 }
 
+function ReviewAnswersScreen({
+  questions,
+  answersByQuestionId,
+  resultsByQuestionId,
+  onBackToResults,
+  onBackToMaterials,
+}: {
+  questions: QuestionStub[];
+  answersByQuestionId: AnswersByQuestionId;
+  resultsByQuestionId: ResultsByQuestionId;
+  onBackToResults: () => void;
+  onBackToMaterials: () => void;
+}) {
+  const correctCount = questions.filter(
+    (question) => resultsByQuestionId[question.id] === true
+  ).length;
+  const wrongQuestionIds = questions
+    .filter((question) => resultsByQuestionId[question.id] === false)
+    .map((question) => question.id);
+  const wrongCount = wrongQuestionIds.length;
+  const ungradedCount = questions.length - correctCount - wrongCount;
+  const [nextWrongIndex, setNextWrongIndex] = useState(0);
+
+  const scrollToNextWrongAnswer = () => {
+    if (wrongQuestionIds.length === 0) return;
+
+    const targetQuestionId =
+      wrongQuestionIds[nextWrongIndex % wrongQuestionIds.length];
+    document
+      .getElementById(getReviewQuestionElementId(targetQuestionId))
+      ?.scrollIntoView({ behavior: "smooth", block: "start" });
+    setNextWrongIndex((current) => (current + 1) % wrongQuestionIds.length);
+  };
+
+  return (
+    <div className="space-y-5">
+      <div className="rounded-lg border border-accent-200 bg-white p-4 shadow-sm">
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div className="space-y-2">
+            <p className="text-sm font-semibold uppercase text-primary-600">
+              Review answers
+            </p>
+            <Heading1 gutter="sm">Your quiz review</Heading1>
+            <Paragraph variant="muted" gutter="none" className="text-sm">
+              Answers are shown read-only so you can scan your work without
+              accidentally changing a saved response.
+            </Paragraph>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {wrongCount > 0 && (
+              <Button
+                variant="destructive"
+                size="sm"
+                onClick={scrollToNextWrongAnswer}
+              >
+                Next wrong answer
+              </Button>
+            )}
+            <Button variant="outline" size="sm" onClick={onBackToResults}>
+              Back to results
+            </Button>
+            <Button variant="ghost" size="sm" onClick={onBackToMaterials}>
+              Study materials
+            </Button>
+          </div>
+        </div>
+
+        <div className="mt-4 grid grid-cols-3 divide-x divide-accent-200 border-y border-accent-200 py-4">
+          <QuizStat label="Correct" value={correctCount} />
+          <QuizStat label="Wrong" value={wrongCount} />
+          <QuizStat label="Ungraded" value={ungradedCount} />
+        </div>
+      </div>
+
+      <div className="space-y-4">
+        {questions.map((question, questionIndex) => {
+          const result = resultsByQuestionId[question.id];
+          const answerText = answersByQuestionId[question.id]?.trim() ?? "";
+          const isWrong = result === false;
+
+          return (
+            <section
+              key={question.id}
+              id={getReviewQuestionElementId(question.id)}
+              className={`scroll-mt-6 rounded-lg border bg-white p-4 shadow-sm ${
+                isWrong ? "border-red-300" : "border-accent-200"
+              }`}
+            >
+              <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+                <p className="text-sm font-semibold text-primary-600">
+                  Question {questionIndex + 1} of {questions.length}
+                </p>
+                <ReviewResultBadge result={result} />
+              </div>
+
+              <div className="space-y-3">
+                <p className="whitespace-pre-line text-gray-900">
+                  {question.questionText}
+                </p>
+                {question.questionImageUrl && (
+                  <Image
+                    src={question.questionImageUrl}
+                    alt=""
+                    className="max-h-64 object-contain"
+                  />
+                )}
+                <div className="rounded-lg border border-accent-200 bg-accent-50 p-3">
+                  <p className="mb-1 text-xs font-semibold uppercase text-gray-500">
+                    Your answer
+                  </p>
+                  <p className="min-h-10 whitespace-pre-wrap text-sm text-gray-900">
+                    {answerText || "No answer saved."}
+                  </p>
+                </div>
+              </div>
+            </section>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function ReviewResultBadge({ result }: { result: boolean | undefined }) {
+  if (result === true) {
+    return (
+      <span className="rounded-full bg-green-50 px-3 py-1 text-xs font-semibold text-green-700">
+        Correct
+      </span>
+    );
+  }
+
+  if (result === false) {
+    return (
+      <span className="rounded-full bg-red-50 px-3 py-1 text-xs font-semibold text-red-700">
+        Wrong
+      </span>
+    );
+  }
+
+  return (
+    <span className="rounded-full bg-gray-100 px-3 py-1 text-xs font-semibold text-gray-600">
+      Not submitted
+    </span>
+  );
+}
+
+function getReviewQuestionElementId(questionId: string) {
+  return `practice-review-${questionId}`;
+}
+
 export default function TopicPracticeClient({
   topicId,
   topicTitle,
@@ -298,6 +450,9 @@ export default function TopicPracticeClient({
   const [settings, setSettings] = useState<UserSettings | null>(null);
   const [draftStatus, setDraftStatus] = useState<DraftSyncStatus>("idle");
   const [quizFinished, setQuizFinished] = useState(false);
+  const [reviewingAnswers, setReviewingAnswers] = useState(false);
+  const [resultsByQuestionId, setResultsByQuestionId] =
+    useState<ResultsByQuestionId>({});
   const [submitting, setSubmitting] = useState(false);
   const [lastResult, setLastResult] = useState<{
     isCorrect: boolean;
@@ -609,6 +764,13 @@ export default function TopicPracticeClient({
   const answeredCount = questions.reduce((count, question) => {
     return answersByQuestionId[question.id]?.trim() ? count + 1 : count;
   }, 0);
+  const correctQuestionCount = questions.filter(
+    (question) => resultsByQuestionId[question.id] === true
+  ).length;
+  const wrongQuestionCount = questions.filter(
+    (question) => resultsByQuestionId[question.id] === false
+  ).length;
+  const gradedQuestionCount = correctQuestionCount + wrongQuestionCount;
 
   const persistCurrentDraft = () => {
     if (!q) return;
@@ -641,12 +803,19 @@ export default function TopicPracticeClient({
   const finishQuiz = () => {
     persistCurrentDraft();
     resetQuestionFeedback();
+    setReviewingAnswers(false);
     setQuizFinished(true);
   };
 
   const reviewQuiz = () => {
+    setReviewingAnswers(true);
     setQuizFinished(false);
-    setIndex(0);
+    resetQuestionFeedback();
+  };
+
+  const backToResults = () => {
+    setReviewingAnswers(false);
+    setQuizFinished(true);
     resetQuestionFeedback();
   };
 
@@ -677,10 +846,15 @@ export default function TopicPracticeClient({
         setLoadError(data?.error || "Submit failed.");
         return;
       }
-      setLastResult({ isCorrect: Boolean(data.isCorrect) });
+      const isCorrect = Boolean(data.isCorrect);
+      setLastResult({ isCorrect });
+      setResultsByQuestionId((current) => ({
+        ...current,
+        [q.id]: isCorrect,
+      }));
       setSession((s) => ({
         attempted: s.attempted + 1,
-        correct: s.correct + (data.isCorrect ? 1 : 0),
+        correct: s.correct + (isCorrect ? 1 : 0),
       }));
     } catch {
       setLoadError("Submit failed.");
@@ -748,18 +922,28 @@ export default function TopicPracticeClient({
         </Paragraph>
       )}
 
-      {!loading && !loadError && quizFinished && n > 0 && (
+      {!loading && !loadError && reviewingAnswers && n > 0 && (
+        <ReviewAnswersScreen
+          questions={questions}
+          answersByQuestionId={answersByQuestionId}
+          resultsByQuestionId={resultsByQuestionId}
+          onBackToResults={backToResults}
+          onBackToMaterials={() => router.push("/materials")}
+        />
+      )}
+
+      {!loading && !loadError && quizFinished && !reviewingAnswers && n > 0 && (
         <EndQuizScreen
           questionCount={n}
           answeredCount={answeredCount}
-          correctCount={session.correct}
-          submittedCount={session.attempted}
+          correctCount={correctQuestionCount}
+          submittedCount={gradedQuestionCount}
           onReview={reviewQuiz}
           onBackToMaterials={() => router.push("/materials")}
         />
       )}
 
-      {!loading && !quizFinished && q && (
+      {!loading && !quizFinished && !reviewingAnswers && q && (
         <>
           <div className="text-sm font-medium text-primary-600">
             Question {index + 1} of {n}
