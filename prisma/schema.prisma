@@ -46,19 +46,19 @@ model User {
 
   adminUser AdminUser?
 
-  profile         UserProfile?
-  settings        UserSettings?
-  aiQuestions     AiQuestion[]
-  attempts        PastQuestionAttempt[]
-  practiceDrafts  PracticeAnswerDraft[]
-  mockExams       MockExamInstance[]
-  recommendations Recommendation[]
-  progress        ProgressTrack[]
-  subscriptions   Subscription[]
-  schoolStudents  SchoolStudent[]
-  transactions    Transaction[]
+  profile          UserProfile?
+  settings         UserSettings?
+  aiQuestions      AiQuestion[]
+  attempts         PastQuestionAttempt[]
+  practiceDrafts   PracticeAnswerDraft[]
+  practiceSessions PracticeQuizSession[]
+  mockExams        MockExamInstance[]
+  recommendations  Recommendation[]
+  progress         ProgressTrack[]
+  subscriptions    Subscription[]
+  schoolStudents   SchoolStudent[]
+  transactions     Transaction[]
 }
-
 
 model UserProfile {
   userId            String   @id
@@ -110,10 +110,11 @@ model Topic {
   difficulty     Int?
   sortOrder      Int     @default(0)
 
-  subject         Subject          @relation(fields: [subjectId], references: [id], onDelete: Cascade)
-  pastQuestions   PastQuestion[]
-  recommendations Recommendation[]
-  aiQuestions     AiQuestion[]
+  subject          Subject               @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+  pastQuestions    PastQuestion[]
+  recommendations  Recommendation[]
+  aiQuestions      AiQuestion[]
+  practiceSessions PracticeQuizSession[]
 }
 
 // =========================================================
@@ -137,6 +138,7 @@ model PastQuestion {
 
   attempts    PastQuestionAttempt[]
   drafts      PracticeAnswerDraft[]
+  quizAnswers PracticeQuizAnswer[]
   mockAnswers MockExamAnswer[]
 }
 
@@ -170,6 +172,45 @@ model PastQuestionAttempt {
 
   user     User         @relation(fields: [userId], references: [id], onDelete: Cascade)
   question PastQuestion @relation(fields: [questionId], references: [id], onDelete: Cascade)
+}
+
+model PracticeQuizSession {
+  id                 String   @id @default(uuid())
+  userId             String
+  topicId            String?
+  startedAt          DateTime
+  finishedAt         DateTime @default(now())
+  durationSeconds    Int?
+  totalQuestions     Int
+  answeredQuestions  Int
+  submittedQuestions Int
+  correctQuestions   Int
+  wrongQuestions     Int
+
+  user    User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  topic   Topic?               @relation(fields: [topicId], references: [id], onDelete: SetNull)
+  answers PracticeQuizAnswer[]
+
+  @@index([userId, finishedAt])
+  @@index([topicId, finishedAt])
+}
+
+model PracticeQuizAnswer {
+  id          String    @id @default(uuid())
+  sessionId   String
+  questionId  String
+  answerText  String?
+  submitted   Boolean   @default(false)
+  isCorrect   Boolean?
+  answeredAt  DateTime?
+  submittedAt DateTime?
+  createdAt   DateTime  @default(now())
+
+  session  PracticeQuizSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  question PastQuestion        @relation(fields: [questionId], references: [id], onDelete: Cascade)
+
+  @@unique([sessionId, questionId])
+  @@index([questionId])
 }
 
 // =========================================================
@@ -323,7 +364,6 @@ model AdminUser {
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
-
 
 // =========================================================
 //  SCHOOLS - B2B FEATURES
