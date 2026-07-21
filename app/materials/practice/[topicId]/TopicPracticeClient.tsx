@@ -28,6 +28,7 @@ interface CloudDraft {
 
 type AnswersByQuestionId = Record<string, string>;
 type ResultsByQuestionId = Record<string, boolean>;
+type TimestampsByQuestionId = Record<string, string>;
 type DraftSyncStatus = "idle" | "local" | "cloud" | "disabled" | "paused" | "error";
 type ConfettiStyle = CSSProperties & {
   "--confetti-drift": string;
@@ -115,6 +116,11 @@ function writeLocalDrafts(topicId: string, drafts: AnswersByQuestionId) {
       answers,
     })
   );
+}
+
+function clearLocalDrafts(topicId: string) {
+  if (typeof window === "undefined") return;
+  window.localStorage.removeItem(getDraftStorageKey(topicId));
 }
 
 function hasEnoughBandwidth(settings: UserSettings) {
@@ -447,6 +453,12 @@ export default function TopicPracticeClient({
   const [index, setIndex] = useState(0);
   const [answersByQuestionId, setAnswersByQuestionId] =
     useState<AnswersByQuestionId>(() => readLocalDrafts(topicId));
+  const [finishedAnswersByQuestionId, setFinishedAnswersByQuestionId] =
+    useState<AnswersByQuestionId>({});
+  const [answeredAtByQuestionId, setAnsweredAtByQuestionId] =
+    useState<TimestampsByQuestionId>({});
+  const [submittedAtByQuestionId, setSubmittedAtByQuestionId] =
+    useState<TimestampsByQuestionId>({});
   const [settings, setSettings] = useState<UserSettings | null>(null);
   const [draftStatus, setDraftStatus] = useState<DraftSyncStatus>("idle");
   const [quizFinished, setQuizFinished] = useState(false);
@@ -454,6 +466,7 @@ export default function TopicPracticeClient({
   const [resultsByQuestionId, setResultsByQuestionId] =
     useState<ResultsByQuestionId>({});
   const [submitting, setSubmitting] = useState(false);
+  const [savingQuizSession, setSavingQuizSession] = useState(false);
   const [lastResult, setLastResult] = useState<{
     isCorrect: boolean;
   } | null>(null);
@@ -461,9 +474,9 @@ export default function TopicPracticeClient({
     answerText: string;
     explanation: string | null;
   } | null>(null);
-  const [session, setSession] = useState({ correct: 0, attempted: 0 });
 
   const latestAnswersRef = useRef<AnswersByQuestionId>({});
+  const quizStartedAtRef = useRef(new Date().toISOString());
   const pendingCloudDraftsRef = useRef<Map<string, string>>(new Map());
   const cloudSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const cloudSaveInFlightRef = useRef(false);
@@ -761,8 +774,12 @@ export default function TopicPracticeClient({
   const n = questions.length;
   const answer = q ? answersByQuestionId[q.id] ?? "" : "";
   const draftStatusText = getDraftStatusText(answer, settings, draftStatus);
+  const summaryAnswersByQuestionId =
+    quizFinished || reviewingAnswers
+      ? finishedAnswersByQuestionId
+      : answersByQuestionId;
   const answeredCount = questions.reduce((count, question) => {
-    return answersByQuestionId[question.id]?.trim() ? count + 1 : count;
+    return summaryAnswersByQuestionId[question.id]?.trim() ? count + 1 : count;
   }, 0);
   const correctQuestionCount = questions.filter(
     (question) => resultsByQuestionId[question.id] === true
@@ -771,6 +788,20 @@ export default function TopicPracticeClient({
     (question) => resultsByQuestionId[question.id] === false
   ).length;
   const gradedQuestionCount = correctQuestionCount + wrongQuestionCount;
+
+  const getCurrentAnswerSnapshot = () => {
+    const snapshot = { ...latestAnswersRef.current, ...answersByQuestionId };
+
+    if (q) {
+      if (answer.length > 0) {
+        snapshot[q.id] = answer;
+      } else {
+        delete snapshot[q.id];
+      }
+    }
+
+    return snapshot;
+  };
 
   const persistCurrentDraft = () => {
     if (!q) return;
@@ -800,11 +831,68 @@ export default function TopicPracticeClient({
     }
   };
 
-  const finishQuiz = () => {
+  const finishQuiz = async () => {
+    if (savingQuizSession) return;
+
+    const answerSnapshot = getCurrentAnswerSnapshot();
+    const finishedAt = new Date().toISOString();
+
     persistCurrentDraft();
-    resetQuestionFeedback();
-    setReviewingAnswers(false);
-    setQuizFinished(true);
+    setLoadError(null);
+    setSavingQuizSession(true);
+
+    try {
+      await flushCloudDrafts();
+
+      const res = await fetch("/api/v1/past-questions/quiz-session", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          topicId,
+          startedAt: quizStartedAtRef.current,
+          finishedAt,
+          answers: questions.map((question) => {
+            const answerText = answerSnapshot[question.id] ?? "";
+            const hasAnswer = answerText.trim().length > 0;
+
+            return {
+              questionId: question.id,
+              answerText,
+              submitted: resultsByQuestionId[question.id] !== undefined,
+              isCorrect: resultsByQuestionId[question.id] ?? null,
+              answeredAt: hasAnswer
+                ? answeredAtByQuestionId[question.id] ?? finishedAt
+                : null,
+              submittedAt: submittedAtByQuestionId[question.id] ?? null,
+            };
+          }),
+        }),
+      });
+      const data = await res.json().catch(() => null);
+
+      if (!res.ok) {
+        setLoadError(data?.error || "Could not save finished quiz.");
+        return;
+      }
+
+      if (cloudSaveTimerRef.current) {
+        clearTimeout(cloudSaveTimerRef.current);
+        cloudSaveTimerRef.current = null;
+      }
+      pendingCloudDraftsRef.current.clear();
+      clearLocalDrafts(topicId);
+      latestAnswersRef.current = {};
+      setAnswersByQuestionId({});
+      setFinishedAnswersByQuestionId(answerSnapshot);
+      setDraftStatus("idle");
+      resetQuestionFeedback();
+      setReviewingAnswers(false);
+      setQuizFinished(true);
+    } catch {
+      setLoadError("Could not save finished quiz.");
+    } finally {
+      setSavingQuizSession(false);
+    }
   };
 
   const reviewQuiz = () => {
@@ -821,6 +909,25 @@ export default function TopicPracticeClient({
 
   const handleAnswerChange = (nextAnswer: string) => {
     if (!q) return;
+    if (nextAnswer.trim().length > 0) {
+      setAnsweredAtByQuestionId((current) =>
+        current[q.id] ? current : { ...current, [q.id]: new Date().toISOString() }
+      );
+    }
+    setResultsByQuestionId((current) => {
+      if (current[q.id] === undefined) return current;
+
+      const next = { ...current };
+      delete next[q.id];
+      return next;
+    });
+    setSubmittedAtByQuestionId((current) => {
+      if (!current[q.id]) return current;
+
+      const next = { ...current };
+      delete next[q.id];
+      return next;
+    });
     updateLocalDraft(q.id, nextAnswer);
     queueCloudDraft(q.id, nextAnswer);
   };
@@ -832,12 +939,21 @@ export default function TopicPracticeClient({
     setSubmitting(true);
     setReveal(null);
     try {
+      const answerStartedAt =
+        answeredAtByQuestionId[q.id] ?? quizStartedAtRef.current;
+      const timeTakenSeconds = Math.max(
+        0,
+        Math.round(
+          (Date.now() - new Date(answerStartedAt).getTime()) / 1000
+        )
+      );
       const res = await fetch("/api/v1/past-questions/attempt", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           questionId: q.id,
           userAnswer: answer.trim(),
+          timeTakenSeconds,
         }),
       });
       const data = await res.json().catch(() => null);
@@ -847,14 +963,21 @@ export default function TopicPracticeClient({
         return;
       }
       const isCorrect = Boolean(data.isCorrect);
+      const submittedAt =
+        typeof data.attemptedAt === "string"
+          ? data.attemptedAt
+          : new Date().toISOString();
       setLastResult({ isCorrect });
       setResultsByQuestionId((current) => ({
         ...current,
         [q.id]: isCorrect,
       }));
-      setSession((s) => ({
-        attempted: s.attempted + 1,
-        correct: s.correct + (isCorrect ? 1 : 0),
+      setAnsweredAtByQuestionId((current) =>
+        current[q.id] ? current : { ...current, [q.id]: submittedAt }
+      );
+      setSubmittedAtByQuestionId((current) => ({
+        ...current,
+        [q.id]: submittedAt,
       }));
     } catch {
       setLoadError("Submit failed.");
@@ -889,7 +1012,7 @@ export default function TopicPracticeClient({
           ← Study materials
         </Button>
         <p className="text-sm text-gray-600 tabular-nums">
-          This session: {session.correct}/{session.attempted} correct
+          This session: {correctQuestionCount}/{gradedQuestionCount} correct
         </p>
       </div>
 
@@ -925,7 +1048,7 @@ export default function TopicPracticeClient({
       {!loading && !loadError && reviewingAnswers && n > 0 && (
         <ReviewAnswersScreen
           questions={questions}
-          answersByQuestionId={answersByQuestionId}
+          answersByQuestionId={finishedAnswersByQuestionId}
           resultsByQuestionId={resultsByQuestionId}
           onBackToResults={backToResults}
           onBackToMaterials={() => router.push("/materials")}
@@ -1004,7 +1127,12 @@ export default function TopicPracticeClient({
                 Next
               </Button>
             ) : (
-              <Button variant="success" onClick={finishQuiz}>
+              <Button
+                variant="success"
+                onClick={finishQuiz}
+                loading={savingQuizSession}
+                disabled={savingQuizSession}
+              >
                 Finish quiz
               </Button>
             )}
