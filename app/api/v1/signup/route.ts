@@ -5,6 +5,7 @@ import { createServerClient } from "@supabase/ssr";
 import { prisma } from "@/lib/prisma";
 
 export async function POST(req: Request) {
+  const body = await req.json();
   const {
     firstName,
     middleNames,
@@ -12,7 +13,9 @@ export async function POST(req: Request) {
     email,
     phoneNumber,
     password,
-  } = await req.json();
+  } = body;
+  const captchaToken =
+    typeof body?.captchaToken === "string" ? body.captchaToken : undefined;
 
   if (!firstName || !lastNames || !email || !phoneNumber || !password) {
     return NextResponse.json(
@@ -22,7 +25,7 @@ export async function POST(req: Request) {
   }
 
   // MUST be created before supabase so cookies attach to it
-  let res = NextResponse.json({ success: true });
+  const res = NextResponse.json({ success: true });
 
   const supabase = createServerClient(
     process.env.SUPABASE_URL!,          // ✅ FIXED
@@ -60,6 +63,7 @@ export async function POST(req: Request) {
     password,
     options: {
       data: { firstName, middleNames, lastNames, phoneNumber },
+      captchaToken,
     },
   });
 
