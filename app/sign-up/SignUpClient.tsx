@@ -1,14 +1,22 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
+import { useRouter } from "next/navigation";
 import Heading2 from "@/components/Heading2";
 import TextField from "@/components/TextField";
 import Button from "@/components/Button";
 import Logo from "@/components/Logo";
+import CaptchaChallenge, {
+  captchaEnabled,
+  type CaptchaChallengeHandle,
+} from "@/components/CaptchaChallenge";
 import { FaHandPeace, FaHandPointDown } from "react-icons/fa6";
 import { FaHandPaper } from "react-icons/fa";
 
+const HAND_ICONS = [FaHandPeace, FaHandPaper, FaHandPointDown];
+
 export default function SignUpClient() {
+  const router = useRouter();
   const [firstName, setFirstName] = useState("");
   const [middleNames, setMiddleNames] = useState("");
   const [lastNames, setLastNames] = useState("");
@@ -16,6 +24,8 @@ export default function SignUpClient() {
   const [phoneNumber, setPhoneNumber] = useState("");
   const [password, setPassword] = useState("");
   const [confirmedPassword, setConfirmedPassword] = useState("");
+  const [captchaToken, setCaptchaToken] = useState<string | null>(null);
+  const captchaRef = useRef<CaptchaChallengeHandle | null>(null);
 
   const [touched, setTouched] = useState({
     firstName: false,
@@ -60,6 +70,11 @@ export default function SignUpClient() {
 
   const handleSignUp = async () => {
     if (!isFormValid) return;
+    if (captchaEnabled && !captchaToken) {
+      alert("Please complete the CAPTCHA challenge.");
+      return;
+    }
+
     setLoading(true);
 
     const response = await fetch("/api/v1/signup", {
@@ -72,10 +87,12 @@ export default function SignUpClient() {
         email,
         phoneNumber,
         password,
+        captchaToken,
       }),
     });
 
     setLoading(false);
+    captchaRef.current?.reset();
 
     if (!response.ok) {
       const { error } = await response.json();
@@ -83,20 +100,19 @@ export default function SignUpClient() {
       return;
     }
 
-    window.location.href = `/verify-email?email=${encodeURIComponent(email)}`;
+    router.push(`/verify-email?email=${encodeURIComponent(email)}`);
   };
 
-  const icons = [FaHandPeace, FaHandPaper, FaHandPointDown];
   const [index, setIndex] = useState(0);
 
   useEffect(() => {
     const interval = setInterval(() => {
-      setIndex((i) => (i + 1) % icons.length);
+      setIndex((i) => (i + 1) % HAND_ICONS.length);
     }, 1000);
     return () => clearInterval(interval);
   }, []);
 
-  const CurrentIcon = icons[index];
+  const CurrentIcon = HAND_ICONS[index];
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-start sm:justify-center px-4 py-8 sm:py-12 bg-background">
@@ -203,12 +219,17 @@ export default function SignUpClient() {
             />
           </div>
 
+          <CaptchaChallenge
+            ref={captchaRef}
+            onTokenChange={setCaptchaToken}
+          />
+
           <Button
             variant="primary"
             size="lg"
             className="w-full rounded-xl mt-2"
             loading={loading}
-            disabled={loading || !isFormValid}
+            disabled={loading || !isFormValid || (captchaEnabled && !captchaToken)}
             onClick={handleSignUp}
           >
             Create Account
