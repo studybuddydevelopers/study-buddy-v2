@@ -31,6 +31,7 @@ Study Buddy v2 is a Next.js learning platform for exam preparation. It combines 
 - AI tutor/chat safeguards: make the AI tutor more robust against malpractice and misuse. Add detection, reporting, review workflows, and temporary account suspension for repeated consecutive unresolved malpractice/misuse incidents.
 - AI tutor/chat relevance: stop the AI from answering unrelated questions and keep responses focused on supported study/tutoring use cases.
 - AI tutor/chat UI: make the chat/tutor interface more visually appealing, auto-scroll when new messages arrive, and add a clear visible scrollbar/scroll area for long conversations.
+- AI tutor visual identity: change/update the AI tutor image.
 - AI Q&A threads: fix the thread counting/updating bug; AI Q&A threads seem to not actually count or update correctly.
 
 ## Repo Shape
