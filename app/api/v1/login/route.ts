@@ -4,7 +4,10 @@ import { NextResponse } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 
 export async function POST(req: Request) {
-  const { identifier, password } = await req.json();
+  const body = await req.json();
+  const { identifier, password } = body;
+  const captchaToken =
+    typeof body?.captchaToken === "string" ? body.captchaToken : undefined;
 
   if (!identifier || !password) {
     return NextResponse.json({ error: "Missing fields" }, { status: 400 });
@@ -49,11 +52,13 @@ export async function POST(req: Request) {
     ({ error, data } = await supabase.auth.signInWithPassword({
       email: identifier,
       password,
+      options: { captchaToken },
     }));
   } else {
     ({ error, data } = await supabase.auth.signInWithPassword({
       phone: identifier,
       password,
+      options: { captchaToken },
     }));
   }
 
