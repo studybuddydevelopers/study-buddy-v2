@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
-import { createServerClient } from "@supabase/ssr";
+import { createServerClient, type CookieOptions } from "@supabase/ssr";
 
 const protectedPaths = [
   "/dashboard",
@@ -9,6 +9,7 @@ const protectedPaths = [
   "/progress",
   "/chat",
   "/profile",
+  "/settings",
   "/account",
 ];
 
@@ -32,10 +33,10 @@ export async function middleware(req: NextRequest) {
         get(name: string) {
           return req.cookies.get(name)?.value ?? null;
         },
-        set(name: string, value: string, options: any) {
+        set(name: string, value: string, options: CookieOptions) {
           res.cookies.set(name, value, options);
         },
-        remove(name: string, options: any) {
+        remove(name: string, options: CookieOptions) {
           res.cookies.set(name, "", { ...options, maxAge: 0 });
         },
       },
