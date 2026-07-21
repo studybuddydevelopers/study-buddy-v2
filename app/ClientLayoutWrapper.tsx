@@ -25,7 +25,6 @@ export default function ClientLayoutWrapper({
         user={user}
         signInLink="/login"
         signUpLink="/sign-up"
-        onNotificationsClick={() => alert("Notifications clicked")}
       />
 
       {/* Page content */}
