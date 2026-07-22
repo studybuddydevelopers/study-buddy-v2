@@ -38,7 +38,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         <main className="p-6 flex justify-between flex-col min-h-svh">
 
           {/* Provide the user instantly to the client wrapper */}
-          <ClientLayoutWrapper user={user}>
+          <ClientLayoutWrapper isAuthenticated={!!user}>
             
             {/* 🔥 <Suspense> here makes loading.tsx appear */}
             <Suspense fallback={""}>
