@@ -1,6 +1,12 @@
 "use client";
 
-import { type CSSProperties, useEffect, useRef, useState } from "react";
+import {
+  type CSSProperties,
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
 import { useRouter } from "next/navigation";
 import Heading1 from "@/components/Heading1";
 import Paragraph from "@/components/Paragraph";
@@ -24,6 +30,15 @@ interface CloudDraft {
   questionId: string;
   answerText: string;
   updatedAt?: string;
+}
+
+interface PaginationMeta {
+  page: number;
+  pageSize: number;
+  total: number;
+  totalPages: number;
+  hasNextPage: boolean;
+  hasPreviousPage: boolean;
 }
 
 type AnswersByQuestionId = Record<string, string>;
@@ -54,9 +69,20 @@ const CONFETTI_COLORS = [
 ];
 
 const CONFETTI_PIECES = Array.from({ length: 34 }, (_, index) => index);
+const PRACTICE_QUESTIONS_PAGE_SIZE = 10;
 
 function getDraftStorageKey(topicId: string) {
   return `study-buddy:practice-drafts:${topicId}`;
+}
+
+function buildPracticeQuestionsUrl(topicId: string, page: number) {
+  const params = new URLSearchParams({
+    topicId,
+    page: String(page),
+    pageSize: String(PRACTICE_QUESTIONS_PAGE_SIZE),
+  });
+
+  return `/api/v1/past-questions/by-topic?${params.toString()}`;
 }
 
 function readLocalDrafts(topicId: string): AnswersByQuestionId {
@@ -448,8 +474,11 @@ export default function TopicPracticeClient({
 }) {
   const router = useRouter();
   const [questions, setQuestions] = useState<QuestionStub[]>([]);
+  const [questionPagination, setQuestionPagination] =
+    useState<PaginationMeta | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [index, setIndex] = useState(0);
   const [answersByQuestionId, setAnswersByQuestionId] =
     useState<AnswersByQuestionId>(() => readLocalDrafts(topicId));
@@ -481,6 +510,7 @@ export default function TopicPracticeClient({
   const cloudSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const cloudSaveInFlightRef = useRef(false);
   const queuedInitialCloudDraftsRef = useRef(false);
+  const loadedCloudDraftQuestionIdsRef = useRef<Set<string>>(new Set());
   const flushCloudDraftsRef = useRef<(() => Promise<void>) | null>(null);
 
   useEffect(() => {
@@ -489,25 +519,34 @@ export default function TopicPracticeClient({
 
   useEffect(() => {
     let active = true;
+    const controller = new AbortController();
 
     async function loadQuestions() {
       setLoading(true);
       setLoadError(null);
+      setQuestionPagination(null);
+      loadedCloudDraftQuestionIdsRef.current = new Set();
       try {
-        const res = await fetch(
-          `/api/v1/past-questions/by-topic?topicId=${encodeURIComponent(topicId)}`,
-          { cache: "no-store" }
-        );
+        const res = await fetch(buildPracticeQuestionsUrl(topicId, 1), {
+          cache: "no-store",
+          signal: controller.signal,
+        });
+        const data = (await res.json().catch(() => null)) as {
+          questions?: QuestionStub[];
+          pagination?: PaginationMeta;
+          error?: string;
+        } | null;
+
         if (!res.ok) {
-          const body = await res.json().catch(() => null);
           if (!active) return;
-          setLoadError(body?.error || "Could not load questions.");
+          setLoadError(data?.error || "Could not load questions.");
           setQuestions([]);
           return;
         }
-        const data = await res.json();
         if (!active) return;
-        setQuestions(data.questions ?? []);
+        setQuestions(data?.questions ?? []);
+        setQuestionPagination(data?.pagination ?? null);
+        setIndex(0);
       } catch {
         if (!active) return;
         setLoadError("Could not load questions.");
@@ -520,8 +559,47 @@ export default function TopicPracticeClient({
     void loadQuestions();
     return () => {
       active = false;
+      controller.abort();
     };
   }, [topicId]);
+
+  const loadMoreQuestions = useCallback(async () => {
+    if (!questionPagination?.hasNextPage || loadingMore) return;
+
+    setLoadingMore(true);
+    setLoadError(null);
+
+    try {
+      const nextPage = questionPagination.page + 1;
+      const res = await fetch(buildPracticeQuestionsUrl(topicId, nextPage), {
+        cache: "no-store",
+      });
+      const data = (await res.json().catch(() => null)) as {
+        questions?: QuestionStub[];
+        pagination?: PaginationMeta;
+        error?: string;
+      } | null;
+
+      if (!res.ok) {
+        setLoadError(data?.error || "Could not load more questions.");
+        return;
+      }
+
+      const nextQuestions = data?.questions ?? [];
+      setQuestions((current) => {
+        const existingIds = new Set(current.map((question) => question.id));
+        return [
+          ...current,
+          ...nextQuestions.filter((question) => !existingIds.has(question.id)),
+        ];
+      });
+      setQuestionPagination(data?.pagination ?? null);
+    } catch {
+      setLoadError("Could not load more questions.");
+    } finally {
+      setLoadingMore(false);
+    }
+  }, [loadingMore, questionPagination, topicId]);
 
   useEffect(() => {
     let active = true;
@@ -713,19 +791,33 @@ export default function TopicPracticeClient({
       return;
     }
 
+    const questionIdsToLoad = questions
+      .map((question) => question.id)
+      .filter((questionId) => !loadedCloudDraftQuestionIdsRef.current.has(questionId))
+      .slice(0, 25);
+
+    if (questionIdsToLoad.length === 0) return;
+
     let active = true;
 
     async function loadCloudDrafts() {
       try {
-        const res = await fetch(
-          `/api/v1/past-questions/drafts?topicId=${encodeURIComponent(topicId)}`,
-          { cache: "no-store" }
-        );
+        const params = new URLSearchParams({ topicId });
+        for (const questionId of questionIdsToLoad) {
+          params.append("questionId", questionId);
+        }
+
+        const res = await fetch(`/api/v1/past-questions/drafts?${params}`, {
+          cache: "no-store",
+        });
         const data = (await res.json().catch(() => null)) as {
           drafts?: CloudDraft[];
         } | null;
 
         if (!active || !res.ok || !Array.isArray(data?.drafts)) return;
+        for (const questionId of questionIdsToLoad) {
+          loadedCloudDraftQuestionIdsRef.current.add(questionId);
+        }
 
         let changed = false;
         setAnswersByQuestionId((current) => {
@@ -760,7 +852,7 @@ export default function TopicPracticeClient({
     return () => {
       active = false;
     };
-  }, [questions.length, settings, topicId]);
+  }, [questions, settings, topicId]);
 
   useEffect(() => {
     return () => {
@@ -772,6 +864,8 @@ export default function TopicPracticeClient({
 
   const q = questions[index];
   const n = questions.length;
+  const totalQuestionCount = questionPagination?.total ?? n;
+  const hasMoreQuestions = Boolean(questionPagination?.hasNextPage);
   const answer = q ? answersByQuestionId[q.id] ?? "" : "";
   const draftStatusText = getDraftStatusText(answer, settings, draftStatus);
   const summaryAnswersByQuestionId =
@@ -1068,8 +1162,15 @@ export default function TopicPracticeClient({
 
       {!loading && !quizFinished && !reviewingAnswers && q && (
         <>
-          <div className="text-sm font-medium text-primary-600">
-            Question {index + 1} of {n}
+          <div className="flex flex-wrap items-center justify-between gap-2 text-sm font-medium text-primary-600">
+            <span>
+              Question {index + 1} of {n} loaded
+            </span>
+            {totalQuestionCount > n && (
+              <span className="text-gray-500">
+                {totalQuestionCount} total in this topic
+              </span>
+            )}
           </div>
 
           <div className="border border-accent-200 rounded-xl p-4 space-y-3 bg-white shadow-sm">
@@ -1126,6 +1227,27 @@ export default function TopicPracticeClient({
               >
                 Next
               </Button>
+            ) : hasMoreQuestions ? (
+              <>
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    void loadMoreQuestions();
+                  }}
+                  loading={loadingMore}
+                  disabled={loadingMore}
+                >
+                  Load next {PRACTICE_QUESTIONS_PAGE_SIZE}
+                </Button>
+                <Button
+                  variant="success"
+                  onClick={finishQuiz}
+                  loading={savingQuizSession}
+                  disabled={savingQuizSession || loadingMore}
+                >
+                  Finish loaded quiz
+                </Button>
+              </>
             ) : (
               <Button
                 variant="success"
