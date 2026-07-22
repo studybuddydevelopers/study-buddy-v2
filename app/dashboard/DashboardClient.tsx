@@ -101,15 +101,17 @@ function WeeklyChart({
           return (
             <div
               key={entry.day}
-              className="group relative flex h-full min-w-0 items-end"
+              className="group relative flex h-full min-w-0 items-end justify-center rounded-lg px-2 py-0 transition-colors hover:bg-[rgba(98,71,170,0.16)] focus-within:bg-[rgba(98,71,170,0.16)]"
               aria-label={`${entry.day}: ${entry.count} questions attempted`}
               title={`${entry.count} questions`}
             >
-              <span className="pointer-events-none absolute bottom-full left-1/2 z-10 mb-2 hidden -translate-x-1/2 whitespace-nowrap rounded-lg border border-primary-100 bg-white px-2 py-1 text-xs font-medium text-gray-700 shadow-sm group-hover:block group-focus-within:block">
-                {entry.count} Questions
+              <span className="pointer-events-none absolute left-full top-1/2 z-20 ml-2 hidden -translate-x-12  -translate-y-2/3 whitespace-nowrap rounded-lg border border-primary-100 bg-white px-2 py-4 text-xs font-medium text-gray-700 shadow-sm group-hover:block group-focus-within:block">
+                <span>{entry.day} </span>
+                <p className="py-1"></p>
+                <span>Questions: {entry.count}</span>
               </span>
               <div
-                className="w-full rounded-t transition-colors"
+                className="w-5/6 h-10 rounded-t transition-colors"
                 style={{
                   height: `${heightPct}%`,
                   backgroundColor: entry.count > 0 ? PURPLE : "#e5e7eb",
