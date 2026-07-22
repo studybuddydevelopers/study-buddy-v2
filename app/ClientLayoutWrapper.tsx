@@ -1,28 +1,32 @@
 "use client";
 
 import { createContext, Suspense, useContext } from "react";
+import dynamic from "next/dynamic";
 import Navbar from "@/components/NavBar";
 import Footer from "@/components/Footer";
-import BottomNav from "@/components/BottomNav";
-import type { User } from "@supabase/supabase-js";
 
-export const UserContext = createContext<User | null>(null);
+const BottomNav = dynamic(() => import("@/components/BottomNav"), {
+  ssr: false,
+  loading: () => null,
+});
+
+export const UserContext = createContext(false);
 export function useUser() {
   return useContext(UserContext);
 }
 
 export default function ClientLayoutWrapper({
   children,
-  user,
+  isAuthenticated,
 }: {
   children: React.ReactNode;
-  user: User | null;
+  isAuthenticated: boolean;
 }) {
   return (
-    <UserContext.Provider value={user}>
+    <UserContext.Provider value={isAuthenticated}>
       {/* Navbar receives the SSR user directly */}
       <Navbar
-        user={user}
+        isAuthenticated={isAuthenticated}
         signInLink="/login"
         signUpLink="/sign-up"
       />
@@ -36,9 +40,11 @@ export default function ClientLayoutWrapper({
 
       <Footer />
 
-      <div className="md:hidden">
-        <BottomNav />
-      </div>
+      {isAuthenticated && (
+        <div className="md:hidden">
+          <BottomNav />
+        </div>
+      )}
     </UserContext.Provider>
   );
 }
