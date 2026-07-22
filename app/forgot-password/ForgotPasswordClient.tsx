@@ -71,21 +71,6 @@ export default function ResetPasswordClient() {
 
   const CurrentIcon = HAND_ICONS[index];
 
-  // Inject float animation keyframes once
-  useEffect(() => {
-    if (!document.getElementById("logo-float-keyframes")) {
-      const styleEl = document.createElement("style");
-      styleEl.id = "logo-float-keyframes";
-      styleEl.textContent = `
-        @keyframes logoFloat {
-          0%, 100% { transform: translateY(0); }
-          50% { transform: translateY(-5px); }
-        }
-      `;
-      document.head.appendChild(styleEl);
-    }
-  }, []);
-
   return (
     <div className="flex items-center justify-center p-7 mt-7 flex-1">
       <Card shadow="md" hover className="flex flex-col">
