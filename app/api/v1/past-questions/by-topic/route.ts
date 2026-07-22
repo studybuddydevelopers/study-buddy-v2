@@ -2,18 +2,24 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/auth";
+import { getPagination, getPaginationMeta } from "@/lib/pagination";
 
 export async function GET(req: Request) {
   const auth = await requireUser();
   if ("errorResponse" in auth) return auth.errorResponse;
 
-  const topicId = new URL(req.url).searchParams.get("topicId");
+  const { searchParams } = new URL(req.url);
+  const topicId = searchParams.get("topicId");
   if (!topicId) {
     return NextResponse.json(
       { error: "topicId query parameter is required" },
       { status: 400 }
     );
   }
+  const { page, pageSize, skip } = getPagination(searchParams, {
+    defaultPageSize: 10,
+    maxPageSize: 25,
+  });
 
   const topic = await prisma.topic.findUnique({
     where: { id: topicId },
@@ -26,17 +32,22 @@ export async function GET(req: Request) {
     return NextResponse.json({ error: "Topic not found" }, { status: 404 });
   }
 
-  const questions = await prisma.pastQuestion.findMany({
-    where: { topicId },
-    orderBy: [{ difficulty: "asc" }, { id: "asc" }],
-    select: {
-      id: true,
-      questionText: true,
-      questionImageUrl: true,
-      year: true,
-      difficulty: true,
-    },
-  });
+  const [questions, total] = await prisma.$transaction([
+    prisma.pastQuestion.findMany({
+      where: { topicId },
+      orderBy: [{ difficulty: "asc" }, { id: "asc" }],
+      skip,
+      take: pageSize,
+      select: {
+        id: true,
+        questionText: true,
+        questionImageUrl: true,
+        year: true,
+        difficulty: true,
+      },
+    }),
+    prisma.pastQuestion.count({ where: { topicId } }),
+  ]);
 
   return NextResponse.json({
     topic: {
@@ -46,5 +57,6 @@ export async function GET(req: Request) {
     },
     subject: topic.subject,
     questions,
+    pagination: getPaginationMeta(total, page, pageSize),
   });
 }
