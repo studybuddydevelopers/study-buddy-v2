@@ -34,6 +34,11 @@ Study Buddy v2 is a Next.js learning platform for exam preparation. It combines 
 - AI tutor visual identity: change/update the AI tutor image.
 - AI Q&A threads: fix the thread counting/updating bug; AI Q&A threads seem to not actually count or update correctly.
 
+## Payment Notes
+
+- Paystack payment support exists for subscriptions/billing. `/api/v1/payments/verify` verifies a payment reference after the app sends it, while `/api/v1/payments/webhook` is the server-to-server fallback Paystack calls when payment events happen. The webhook helps record payments even if the user closes the browser, loses connection, or the frontend callback fails after payment.
+- The current build warning for `app/api/v1/payments/webhook/route.ts` comes from an old App Router-incompatible `export const config = { api: { bodyParser: false } }` block. The handler already reads the raw request body with `await req.text()`, which is the important part for Paystack signature verification.
+
 ## Repo Shape
 
 ```text
