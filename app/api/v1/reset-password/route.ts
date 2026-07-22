@@ -32,8 +32,7 @@ export async function POST(req: Request) {
     }
   );
 
-  // ⭐ IMPORTANT ⭐
-  // emailRedirectTo makes Supabase put the PKCE token into *your* redirect URL
+  // Supabase stores the PKCE verifier on this response before emailing the link.
   const { error } = await supabase.auth.resetPasswordForEmail(email, {
     redirectTo: new URL("/auth/password-reset", req.url).toString(),
     captchaToken,
