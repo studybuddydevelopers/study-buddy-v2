@@ -17,6 +17,7 @@ export default function PastQuestionsClient({
           <div>
             <Link
               href="/materials"
+              prefetch={false}
               className="text-sm font-semibold text-primary-600 hover:underline"
             >
               Back to materials
@@ -46,6 +47,7 @@ export default function PastQuestionsClient({
                     <li key={topic.id}>
                       <Link
                         href={`/materials/practice/${topic.id}`}
+                        prefetch={false}
                         className="block rounded-lg border border-accent-200 bg-white p-4 text-gray-900 shadow-sm transition hover:border-primary-300 hover:shadow-md"
                       >
                         <div className="flex items-start justify-between gap-3">
