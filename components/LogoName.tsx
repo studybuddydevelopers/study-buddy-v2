@@ -1,5 +1,3 @@
-"use client";
-
 interface LogoNameProps {
   color?: "default" | "primary" | "secondary" | "accent" | "background" | "foreground" | "success" | "warning" | "error" | "info";
   size?: "xs" | "sm" | "md" | "lg" | "xl" | "2xl" | "3xl" | "4xl" | "5xl" | "6xl" | "max";
@@ -38,7 +36,7 @@ export default function LogoName({
 
   return (
     <span
-      className={`font-bold tracking-[-0.01em] ${sizeClasses[size]} ${colorClasses[color]}`}
+      className={`font-bold tracking-normal ${sizeClasses[size]} ${colorClasses[color]}`}
     >
       Study Buddy
     </span>
