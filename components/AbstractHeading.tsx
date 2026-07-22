@@ -1,7 +1,3 @@
-"use client"; 
-
-import { useEffect } from "react";
-
 type Level = 1 | 2 | 3 | 4 | 5 | 6;
 type Align = "left" | "center" | "right";
 type Variant = "default" | "gradient" | "outlined" | "decorative";
@@ -97,12 +93,12 @@ const leadingByLevel: Record<Level, string> = {
 };
 
 const trackingByLevel: Record<Level, string> = {
-  1: "tracking-tight",
-  2: "tracking-tight",
+  1: "tracking-normal",
+  2: "tracking-normal",
   3: "tracking-normal",
   4: "tracking-normal",
   5: "tracking-normal",
-  6: "tracking-wide",
+  6: "tracking-normal",
 };
 
 const defaultGutterByLevel: Record<Level, string> = {
@@ -136,26 +132,6 @@ export default function AbstractHeading(props: AbstractHeadingProps) {
     children,
     ...rest
   } = props;
-
-  useEffect(() => {
-    if (typeof document === "undefined") return;
-    if (document.getElementById("heading-keyframes")) return;
-
-    const styleEl = document.createElement("style");
-    styleEl.id = "heading-keyframes";
-    styleEl.textContent = `
-      @keyframes headingSlideIn {
-        from { opacity: 0; transform: translateY(-30px); }
-        to { opacity: 1; transform: translateY(0); }
-      }
-      @keyframes gradientShift {
-        0% { background-position: 0% 50%; }
-        50% { background-position: 100% 50%; }
-        100% { background-position: 0% 50%; }
-      }
-    `;
-    document.head.appendChild(styleEl);
-  }, []);
 
   const Tag = (as ?? (`h${level}` as const)) as React.ElementType;
 
