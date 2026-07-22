@@ -5,7 +5,7 @@ import Paragraph from "@/components/Paragraph";
 import ProgressBar from "@/components/ProgressBar";
 import Button from "@/components/Button";
 import type { ProgressFullReport } from "@/app/dashboard/dashboard.types";
-import { AlignCenter } from "lucide-react";
+import LocalDateTime from "@/components/LocalDateTime";
 
 function formatDurationMinutes(m: number | null | undefined): string {
   if (m == null || m <= 0) return "—";
@@ -17,6 +17,10 @@ function formatDurationMinutes(m: number | null | undefined): string {
 
 function pct(rate: number): number {
   return Math.round(Math.max(0, Math.min(1, rate)) * 100);
+}
+
+function progressHrefForMockPage(page: number) {
+  return page <= 1 ? "/progress" : `/progress?mockPage=${page}`;
 }
 
 function StatCard({
@@ -59,6 +63,15 @@ export default function ProgressClient({
   const pq = progress.pastQuestions;
   const mocks = progress.mockExams;
   const goals = progress.subjects;
+  const mockPagination = mocks.pagination;
+  const mockPageStart =
+    mockPagination.total === 0
+      ? 0
+      : (mockPagination.page - 1) * mockPagination.pageSize + 1;
+  const mockPageEnd = Math.min(
+    mockPagination.page * mockPagination.pageSize,
+    mockPagination.total
+  );
 
   const practiceAccuracyPct =
     pq.totalAttempts > 0 ? pct(pq.accuracyRate) : null;
@@ -140,7 +153,7 @@ export default function ProgressClient({
       {sm.lastActivityAt && (
         <Paragraph variant="muted" className="text-sm -mt-6">
           Last study-materials practice:{" "}
-          {new Date(sm.lastActivityAt).toLocaleString()}
+          <LocalDateTime value={sm.lastActivityAt} />
         </Paragraph>
       )}
 
@@ -221,7 +234,7 @@ export default function ProgressClient({
                       </td>
                       <td className="p-3 text-gray-600 whitespace-nowrap">
                         {e.submittedAt
-                          ? new Date(e.submittedAt).toLocaleString()
+                          ? <LocalDateTime value={e.submittedAt} />
                           : "—"}
                       </td>
                     </tr>
@@ -229,6 +242,42 @@ export default function ProgressClient({
                 </tbody>
               </table>
             </div>
+            {mockPagination.totalPages > 1 && (
+              <div className="flex flex-wrap items-center justify-between gap-3 text-sm text-gray-700">
+                <span className="tabular-nums">
+                  Showing {mockPageStart}-{mockPageEnd} of{" "}
+                  {mockPagination.total} mock exams
+                </span>
+                <div className="flex gap-2">
+                  {mockPagination.hasPreviousPage ? (
+                    <Link
+                      href={progressHrefForMockPage(mockPagination.page - 1)}
+                      prefetch={false}
+                      className="inline-flex items-center rounded-lg border-2 border-primary-500 px-3 py-1.5 text-sm font-medium text-primary-500 transition-colors hover:bg-primary-500 hover:text-background"
+                    >
+                      Previous
+                    </Link>
+                  ) : (
+                    <span className="inline-flex items-center rounded-lg border-2 border-gray-200 px-3 py-1.5 text-sm font-medium text-gray-400">
+                      Previous
+                    </span>
+                  )}
+                  {mockPagination.hasNextPage ? (
+                    <Link
+                      href={progressHrefForMockPage(mockPagination.page + 1)}
+                      prefetch={false}
+                      className="inline-flex items-center rounded-lg border-2 border-primary-500 px-3 py-1.5 text-sm font-medium text-primary-500 transition-colors hover:bg-primary-500 hover:text-background"
+                    >
+                      Next
+                    </Link>
+                  ) : (
+                    <span className="inline-flex items-center rounded-lg border-2 border-gray-200 px-3 py-1.5 text-sm font-medium text-gray-400">
+                      Next
+                    </span>
+                  )}
+                </div>
+              </div>
+            )}
           </>
         )}
       </section>
