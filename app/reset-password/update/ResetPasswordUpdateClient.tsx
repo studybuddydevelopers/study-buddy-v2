@@ -262,15 +262,17 @@ export default function ResetPasswordUpdateClient() {
     return (
       <div className="flex items-center justify-center p-7 mt-7 flex-1">
         <Card shadow="md" hover className="flex flex-col w-full items-center p-6">
-          <Heading2 gutter="sm" className="text-center">
-            Invalid Reset Link
-          </Heading2>
-          <p className="mb-5 max-w-md text-center text-sm text-gray-600">
-            {errorMessage || "This password reset link could not be verified."}
-          </p>
-          <Button variant="primary" onClick={() => router.push("/forgot-password")}>
-            Request a new link
-          </Button>
+          <div className="flex flex-col">
+            <Heading2 gutter="sm" className="text-center">
+              Invalid Reset Link
+            </Heading2>
+            <p className="mb-5 max-w-md text-center text-sm text-gray-600">
+              {errorMessage || "This password reset link could not be verified."}
+            </p>
+            <Button className="self-center" variant="primary" onClick={() => router.push("/forgot-password")}>
+              Request a new link
+            </Button>
+          </div>
         </Card>
       </div>
     );
