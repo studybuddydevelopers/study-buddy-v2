@@ -1,6 +1,22 @@
 import { NextResponse } from "next/server";
+import {
+  Prisma,
+  SubscriptionPlan,
+  SubscriptionStatus,
+} from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/auth";
+import { getPagination, getPaginationMeta } from "@/lib/pagination";
+
+function isSubscriptionStatus(value: string): value is SubscriptionStatus {
+  return Object.values(SubscriptionStatus).includes(
+    value as SubscriptionStatus
+  );
+}
+
+function isSubscriptionPlan(value: string): value is SubscriptionPlan {
+  return Object.values(SubscriptionPlan).includes(value as SubscriptionPlan);
+}
 
 export async function GET(req: Request) {
   // ---------------------------------------------------------
@@ -18,8 +34,12 @@ export async function GET(req: Request) {
   const status = params.get("status");
   const plan = params.get("plan");
   const userIdParam = params.get("userId");
+  const { page, pageSize, skip } = getPagination(params, {
+    defaultPageSize: 20,
+    maxPageSize: 50,
+  });
 
-  const where: any = {};
+  const where: Prisma.SubscriptionWhereInput = {};
 
   // User role determines what they can query
   if (dbUser.isAdmin) {
@@ -31,22 +51,39 @@ export async function GET(req: Request) {
   }
 
   if (status) {
-    where.status = status as any; // relies on SubscriptionStatus enum
+    if (!isSubscriptionStatus(status)) {
+      return NextResponse.json(
+        { error: "Invalid subscription status" },
+        { status: 400 }
+      );
+    }
+    where.status = status;
   }
 
   if (plan) {
-    where.plan = plan as any; // relies on SubscriptionPlan enum
+    if (!isSubscriptionPlan(plan)) {
+      return NextResponse.json(
+        { error: "Invalid subscription plan" },
+        { status: 400 }
+      );
+    }
+    where.plan = plan;
   }
 
   // ---------------------------------------------------------
   // 3. FETCH SUBSCRIPTIONS
   // ---------------------------------------------------------
-  const subscriptions = await prisma.subscription.findMany({
-    where,
-    orderBy: {
-      startDate: "desc",
-    },
-  });
+  const [subscriptions, total] = await prisma.$transaction([
+    prisma.subscription.findMany({
+      where,
+      orderBy: {
+        startDate: "desc",
+      },
+      skip,
+      take: pageSize,
+    }),
+    prisma.subscription.count({ where }),
+  ]);
 
   // ---------------------------------------------------------
   // 4. RESPOND
@@ -61,5 +98,6 @@ export async function GET(req: Request) {
       endDate: sub.endDate,
       renewalMethod: sub.renewalMethod,
     })),
+    pagination: getPaginationMeta(total, page, pageSize),
   });
 }
