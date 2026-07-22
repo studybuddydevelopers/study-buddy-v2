@@ -1,7 +1,9 @@
 // app/api/v1/admin/users/query/route.ts
 import { NextResponse } from "next/server";
+import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { requireAdmin } from "@/lib/auth";
+import { getPagination, getPaginationMeta } from "@/lib/pagination";
 
 export async function GET(req: Request) {
   // -------------------------------------
@@ -17,15 +19,15 @@ export async function GET(req: Request) {
 
   const search = searchParams.get("search") || undefined;
   const isAdminFilter = searchParams.get("isAdmin");
-  const page = parseInt(searchParams.get("page") || "1");
-  const pageSize = parseInt(searchParams.get("pageSize") || "20");
-
-  const skip = (page - 1) * pageSize;
+  const { page, pageSize, skip } = getPagination(searchParams, {
+    defaultPageSize: 20,
+    maxPageSize: 50,
+  });
 
   // -------------------------------------
   // 3. BUILD WHERE CLAUSE
   // -------------------------------------
-  const where: any = {};
+  const where: Prisma.UserWhereInput = {};
 
   if (search) {
     where.OR = [
@@ -80,10 +82,6 @@ export async function GET(req: Request) {
   // -------------------------------------
   return NextResponse.json({
     users: formatted,
-    pagination: {
-      page,
-      pageSize,
-      total,
-    },
+    pagination: getPaginationMeta(total, page, pageSize),
   });
 }
