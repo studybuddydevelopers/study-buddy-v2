@@ -23,8 +23,8 @@ Profile
 Schools (admin)
 ---------------
 - POST `/schools/create` — Body: `name` (req), `location?`, `adminEmail?`. Creates school and returns `{ id, name, location, adminEmail, createdAt, students }`.
-- GET `/schools/list` — Query: `search?`, `location?`. Returns `{ schools: [{ id, name, location, adminEmail, studentCount }] }`.
-- GET `/schools/:id/students` — Returns `{ schoolId, students: [{ id, userId, joinedAt, profile }] }`; 404 if school missing.
+- GET `/schools/list` — Query: `search?`, `location?`, `page?=1`, `pageSize?=20` (max 50). Returns `{ schools: [{ id, name, location, adminEmail, studentCount }], pagination }`.
+- GET `/schools/:id/students` — Query: `page?=1`, `pageSize?=20` (max 50). Returns `{ schoolId, students: [{ id, userId, joinedAt, profile }], pagination }`; 404 if school missing.
 - POST `/schools/:id/students` — Body: `userId`. Adds user to school; 400 if already present (unique constraint), 404 if school/user missing.
 
 AI
@@ -32,12 +32,14 @@ AI
 - POST `/ai/messages` (auth) — Body: `message` (string, req), `subjectId?`, `topicId?`. Returns `{ userMessage, aiResponse, meta }`.
 - POST `/ai/recommendations` (auth) — Body: `subjectId?`, `topicId?`, `context?` (string). Validates subject/topic when provided, saves recommendation, returns `{ recommendation }`.
 - POST `/ai/questions/create` (auth) — Body: `questionText` (req), `subjectId?`, `topicId?`. Creates thread + first user message, generates/saves AI reply, returns `{ question, messages: [userMessage, aiMessage] }`.
-- GET `/ai/questions/list` (auth) — Query: `page?=1`, `pageSize?=20`. Returns `{ threads: [{ id, questionText, createdAt, subjectId, topicId, lastMessage }], pagination }` for the requesting user.
+- GET `/ai/questions/list` (auth) — Query: `page?=1`, `pageSize?=20` (max 50). Returns `{ threads: [{ id, questionText, createdAt, subjectId, topicId, lastMessage }], pagination }` for the requesting user.
 - POST `/ai/questions/:id/reply` (auth) — Body: `message` (req). User must own thread. Saves user message, generates/saves AI reply, returns `{ userMessage, aiMessage }`.
 
 Past Questions
 --------------
 - POST `/past-questions/attempt` (auth) — Body: `questionId` (req), `userAnswer` (string, optional), `timeTakenSeconds?`. Grades exact match, saves attempt, returns `{ attemptId, questionId, isCorrect, score, timeTakenSeconds, attemptedAt }`.
+- GET `/past-questions/by-topic` (auth) — Query: `topicId` (req), `page?=1`, `pageSize?=10` (max 25). Returns `{ topic, subject, questions, pagination }`.
+- GET `/past-questions/drafts` (auth) — Query: `topicId` (req), `questionId?` repeated or `questionIds?` comma-separated. Returns drafts only for the requested questions when IDs are provided.
 - POST `/past-questions/explanation` (auth) — Body: `questionId`. Returns question text, answer, explanation, subject/topic IDs, year, difficulty.
 - POST `/past-questions/query` (auth) — Currently behaves like `/past-questions/explanation`: body `questionId`, returns the stored question/answer/explanation payload.
 
@@ -52,11 +54,11 @@ Progress
 --------
 - POST `/progress/subject` (auth) — Body: `subjectId`, `progressPercentage` (number). Upserts a single progress track, returns `{ success: true, progress }`.
 - POST `/progress/update` (auth) — Body: `{ updates: [{ subjectId, progressPercentage }] }`. Validates all subjectIds, bulk updates/creates tracks, returns `{ success: true, updated: [{ subjectId, progressPercentage, updatedAt }] }`.
-- GET `/progress/full-report` (auth) — Returns subject progress list, past-question accuracy totals/per-subject, graded mock-exam stats, and AI question usage count.
+- GET `/progress/full-report` (auth) — Query: `page?=1`, `pageSize?=10` (max 25) for mock-exam history. Returns subject progress list, past-question accuracy totals/per-subject, graded mock-exam stats, paginated mock-exam rows, and AI question usage count.
 
 Subscriptions
 -------------
-- GET `/subscriptions/list` (auth) — Query: `status?`, `plan?`, `userId?` (admin only). Admins can filter by user; regular users see only their subscriptions. Returns `{ subscriptions }`.
+- GET `/subscriptions/list` (auth) — Query: `status?`, `plan?`, `userId?` (admin only), `page?=1`, `pageSize?=20` (max 50). Admins can filter by user; regular users see only their subscriptions. Returns `{ subscriptions, pagination }`.
 - GET `/subscriptions/:id/status` (auth) — Admins can read any; users can read only their own. Returns subscription detail `{ id, plan, status, startDate, endDate, renewalMethod, userId }`.
 
 Payments
@@ -71,7 +73,7 @@ Admin Content
 - POST `/admin/curriculum/upload` (admin) — Multipart form: `subjectId`, `file` (PDF). Uploads to Supabase storage and records `{ id, subjectId, fileUrl, uploadedAt }`.
 - POST `/admin/past-questions/upload` (admin) — Multipart form with `subjectId`, `questionText`, `answerText` (req); optional `topicId`, `explanationText`, `year`, `questionNumber`, `difficulty`, `image` (png/jpeg). Uploads image if provided, creates question record, returns stored fields.
 - POST `/admin/past-questions/batch` (admin) — Body: array of past-question objects (`subjectId`, `questionText`, `answerText`, optional metadata). Inserts each and returns per-index results plus counts.
-- GET `/admin/users/query` (admin) — Query: `search?`, `isAdmin?=true|false`, `page?=1`, `pageSize?=20`. Returns paginated users with limited profile info.
+- GET `/admin/users/query` (admin) — Query: `search?`, `isAdmin?=true|false`, `page?=1`, `pageSize?=20` (max 50). Returns paginated users with limited profile info.
 
 Notes
 -----
