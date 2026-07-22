@@ -72,6 +72,14 @@ export interface MockExamReport {
   averageScorePercent: number;
   averageDurationMinutes: number | null;
   exams: MockExamEntry[];
+  pagination: {
+    page: number;
+    pageSize: number;
+    total: number;
+    totalPages: number;
+    hasNextPage: boolean;
+    hasPreviousPage: boolean;
+  };
 }
 
 export interface StudyMaterialsProgress {
