@@ -2,6 +2,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireAdmin } from "@/lib/auth";
+import { getPagination, getPaginationMeta } from "@/lib/pagination";
 
 export async function GET(
   req: Request,
@@ -14,6 +15,11 @@ export async function GET(
   if ("errorResponse" in auth) return auth.errorResponse;
 
   const schoolId = (await params).id;
+  const { searchParams } = new URL(req.url);
+  const { page, pageSize, skip } = getPagination(searchParams, {
+    defaultPageSize: 20,
+    maxPageSize: 50,
+  });
 
   // -------------------------------------
   // 2. VALIDATE SCHOOL
@@ -32,17 +38,22 @@ export async function GET(
   // -------------------------------------
   // 3. GET STUDENTS
   // -------------------------------------
-  const students = await prisma.schoolStudent.findMany({
-    where: { schoolId },
-    include: {
-      user: {
-        include: {
-          profile: true,
+  const [students, total] = await prisma.$transaction([
+    prisma.schoolStudent.findMany({
+      where: { schoolId },
+      skip,
+      take: pageSize,
+      include: {
+        user: {
+          include: {
+            profile: true,
+          },
         },
       },
-    },
-    orderBy: { joinedAt: "desc" },
-  });
+      orderBy: { joinedAt: "desc" },
+    }),
+    prisma.schoolStudent.count({ where: { schoolId } }),
+  ]);
 
   return NextResponse.json({
     schoolId,
@@ -52,6 +63,7 @@ export async function GET(
       joinedAt: s.joinedAt,
       profile: s.user.profile ?? null,
     })),
+    pagination: getPaginationMeta(total, page, pageSize),
   });
 }
 
@@ -127,9 +139,14 @@ export async function POST(
         joinedAt: schoolStudent.joinedAt,
       },
     });
-  } catch (err: any) {
+  } catch (err: unknown) {
     // Unique constraint error (already added)
-    if (err.code === "P2002") {
+    if (
+      err &&
+      typeof err === "object" &&
+      "code" in err &&
+      err.code === "P2002"
+    ) {
       return NextResponse.json(
         { error: "User is already a student in this school" },
         { status: 400 }
