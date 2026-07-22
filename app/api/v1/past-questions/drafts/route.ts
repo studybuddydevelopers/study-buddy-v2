@@ -49,7 +49,8 @@ export async function GET(req: Request) {
   if ("errorResponse" in auth) return auth.errorResponse;
   const { dbUser } = auth;
 
-  const topicId = new URL(req.url).searchParams.get("topicId");
+  const searchParams = new URL(req.url).searchParams;
+  const topicId = searchParams.get("topicId");
   if (!topicId) {
     return NextResponse.json(
       { error: "topicId query parameter is required" },
@@ -57,11 +58,40 @@ export async function GET(req: Request) {
     );
   }
 
+  const requestedQuestionIds = [
+    ...searchParams.getAll("questionId"),
+    ...(searchParams.get("questionIds")?.split(",") ?? []),
+  ]
+    .map((id) => id.trim())
+    .filter(Boolean);
+
+  if (requestedQuestionIds.length > MAX_DRAFTS_PER_REQUEST) {
+    return NextResponse.json(
+      { error: `Request up to ${MAX_DRAFTS_PER_REQUEST} question drafts` },
+      { status: 400 }
+    );
+  }
+
   const questions = await prisma.pastQuestion.findMany({
-    where: { topicId },
+    where: {
+      topicId,
+      ...(requestedQuestionIds.length > 0
+        ? { id: { in: requestedQuestionIds } }
+        : {}),
+    },
     select: { id: true },
   });
   const questionIds = questions.map((question) => question.id);
+
+  if (
+    requestedQuestionIds.length > 0 &&
+    questionIds.length !== new Set(requestedQuestionIds).size
+  ) {
+    return NextResponse.json(
+      { error: "One or more questions were not found for this topic" },
+      { status: 404 }
+    );
+  }
 
   if (questionIds.length === 0) {
     return NextResponse.json({ drafts: [] });
