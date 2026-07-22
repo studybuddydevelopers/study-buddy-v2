@@ -4,9 +4,7 @@ import { useState } from "react";
 import Logo from "./Logo";
 import Button from "./Button";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
-import type { User } from "@supabase/supabase-js";
-import { supabase } from "@/lib/supabaseClient";
+import { usePathname, useRouter } from "next/navigation";
 
 interface NavLink {
   label: string;
@@ -14,7 +12,7 @@ interface NavLink {
 }
 
 interface NavBarProps {
-  user: User | null;
+  isAuthenticated: boolean;
   links?: NavLink[];
   signInLink?: string;
   signUpLink?: string;
@@ -22,8 +20,8 @@ interface NavBarProps {
 }
 
 export default function NavBar({
-  user,
-  links = user ? [
+  isAuthenticated,
+  links = isAuthenticated ? [
     { label: "Dashboard", href: "/dashboard" },
     { label: "Study Materials", href: "/materials" },
     { label: "Mock Exams", href: "/exams" },
@@ -36,6 +34,7 @@ export default function NavBar({
   showNotifications = true,
 }: Readonly<NavBarProps>) {
   const pathname = usePathname();
+  const router = useRouter();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [loadingLogin, setLoadingLogin] = useState(false);
@@ -50,23 +49,29 @@ export default function NavBar({
 
   const handleLogout = async () => {
     setLoadingLogOut(true);
-    await supabase.auth.signOut();
-    window.location.href = "/login";
+    try {
+      await fetch("/api/v1/logout", {
+        method: "POST",
+        cache: "no-store",
+      });
+    } finally {
+      router.push("/login");
+    }
   };
 
   const handleLogin = () => {
     setLoadingLogin(true);
-    window.location.href = signInLink ?? "/login";
+    router.push(signInLink ?? "/login");
   };
 
   const handleSignup = () => {
     setLoadingSignup(true);
-    window.location.href = signUpLink ?? "/sign-up";
+    router.push(signUpLink ?? "/sign-up");
   };
 
   return (
     <header className="flex items-center justify-between bg-background shadow px-6 py-3">
-      <Link href={user ? "/dashboard" : "/"}>
+      <Link href={isAuthenticated ? "/dashboard" : "/"} prefetch={false}>
         <Logo variant="full" size="lg" animation="rotate" />
       </Link>
 
@@ -75,6 +80,7 @@ export default function NavBar({
           <Link
             key={link.href}
             href={link.href}
+            prefetch={false}
             className={`${linkBase} ${
               pathname.startsWith(link.href) ? linkActive : ""
             }`}
@@ -86,7 +92,7 @@ export default function NavBar({
 
       <div className="flex items-center space-x-4">
         <div className="hidden md:flex items-center space-x-3">
-          {!user && (
+          {!isAuthenticated && (
             <>
               <Button
                 variant="primary"
@@ -110,7 +116,7 @@ export default function NavBar({
             </>
           )}
 
-          {user && (
+          {isAuthenticated && (
             <>
               {showNotifications && (
                 <div className="relative">
@@ -172,7 +178,7 @@ export default function NavBar({
           ))}
 
           <div className="flex flex-col space-y-2 mt-4">
-            {!user && (
+            {!isAuthenticated && (
               <>
                 <Button
                   variant="primary"
@@ -196,7 +202,7 @@ export default function NavBar({
               </>
             )}
 
-            {user && (
+            {isAuthenticated && (
               <Button
                 variant="outline"
                 size="sm"
