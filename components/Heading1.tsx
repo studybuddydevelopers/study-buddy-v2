@@ -1,5 +1,3 @@
-"use client";
-
 import AbstractHeading from "./AbstractHeading";
 import type { AbstractHeadingProps } from "./AbstractHeading";
 
