@@ -39,6 +39,7 @@ export default function BottomNav() {
           <Link
             key={href}
             href={href}
+            prefetch={false}
             className="flex flex-1 flex-col items-center justify-center gap-1"
           >
             <Icon size={22} color={color} />
