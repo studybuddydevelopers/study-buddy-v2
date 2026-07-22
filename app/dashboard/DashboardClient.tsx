@@ -1,19 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import {
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  Tooltip,
-  ResponsiveContainer,
-  Cell,
-} from "recharts";
 import type { DashboardClientProps } from "./dashboard.types";
 
 const PURPLE = "#6247AA";
-const PURPLE_LIGHT = "#EDE9F8";
 
 // ── Small reusable pieces ────────────────────────────────────────────────────
 
@@ -82,35 +72,64 @@ function WeeklyChart({
   data: { day: string; count: number }[];
 }) {
   const max = Math.max(...data.map((d) => d.count), 1);
+  const axisMax = max + 1;
+  const midTick = Math.floor(axisMax / 2);
+  const ticks = [axisMax, midTick, 0];
 
   return (
-    <ResponsiveContainer width="100%" height={120}>
-      <BarChart data={data} margin={{ top: 4, right: 4, left: -28, bottom: 0 }}>
-        <XAxis
-          dataKey="day"
-          tick={{ fontSize: 11, fill: "#9ca3af" }}
-          axisLine={false}
-          tickLine={false}
-        />
-        <YAxis
-          allowDecimals={false}
-          tick={{ fontSize: 10, fill: "#9ca3af" }}
-          axisLine={false}
-          tickLine={false}
-          domain={[0, max + 1]}
-        />
-        <Tooltip
-          cursor={{ fill: PURPLE_LIGHT }}
-          contentStyle={{ fontSize: 12, borderRadius: 8, border: `1px solid ${PURPLE_LIGHT}` }}
-          formatter={(v) => [v ?? 0, "Questions"]}
-        />
-        <Bar dataKey="count" radius={[4, 4, 0, 0]}>
-          {data.map((entry, i) => (
-            <Cell key={i} fill={entry.count > 0 ? PURPLE : "#e5e7eb"} />
-          ))}
-        </Bar>
-      </BarChart>
-    </ResponsiveContainer>
+    <div
+      className="grid h-[120px] grid-cols-[28px_1fr] grid-rows-[1fr_20px] gap-x-2"
+      role="img"
+      aria-label="Weekly activity bar chart"
+    >
+      <div className="relative row-start-1 text-[10px] leading-none text-gray-400">
+        {ticks.map((tick, index) => (
+          <span
+            key={`${tick}-${index}`}
+            className="absolute right-1 -translate-y-1/2 tabular-nums"
+            style={{ top: `${index * 50}%` }}
+          >
+            {tick}
+          </span>
+        ))}
+      </div>
+      <div className="row-start-1 grid min-h-0 grid-cols-7 items-end gap-2">
+        {data.map((entry) => {
+          const heightPct =
+            entry.count > 0 ? Math.max((entry.count / axisMax) * 100, 8) : 3;
+
+          return (
+            <div
+              key={entry.day}
+              className="group relative flex h-full min-w-0 items-end"
+              aria-label={`${entry.day}: ${entry.count} questions attempted`}
+              title={`${entry.count} questions`}
+            >
+              <span className="pointer-events-none absolute bottom-full left-1/2 z-10 mb-2 hidden -translate-x-1/2 whitespace-nowrap rounded-lg border border-primary-100 bg-white px-2 py-1 text-xs font-medium text-gray-700 shadow-sm group-hover:block group-focus-within:block">
+                {entry.count} Questions
+              </span>
+              <div
+                className="w-full rounded-t transition-colors"
+                style={{
+                  height: `${heightPct}%`,
+                  backgroundColor: entry.count > 0 ? PURPLE : "#e5e7eb",
+                }}
+              />
+            </div>
+          );
+        })}
+      </div>
+      <div className="col-start-2 row-start-2 grid grid-cols-7 gap-2 pt-1">
+        {data.map((entry) => (
+          <span
+            key={entry.day}
+            className="truncate text-center text-[11px] leading-4 text-gray-400"
+          >
+            {entry.day}
+          </span>
+        ))}
+      </div>
+    </div>
   );
 }
 
@@ -184,13 +203,13 @@ export default function DashboardClient({ me, stats }: DashboardClientProps) {
           <OutlineButton href="/exams">Mock Exam</OutlineButton>
           {lastMock ? (
             <OutlineButton href={`/exams/${lastMock.instanceId}`}>
-              Continue Last Session
+              Continue Last Mock Exam Session
             </OutlineButton>
           ) : (
             <OutlineButton
               className="opacity-40 cursor-not-allowed pointer-events-none"
             >
-              Continue Last Session
+              Continue Last Mock Exam Session
             </OutlineButton>
           )}
         </div>
