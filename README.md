@@ -39,6 +39,26 @@ Study Buddy v2 is a Next.js learning platform for exam preparation. It combines 
 - Paystack payment support exists for subscriptions/billing. `/api/v1/payments/verify` verifies a payment reference after the app sends it, while `/api/v1/payments/webhook` is the server-to-server fallback Paystack calls when payment events happen. The webhook helps record payments even if the user closes the browser, loses connection, or the frontend callback fails after payment.
 - The current build warning for `app/api/v1/payments/webhook/route.ts` comes from an old App Router-incompatible `export const config = { api: { bodyParser: false } }` block. The handler already reads the raw request body with `await req.text()`, which is the important part for Paystack signature verification.
 
+## Email Delivery Notes
+
+- Use Resend as Supabase Auth's custom SMTP provider before production. Supabase's default Auth email sender is development-only and currently rate-limited to 2 emails per hour.
+- Resend SMTP settings for Supabase:
+  - host: `smtp.resend.com`
+  - port: `587` for STARTTLS, or `465` for implicit TLS
+  - username: `resend`
+  - password: the Resend API key
+  - sender email: use a verified auth-only sending address, for example `no-reply@auth.yourdomain.com`
+  - sender name: `Study Buddy`
+- Do not commit the Resend API key. Configure it only in the Supabase Dashboard under Authentication SMTP settings, or through the Supabase Management API using a secure local shell environment.
+- Verify the sending domain in Resend and configure SPF, DKIM, and DMARC before relying on password reset or verification emails in production.
+- Prefer a Supabase recovery email template that uses `token_hash`; it works even when users open reset links in a different browser or device from where they requested the email:
+
+```html
+<a href="{{ .RedirectTo }}?token_hash={{ .TokenHash }}&type=recovery">
+  Reset password
+</a>
+```
+
 ## Repo Shape
 
 ```text
