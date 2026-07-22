@@ -6,6 +6,8 @@ import Heading1 from "@/components/Heading1";
 import Paragraph from "@/components/Paragraph";
 import Button from "@/components/Button";
 import Image from "@/components/Image";
+import LocalDateTime from "@/components/LocalDateTime";
+import { formatLocalTime } from "@/lib/date-format";
 
 interface TemplateMeta {
   id: string;
@@ -133,7 +135,7 @@ export default function ExamInstanceClient({
           return;
         }
 
-        setLastSaved(new Date().toLocaleTimeString());
+        setLastSaved(formatLocalTime(new Date()));
       } catch (err) {
         console.error(err);
         setError("Unable to save progress right now.");
@@ -269,7 +271,7 @@ export default function ExamInstanceClient({
           <Paragraph variant="superMuted" gutter="none">
             {data.template.subject?.name ?? "Mock exam"} · {totalQuestions}{" "}
             questions · Started{" "}
-            {new Date(data.instance.startedAt).toLocaleString()}
+            <LocalDateTime value={data.instance.startedAt} />
           </Paragraph>
         </div>
         <div className="text-sm text-gray-700">
