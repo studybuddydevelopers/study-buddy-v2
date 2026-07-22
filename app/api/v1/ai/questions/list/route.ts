@@ -3,6 +3,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/auth";
+import { getPagination, getPaginationMeta } from "@/lib/pagination";
 
 export async function GET(req: Request) {
   // -------------------------------------
@@ -17,11 +18,10 @@ export async function GET(req: Request) {
   // 2. PARSE QUERY PARAMS
   // -------------------------------------
   const { searchParams } = new URL(req.url);
-
-  const page = parseInt(searchParams.get("page") || "1");
-  const pageSize = parseInt(searchParams.get("pageSize") || "20");
-
-  const skip = (page - 1) * pageSize;
+  const { page, pageSize, skip } = getPagination(searchParams, {
+    defaultPageSize: 20,
+    maxPageSize: 50,
+  });
 
   // -------------------------------------
   // 3. GET THREADS (PAGINATED)
@@ -70,10 +70,6 @@ export async function GET(req: Request) {
   // -------------------------------------
   return NextResponse.json({
     threads: formattedThreads,
-    pagination: {
-      page,
-      pageSize,
-      total,
-    },
+    pagination: getPaginationMeta(total, page, pageSize),
   });
 }
