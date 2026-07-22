@@ -80,20 +80,6 @@ export default function LoginClient() {
 
   const CurrentIcon = HAND_ICONS[index];
 
-  useEffect(() => {
-    if (!document.getElementById("logo-float-keyframes")) {
-      const styleEl = document.createElement("style");
-      styleEl.id = "logo-float-keyframes";
-      styleEl.textContent = `
-        @keyframes logoFloat {
-          0%, 100% { transform: translateY(0); }
-          50% { transform: translateY(-5px); }
-        }
-      `;
-      document.head.appendChild(styleEl);
-    }
-  }, []);
-
   const isLoginDisabled =
     loading ||
     !identifier ||
