@@ -18,7 +18,6 @@ const guestOnlyPaths = [
   "/sign-up",
   "/forgot-password",
   "/check-email",
-  "/auth/password-reset",
 ];
 
 export async function middleware(req: NextRequest) {
