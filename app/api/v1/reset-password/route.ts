@@ -8,7 +8,7 @@ export async function POST(req: Request) {
   const captchaToken =
     typeof body?.captchaToken === "string" ? body.captchaToken : undefined;
 
-  const res = new NextResponse();
+  const res = NextResponse.json({ ok: true });
 
   const supabase = createServerClient(
     process.env.SUPABASE_URL!,
@@ -35,14 +35,13 @@ export async function POST(req: Request) {
   // ⭐ IMPORTANT ⭐
   // emailRedirectTo makes Supabase put the PKCE token into *your* redirect URL
   const { error } = await supabase.auth.resetPasswordForEmail(email, {
-    redirectTo: `${process.env.NEXT_PUBLIC_APP_URL}/auth/password-reset`,
+    redirectTo: new URL("/auth/password-reset", req.url).toString(),
     captchaToken,
-    // emailRedirectTo: `${process.env.NEXT_PUBLIC_APP_URL}/auth/password-reset`,
   });
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 400 });
   }
 
-  return NextResponse.json({ ok: true });
+  return res;
 }
