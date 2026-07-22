@@ -146,6 +146,7 @@ function OngoingCard({
   return (
     <Link
       href={href}
+      prefetch={false}
       className="grid min-h-28 grid-cols-[80px_1fr] gap-4 rounded-lg border border-accent-200 bg-white p-3 text-gray-900 shadow-sm transition hover:border-primary-300 hover:shadow-md"
     >
       <div className="flex h-20 w-20 items-center justify-center rounded-lg bg-primary-50">
@@ -179,6 +180,7 @@ function FeaturedCard({ card }: { card: HubCard }) {
   return (
     <Link
       href={href}
+      prefetch={false}
       className="group relative min-h-64 overflow-hidden rounded-lg border border-accent-200 bg-white p-5 text-gray-900 shadow-sm transition hover:border-primary-300 hover:shadow-md"
     >
       <div className="flex h-full min-h-56 flex-col justify-between">
