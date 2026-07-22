@@ -46,6 +46,7 @@ export default function TextbooksClient({
         <div>
           <Link
             href="/materials"
+            prefetch={false}
             className="text-sm font-semibold text-primary-600 hover:underline"
           >
             Back to materials
@@ -106,6 +107,7 @@ function CollectionCard({
   return (
     <Link
       href={href}
+      prefetch={false}
       className="group min-h-48 rounded-lg border border-accent-200 bg-white p-5 text-gray-900 shadow-sm transition hover:border-primary-300 hover:shadow-md"
     >
       <div className="flex h-full flex-col justify-between gap-8">
