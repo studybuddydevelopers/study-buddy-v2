@@ -72,19 +72,6 @@ const gutterTokens: Record<Exclude<Gutter, "auto">, string> = {
 // simple motion-safe fade-in animation using Tailwind
 const fadeInClass =
   "motion-safe:animate-[fadeIn_0.5s_ease-out_forwards] opacity-0 will-change-[opacity,transform]";
-const fadeInKeyframes = `
-@keyframes fadeIn {
-  from { opacity: 0; transform: translateY(8px); }
-  to { opacity: 1; transform: translateY(0); }
-}
-`;
-
-if (typeof document !== "undefined" && !document.getElementById("fadeIn-keyframes")) {
-  const styleEl = document.createElement("style");
-  styleEl.id = "fadeIn-keyframes";
-  styleEl.textContent = fadeInKeyframes;
-  document.head.appendChild(styleEl);
-}
 
 export default function Paragraph(props: ParagraphProps) {
   const {
