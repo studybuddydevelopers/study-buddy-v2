@@ -154,20 +154,6 @@ export default function ResetPasswordUpdateClient() {
     };
   }, [router]);
 
-  useEffect(() => {
-    if (!document.getElementById("logo-float-keyframes")) {
-      const styleEl = document.createElement("style");
-      styleEl.id = "logo-float-keyframes";
-      styleEl.textContent = `
-        @keyframes logoFloat {
-          0%, 100% { transform: translateY(0); }
-          50% { transform: translateY(-5px); }
-        }
-      `;
-      document.head.appendChild(styleEl);
-    }
-  }, []);
-
   const handleSubmit = async () => {
     setErrorMessage("");
 
