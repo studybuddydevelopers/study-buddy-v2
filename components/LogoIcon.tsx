@@ -1,7 +1,3 @@
-"use client"; // ✅ for App Router (if interactive)
-
-import { useEffect } from "react";
-
 type Size = "xs" | "sm" | "md" | "lg" | "xl" | "2xl" | "3xl" | "4xl" | "5xl" | "6xl" | "max";
 type Color = "default" | "primary" | "secondary" | "accent" | "background" | "foreground" | "success" | "warning" | "error" | "info";
 
@@ -20,22 +16,6 @@ export default function LogoIcon({
   className = "",
   title = "Study Buddy Logo",
 }: LogoIconProps) {
-  // Inject custom keyframes once (same as the old CSS @keyframes)
-  useEffect(() => {
-    if (typeof document === "undefined") return;
-    if (!document.getElementById("logo-float-keyframes")) {
-      const styleEl = document.createElement("style");
-      styleEl.id = "logo-float-keyframes";
-      styleEl.textContent = `
-        @keyframes logoFloat {
-          0%, 100% { transform: translateY(0); }
-          50% { transform: translateY(-5px); }
-        }
-      `;
-      document.head.appendChild(styleEl);
-    }
-  }, []);
-
   const sizeClasses: Record<Size, string> = {
     xs: "h-5 w-5",
     sm: "h-5 w-5",
