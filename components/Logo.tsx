@@ -1,6 +1,3 @@
-"use client"; // ✅ required for animations/interactivity in Next.js App Router
-
-import { useEffect } from "react";
 import LogoIcon from "./LogoIcon";
 import LogoName from "./LogoName";
 
@@ -30,50 +27,6 @@ export default function Logo({
   onClick,
   className = "",
 }: LogoProps) {
-  // ✅ Inject keyframes into document head (since Tailwind can’t define custom keyframes at runtime)
-  useEffect(() => {
-    if (typeof document === "undefined") return;
-    if (document.getElementById("logo-keyframes")) return;
-
-    const styleEl = document.createElement("style");
-    styleEl.id = "logo-keyframes";
-    styleEl.textContent = `
-      @keyframes logoFloat {
-        0%   { transform: translateY(-10px); } /* top */
-        25%  { transform: translateY(0); }     /* middle */
-        50%  { transform: translateY(10px); }  /* bottom */
-        75%  { transform: translateY(0); }     /* middle */
-        100% { transform: translateY(-10px); } /* top */
-      }
-      @keyframes logoFloatReverse {
-        0%   { transform: translateY(10px); } /* top */
-        25%  { transform: translateY(0); }     /* middle */
-        50%  { transform: translateY(-10px); }  /* bottom */
-        75%  { transform: translateY(0); }     /* middle */
-        100% { transform: translateY(10px); } /* top */
-      }
-      @keyframes logoSlideIn {
-        from { opacity: 0; transform: translateY(-20px); }
-        to { opacity: 1; transform: translateY(0); }
-      }
-      @keyframes logoBounce {
-        0% { transform: scale(0.3); opacity: 0; }
-        50% { transform: scale(1.35); }
-        70% { transform: scale(0.6); }
-        100% { transform: scale(1); opacity: 1; }
-      }
-      @keyframes logoPulse {
-        0%,100% { transform: scale(1); }
-        50% { transform: scale(1.35); }
-      }
-      @keyframes logoRotate {
-        from { transform: rotate(0deg); }
-        to { transform: rotate(360deg); }
-      }
-    `;
-    document.head.appendChild(styleEl);
-  }, []);
-
   // Tailwind-compatible animation mapping
   const animationClasses: Record<
     NonNullable<LogoProps["animation"]>,
