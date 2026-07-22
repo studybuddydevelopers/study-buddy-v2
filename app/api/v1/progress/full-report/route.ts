@@ -3,15 +3,21 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/auth";
 import { MATERIALS_SUBJECT_ORDER } from "@/lib/materials-display";
+import { getPagination, getPaginationMeta } from "@/lib/pagination";
 
 function clampPct(n: number): number {
   return Math.max(0, Math.min(100, Math.round(n)));
 }
 
-export async function GET() {
+export async function GET(req: Request) {
   const auth = await requireUser();
   if ("errorResponse" in auth) return auth.errorResponse;
   const { dbUser } = auth;
+  const { searchParams } = new URL(req.url);
+  const mockPagination = getPagination(searchParams, {
+    defaultPageSize: 10,
+    maxPageSize: 25,
+  });
 
   const subjectProgress = await prisma.progressTrack.findMany({
     where: { userId: dbUser.id },
@@ -149,20 +155,37 @@ export async function GET() {
     lastActivityAt: lastMaterialsActivity,
   };
 
-  const mockGraded = await prisma.mockExamInstance.findMany({
-    where: { userId: dbUser.id, graded: true },
-    include: {
-      template: {
-        select: {
-          id: true,
-          title: true,
-          subjectId: true,
-          questionCount: true,
+  const mockWhere = { userId: dbUser.id, graded: true };
+
+  const [mockGraded, mockTotalCount, mockSummaryRows] =
+    await prisma.$transaction([
+      prisma.mockExamInstance.findMany({
+        where: mockWhere,
+        include: {
+          template: {
+            select: {
+              id: true,
+              title: true,
+              subjectId: true,
+              questionCount: true,
+            },
+          },
         },
-      },
-    },
-    orderBy: { submittedAt: "desc" },
-  });
+        orderBy: { submittedAt: "desc" },
+        skip: mockPagination.skip,
+        take: mockPagination.pageSize,
+      }),
+      prisma.mockExamInstance.count({ where: mockWhere }),
+      prisma.mockExamInstance.findMany({
+        where: mockWhere,
+        select: {
+          totalScore: true,
+          startedAt: true,
+          submittedAt: true,
+          template: { select: { questionCount: true } },
+        },
+      }),
+    ]);
 
   const inProgressCount = await prisma.mockExamInstance.count({
     where: {
@@ -196,7 +219,25 @@ export async function GET() {
     };
   });
 
-  const withPercent = examRows.filter((e) => e.scorePercent != null);
+  const summaryRows = mockSummaryRows.map((m) => {
+    const qc = m.template.questionCount;
+    const score = m.totalScore ?? 0;
+    const scorePercent =
+      qc > 0 ? clampPct((score / qc) * 100) : null;
+    let durationMinutes: number | null = null;
+    if (m.submittedAt && m.startedAt) {
+      const ms = m.submittedAt.getTime() - m.startedAt.getTime();
+      durationMinutes = ms > 0 ? Math.round((ms / 60000) * 10) / 10 : 0;
+    }
+
+    return {
+      score,
+      scorePercent,
+      durationMinutes,
+    };
+  });
+
+  const withPercent = summaryRows.filter((e) => e.scorePercent != null);
   const averageScorePercent =
     withPercent.length > 0
       ? clampPct(
@@ -205,7 +246,7 @@ export async function GET() {
         )
       : 0;
 
-  const withDuration = examRows.filter(
+  const withDuration = summaryRows.filter(
     (e) => e.durationMinutes != null && (e.durationMinutes as number) > 0
   );
   const averageDurationMinutes =
@@ -221,16 +262,21 @@ export async function GET() {
       : null;
 
   const mockExams = {
-    count: examRows.length,
+    count: mockTotalCount,
     inProgressCount,
     averageScorePercent,
     averageDurationMinutes,
-    totalScore: examRows.reduce((sum, e) => sum + e.score, 0),
+    totalScore: summaryRows.reduce((sum, e) => sum + e.score, 0),
     averageScore:
-      examRows.length > 0
-        ? examRows.reduce((sum, e) => sum + e.score, 0) / examRows.length
+      summaryRows.length > 0
+        ? summaryRows.reduce((sum, e) => sum + e.score, 0) / summaryRows.length
         : 0,
     exams: examRows,
+    pagination: getPaginationMeta(
+      mockTotalCount,
+      mockPagination.page,
+      mockPagination.pageSize
+    ),
   };
 
   const aiCount = await prisma.aiQuestion.count({
