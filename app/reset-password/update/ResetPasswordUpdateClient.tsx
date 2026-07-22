@@ -76,12 +76,16 @@ export default function ResetPasswordUpdateClient() {
 
       const code = params.get("code");
       if (code) {
-        const { error: exchangeError } =
-          await supabase.auth.exchangeCodeForSession(code);
+        const {
+          data: { session },
+          error: sessionError,
+        } = await supabase.auth.getSession();
         if (!active) return;
 
-        if (exchangeError) {
-          setErrorMessage(exchangeError.message);
+        if (sessionError || !session?.user) {
+          setErrorMessage(
+            "This password reset link is invalid or expired. Please request a new link."
+          );
           setLinkStatus("invalid");
           return;
         }
