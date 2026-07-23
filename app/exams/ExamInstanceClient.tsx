@@ -5,7 +5,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Heading1 from "@/components/Heading1";
 import Paragraph from "@/components/Paragraph";
 import Button from "@/components/Button";
-import Image from "@/components/Image";
+import LowDataImage from "@/components/LowDataImage";
 import LocalDateTime from "@/components/LocalDateTime";
 import { formatLocalTime } from "@/lib/date-format";
 
@@ -86,6 +86,8 @@ export default function ExamInstanceClient({
   const [saving, setSaving] = useState(false);
   const [lastSaved, setLastSaved] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [settingsLoaded, setSettingsLoaded] = useState(false);
+  const [lowDataModeEnabled, setLowDataModeEnabled] = useState(false);
   const [submitted, setSubmitted] = useState(
     Boolean(data.instance.submittedAt || data.instance.graded)
   );
@@ -107,6 +109,32 @@ export default function ExamInstanceClient({
   useEffect(() => {
     submittedRef.current = submitted;
   }, [submitted]);
+
+  useEffect(() => {
+    let active = true;
+
+    async function loadSettings() {
+      setSettingsLoaded(false);
+      try {
+        const res = await fetch("/api/v1/settings", { cache: "no-store" });
+        const data = (await res.json().catch(() => null)) as {
+          settings?: { lowDataModeEnabled?: boolean };
+        } | null;
+
+        if (!active) return;
+        setLowDataModeEnabled(Boolean(data?.settings?.lowDataModeEnabled));
+      } catch {
+        if (active) setLowDataModeEnabled(false);
+      } finally {
+        if (active) setSettingsLoaded(true);
+      }
+    }
+
+    void loadSettings();
+    return () => {
+      active = false;
+    };
+  }, []);
 
   const saveProgress = useCallback(
     async (snapshot: Record<string, string> = latestAnswersRef.current) => {
@@ -232,6 +260,8 @@ export default function ExamInstanceClient({
   };
 
   const totalQuestions = data.questions.length;
+  const shouldDeferQuestionImages =
+    !settingsLoaded || lowDataModeEnabled;
   const answeredCount = data.answers.filter(
     (a) => (answers[a.id] ?? "").trim() !== ""
   ).length;
@@ -307,10 +337,11 @@ export default function ExamInstanceClient({
                 {q.questionText}
               </p>
               {q.questionImageUrl && (
-                <Image
+                <LowDataImage
                   src={q.questionImageUrl}
                   alt={`Question ${idx + 1}`}
                   className="rounded-lg max-h-64 object-contain"
+                  lowDataModeEnabled={shouldDeferQuestionImages}
                 />
               )}
 
