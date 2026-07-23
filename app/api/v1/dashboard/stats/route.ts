@@ -1,7 +1,30 @@
 import { NextResponse } from "next/server";
+import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/auth";
 import { MATERIALS_SUBJECT_ORDER } from "@/lib/materials-display";
+
+function toNumber(value: unknown): number {
+  if (typeof value === "number") return value;
+  if (typeof value === "bigint") return Number(value);
+  if (typeof value === "string") return Number(value) || 0;
+  return 0;
+}
+
+interface TopicAttemptAggregateRow {
+  topicId: string;
+  attempted: number | bigint | string | null;
+  correct: number | bigint | string | null;
+}
+
+interface WeeklyActivityRow {
+  date: string;
+  count: number | bigint | string | null;
+}
+
+interface ActiveDateRow {
+  date: string;
+}
 
 export async function GET() {
   const auth = await requireUser();
@@ -32,51 +55,83 @@ export async function GET() {
     questionCounts.map((r) => [r.topicId ?? "", r._count.id])
   );
 
-  // All user attempts on WAEC topics
-  const allAttempts = await prisma.pastQuestionAttempt.findMany({
-    where: {
-      userId: dbUser.id,
-      question: { topicId: { in: topicIds } },
-    },
-    select: {
-      questionId: true,
-      isCorrect: true,
-      attemptedAt: true,
-      question: { select: { topicId: true } },
-    },
-  });
-
-  // Topic breakdown: count each question once, using the latest submitted result.
-  const latestAttemptByTopic = new Map<
-    string,
-    Map<string, { isCorrect: boolean; attemptedAt: Date }>
-  >();
-  for (const a of allAttempts) {
-    const tid = a.question.topicId;
-    if (!tid) continue;
-
-    if (!latestAttemptByTopic.has(tid)) {
-      latestAttemptByTopic.set(tid, new Map());
-    }
-
-    const topicAttempts = latestAttemptByTopic.get(tid)!;
-    const existing = topicAttempts.get(a.questionId);
-    if (!existing || a.attemptedAt > existing.attemptedAt) {
-      topicAttempts.set(a.questionId, {
-        isCorrect: a.isCorrect,
-        attemptedAt: a.attemptedAt,
-      });
-    }
+  // Weekly activity — last 7 days (UTC dates)
+  const now = new Date();
+  const weekDays: { date: string; label: string }[] = [];
+  for (let i = 6; i >= 0; i--) {
+    const d = new Date(now);
+    d.setUTCDate(d.getUTCDate() - i);
+    weekDays.push({
+      date: d.toISOString().slice(0, 10),
+      label: d.toLocaleDateString("en-US", { weekday: "short", timeZone: "UTC" }),
+    });
   }
 
+  const weekStart = new Date(`${weekDays[0].date}T00:00:00.000Z`);
+
+  const [topicAttemptRows, weeklyRows, activeDateRows] =
+    topicIds.length === 0
+      ? [[], [], []]
+      : await prisma.$transaction([
+          prisma.$queryRaw<TopicAttemptAggregateRow[]>(Prisma.sql`
+            WITH latest_attempts AS (
+              SELECT DISTINCT ON (a."questionId")
+                a."questionId",
+                q."topicId" AS "topicId",
+                a."isCorrect" AS "isCorrect",
+                a."attemptedAt" AS "attemptedAt",
+                a.id AS "attemptId"
+              FROM "PastQuestionAttempt" a
+              INNER JOIN "PastQuestion" q ON q.id = a."questionId"
+              WHERE a."userId" = ${dbUser.id}
+                AND q."topicId" IN (${Prisma.join(topicIds)})
+              ORDER BY a."questionId", a."attemptedAt" DESC, a.id DESC
+            )
+            SELECT
+              "topicId",
+              COUNT(*)::integer AS "attempted",
+              COUNT(*) FILTER (WHERE "isCorrect")::integer AS "correct"
+            FROM latest_attempts
+            GROUP BY "topicId"
+          `),
+          prisma.$queryRaw<WeeklyActivityRow[]>(Prisma.sql`
+            SELECT
+              to_char(a."attemptedAt" AT TIME ZONE 'UTC', 'YYYY-MM-DD') AS "date",
+              COUNT(*)::integer AS "count"
+            FROM "PastQuestionAttempt" a
+            INNER JOIN "PastQuestion" q ON q.id = a."questionId"
+            WHERE a."userId" = ${dbUser.id}
+              AND q."topicId" IN (${Prisma.join(topicIds)})
+              AND a."attemptedAt" >= ${weekStart}
+            GROUP BY 1
+          `),
+          prisma.$queryRaw<ActiveDateRow[]>(Prisma.sql`
+            SELECT DISTINCT
+              to_char(a."attemptedAt" AT TIME ZONE 'UTC', 'YYYY-MM-DD') AS "date"
+            FROM "PastQuestionAttempt" a
+            INNER JOIN "PastQuestion" q ON q.id = a."questionId"
+            WHERE a."userId" = ${dbUser.id}
+              AND q."topicId" IN (${Prisma.join(topicIds)})
+            ORDER BY "date" DESC
+          `),
+        ]);
+
+  const attemptsByTopic = new Map(
+    topicAttemptRows.map((row) => [
+      row.topicId,
+      {
+        attempted: toNumber(row.attempted),
+        correct: toNumber(row.correct),
+      },
+    ])
+  );
+
   const topicBreakdown = topics
-    .filter((t) => latestAttemptByTopic.has(t.id))
+    .filter((t) => attemptsByTopic.has(t.id))
     .map((t) => {
-      const latestAttempts = latestAttemptByTopic.get(t.id)!;
-      const attempted = latestAttempts.size;
-      const correct = Array.from(latestAttempts.values()).filter(
-        (attempt) => attempt.isCorrect
-      ).length;
+      const aggregate = attemptsByTopic.get(t.id)!;
+      const attempted = aggregate.attempted;
+      const correct = aggregate.correct;
       return {
         topicId: t.id,
         topicTitle: t.title,
@@ -94,23 +149,9 @@ export async function GET() {
       ? attempted.reduce((min, t) => (t.accuracyPct < min.accuracyPct ? t : min))
       : null;
 
-  // Weekly activity — last 7 days (UTC dates)
-  const now = new Date();
-  const weekDays: { date: string; label: string }[] = [];
-  for (let i = 6; i >= 0; i--) {
-    const d = new Date(now);
-    d.setUTCDate(d.getUTCDate() - i);
-    weekDays.push({
-      date: d.toISOString().slice(0, 10),
-      label: d.toLocaleDateString("en-US", { weekday: "short", timeZone: "UTC" }),
-    });
-  }
-
-  const countByDate = new Map<string, number>();
-  for (const a of allAttempts) {
-    const date = a.attemptedAt.toISOString().slice(0, 10);
-    countByDate.set(date, (countByDate.get(date) ?? 0) + 1);
-  }
+  const countByDate = new Map(
+    weeklyRows.map((row) => [row.date, toNumber(row.count)])
+  );
 
   const weeklyActivity = weekDays.map((d) => ({
     day: d.label,
@@ -119,9 +160,7 @@ export async function GET() {
   }));
 
   // Streak — consecutive days ending today (or yesterday, so overnight doesn't break it)
-  const distinctDates = new Set(
-    allAttempts.map((a) => a.attemptedAt.toISOString().slice(0, 10))
-  );
+  const distinctDates = new Set(activeDateRows.map((row) => row.date));
   const todayStr = now.toISOString().slice(0, 10);
   const yesterdayDate = new Date(now);
   yesterdayDate.setUTCDate(yesterdayDate.getUTCDate() - 1);
