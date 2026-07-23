@@ -92,7 +92,7 @@ export default function ProgressClient({
               Study materials
             </Button>
           </Link>
-          <Link href="/exams">
+          <Link href="/exams" prefetch={false}>
             <Button variant="primary" size="sm">
               Mock exams
             </Button>
@@ -185,7 +185,11 @@ export default function ProgressClient({
         {mocks.exams.length === 0 ? (
           <Paragraph variant="muted">
             No graded mocks yet.{" "}
-            <Link href="/exams" className="text-primary-600 underline">
+            <Link
+              href="/exams"
+              prefetch={false}
+              className="text-primary-600 underline"
+            >
               Start one
             </Link>{" "}
             — when you submit, we record score and time from start to submit.
