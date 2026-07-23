@@ -26,7 +26,7 @@ function OutlineButton({
 }) {
   const cls = `inline-flex items-center justify-center px-4 py-2.5 rounded-xl border-2 text-sm font-semibold transition-colors
     border-[#6247AA] text-[#6247AA] hover:bg-[#EDE9F8] active:scale-95 ${className}`;
-  if (href) return <Link href={href} className={cls}>{children}</Link>;
+  if (href) return <Link href={href} prefetch={false} className={cls}>{children}</Link>;
   return <button onClick={onClick} className={cls}>{children}</button>;
 }
 
@@ -179,6 +179,7 @@ export default function DashboardClient({ me, stats }: DashboardClientProps) {
             </p>
             <Link
               href={`/materials/practice/${weakestTopic.topicId}`}
+              prefetch={false}
               className="inline-flex items-center gap-1 px-5 py-2.5 rounded-xl bg-[#6247AA] text-white text-sm font-semibold hover:bg-[#513D8F] active:scale-95 transition-all shrink-0"
             >
               Practice now →
@@ -189,6 +190,7 @@ export default function DashboardClient({ me, stats }: DashboardClientProps) {
             <p className="text-gray-700">Start practising to unlock your personalised study plan.</p>
             <Link
               href="/materials"
+              prefetch={false}
               className="inline-flex items-center gap-1 px-5 py-2.5 rounded-xl bg-[#6247AA] text-white text-sm font-semibold hover:bg-[#513D8F] active:scale-95 transition-all shrink-0"
             >
               Start your first session →
