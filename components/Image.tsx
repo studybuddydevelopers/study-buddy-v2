@@ -49,5 +49,13 @@ export default function Image({
     .filter(Boolean)
     .join(" ");
 
-  return <img src={src} alt={alt} className={classes} />;
+  return (
+    <img
+      src={src}
+      alt={alt}
+      className={classes}
+      loading="lazy"
+      decoding="async"
+    />
+  );
 }
