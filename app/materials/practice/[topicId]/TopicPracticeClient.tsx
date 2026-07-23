@@ -11,7 +11,7 @@ import { useRouter } from "next/navigation";
 import Heading1 from "@/components/Heading1";
 import Paragraph from "@/components/Paragraph";
 import Button from "@/components/Button";
-import Image from "@/components/Image";
+import LowDataImage from "@/components/LowDataImage";
 
 interface QuestionStub {
   id: string;
@@ -316,12 +316,14 @@ function ReviewAnswersScreen({
   questions,
   answersByQuestionId,
   resultsByQuestionId,
+  lowDataModeEnabled,
   onBackToResults,
   onBackToMaterials,
 }: {
   questions: QuestionStub[];
   answersByQuestionId: AnswersByQuestionId;
   resultsByQuestionId: ResultsByQuestionId;
+  lowDataModeEnabled: boolean;
   onBackToResults: () => void;
   onBackToMaterials: () => void;
 }) {
@@ -412,10 +414,11 @@ function ReviewAnswersScreen({
                   {question.questionText}
                 </p>
                 {question.questionImageUrl && (
-                  <Image
+                  <LowDataImage
                     src={question.questionImageUrl}
                     alt=""
                     className="max-h-64 object-contain"
+                    lowDataModeEnabled={lowDataModeEnabled}
                   />
                 )}
                 <div className="rounded-lg border border-accent-200 bg-accent-50 p-3">
@@ -489,6 +492,7 @@ export default function TopicPracticeClient({
   const [submittedAtByQuestionId, setSubmittedAtByQuestionId] =
     useState<TimestampsByQuestionId>({});
   const [settings, setSettings] = useState<UserSettings | null>(null);
+  const [settingsLoaded, setSettingsLoaded] = useState(false);
   const [draftStatus, setDraftStatus] = useState<DraftSyncStatus>("idle");
   const [quizFinished, setQuizFinished] = useState(false);
   const [reviewingAnswers, setReviewingAnswers] = useState(false);
@@ -605,6 +609,7 @@ export default function TopicPracticeClient({
     let active = true;
 
     async function loadSettings() {
+      setSettingsLoaded(false);
       try {
         const res = await fetch("/api/v1/settings", { cache: "no-store" });
         const data = (await res.json().catch(() => null)) as {
@@ -620,6 +625,8 @@ export default function TopicPracticeClient({
         });
       } catch {
         if (active) setSettings(null);
+      } finally {
+        if (active) setSettingsLoaded(true);
       }
     }
 
@@ -866,6 +873,8 @@ export default function TopicPracticeClient({
   const n = questions.length;
   const totalQuestionCount = questionPagination?.total ?? n;
   const hasMoreQuestions = Boolean(questionPagination?.hasNextPage);
+  const lowDataModeEnabled =
+    !settingsLoaded || Boolean(settings?.lowDataModeEnabled);
   const answer = q ? answersByQuestionId[q.id] ?? "" : "";
   const draftStatusText = getDraftStatusText(answer, settings, draftStatus);
   const summaryAnswersByQuestionId =
@@ -1144,6 +1153,7 @@ export default function TopicPracticeClient({
           questions={questions}
           answersByQuestionId={finishedAnswersByQuestionId}
           resultsByQuestionId={resultsByQuestionId}
+          lowDataModeEnabled={lowDataModeEnabled}
           onBackToResults={backToResults}
           onBackToMaterials={() => router.push("/materials")}
         />
@@ -1176,10 +1186,11 @@ export default function TopicPracticeClient({
           <div className="border border-accent-200 rounded-xl p-4 space-y-3 bg-white shadow-sm">
             <p className="text-gray-900 whitespace-pre-line">{q.questionText}</p>
             {q.questionImageUrl && (
-              <Image
+              <LowDataImage
                 src={q.questionImageUrl}
                 alt=""
                 className="max-h-64 object-contain"
+                lowDataModeEnabled={lowDataModeEnabled}
               />
             )}
             {(q.year != null || q.difficulty != null) && (
