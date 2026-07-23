@@ -112,7 +112,7 @@ export default function SettingsClient() {
         </Link>
         <h1 className="text-3xl font-bold text-gray-900">Settings</h1>
         <p className="text-sm text-gray-600">
-          Control draft sync and data usage for practice sessions.
+          Control draft sync, image loading, and data usage for study sessions.
         </p>
       </div>
 
@@ -136,7 +136,7 @@ export default function SettingsClient() {
 
         <SettingToggle
           title="Low Data Mode"
-          description="Pause background draft cloud sync on this account."
+          description="Pause background draft cloud sync and keep question images hidden until you choose to load them."
           checked={settings.lowDataModeEnabled}
           disabled={loading || saving !== null}
           saving={saving === "lowDataModeEnabled"}
