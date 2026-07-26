@@ -34,6 +34,27 @@ Study Buddy v2 is a Next.js learning platform for exam preparation. It combines 
 - AI tutor visual identity: change/update the AI tutor image.
 - AI Q&A threads: fix the thread counting/updating bug; AI Q&A threads seem to not actually count or update correctly.
 
+## Bandwidth And Low-Data Improvements
+
+Implemented/expected low-bandwidth behavior:
+
+- Low Data Mode lives in Settings and should reduce mobile-data usage across study flows.
+- Practice and mock-exam question images should be suppressed by default in Low Data Mode and replaced with a small `Load image` button so users only download heavy media when they choose to.
+- Shared image rendering should use lazy loading and async decoding so below-the-fold images do not compete with the first screen.
+- Heavy navigation links such as practice routes, mock exam routes, and progress pages should use `prefetch={false}` so Next.js does not silently download route payloads in the background.
+- Topic practice should load questions in small pages instead of pulling the full topic bank at once. The user should be able to load more questions deliberately.
+- Cloud draft fetching should request drafts only for loaded question IDs, not every draft in a topic.
+- User-facing history lists, such as progress mock-exam history, should be paginated with bounded `pageSize` limits.
+- Admin and account list endpoints should enforce bounded pagination so a large school, user, AI thread, or subscription table cannot produce huge JSON responses.
+- Dashboard and progress summary APIs should use database aggregates (`count`, `groupBy`, or raw aggregate SQL) instead of fetching full attempt/mock rows into application memory.
+
+Future low-data work:
+
+- Add an offline/light cache for the current topic's loaded questions and user answers.
+- Add compressed image variants or thumbnails for question images, ideally WebP/AVIF where supported.
+- Replace remaining external avatar/image requests with local assets or initials-based placeholders.
+- Keep using [`docs/PERFORMANCE_AND_LOW_DATA_RULEBOOK.md`](/Users/efeon/study-buddy-v2/docs/PERFORMANCE_AND_LOW_DATA_RULEBOOK.md) as the rulebook for future changes.
+
 ## Payment Notes
 
 - Paystack payment support exists for subscriptions/billing. `/api/v1/payments/verify` verifies a payment reference after the app sends it, while `/api/v1/payments/webhook` is the server-to-server fallback Paystack calls when payment events happen. The webhook helps record payments even if the user closes the browser, loses connection, or the frontend callback fails after payment.
