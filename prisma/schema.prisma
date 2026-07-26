@@ -58,6 +58,9 @@ model User {
   subscriptions    Subscription[]
   schoolStudents   SchoolStudent[]
   transactions     Transaction[]
+
+  @@index([createdAt], map: "User_createdAt_idx")
+  @@index([isAdmin, createdAt], map: "User_isAdmin_createdAt_idx")
 }
 
 model UserProfile {
@@ -100,6 +103,8 @@ model Subject {
   progressTracks  ProgressTrack[]
   aiQuestions     AiQuestion[]
   recommendations Recommendation[]
+
+  @@index([examCode], map: "Subject_examCode_idx")
 }
 
 model Topic {
@@ -115,6 +120,8 @@ model Topic {
   recommendations  Recommendation[]
   aiQuestions      AiQuestion[]
   practiceSessions PracticeQuizSession[]
+
+  @@index([subjectId, sortOrder, title], map: "Topic_subjectId_sortOrder_title_idx")
 }
 
 // =========================================================
@@ -140,6 +147,9 @@ model PastQuestion {
   drafts      PracticeAnswerDraft[]
   quizAnswers PracticeQuizAnswer[]
   mockAnswers MockExamAnswer[]
+
+  @@index([topicId, difficulty, id], map: "PastQuestion_topicId_difficulty_id_idx")
+  @@index([subjectId, id], map: "PastQuestion_subjectId_id_idx")
 }
 
 model PracticeAnswerDraft {
@@ -172,6 +182,9 @@ model PastQuestionAttempt {
 
   user     User         @relation(fields: [userId], references: [id], onDelete: Cascade)
   question PastQuestion @relation(fields: [questionId], references: [id], onDelete: Cascade)
+
+  @@index([userId, attemptedAt], map: "PastQuestionAttempt_userId_attemptedAt_idx")
+  @@index([userId, questionId, attemptedAt], map: "PastQuestionAttempt_userId_questionId_attemptedAt_idx")
 }
 
 model PracticeQuizSession {
@@ -230,6 +243,8 @@ model AiQuestion {
   topic   Topic?   @relation(fields: [topicId], references: [id], onDelete: SetNull)
 
   messages AiQuestionMessage[]
+
+  @@index([userId, createdAt], map: "AiQuestion_userId_createdAt_idx")
 }
 
 model AiQuestionMessage {
@@ -240,6 +255,8 @@ model AiQuestionMessage {
   createdAt    DateTime @default(now())
 
   aiQuestion AiQuestion @relation(fields: [aiQuestionId], references: [id], onDelete: Cascade)
+
+  @@index([aiQuestionId, createdAt], map: "AiQuestionMessage_aiQuestionId_createdAt_idx")
 }
 
 // =========================================================
@@ -255,6 +272,8 @@ model MockExamTemplate {
 
   subject   Subject            @relation(fields: [subjectId], references: [id], onDelete: Cascade)
   instances MockExamInstance[]
+
+  @@index([subjectId], map: "MockExamTemplate_subjectId_idx")
 }
 
 model MockExamInstance {
@@ -269,6 +288,8 @@ model MockExamInstance {
   user     User             @relation(fields: [userId], references: [id], onDelete: Cascade)
   template MockExamTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
   answers  MockExamAnswer[]
+
+  @@index([userId, graded, submittedAt, startedAt], map: "MockExamInstance_userId_graded_submittedAt_startedAt_idx")
 }
 
 model MockExamAnswer {
@@ -282,6 +303,8 @@ model MockExamAnswer {
 
   instance MockExamInstance @relation(fields: [mockExamInstanceId], references: [id], onDelete: Cascade)
   question PastQuestion     @relation(fields: [pastQuestionId], references: [id], onDelete: Cascade)
+
+  @@index([mockExamInstanceId], map: "MockExamAnswer_mockExamInstanceId_idx")
 }
 
 // =========================================================
@@ -299,6 +322,8 @@ model Recommendation {
   user    User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   subject Subject? @relation(fields: [subjectId], references: [id], onDelete: SetNull)
   topic   Topic?   @relation(fields: [topicId], references: [id], onDelete: SetNull)
+
+  @@index([userId, createdAt], map: "Recommendation_userId_createdAt_idx")
 }
 
 // =========================================================
@@ -314,6 +339,8 @@ model ProgressTrack {
 
   user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
   subject Subject @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+
+  @@index([userId, subjectId], map: "ProgressTrack_userId_subjectId_idx")
 }
 
 // =========================================================
@@ -330,6 +357,9 @@ model Subscription {
   renewalMethod String?
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, startDate], map: "Subscription_userId_startDate_idx")
+  @@index([status, plan, startDate], map: "Subscription_status_plan_startDate_idx")
 }
 
 // =========================================================
@@ -376,6 +406,8 @@ model School {
   adminEmail String?
 
   students SchoolStudent[]
+
+  @@index([name], map: "School_name_idx")
 }
 
 model SchoolStudent {
@@ -388,6 +420,7 @@ model SchoolStudent {
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([schoolId, userId])
+  @@index([schoolId, joinedAt], map: "SchoolStudent_schoolId_joinedAt_idx")
 }
 
 // =========================================================
@@ -404,4 +437,6 @@ model Transaction {
   createdAt DateTime @default(now())
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([reference], map: "Transaction_reference_key")
 }
