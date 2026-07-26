@@ -40,7 +40,9 @@ Implemented/expected low-bandwidth behavior:
 
 - Low Data Mode lives in Settings and should reduce mobile-data usage across study flows.
 - Practice and mock-exam question images should be suppressed by default in Low Data Mode and replaced with a small `Load image` button so users only download heavy media when they choose to.
-- Shared image rendering should use lazy loading and async decoding so below-the-fold images do not compete with the first screen.
+- Shared image rendering should use [`components/Image.tsx`](/Users/efeon/study-buddy-v2/components/Image.tsx) instead of raw `<img>` elements. It uses the custom loader in [`lib/optimized-image.ts`](/Users/efeon/study-buddy-v2/lib/optimized-image.ts), lazy loading, async decoding, responsive `srcSet`s, and bounded quality settings.
+- Supabase public storage image URLs are rewritten from `/storage/v1/object/public/...` to `/storage/v1/render/image/public/...` with width, quality, and resize parameters so browsers can choose smaller images for smaller screens.
+- Non-transformable images, such as SVGs or unknown external hosts, fall back to their original URL but still go through the shared lazy/async image component.
 - Heavy navigation links such as practice routes, mock exam routes, and progress pages should use `prefetch={false}` so Next.js does not silently download route payloads in the background.
 - Topic practice should load questions in small pages instead of pulling the full topic bank at once. The user should be able to load more questions deliberately.
 - Cloud draft fetching should request drafts only for loaded question IDs, not every draft in a topic.
