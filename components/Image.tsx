@@ -1,4 +1,11 @@
+/* eslint-disable @next/next/no-img-element */
 "use client";
+
+import {
+  DEFAULT_OPTIMIZED_IMAGE_WIDTHS,
+  getOptimizedImageSrcSet,
+  getOptimizedImageUrl,
+} from "@/lib/optimized-image";
 
 interface ImageProps {
   src: string;
@@ -8,6 +15,11 @@ interface ImageProps {
   hoverZoom?: boolean;
   bordered?: boolean;
   className?: string;
+  sizes?: string;
+  widths?: number[];
+  quality?: number;
+  loading?: "eager" | "lazy";
+  fetchPriority?: "high" | "low" | "auto";
 }
 
 export default function Image({
@@ -18,6 +30,11 @@ export default function Image({
   hoverZoom = false,
   bordered = false,
   className = "",
+  sizes = "100vw",
+  widths = DEFAULT_OPTIMIZED_IMAGE_WIDTHS,
+  quality,
+  loading = "lazy",
+  fetchPriority = "auto",
 }: ImageProps) {
   const roundedClasses: Record<NonNullable<ImageProps["rounded"]>, string> = {
     none: "",
@@ -48,14 +65,23 @@ export default function Image({
   ]
     .filter(Boolean)
     .join(" ");
+  const safeWidths = widths.length > 0 ? widths : DEFAULT_OPTIMIZED_IMAGE_WIDTHS;
+  const largestWidth = Math.max(...safeWidths);
+  const srcSet = getOptimizedImageSrcSet({ src, widths: safeWidths, quality });
+  const resolvedSrc = srcSet
+    ? getOptimizedImageUrl(src, { width: largestWidth, quality })
+    : src;
 
   return (
     <img
-      src={src}
+      src={resolvedSrc}
       alt={alt}
       className={classes}
-      loading="lazy"
+      loading={loading}
       decoding="async"
+      fetchPriority={fetchPriority}
+      srcSet={srcSet}
+      sizes={srcSet ? sizes : undefined}
     />
   );
 }
