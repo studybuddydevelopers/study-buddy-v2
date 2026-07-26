@@ -1,5 +1,6 @@
 "use client";
 import ReactMarkdown from "react-markdown";
+import Image from "@/components/Image";
 
 
 interface ChatMessageProps {
@@ -24,7 +25,13 @@ export default function ChatMessage({
     >
       {/* Avatar (left for AI, right for user) */}
       {!isUser && avatar && (
-        <img src={avatar} alt={name} className="w-8 h-8 rounded-full object-cover" />
+        <Image
+          src={avatar}
+          alt={name ?? ""}
+          className="h-8 w-8 rounded-full object-cover"
+          sizes="32px"
+          widths={[32, 64]}
+        />
       )}
 
       {/* Message + Name wrapper */}
@@ -46,7 +53,13 @@ export default function ChatMessage({
       </div>
 
       {isUser && avatar && (
-        <img src={avatar} alt={name} className="w-8 h-8 rounded-full object-cover" />
+        <Image
+          src={avatar}
+          alt={name ?? ""}
+          className="h-8 w-8 rounded-full object-cover"
+          sizes="32px"
+          widths={[32, 64]}
+        />
       )}
     </div>
   );
