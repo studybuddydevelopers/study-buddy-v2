@@ -1,5 +1,7 @@
 "use client";
 
+import Image from "@/components/Image";
+
 interface CardProps {
   children: React.ReactNode;
   variant?: 'default' | 'elevated' | 'outlined' | 'filled' | 'interactive';
@@ -101,7 +103,7 @@ export default function Card({
       {/* Top Image */}
       {image && image.position !== 'bottom' && (
         <div className="w-full">
-          <img 
+          <Image
             src={image.src} 
             alt={image.alt}
             className="w-full h-48 object-cover rounded-t-lg"
@@ -117,7 +119,7 @@ export default function Card({
       {/* Bottom Image */}
       {image && image.position === 'bottom' && (
         <div className="w-full">
-          <img 
+          <Image
             src={image.src} 
             alt={image.alt}
             className="w-full h-48 object-cover rounded-b-lg"
