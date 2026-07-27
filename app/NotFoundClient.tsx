@@ -2,9 +2,11 @@
 
 import Button from "@/components/Button";
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { useUser } from "./ClientLayoutWrapper";
 
 export default function NotFoundClient() {
+  const router = useRouter();
   const user = useUser();
 
   const [loadingHome, setLoadingHome] = useState(false);
@@ -13,14 +15,14 @@ export default function NotFoundClient() {
   const handleHome = () => {
     setLoadingHome(true);
     setTimeout(() => {
-      window.location.href = user ? "/dashboard" : "/";
+      router.push(user ? "/dashboard" : "/");
     }, 600);
   };
 
   const handleSupport = () => {
     setLoadingSupport(true);
     setTimeout(() => {
-      window.location.href = "/contact-us";
+      router.push("/contact-us");
     }, 600);
   };
 
