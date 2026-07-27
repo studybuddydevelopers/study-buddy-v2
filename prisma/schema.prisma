@@ -23,6 +23,31 @@ enum Sender {
   ai
 }
 
+enum AiChatRole {
+  USER
+  ASSISTANT
+}
+
+enum AiChatMessageStatus {
+  PENDING
+  COMPLETED
+  FAILED
+}
+
+enum AiGenerationRequestStatus {
+  PENDING
+  COMPLETED
+  FAILED
+}
+
+enum AiGenerationFailureCode {
+  PROVIDER_TIMEOUT
+  RATE_LIMITED
+  PROVIDER_ERROR
+  INVALID_PROVIDER_RESPONSE
+  INTERNAL_ERROR
+}
+
 enum SubscriptionPlan {
   free
   premium
@@ -48,6 +73,7 @@ model User {
 
   profile          UserProfile?
   settings         UserSettings?
+  aiChats          AiChat[]
   aiQuestions      AiQuestion[]
   attempts         PastQuestionAttempt[]
   practiceDrafts   PracticeAnswerDraft[]
@@ -101,6 +127,7 @@ model Subject {
   pastQuestions   PastQuestion[]
   curriculumFiles CurriculumFile[]
   progressTracks  ProgressTrack[]
+  aiChats         AiChat[]
   aiQuestions     AiQuestion[]
   recommendations Recommendation[]
 
@@ -118,6 +145,7 @@ model Topic {
   subject          Subject               @relation(fields: [subjectId], references: [id], onDelete: Cascade)
   pastQuestions    PastQuestion[]
   recommendations  Recommendation[]
+  aiChats          AiChat[]
   aiQuestions      AiQuestion[]
   practiceSessions PracticeQuizSession[]
 
@@ -257,6 +285,70 @@ model AiQuestionMessage {
   aiQuestion AiQuestion @relation(fields: [aiQuestionId], references: [id], onDelete: Cascade)
 
   @@index([aiQuestionId, createdAt], map: "AiQuestionMessage_aiQuestionId_createdAt_idx")
+}
+
+model AiChat {
+  id        String    @id @default(uuid())
+  userId    String
+  title     String
+  subjectId String?
+  topicId   String?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  user    User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  subject Subject? @relation(fields: [subjectId], references: [id], onDelete: SetNull)
+  topic   Topic?   @relation(fields: [topicId], references: [id], onDelete: SetNull)
+
+  messages           AiChatMessage[]
+  generationRequests AiGenerationRequest[]
+
+  @@index([userId, deletedAt, updatedAt, id], map: "AiChat_userId_deletedAt_updatedAt_id_idx")
+  @@index([id, userId, deletedAt], map: "AiChat_id_userId_deletedAt_idx")
+}
+
+model AiChatMessage {
+  id            String                   @id @default(uuid())
+  chatId        String
+  role          AiChatRole
+  content       String
+  status        AiChatMessageStatus      @default(COMPLETED)
+  failureCode   AiGenerationFailureCode?
+  modelProvider String?
+  modelName     String?
+  inputTokens   Int?
+  outputTokens  Int?
+  createdAt     DateTime                 @default(now())
+  updatedAt     DateTime                 @updatedAt
+
+  chat AiChat @relation(fields: [chatId], references: [id], onDelete: Cascade)
+
+  userGenerationRequest      AiGenerationRequest? @relation("AiGenerationUserMessage")
+  assistantGenerationRequest AiGenerationRequest? @relation("AiGenerationAssistantMessage")
+
+  @@index([chatId, createdAt, id], map: "AiChatMessage_chatId_createdAt_id_idx")
+}
+
+model AiGenerationRequest {
+  id                 String                    @id @default(uuid())
+  chatId             String
+  clientRequestId    String
+  userMessageId      String                    @unique(map: "AiGenerationRequest_userMessageId_key")
+  assistantMessageId String                    @unique(map: "AiGenerationRequest_assistantMessageId_key")
+  status             AiGenerationRequestStatus @default(PENDING)
+  attemptCount       Int                       @default(1)
+  failureCode        AiGenerationFailureCode?
+  createdAt          DateTime                  @default(now())
+  updatedAt          DateTime                  @updatedAt
+  completedAt        DateTime?
+
+  chat             AiChat        @relation(fields: [chatId], references: [id], onDelete: Cascade)
+  userMessage      AiChatMessage @relation("AiGenerationUserMessage", fields: [userMessageId], references: [id], onDelete: Cascade)
+  assistantMessage AiChatMessage @relation("AiGenerationAssistantMessage", fields: [assistantMessageId], references: [id], onDelete: Cascade)
+
+  @@unique([chatId, clientRequestId], map: "AiGenerationRequest_chatId_clientRequestId_key")
+  @@index([chatId, status, updatedAt], map: "AiGenerationRequest_chatId_status_updatedAt_idx")
 }
 
 // =========================================================
