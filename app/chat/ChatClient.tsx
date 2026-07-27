@@ -9,12 +9,6 @@ import ChatMessageContainer, {
   type ChatMessageData,
 } from "@/components/ChatMessageContainer";
 
-interface ApiMessage {
-  id: string;
-  role: "user" | "assistant";
-  content: string;
-}
-
 interface MeResponse {
   profile: {
     avatarUrl?: string | null;
