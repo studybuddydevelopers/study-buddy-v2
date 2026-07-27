@@ -3,13 +3,6 @@ import { prisma } from "@/lib/prisma";
 import { NextResponse } from "next/server";
 import crypto from "crypto";
 
-// REQUIRED: disable Next.js automatic body parsing
-export const config = {
-  api: {
-    bodyParser: false,
-  },
-};
-
 export async function POST(req: Request) {
   try {
     // -----------------------------------------------------
@@ -39,7 +32,6 @@ export async function POST(req: Request) {
     // -----------------------------------------------------
     const event = JSON.parse(rawBody);
 
-    const eventType = event.event; // e.g. "charge.success"
     const data = event.data;
 
     if (!data || !data.reference) {
