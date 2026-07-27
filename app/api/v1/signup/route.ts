@@ -77,22 +77,29 @@ export async function POST(req: Request) {
   }
 
   // 2. Seed Prisma DB
-  await prisma.user.upsert({
-    where: { id: userId },
-    create: {
-      id: userId,
-      profile: {
-        create: {
-          firstName,
-          middleNames,
-          lastNames,
-          phoneNumber,
-          preferredSubjects: [],
+  await prisma.$transaction([
+    prisma.user.upsert({
+      where: { id: userId },
+      create: {
+        id: userId,
+        profile: {
+          create: {
+            firstName,
+            middleNames,
+            lastNames,
+            phoneNumber,
+            preferredSubjects: [],
+          },
         },
       },
-    },
-    update: {},
-  });
+      update: {},
+    }),
+    prisma.userSettings.upsert({
+      where: { userId },
+      create: { userId },
+      update: {},
+    }),
+  ]);
 
   // 3. Initialize subject progress at 0% for all subjects
   const subjects = await prisma.subject.findMany({ select: { id: true } });
@@ -110,7 +117,10 @@ export async function POST(req: Request) {
         progressPercentage: 0,
       }));
     if (newTracks.length > 0) {
-      await prisma.progressTrack.createMany({ data: newTracks });
+      await prisma.progressTrack.createMany({
+        data: newTracks,
+        skipDuplicates: true,
+      });
     }
   }
 
