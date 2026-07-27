@@ -1,6 +1,7 @@
 // lib/whatsapp.ts
 // Helpers for the WhatsApp Cloud API (Meta) integration.
 import crypto from "crypto";
+import { getString, isRecord } from "@/lib/type-utils";
 
 const GRAPH_API_VERSION = "v21.0";
 
@@ -50,30 +51,50 @@ export function verifyWhatsAppSignature(
 // entries/changes. This walks the structure and extracts only inbound
 // user messages, in a shape the rest of the app can consume directly.
 export function parseIncomingMessages(
-  payload: any
+  payload: unknown
 ): IncomingWhatsAppMessage[] {
   const messages: IncomingWhatsAppMessage[] = [];
+  const entries = isRecord(payload) && Array.isArray(payload.entry)
+    ? payload.entry
+    : [];
 
-  for (const entry of payload?.entry ?? []) {
-    for (const change of entry?.changes ?? []) {
-      const value = change?.value;
-      if (!value?.messages) continue; // e.g. status callbacks have no `messages`
+  for (const entry of entries) {
+    if (!isRecord(entry) || !Array.isArray(entry.changes)) continue;
 
-      const contactsByWaId = new Map<string, string>();
-      for (const contact of value.contacts ?? []) {
-        if (contact?.wa_id) {
-          contactsByWaId.set(contact.wa_id, contact?.profile?.name ?? null);
+    for (const change of entry.changes) {
+      if (!isRecord(change) || !isRecord(change.value)) continue;
+
+      const value = change.value;
+      if (!Array.isArray(value.messages)) continue; // e.g. status callbacks have no `messages`
+
+      const contactsByWaId = new Map<string, string | null>();
+      const contacts = Array.isArray(value.contacts) ? value.contacts : [];
+      for (const contact of contacts) {
+        if (!isRecord(contact)) continue;
+
+        const waId = getString(contact.wa_id);
+        if (waId) {
+          const profile = isRecord(contact.profile) ? contact.profile : null;
+          contactsByWaId.set(waId, getString(profile?.name) ?? null);
         }
       }
 
       for (const message of value.messages) {
+        if (!isRecord(message)) continue;
+
+        const id = getString(message.id);
+        const from = getString(message.from);
+        const timestamp = getString(message.timestamp);
+        const type = getString(message.type);
+        if (!id || !from || !timestamp || !type) continue;
+
         messages.push({
-          id: message.id,
-          from: message.from,
-          timestamp: message.timestamp,
-          type: message.type,
+          id,
+          from,
+          timestamp,
+          type,
           text: extractMessageText(message),
-          contactName: contactsByWaId.get(message.from) ?? null,
+          contactName: contactsByWaId.get(from) ?? null,
         });
       }
     }
@@ -82,18 +103,25 @@ export function parseIncomingMessages(
   return messages;
 }
 
-function extractMessageText(message: any): string | null {
+function extractMessageText(message: Record<string, unknown>): string | null {
   switch (message.type) {
     case "text":
-      return message.text?.body ?? null;
+      return isRecord(message.text) ? getString(message.text.body) ?? null : null;
     case "button":
-      return message.button?.text ?? null;
+      return isRecord(message.button)
+        ? getString(message.button.text) ?? null
+        : null;
     case "interactive":
-      return (
-        message.interactive?.button_reply?.title ??
-        message.interactive?.list_reply?.title ??
-        null
-      );
+      if (!isRecord(message.interactive)) return null;
+      if (
+        isRecord(message.interactive.button_reply) &&
+        getString(message.interactive.button_reply.title)
+      ) {
+        return getString(message.interactive.button_reply.title) ?? null;
+      }
+      return isRecord(message.interactive.list_reply)
+        ? getString(message.interactive.list_reply.title) ?? null
+        : null;
     default:
       // Media, location, contacts, etc. — handled by future parsers.
       return null;
