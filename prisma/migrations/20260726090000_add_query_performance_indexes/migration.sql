@@ -21,7 +21,7 @@ CREATE INDEX "MockExamInstance_userId_graded_submittedAt_startedAt_idx" ON "Mock
 CREATE INDEX "MockExamAnswer_mockExamInstanceId_idx" ON "MockExamAnswer"("mockExamInstanceId");
 
 CREATE INDEX "Recommendation_userId_createdAt_idx" ON "Recommendation"("userId", "createdAt");
-CREATE INDEX "ProgressTrack_userId_subjectId_idx" ON "ProgressTrack"("userId", "subjectId");
+CREATE UNIQUE INDEX "ProgressTrack_userId_subjectId_key" ON "ProgressTrack"("userId", "subjectId");
 
 CREATE INDEX "Subscription_userId_startDate_idx" ON "Subscription"("userId", "startDate");
 CREATE INDEX "Subscription_status_plan_startDate_idx" ON "Subscription"("status", "plan", "startDate");
