@@ -30,10 +30,20 @@ Schools (admin)
 AI
 --
 - POST `/ai/messages` (auth) — Body: `message` (string, req), `subjectId?`, `topicId?`. Returns `{ userMessage, aiResponse, meta }`.
+- POST `/ai/chats` (auth) — Body: `title?`, `subjectId?`, `topicId?`. Validates subject/topic rules and creates a persistent general chat. Returns `{ chat }`.
+- GET `/ai/chats` (auth) — Query: `page?=1`, `pageSize?=20` (max 50). Lists active chats for the current user ordered by `updatedAt DESC, id DESC`.
+- GET `/ai/chats/:chatId` (auth) — Returns one active chat owned by the current user; soft-deleted chats return 404.
+- PATCH `/ai/chats/:chatId` (auth) — Body: `title?`, `subjectId?`, `topicId?`. Renames or reclassifies a chat. A topic requires a subject and must belong to that subject. If the subject changes without a valid replacement topic, the existing topic is cleared.
+- DELETE `/ai/chats/:chatId` (auth) — Soft-deletes the chat through `deletedAt`; it disappears from normal lists.
+- GET `/ai/chats/:chatId/messages` (auth) — Query: `page?=1`, `pageSize?=50` (max 100). Lists messages ordered by `createdAt ASC, id ASC`.
+- POST `/ai/chats/:chatId/messages` (auth) — Body: `message` (1–4000 chars), `clientRequestId` (req). Creates/persists one user message, one empty pending assistant message, and one generation request. Duplicate completed/pending requests return existing state. Duplicate failed requests return failed state with `retryRequired`; use retry endpoint.
+- POST `/ai/chats/:chatId/requests/:requestId/retry` (auth) — Atomically retries a failed generation request without duplicating the user or assistant message.
 - POST `/ai/recommendations` (auth) — Body: `subjectId?`, `topicId?`, `context?` (string). Validates subject/topic when provided, saves recommendation, returns `{ recommendation }`.
 - POST `/ai/questions/create` (auth) — Body: `questionText` (req), `subjectId?`, `topicId?`. Creates thread + first user message, generates/saves AI reply, returns `{ question, messages: [userMessage, aiMessage] }`.
 - GET `/ai/questions/list` (auth) — Query: `page?=1`, `pageSize?=20` (max 50). Returns `{ threads: [{ id, questionText, createdAt, subjectId, topicId, lastMessage }], pagination }` for the requesting user.
 - POST `/ai/questions/:id/reply` (auth) — Body: `message` (req). User must own thread. Saves user message, generates/saves AI reply, returns `{ userMessage, aiMessage }`.
+
+Stage 1 chat note: `/ai/chats/*` provides persistence, ownership checks, idempotency, retry-safe lifecycle tracking, and a provider-neutral chat adapter. It is not resource-grounded and does not provide citations or StudyBuddy resource retrieval.
 
 Past Questions
 --------------
