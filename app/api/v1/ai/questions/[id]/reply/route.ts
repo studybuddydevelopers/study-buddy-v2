@@ -3,6 +3,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/auth";
+import { getErrorMessage, getString, isRecord } from "@/lib/type-utils";
 import OpenAI from "openai";
 import type { ChatCompletionMessageParam } from "openai/resources/chat/completions";
 
@@ -22,15 +23,19 @@ export async function POST(
   // -------------------------------------
   // 2. VALIDATE INPUT
   // -------------------------------------
-  let body: any;
+  let body: unknown;
   try {
     body = await req.json();
   } catch {
     return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
   }
 
-  const { message } = body;
-  if (!message || typeof message !== "string") {
+  if (!isRecord(body)) {
+    return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
+  }
+
+  const message = getString(body.message);
+  if (!message) {
     return NextResponse.json(
       { error: "message is required (string)" },
       { status: 400 }
@@ -109,9 +114,12 @@ export async function POST(
     aiText =
       completion.choices?.[0]?.message?.content ||
       "I'm sorry — I couldn't generate a response.";
-  } catch (err: any) {
+  } catch (err: unknown) {
     return NextResponse.json(
-      { error: "AI response generation failed", details: err.message },
+      {
+        error: "AI response generation failed",
+        details: getErrorMessage(err),
+      },
       { status: 500 }
     );
   }
