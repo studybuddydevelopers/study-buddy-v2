@@ -39,6 +39,8 @@ Study Buddy v2 is a Next.js learning platform for exam preparation. It combines 
 Implemented/expected low-bandwidth behavior:
 
 - Low Data Mode lives in Settings and should reduce mobile-data usage across study flows.
+- `UserSettings` stores low-data mode and cloud draft sync preferences per user. Existing users were backfilled with default settings in migration `20260726090000_add_query_performance_indexes`.
+- Practice answers are saved locally first. Cloud draft sync only runs when the user enables it and Low Data Mode is off.
 - Practice and mock-exam question images should be suppressed by default in Low Data Mode and replaced with a small `Load image` button so users only download heavy media when they choose to.
 - Shared image rendering should use [`components/Image.tsx`](/Users/efeon/study-buddy-v2/components/Image.tsx) instead of raw `<img>` elements. It uses the custom loader in [`lib/optimized-image.ts`](/Users/efeon/study-buddy-v2/lib/optimized-image.ts), lazy loading, async decoding, responsive `srcSet`s, and bounded quality settings.
 - Supabase public storage image URLs are rewritten from `/storage/v1/object/public/...` to `/storage/v1/render/image/public/...` with width, quality, and resize parameters so browsers can choose smaller images for smaller screens.
@@ -49,6 +51,7 @@ Implemented/expected low-bandwidth behavior:
 - User-facing history lists, such as progress mock-exam history, should be paginated with bounded `pageSize` limits.
 - Admin and account list endpoints should enforce bounded pagination so a large school, user, AI thread, or subscription table cannot produce huge JSON responses.
 - Dashboard and progress summary APIs should use database aggregates (`count`, `groupBy`, or raw aggregate SQL) instead of fetching full attempt/mock rows into application memory.
+- Dashboard weekly activity uses a lightweight CSS-rendered bar chart instead of shipping a heavier charting dependency for that widget.
 
 Future low-data work:
 
@@ -60,7 +63,7 @@ Future low-data work:
 ## Payment Notes
 
 - Paystack payment support exists for subscriptions/billing. `/api/v1/payments/verify` verifies a payment reference after the app sends it, while `/api/v1/payments/webhook` is the server-to-server fallback Paystack calls when payment events happen. The webhook helps record payments even if the user closes the browser, loses connection, or the frontend callback fails after payment.
-- The current build warning for `app/api/v1/payments/webhook/route.ts` comes from an old App Router-incompatible `export const config = { api: { bodyParser: false } }` block. The handler already reads the raw request body with `await req.text()`, which is the important part for Paystack signature verification.
+- The App Router webhook reads the raw request body with `await req.text()` before JSON parsing so Paystack signature verification can use the exact signed payload. The deprecated Page Router `bodyParser` config export was removed.
 
 ## Email Delivery Notes
 
@@ -139,6 +142,35 @@ Key models:
 - `ProgressTrack`
 - `Subscription`, `Transaction`
 - `School`, `SchoolStudent`
+
+## Database And Query Optimizations
+
+Applied DB optimization migration: [`20260726090000_add_query_performance_indexes`](/Users/efeon/study-buddy-v2/prisma/migrations/20260726090000_add_query_performance_indexes/migration.sql). It was deployed to the configured Supabase database on July 27, 2026.
+
+Implemented DB/query optimizations:
+
+- Added query-focused indexes for dashboard/progress aggregates, practice materials, AI tutor threads/messages, mock exam resume/history, recommendations, subscriptions, school student lists, admin user listing, subject/topic lookup, and payment verification.
+- Added `Transaction.reference` as a unique DB constraint so Paystack duplicate-prevention is enforced by the database, not only by application code.
+- Added `ProgressTrack(userId, subjectId)` as a unique DB constraint so each user has one progress row per subject.
+- Updated progress update APIs to use direct composite upserts against `ProgressTrack(userId, subjectId)`.
+- Backfilled missing `UserSettings` rows for existing users and updated signup to create default settings for future users.
+- Refreshed PostgreSQL planner statistics with `ANALYZE` after the audit so row estimates match the current small production dataset more closely.
+- Verified the deployed migration: no missing optimization indexes, no duplicate payment references, no duplicate user/subject progress rows, and no orphaned FK data.
+
+Observed DB cleanup candidates, not automatically deleted:
+
+- Old `Recommendation` rows exist past 30 days. Decide a retention policy before deleting or archiving recommendations.
+- Two WAEC Mathematics topics currently have no questions: `Variation & Graphs` and `Vectors & Transformation`.
+
+## Code Quality And CI Reliability Optimizations
+
+- Removed explicit `any` lint debt from API routes and WhatsApp parsing. Shared helpers live in [`lib/type-utils.ts`](/Users/efeon/study-buddy-v2/lib/type-utils.ts).
+- API request bodies now parse through `unknown` plus small type guards before field access.
+- Caught errors now use a shared `getErrorMessage` helper instead of `err: any`.
+- Supabase admin upload cookie callbacks now use typed cookie options from `@supabase/ssr`.
+- Internal client navigation warnings were fixed by using `useRouter().push()` instead of `window.location.href` for app routes.
+- `npm run lint`, `npx tsc --noEmit --pretty false`, `git diff --check`, and `npm run build` were verified after the cleanup.
+- `npm run build` still reports the repo-wide Next.js warning that the `middleware` file convention is deprecated in favor of `proxy`; it does not fail the build.
 
 ## Local Setup
 
