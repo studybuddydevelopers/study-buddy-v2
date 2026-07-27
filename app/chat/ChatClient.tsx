@@ -1,7 +1,8 @@
 // app/chat/ChatClient.tsx
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { MessageCircle, Pencil, Plus, Trash2 } from "lucide-react";
 import Heading1 from "@/components/Heading1";
 import Paragraph from "@/components/Paragraph";
 import Button from "@/components/Button";
@@ -9,44 +10,135 @@ import ChatMessageContainer, {
   type ChatMessageData,
 } from "@/components/ChatMessageContainer";
 
+const AI_AVATAR = "https://i.pravatar.cc/40?img=32";
+const DEFAULT_USER_AVATAR =
+  "https://img.icons8.com/?size=100&id=HEBTcR9O3uzR&format=png&color=000000";
+const CHAT_PAGE_SIZE = 25;
+const MESSAGE_PAGE_SIZE = 50;
+
 interface MeResponse {
   profile: {
     avatarUrl?: string | null;
   } | null;
 }
 
-async function sendMessageApi(message: string, subjectId?: string) {
-  const res = await fetch("/api/v1/ai/messages", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ message, subjectId }),
-  });
+interface SubjectOption {
+  id: string;
+  name: string;
+  displayName?: string;
+  topics: TopicOption[];
+}
 
-  if (!res.ok) {
-    const body = await res.json().catch(() => null);
-    throw new Error(body?.error || "Failed to send message");
+interface TopicOption {
+  id: string;
+  title: string;
+}
+
+interface MaterialsOverviewResponse {
+  subjects: SubjectOption[];
+}
+
+interface ApiChat {
+  id: string;
+  title: string;
+  subjectId: string | null;
+  topicId: string | null;
+  createdAt: string;
+  updatedAt: string;
+  deletedAt: string | null;
+  subject?: { id: string; name: string; examCode: string | null } | null;
+  topic?: { id: string; title: string; subjectId: string } | null;
+}
+
+interface ApiMessage {
+  id: string;
+  chatId: string;
+  role: "USER" | "ASSISTANT";
+  content: string;
+  status: "PENDING" | "COMPLETED" | "FAILED";
+  failureCode: string | null;
+  createdAt: string;
+  updatedAt: string;
+  requestId: string | null;
+}
+
+interface GenerationResponse {
+  chat: ApiChat;
+  userMessage: ApiMessage;
+  assistantMessage: ApiMessage;
+  error?: { code: string; status: number };
+}
+
+function sortChats(chats: ApiChat[]) {
+  return [...chats].sort((a, b) => {
+    const dateDelta =
+      new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime();
+    if (dateDelta !== 0) return dateDelta;
+    return b.id.localeCompare(a.id);
+  });
+}
+
+function toChatMessageData(
+  message: ApiMessage,
+  userAvatar?: string | null
+): ChatMessageData {
+  const isUser = message.role === "USER";
+  return {
+    id: message.id,
+    sender: isUser ? "user" : "ai",
+    name: isUser ? "You" : "AI Tutor",
+    text: message.content,
+    avatar: isUser ? userAvatar ?? DEFAULT_USER_AVATAR : AI_AVATAR,
+    status: message.status,
+    failureCode: message.failureCode,
+    requestId: message.requestId,
+  };
+}
+
+async function fetchJson<T>(url: string, init?: RequestInit): Promise<T> {
+  const res = await fetch(url, {
+    ...init,
+    headers: {
+      "Content-Type": "application/json",
+      ...(init?.headers ?? {}),
+    },
+  });
+  const data = await res.json().catch(() => null);
+
+  if (!res.ok && !data?.assistantMessage) {
+    throw new Error(data?.message || data?.error || "Request failed");
   }
 
-  const data = await res.json();
-  return data?.aiResponse || "I couldn't generate a reply.";
+  return data as T;
 }
 
 export default function ChatClient() {
-  const [messages, setMessages] = useState<ChatMessageData[]>([
-    {
-      id: "welcome",
-      sender: "ai",
-      name: "AI Tutor",
-      text: "Hi! Ask me any study question or request practice problems. I'm here to help.",
-      avatar: "https://i.pravatar.cc/40?img=32",
-    },
-  ]);
+  const [chats, setChats] = useState<ApiChat[]>([]);
+  const [selectedChatId, setSelectedChatId] = useState<string | null>(null);
+  const [messages, setMessages] = useState<ChatMessageData[]>([]);
   const [input, setInput] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [subjectId, setSubjectId] = useState<string | undefined>(undefined);
+  const [titleDraftByChat, setTitleDraftByChat] = useState<Record<string, string>>({});
   const [me, setMe] = useState<MeResponse | null>(null);
+  const [subjects, setSubjects] = useState<SubjectOption[]>([]);
+  const [loadingChats, setLoadingChats] = useState(true);
+  const [loadingMessages, setLoadingMessages] = useState(false);
+  const [savingChat, setSavingChat] = useState(false);
+  const [sending, setSending] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const listRef = useRef<HTMLDivElement | null>(null);
+
+  const selectedChat = useMemo(
+    () => chats.find((chat) => chat.id === selectedChatId) ?? null,
+    [chats, selectedChatId]
+  );
+
+  const selectedSubject = useMemo(
+    () => subjects.find((subject) => subject.id === selectedChat?.subjectId),
+    [subjects, selectedChat?.subjectId]
+  );
+  const titleDraft = selectedChat
+    ? titleDraftByChat[selectedChat.id] ?? selectedChat.title
+    : "";
 
   useEffect(() => {
     listRef.current?.scrollTo({
@@ -56,64 +148,291 @@ export default function ChatClient() {
   }, [messages]);
 
   useEffect(() => {
-    const fetchMe = async () => {
+    const loadBootstrapData = async () => {
+      setLoadingChats(true);
       try {
-        const res = await fetch("/api/v1/me", { cache: "no-store" });
-        if (!res.ok) return;
-        const data = (await res.json()) as MeResponse;
-        setMe(data);
+        const [meResponse, materialsResponse, chatsResponse] = await Promise.all([
+          fetch("/api/v1/me", { cache: "no-store" }),
+          fetch("/api/v1/materials/overview", { cache: "no-store" }),
+          fetch(`/api/v1/ai/chats?page=1&pageSize=${CHAT_PAGE_SIZE}`, {
+            cache: "no-store",
+          }),
+        ]);
+
+        if (meResponse.ok) {
+          setMe((await meResponse.json()) as MeResponse);
+        }
+        if (materialsResponse.ok) {
+          const data = (await materialsResponse.json()) as MaterialsOverviewResponse;
+          setSubjects(data.subjects ?? []);
+        }
+        if (!chatsResponse.ok) {
+          throw new Error("Could not load chat history.");
+        }
+
+        const data = (await chatsResponse.json()) as { chats: ApiChat[] };
+        const orderedChats = sortChats(data.chats ?? []);
+        setChats(orderedChats);
+        setSelectedChatId((current) => current ?? orderedChats[0]?.id ?? null);
       } catch (err) {
-        console.error("Failed to load profile", err);
+        console.error(err);
+        setError((err as Error).message);
+      } finally {
+        setLoadingChats(false);
       }
     };
 
-    void fetchMe();
+    void loadBootstrapData();
   }, []);
 
-  const handleSend = async () => {
-    if (!input.trim() || loading) return;
-    const userText = input.trim();
-    setInput("");
-    setError(null);
+  useEffect(() => {
+    if (!selectedChatId) {
+      return;
+    }
 
-    const userMessage: ChatMessageData = {
-      id: crypto.randomUUID(),
-      sender: "user",
-      name: "You",
-      text: userText,
-      avatar: me?.profile?.avatarUrl ?? "https://img.icons8.com/?size=100&id=HEBTcR9O3uzR&format=png&color=000000",
+    let ignore = false;
+    const loadMessages = async () => {
+      setLoadingMessages(true);
+      try {
+        const data = await fetchJson<{ messages: ApiMessage[] }>(
+          `/api/v1/ai/chats/${selectedChatId}/messages?page=1&pageSize=${MESSAGE_PAGE_SIZE}`,
+          { cache: "no-store" }
+        );
+
+        if (ignore) return;
+        setMessages(
+          (data.messages ?? []).map((message) =>
+            toChatMessageData(message, me?.profile?.avatarUrl)
+          )
+        );
+      } catch (err) {
+        if (!ignore) {
+          console.error(err);
+          setError((err as Error).message);
+        }
+      } finally {
+        if (!ignore) setLoadingMessages(false);
+      }
     };
-    setMessages((prev) => [...prev, userMessage]);
 
-    setLoading(true);
+    void loadMessages();
+    return () => {
+      ignore = true;
+    };
+  }, [selectedChatId, me?.profile?.avatarUrl]);
+
+  const upsertChat = (chat: ApiChat) => {
+    setChats((prev) =>
+      sortChats([chat, ...prev.filter((item) => item.id !== chat.id)])
+    );
+  };
+
+  const createChat = async () => {
+    setSavingChat(true);
+    setError(null);
     try {
-      const reply = await sendMessageApi(userText, subjectId);
-      setMessages((prev) => [
-        ...prev,
-        {
-          id: crypto.randomUUID(),
-          sender: "ai",
-          name: "AI Tutor",
-          text: reply,
-          avatar: "https://i.pravatar.cc/40?img=32",
-        },
-      ]);
+      const data = await fetchJson<{ chat: ApiChat }>("/api/v1/ai/chats", {
+        method: "POST",
+        body: JSON.stringify({}),
+      });
+      upsertChat(data.chat);
+      setSelectedChatId(data.chat.id);
+      setMessages([]);
+      return data.chat;
     } catch (err) {
       console.error(err);
       setError((err as Error).message);
-      setMessages((prev) => [
-        ...prev,
-        {
-          id: crypto.randomUUID(),
-          sender: "ai",
-          name: "AI Tutor",
-          text:
-            "Sorry, I couldn't respond right now. Please try again in a moment.",
-          avatar: "https://i.pravatar.cc/40?img=32",
-        },
-      ]);
+      return null;
     } finally {
-      setLoading(false);
+      setSavingChat(false);
+    }
+  };
+
+  const patchSelectedChat = async (updates: Partial<ApiChat>) => {
+    if (!selectedChatId) return;
+
+    setSavingChat(true);
+    setError(null);
+    try {
+      const data = await fetchJson<{ chat: ApiChat }>(
+        `/api/v1/ai/chats/${selectedChatId}`,
+        {
+          method: "PATCH",
+          body: JSON.stringify(updates),
+        }
+      );
+      upsertChat(data.chat);
+    } catch (err) {
+      console.error(err);
+      setError((err as Error).message);
+    } finally {
+      setSavingChat(false);
+    }
+  };
+
+  const deleteSelectedChat = async () => {
+    if (!selectedChatId) return;
+    const chatId = selectedChatId;
+
+    setSavingChat(true);
+    setError(null);
+    try {
+      await fetchJson<{ success: boolean }>(`/api/v1/ai/chats/${chatId}`, {
+        method: "DELETE",
+      });
+      setChats((prev) => {
+        const remaining = prev.filter((chat) => chat.id !== chatId);
+        setSelectedChatId(remaining[0]?.id ?? null);
+        return remaining;
+      });
+      setMessages([]);
+    } catch (err) {
+      console.error(err);
+      setError((err as Error).message);
+    } finally {
+      setSavingChat(false);
+    }
+  };
+
+  const applyGenerationResponse = (data: GenerationResponse) => {
+    upsertChat(data.chat);
+    setMessages((prev) => {
+      const user = toChatMessageData(data.userMessage, me?.profile?.avatarUrl);
+      const assistant = toChatMessageData(
+        data.assistantMessage,
+        me?.profile?.avatarUrl
+      );
+      const incoming = new Map<string | number, ChatMessageData>([
+        [user.id, user],
+        [assistant.id, assistant],
+      ]);
+      const seen = new Set<string | number>();
+      const updated = prev.map((message) => {
+        const replacement = incoming.get(message.id);
+        if (!replacement) return message;
+        seen.add(message.id);
+        return replacement;
+      });
+
+      for (const message of [user, assistant]) {
+        if (!seen.has(message.id)) updated.push(message);
+      }
+
+      return updated;
+    });
+  };
+
+  const handleSend = async () => {
+    const message = input.trim();
+    if (!message || sending) return;
+
+    setInput("");
+    setError(null);
+    setSending(true);
+
+    let chat = selectedChat;
+    if (!chat) {
+      chat = await createChat();
+      if (!chat) {
+        setSending(false);
+        return;
+      }
+    }
+
+    const clientRequestId = crypto.randomUUID();
+    const optimisticUserId = `optimistic-user-${clientRequestId}`;
+    const optimisticAssistantId = `optimistic-ai-${clientRequestId}`;
+
+    setMessages((prev) => [
+      ...prev,
+      {
+        id: optimisticUserId,
+        sender: "user",
+        name: "You",
+        text: message,
+        avatar: me?.profile?.avatarUrl ?? DEFAULT_USER_AVATAR,
+        status: "COMPLETED",
+      },
+      {
+        id: optimisticAssistantId,
+        sender: "ai",
+        name: "AI Tutor",
+        text: "",
+        avatar: AI_AVATAR,
+        status: "PENDING",
+      },
+    ]);
+
+    try {
+      const data = await fetchJson<GenerationResponse>(
+        `/api/v1/ai/chats/${chat.id}/messages`,
+        {
+          method: "POST",
+          body: JSON.stringify({ message, clientRequestId }),
+        }
+      );
+
+      setMessages((prev) =>
+        prev.filter(
+          (item) =>
+            item.id !== optimisticUserId && item.id !== optimisticAssistantId
+        )
+      );
+      applyGenerationResponse(data);
+
+      if (data.error) {
+        setError(data.error.code);
+      }
+    } catch (err) {
+      console.error(err);
+      setError((err as Error).message);
+      setMessages((prev) =>
+        prev.map((item) =>
+          item.id === optimisticAssistantId
+            ? {
+                ...item,
+                status: "FAILED",
+                failureCode: "INTERNAL_ERROR",
+              }
+            : item
+        )
+      );
+    } finally {
+      setSending(false);
+    }
+  };
+
+  const handleRetry = async (message: ChatMessageData) => {
+    if (!selectedChatId || !message.requestId) return;
+
+    setError(null);
+    setMessages((prev) =>
+      prev.map((item) =>
+        item.id === message.id
+          ? { ...item, status: "PENDING", text: "", failureCode: null, retrying: true }
+          : item
+      )
+    );
+
+    try {
+      const data = await fetchJson<GenerationResponse>(
+        `/api/v1/ai/chats/${selectedChatId}/requests/${message.requestId}/retry`,
+        { method: "POST" }
+      );
+      applyGenerationResponse(data);
+      if (data.error) {
+        setError(data.error.code);
+      }
+    } catch (err) {
+      console.error(err);
+      setError((err as Error).message);
+      setMessages((prev) =>
+        prev.map((item) =>
+          item.id === message.id
+            ? { ...item, status: "FAILED", retrying: false }
+            : item
+        )
+      );
     }
   };
 
@@ -125,72 +444,199 @@ export default function ChatClient() {
   };
 
   return (
-    <div className="w-[90vw] max-w-5xl mx-auto py-6 flex flex-col gap-4 min-h-[calc(100vh-120px)]">
-      <div className="flex items-start justify-between gap-4 flex-wrap">
+    <div className="w-[90vw] max-w-6xl mx-auto py-6 min-h-[calc(100vh-120px)]">
+      <div className="flex items-start justify-between gap-4 flex-wrap mb-4">
         <div>
           <Heading1 gutter="sm">AI Chat</Heading1>
           <Paragraph variant="superMuted" gutter="none">
-            Ask questions like you would on ChatGPT. Shift+Enter for new line.
+            Ask study questions and keep the thread after refresh.
           </Paragraph>
         </div>
-        <div className="flex items-center gap-2 text-sm text-gray-600">
-          <label className="flex items-center gap-2">
-            <span>Subject (optional)</span>
-            <input
-              type="text"
-              className="border border-accent-200 rounded-md px-2 py-1 text-sm"
-              value={subjectId ?? ""}
-              onChange={(e) =>
-                setSubjectId(e.target.value.trim() ? e.target.value : undefined)
-              }
-              placeholder="Subject ID"
-            />
-          </label>
-        </div>
+        <Button
+          variant="primary"
+          onClick={() => void createChat()}
+          loading={savingChat}
+          icon={<Plus size={18} />}
+        >
+          New Chat
+        </Button>
       </div>
 
-      <div
-        ref={listRef}
-        className="flex-1 overflow-y-auto border border-accent-200 rounded-2xl bg-white shadow-sm p-4"
-      >
-        <ChatMessageContainer messages={messages} />
-        {loading && (
-          <div className="mt-4 bg-gray-50 text-gray-900 border border-accent-100 p-3 rounded-xl max-w-3xl">
-            <p className="text-sm font-semibold mb-1">AI Tutor</p>
-            <p className="text-gray-600">Thinking...</p>
+      <div className="grid grid-cols-1 lg:grid-cols-[280px_1fr] gap-4">
+        <aside className="border border-accent-200 rounded-2xl bg-white shadow-sm p-3 h-fit lg:max-h-[calc(100vh-190px)] overflow-y-auto">
+          {loadingChats ? (
+            <Paragraph variant="muted" gutter="none" className="text-sm">
+              Loading chats...
+            </Paragraph>
+          ) : chats.length === 0 ? (
+            <Paragraph variant="muted" gutter="none" className="text-sm">
+              No saved chats yet.
+            </Paragraph>
+          ) : (
+            <div className="space-y-2">
+              {chats.map((chat) => (
+                <button
+                  key={chat.id}
+                  type="button"
+                  onClick={() => setSelectedChatId(chat.id)}
+                  className={`w-full text-left rounded-xl border px-3 py-2 transition ${
+                    chat.id === selectedChatId
+                      ? "border-primary-400 bg-primary-50 text-primary-900"
+                      : "border-transparent hover:bg-gray-50 text-gray-900"
+                  }`}
+                >
+                  <span className="flex items-center gap-2">
+                    <MessageCircle size={16} />
+                    <span className="font-semibold truncate">{chat.title}</span>
+                  </span>
+                  <span className="block text-xs text-gray-500 truncate mt-1">
+                    {chat.topic?.title ?? chat.subject?.name ?? "General chat"}
+                  </span>
+                </button>
+              ))}
+            </div>
+          )}
+        </aside>
+
+        <main className="flex flex-col gap-3 min-h-[calc(100vh-190px)]">
+          <div className="border border-accent-200 rounded-2xl bg-white shadow-sm p-4 space-y-3">
+            {selectedChat ? (
+              <>
+                <div className="flex items-center gap-2">
+                  <input
+                    value={titleDraft}
+                    onChange={(e) =>
+                      setTitleDraftByChat((prev) => ({
+                        ...prev,
+                        [selectedChat.id]: e.target.value,
+                      }))
+                    }
+                    className="min-w-0 flex-1 border border-accent-200 rounded-lg px-3 py-2 text-gray-900 font-semibold focus:outline-none focus:ring-2 focus:ring-primary-300"
+                    maxLength={120}
+                    aria-label="Chat title"
+                  />
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => void patchSelectedChat({ title: titleDraft })}
+                    disabled={savingChat || !titleDraft.trim()}
+                    icon={<Pencil size={16} />}
+                  >
+                    Save
+                  </Button>
+                  <Button
+                    variant="destructive"
+                    size="sm"
+                    onClick={() => void deleteSelectedChat()}
+                    disabled={savingChat}
+                    icon={<Trash2 size={16} />}
+                    ariaLabel="Delete chat"
+                  />
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <label className="flex flex-col gap-1 text-sm font-semibold text-gray-900">
+                    Subject
+                    <select
+                      value={selectedChat.subjectId ?? ""}
+                      onChange={(e) =>
+                        void patchSelectedChat({
+                          subjectId: e.target.value || null,
+                          topicId: null,
+                        })
+                      }
+                      disabled={savingChat}
+                      className="w-full rounded-lg border border-accent-200 px-3 py-2 bg-white font-normal focus:outline-none focus:ring-2 focus:ring-primary-300"
+                    >
+                      <option value="">General</option>
+                      {subjects.map((subject) => (
+                        <option key={subject.id} value={subject.id}>
+                          {subject.displayName ?? subject.name}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+
+                  <label className="flex flex-col gap-1 text-sm font-semibold text-gray-900">
+                    Topic
+                    <select
+                      value={selectedChat.topicId ?? ""}
+                      onChange={(e) =>
+                        void patchSelectedChat({
+                          topicId: e.target.value || null,
+                        })
+                      }
+                      disabled={savingChat || !selectedChat.subjectId}
+                      className="w-full rounded-lg border border-accent-200 px-3 py-2 bg-white font-normal focus:outline-none focus:ring-2 focus:ring-primary-300 disabled:bg-gray-100"
+                    >
+                      <option value="">No topic</option>
+                      {(selectedSubject?.topics ?? []).map((topic) => (
+                        <option key={topic.id} value={topic.id}>
+                          {topic.title}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                </div>
+              </>
+            ) : (
+              <Paragraph variant="muted" gutter="none">
+                Create a chat to start asking questions.
+              </Paragraph>
+            )}
           </div>
-        )}
-      </div>
 
-      {error && (
-        <Paragraph variant="error" className="mt-1">
-          {error}
-        </Paragraph>
-      )}
-
-      <div className="border border-accent-200 rounded-2xl bg-white shadow-sm p-4 space-y-3">
-        <textarea
-          className="w-full border border-accent-200 rounded-lg p-3 focus:outline-none focus:ring-2 focus:ring-primary-400 text-gray-900 max-h-28"
-          placeholder="Ask anything... Shift+Enter for new line"
-          rows={3}
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          onKeyDown={handleKeyDown}
-          disabled={loading}
-        />
-        <div className="flex items-center justify-between gap-3 flex-wrap max-h-11">
-          <Paragraph variant="muted" gutter="none" className="text-sm">
-            Press Enter to send, Shift+Enter for new line.
-          </Paragraph>
-          <Button
-            variant="primary"
-            onClick={handleSend}
-            loading={loading}
-            disabled={loading || !input.trim()}
+          <div
+            ref={listRef}
+            className="flex-1 overflow-y-auto border border-accent-200 rounded-2xl bg-white shadow-sm p-4 min-h-[360px]"
           >
-            Send
-          </Button>
-        </div>
+            {loadingMessages ? (
+              <Paragraph variant="muted" gutter="none">
+                Loading messages...
+              </Paragraph>
+            ) : messages.length === 0 ? (
+              <div className="h-full min-h-[260px] flex items-center justify-center text-center">
+                <Paragraph variant="muted" gutter="none" className="max-w-md">
+                  Ask a study question to start this saved chat.
+                </Paragraph>
+              </div>
+            ) : (
+              <ChatMessageContainer messages={messages} onRetry={handleRetry} />
+            )}
+          </div>
+
+          {error && (
+            <Paragraph variant="error" className="mt-1">
+              {error}
+            </Paragraph>
+          )}
+
+          <div className="border border-accent-200 rounded-2xl bg-white shadow-sm p-4 space-y-3">
+            <textarea
+              className="w-full border border-accent-200 rounded-lg p-3 focus:outline-none focus:ring-2 focus:ring-primary-400 text-gray-900 max-h-28"
+              placeholder="Ask a study question... Shift+Enter for new line"
+              rows={3}
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              onKeyDown={handleKeyDown}
+              disabled={sending || loadingChats}
+              maxLength={4000}
+            />
+            <div className="flex items-center justify-between gap-3 flex-wrap">
+              <Paragraph variant="muted" gutter="none" className="text-sm">
+                {input.length}/4000
+              </Paragraph>
+              <Button
+                variant="primary"
+                onClick={handleSend}
+                loading={sending}
+                disabled={sending || loadingChats || !input.trim()}
+              >
+                Send
+              </Button>
+            </div>
+          </div>
+        </main>
       </div>
     </div>
   );
