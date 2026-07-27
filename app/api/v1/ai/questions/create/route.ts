@@ -3,6 +3,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/auth";
+import { getErrorMessage, getString, isRecord } from "@/lib/type-utils";
 import OpenAI from "openai";
 
 export async function POST(req: Request) {
@@ -16,7 +17,7 @@ export async function POST(req: Request) {
   // -------------------------------------
   // 2. PARSE BODY
   // -------------------------------------
-  let body: any;
+  let body: unknown;
 
   try {
     body = await req.json();
@@ -27,9 +28,18 @@ export async function POST(req: Request) {
     );
   }
 
-  const { questionText, subjectId, topicId } = body;
+  if (!isRecord(body)) {
+    return NextResponse.json(
+      { error: "Invalid JSON body" },
+      { status: 400 }
+    );
+  }
 
-  if (!questionText || typeof questionText !== "string") {
+  const questionText = getString(body.questionText);
+  const subjectId = getString(body.subjectId);
+  const topicId = getString(body.topicId);
+
+  if (!questionText) {
     return NextResponse.json(
       { error: "questionText is required (string)" },
       { status: 400 }
@@ -118,9 +128,12 @@ export async function POST(req: Request) {
     aiText =
       completion.choices?.[0]?.message?.content ||
       "I'm sorry — I couldn't generate a response.";
-  } catch (err: any) {
+  } catch (err: unknown) {
     return NextResponse.json(
-      { error: "AI response generation failed", details: err.message },
+      {
+        error: "AI response generation failed",
+        details: getErrorMessage(err),
+      },
       { status: 500 }
     );
   }
