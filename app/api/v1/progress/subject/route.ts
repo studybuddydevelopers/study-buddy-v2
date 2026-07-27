@@ -54,14 +54,10 @@ export async function POST(req: Request) {
   // -------------------------------------
   const updated = await prisma.progressTrack.upsert({
     where: {
-      // Composite uniqueness is not defined in schema,
-      // so we use userId + subjectId combination as unique for upsert.
-      id: (
-        await prisma.progressTrack.findFirst({
-          where: { userId: dbUser.id, subjectId },
-          select: { id: true },
-        })
-      )?.id ?? "__new__"
+      userId_subjectId: {
+        userId: dbUser.id,
+        subjectId,
+      },
     },
     update: {
       progressPercentage: clampedProgress,
