@@ -2,6 +2,26 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/auth";
+import { isRecord } from "@/lib/type-utils";
+
+interface ProgressUpdateInput {
+  subjectId: string;
+  progressPercentage: unknown;
+}
+
+interface NormalizedProgressUpdate {
+  subjectId: string;
+  progressPercentage: number;
+}
+
+function isProgressUpdateInput(value: unknown): value is ProgressUpdateInput {
+  return (
+    isRecord(value) &&
+    typeof value.subjectId === "string" &&
+    value.subjectId.length > 0 &&
+    "progressPercentage" in value
+  );
+}
 
 export async function POST(req: Request) {
   // -----------------------------------------
@@ -14,110 +34,109 @@ export async function POST(req: Request) {
   // -----------------------------------------
   // 2. PARSE INPUT
   // -----------------------------------------
-  const body = await req.json().catch(() => null);
-  const updates = body?.updates;
+  const body: unknown = await req.json().catch(() => null);
+  const rawUpdates = isRecord(body) ? body.updates : undefined;
 
-  if (!Array.isArray(updates) || updates.length === 0) {
+  if (!Array.isArray(rawUpdates) || rawUpdates.length === 0) {
     return NextResponse.json(
       { error: "updates must be a non-empty array" },
       { status: 400 }
     );
   }
 
+  const updates: ProgressUpdateInput[] = [];
+  for (const item of rawUpdates) {
+    if (!isProgressUpdateInput(item)) {
+      return NextResponse.json(
+        {
+          error:
+            "Each update must include subjectId and progressPercentage fields",
+        },
+        { status: 400 }
+      );
+    }
+    updates.push(item);
+  }
+
   // -----------------------------------------
   // 3. VALIDATION: Ensure all subjectIds exist
   // -----------------------------------------
-  const subjectIds = updates.map((u: any) => u.subjectId);
+  const subjectIds = updates.map((u) => u.subjectId);
 
   const subjects = await prisma.subject.findMany({
     where: { id: { in: subjectIds } },
-    select: { id: true }
+    select: { id: true },
   });
 
   const validSubjectIds = new Set(subjects.map((s) => s.id));
 
-  const invalid = updates.filter((u: any) => !validSubjectIds.has(u.subjectId));
+  const invalid = updates.filter((u) => !validSubjectIds.has(u.subjectId));
 
   if (invalid.length > 0) {
     return NextResponse.json(
       {
         error: "Some subjectIds are invalid",
-        invalidSubjectIds: invalid.map((i: any) => i.subjectId),
+        invalidSubjectIds: invalid.map((i) => i.subjectId),
       },
       { status: 400 }
     );
   }
 
-  // -----------------------------------------
-  // 4. GET EXISTING PROGRESS TRACKS
-  // -----------------------------------------
-  const existingTracks = await prisma.progressTrack.findMany({
-    where: {
-      userId: dbUser.id,
-      subjectId: { in: subjectIds }
-    }
-  });
-
-  const existingMap = new Map(existingTracks.map((t) => [t.subjectId, t]));
-
-  const operations = [];
-
-  // -----------------------------------------
-  // 5. CREATE UPDATE OPERATIONS
-  // -----------------------------------------
+  const normalizedUpdates: NormalizedProgressUpdate[] = [];
   for (const item of updates) {
-    const subjectId = item.subjectId;
     const percentage = Number(item.progressPercentage);
 
-    if (isNaN(percentage)) {
+    if (Number.isNaN(percentage)) {
       return NextResponse.json(
-        { error: `Invalid progressPercentage for subject ${subjectId}` },
+        { error: `Invalid progressPercentage for subject ${item.subjectId}` },
         { status: 400 }
       );
     }
 
-    const clamped = Math.max(0, Math.min(100, percentage));
-    const existing = existingMap.get(subjectId);
-
-    if (existing) {
-      // UPDATE
-      operations.push(
-        prisma.progressTrack.update({
-          where: { id: existing.id },
-          data: {
-            progressPercentage: clamped,
-            updatedAt: new Date(),
-          }
-        })
-      );
-    } else {
-      // CREATE
-      operations.push(
-        prisma.progressTrack.create({
-          data: {
-            userId: dbUser.id,
-            subjectId,
-            progressPercentage: clamped,
-          }
-        })
-      );
-    }
+    normalizedUpdates.push({
+      subjectId: item.subjectId,
+      progressPercentage: Math.max(0, Math.min(100, percentage)),
+    });
   }
 
   // -----------------------------------------
-  // 6. RUN TRANSACTION
+  // 4. CREATE UPSERT OPERATIONS
+  // -----------------------------------------
+  const operations = normalizedUpdates.map((item) => {
+    const subjectId = item.subjectId;
+    return prisma.progressTrack.upsert({
+      where: {
+        userId_subjectId: {
+          userId: dbUser.id,
+          subjectId,
+        },
+      },
+      update: {
+        progressPercentage: item.progressPercentage,
+        updatedAt: new Date(),
+      },
+      create: {
+        userId: dbUser.id,
+        subjectId,
+        progressPercentage: item.progressPercentage,
+      },
+    });
+  });
+
+  // -----------------------------------------
+  // 5. RUN TRANSACTION
   // -----------------------------------------
   const results = await prisma.$transaction(operations);
 
   // -----------------------------------------
-  // 7. RESPONSE
+  // 6. RESPONSE
   // -----------------------------------------
   return NextResponse.json({
     success: true,
     updated: results.map((r) => ({
       subjectId: r.subjectId,
       progressPercentage: r.progressPercentage,
-      updatedAt: r.updatedAt
-    }))
+      updatedAt: r.updatedAt,
+    })),
   });
 }
