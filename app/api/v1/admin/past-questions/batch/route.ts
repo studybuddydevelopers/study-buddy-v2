@@ -2,6 +2,52 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireAdmin } from "@/lib/auth";
+import { getErrorMessage, isRecord } from "@/lib/type-utils";
+
+interface PastQuestionBatchInput {
+  subjectId: string;
+  topicId?: string | null;
+  questionText: string;
+  questionImageUrl?: string | null;
+  answerText: string;
+  explanationText?: string | null;
+  year?: number | null;
+  questionNumber?: string | null;
+  difficulty?: number | null;
+}
+
+function isPastQuestionBatchInput(
+  value: unknown
+): value is PastQuestionBatchInput {
+  if (!isRecord(value)) return false;
+
+  return (
+    typeof value.subjectId === "string" &&
+    value.subjectId.length > 0 &&
+    typeof value.questionText === "string" &&
+    value.questionText.length > 0 &&
+    typeof value.answerText === "string" &&
+    value.answerText.length > 0 &&
+    (value.topicId === undefined ||
+      value.topicId === null ||
+      typeof value.topicId === "string") &&
+    (value.questionImageUrl === undefined ||
+      value.questionImageUrl === null ||
+      typeof value.questionImageUrl === "string") &&
+    (value.explanationText === undefined ||
+      value.explanationText === null ||
+      typeof value.explanationText === "string") &&
+    (value.year === undefined ||
+      value.year === null ||
+      typeof value.year === "number") &&
+    (value.questionNumber === undefined ||
+      value.questionNumber === null ||
+      typeof value.questionNumber === "string") &&
+    (value.difficulty === undefined ||
+      value.difficulty === null ||
+      typeof value.difficulty === "number")
+  );
+}
 
 /**
  * POST /v1/admin/past-questions/batch
@@ -31,7 +77,7 @@ export async function POST(req: Request) {
   // -------------------------------------
   // 2. Parse Input
   // -------------------------------------
-  let body;
+  let body: unknown;
   try {
     body = await req.json();
   } catch {
@@ -66,30 +112,12 @@ export async function POST(req: Request) {
     const item = body[i];
 
     // Required fields
-    if (!item.subjectId || !item.questionText || !item.answerText) {
+    if (!isPastQuestionBatchInput(item)) {
       results.push({
         index: i,
         success: false,
-        error: "Missing required fields (subjectId, questionText, answerText)",
-      });
-      continue;
-    }
-
-    // Optional numeric validations
-    if (item.year && typeof item.year !== "number") {
-      results.push({
-        index: i,
-        success: false,
-        error: "year must be a number",
-      });
-      continue;
-    }
-
-    if (item.difficulty && typeof item.difficulty !== "number") {
-      results.push({
-        index: i,
-        success: false,
-        error: "difficulty must be a number",
+        error:
+          "Each item must include string subjectId, questionText, and answerText; optional fields must match their expected types",
       });
       continue;
     }
@@ -117,11 +145,11 @@ export async function POST(req: Request) {
         success: true,
         id: record.id,
       });
-    } catch (err: any) {
+    } catch (err: unknown) {
       results.push({
         index: i,
         success: false,
-        error: err?.message || "Database error",
+        error: getErrorMessage(err, "Database error"),
       });
     }
   }
