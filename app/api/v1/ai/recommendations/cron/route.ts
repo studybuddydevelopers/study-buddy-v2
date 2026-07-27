@@ -1,6 +1,7 @@
 // app/api/v1/ai/recommendations/cron/route.ts
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { getErrorMessage } from "@/lib/type-utils";
 import OpenAI from "openai";
 
 // Simple cron endpoint: call with a secret header every 24h from a scheduler
@@ -72,8 +73,8 @@ Output only the recommendation text.`;
       });
 
       created.push(user.id);
-    } catch (err: any) {
-      errors.push({ userId: user.id, error: err?.message || "unknown error" });
+    } catch (err: unknown) {
+      errors.push({ userId: user.id, error: getErrorMessage(err) });
     }
   }
 
