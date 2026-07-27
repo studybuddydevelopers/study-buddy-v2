@@ -340,7 +340,7 @@ model ProgressTrack {
   user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
   subject Subject @relation(fields: [subjectId], references: [id], onDelete: Cascade)
 
-  @@index([userId, subjectId], map: "ProgressTrack_userId_subjectId_idx")
+  @@unique([userId, subjectId], map: "ProgressTrack_userId_subjectId_key")
 }
 
 // =========================================================
