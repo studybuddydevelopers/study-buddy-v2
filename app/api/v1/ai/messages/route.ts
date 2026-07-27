@@ -1,6 +1,7 @@
 // app/api/v1/ai/messages/route.ts
 import { NextResponse } from "next/server";
 import { requireUser } from "@/lib/auth";
+import { getErrorMessage, getString, isRecord } from "@/lib/type-utils";
 import OpenAI from "openai";
 
 export async function POST(req: Request) {
@@ -15,7 +16,7 @@ export async function POST(req: Request) {
   // -------------------------------------
   // 2. PARSE INPUT
   // -------------------------------------
-  let body: any;
+  let body: unknown;
   try {
     body = await req.json();
   } catch {
@@ -25,9 +26,18 @@ export async function POST(req: Request) {
     );
   }
 
-  const { message, subjectId, topicId } = body;
+  if (!isRecord(body)) {
+    return NextResponse.json(
+      { error: "Invalid JSON body" },
+      { status: 400 }
+    );
+  }
 
-  if (!message || typeof message !== "string") {
+  const message = getString(body.message);
+  const subjectId = getString(body.subjectId);
+  const topicId = getString(body.topicId);
+
+  if (!message) {
     return NextResponse.json(
       { error: "message is required (string)" },
       { status: 400 }
@@ -85,9 +95,9 @@ ${topicId ? `Topic ID: ${topicId}` : ""}
     aiText =
       completion.choices?.[0]?.message?.content ||
       "I'm sorry — I couldn't generate a response.";
-  } catch (err: any) {
+  } catch (err: unknown) {
     return NextResponse.json(
-      { error: "AI generation failed", details: err?.message },
+      { error: "AI generation failed", details: getErrorMessage(err) },
       { status: 500 }
     );
   }
