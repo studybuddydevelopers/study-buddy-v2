@@ -1,6 +1,21 @@
 -- Query-performance indexes for dashboard/progress, practice materials,
 -- AI tutor threads, mock exams, subscription lists, schools, and payments.
 
+-- Backfill default settings for users created before UserSettings was introduced.
+INSERT INTO "UserSettings" (
+  "userId",
+  "cloudPracticeDraftsEnabled",
+  "lowDataModeEnabled",
+  "updatedAt"
+)
+SELECT
+  id,
+  false,
+  false,
+  CURRENT_TIMESTAMP
+FROM "User"
+ON CONFLICT ("userId") DO NOTHING;
+
 CREATE INDEX "User_createdAt_idx" ON "User"("createdAt");
 CREATE INDEX "User_isAdmin_createdAt_idx" ON "User"("isAdmin", "createdAt");
 
