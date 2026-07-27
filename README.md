@@ -19,6 +19,7 @@ Study Buddy v2 is a Next.js learning platform for exam preparation. It combines 
 - Mock exams: start, save progress, submit, and grade full exam instances
 - Progress: subject progress, practice accuracy, and exam history
 - AI: quick chat, saved AI question threads, and study recommendations
+- AI Chat Stage 1: persistent general chat threads with provider-neutral generation, idempotent sends, retry-safe failures, and refresh-safe history. This is not yet resource-grounded RAG.
 - Accounts and billing: auth, profile, subscriptions, and payments
 - Admin and schools: content upload, user lookup, and school membership management
 
@@ -138,10 +139,29 @@ Key models:
 - `Subject`, `Topic`, `PastQuestion`
 - `PastQuestionAttempt`
 - `MockExamTemplate`, `MockExamInstance`, `MockExamAnswer`
+- `AiChat`, `AiChatMessage`, `AiGenerationRequest`
 - `AiQuestion`, `AiQuestionMessage`, `Recommendation`
 - `ProgressTrack`
 - `Subscription`, `Transaction`
 - `School`, `SchoolStudent`
+
+## AI Chat Stage 1
+
+Implemented persistent general chat:
+
+- New Stage 1 models: `AiChat`, `AiChatMessage`, and `AiGenerationRequest`.
+- Legacy `AiQuestion`, `AiQuestionMessage`, and `/api/v1/ai/questions/*` are unchanged.
+- `/chat` now loads saved chat threads and messages after refresh.
+- Chat classification is stored at chat level with optional `subjectId` and `topicId`.
+- Message sends use `clientRequestId` idempotency on `AiGenerationRequest`.
+- Pending assistant placeholders are stored with empty `content` and `status = PENDING`.
+- Failed generations store only safe failure codes and can be retried without duplicating the user message.
+- New chat routes are thin and delegate lifecycle, transactions, retries, and provider calls to `ChatService`.
+- OpenAI-specific code lives in [`lib/ai/chat/openai-provider.ts`](/Users/efeon/study-buddy-v2/lib/ai/chat/openai-provider.ts); tests use `FakeChatModelProvider`.
+
+Stage 1 is intentionally not resource-grounded. It does not add resources, chunks, embeddings, vector search, citations, PDF/DOCX extraction, RAG prompts, source previews, grounding evaluation, or tutor modes.
+
+Migration and rollback notes: [`docs/AI_CHAT_STAGE_1_MIGRATION.md`](/Users/efeon/study-buddy-v2/docs/AI_CHAT_STAGE_1_MIGRATION.md).
 
 ## Database And Query Optimizations
 
@@ -216,6 +236,9 @@ The app expects environment variables for:
 - Supabase URL and anon key
 - database connection strings
 - OpenAI API key
+- Stage 1 AI chat config:
+  - `AI_CHAT_PROVIDER=openai`
+  - `AI_CHAT_MODEL=gpt-4o-mini`
 - payment provider secrets
 - optional cron secret for recommendation generation
 - CAPTCHA frontend config when Supabase Auth CAPTCHA is enabled:
@@ -227,5 +250,6 @@ The app expects environment variables for:
 - [`CODEBASE_BREAKDOWN.md`](/Users/efeon/study-buddy-v2/CODEBASE_BREAKDOWN.md): broad codebase map
 - [`docs/WEBSITE_GUIDE.md`](/Users/efeon/study-buddy-v2/docs/WEBSITE_GUIDE.md): path-by-path app walkthrough
 - [`docs/PERFORMANCE_AND_LOW_DATA_RULEBOOK.md`](/Users/efeon/study-buddy-v2/docs/PERFORMANCE_AND_LOW_DATA_RULEBOOK.md): mandatory performance, bandwidth, low-data, and resilience rules for future LLM/code changes
+- [`docs/AI_CHAT_STAGE_1_MIGRATION.md`](/Users/efeon/study-buddy-v2/docs/AI_CHAT_STAGE_1_MIGRATION.md): persistent chat migration, lifecycle, retry, and rollback notes
 - [`AI_FEATURES_GUIDE.md`](/Users/efeon/study-buddy-v2/AI_FEATURES_GUIDE.md): AI-specific implementation notes
 - [`app/api/v1/README.md`](/Users/efeon/study-buddy-v2/app/api/v1/README.md): API contracts
