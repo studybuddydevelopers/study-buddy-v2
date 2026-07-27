@@ -5,10 +5,13 @@
 import Button from "@/components/Button";
 import Heading1 from "@/components/Heading1";
 import Paragraph from "@/components/Paragraph";
+import { useRouter } from "next/navigation";
 
 export default function AlreadyLoggedInClient() {
+  const router = useRouter();
+
   const goToDashboard = () => {
-    window.location.href = "/dashboard";
+    router.push("/dashboard");
   };
 
   return (
