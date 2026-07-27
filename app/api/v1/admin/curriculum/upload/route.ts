@@ -2,7 +2,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireAdmin } from "@/lib/auth";
-import { createServerClient } from "@supabase/ssr";
+import { createServerClient, type CookieOptions } from "@supabase/ssr";
 
 export async function POST(req: Request) {
   // -------------------------------------
@@ -54,10 +54,10 @@ export async function POST(req: Request) {
             .find((c) => c.startsWith(name + "="))
             ?.split("=")?.[1];
         },
-        set(name: string, value: string, options: any) {
+        set(name: string, value: string, options: CookieOptions) {
           res.cookies.set(name, value, { ...options, path: "/" });
         },
-        remove(name: string, options: any) {
+        remove(name: string, options: CookieOptions) {
           res.cookies.set(name, "", { ...options, maxAge: 0, path: "/" });
         },
       },
