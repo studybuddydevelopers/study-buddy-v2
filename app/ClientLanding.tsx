@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 
 import Button from "@/components/Button";
 import Heading1 from "@/components/Heading1";
@@ -13,13 +14,14 @@ import { PiGraduationCapLight, PiShieldCheck } from "react-icons/pi";
 import { HiOutlinePresentationChartBar, HiOutlineUserGroup } from "react-icons/hi";
 
 export default function ClientLanding() {
+  const router = useRouter();
   const [loadingStart, setLoadingStart] = useState(false);
   const [loadingLearn, setLoadingLearn] = useState(false);
 
   const handleStart = () => {
     setLoadingStart(true);
     setTimeout(() => {
-      window.location.href = "/sign-up";
+      router.push("/sign-up");
     }, 600);
   };
 
