@@ -3,6 +3,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/auth";
+import { getErrorMessage, getString, isRecord } from "@/lib/type-utils";
 import OpenAI from "openai";
 import { Recommendation } from "@prisma/client";
 
@@ -105,8 +106,11 @@ Include a concrete action and target (e.g., number of questions, time block). Ou
           return generateRecommendationText(prompt);
         })
       );
-    } catch (err: any) {
-      console.log("There is an error that occured, err: ", err);
+    } catch (err: unknown) {
+      console.log(
+        "There is an error that occured, err: ",
+        getErrorMessage(err)
+      );
       generated = [
         "Review your lowest-progress subject today and complete one focused practice set.",
       ];
@@ -155,16 +159,22 @@ export async function POST(req: Request) {
   // -------------------------------------
   // 2. PARSE INPUT
   // -------------------------------------
-  let body: any;
+  let body: unknown;
   try {
     body = await req.json();
   } catch {
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
   }
 
-  const { subjectId, topicId, context } = body;
+  if (!isRecord(body)) {
+    return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
+  }
 
-  if (context && typeof context !== "string") {
+  const subjectId = getString(body.subjectId);
+  const topicId = getString(body.topicId);
+  const context = getString(body.context);
+
+  if (body.context !== undefined && context === undefined) {
     return NextResponse.json(
       { error: "context must be a string" },
       { status: 400 }
@@ -219,9 +229,9 @@ Output ONLY the recommendation text.
     recommendationText =
       completion.choices?.[0]?.message?.content ||
       "I'm sorry — I couldn't generate a recommendation.";
-  } catch (err: any) {
+  } catch (err: unknown) {
     return NextResponse.json(
-      { error: "AI generation failed", details: err.message },
+      { error: "AI generation failed", details: getErrorMessage(err) },
       { status: 500 }
     );
   }
