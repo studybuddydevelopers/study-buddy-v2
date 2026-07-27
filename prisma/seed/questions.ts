@@ -41,7 +41,7 @@ const numberNumeration = (count: number): ResolvableQuestion[] => {
     ["(9)^(3/2)", "27", "27", "9^(1/2)=3, then 3^3=27."],
   ];
   for (let i = 0; i < Math.min(count - items.length, indexItems.length); i++) {
-    const [expr, simplified, answer, explanation] = indexItems[i];
+    const [expr, , answer, explanation] = indexItems[i];
     items.push({
       subjectName: "WAEC Mathematics",
       topicTitle: "Number & Numeration",
