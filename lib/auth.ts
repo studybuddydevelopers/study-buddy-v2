@@ -3,13 +3,15 @@ import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { createServerClient } from "@supabase/ssr";
 import { prisma } from "@/lib/prisma";
+import { getServerSupabaseConfig } from "@/lib/supabase/config";
 
 export async function requireUser() {
   const cookieStore = await cookies();
+  const supabaseConfig = getServerSupabaseConfig();
 
   const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    supabaseConfig.url,
+    supabaseConfig.key,
     {
       cookies: {
         get(name) {
