@@ -2,6 +2,7 @@
 
 import { NextResponse } from "next/server";
 import { createServerClient } from "@supabase/ssr";
+import { getServerSupabaseConfig } from "@/lib/supabase/config";
 
 export async function POST(req: Request) {
   const body = await req.json();
@@ -14,13 +15,14 @@ export async function POST(req: Request) {
   }
 
   const res = NextResponse.json({ success: true });
+  const supabaseConfig = getServerSupabaseConfig();
 
   // --------------------------
   // SUPABASE COOKIE-AWARE CLIENT
   // --------------------------
   const supabase = createServerClient(
-    process.env.SUPABASE_URL!,
-    process.env.SUPABASE_ANON_KEY!,
+    supabaseConfig.url,
+    supabaseConfig.key,
     {
       cookies: {
         get(name) {
