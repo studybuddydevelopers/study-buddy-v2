@@ -5,6 +5,7 @@ export type ChatServiceErrorCode =
   | "INVALID_INPUT"
   | "INVALID_SUBJECT_TOPIC"
   | "REQUEST_PENDING"
+  | "CHAT_LOCKED"
   | "PROVIDER_TIMEOUT"
   | "RATE_LIMITED"
   | "PROVIDER_ERROR"
