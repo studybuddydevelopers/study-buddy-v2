@@ -20,6 +20,9 @@ interface ImageProps {
   quality?: number;
   loading?: "eager" | "lazy";
   fetchPriority?: "high" | "low" | "auto";
+  width?: number;
+  height?: number;
+  dataChatAvatar?: boolean;
 }
 
 export default function Image({
@@ -35,6 +38,9 @@ export default function Image({
   quality,
   loading = "lazy",
   fetchPriority = "auto",
+  width,
+  height,
+  dataChatAvatar = false,
 }: ImageProps) {
   const roundedClasses: Record<NonNullable<ImageProps["rounded"]>, string> = {
     none: "",
@@ -78,6 +84,9 @@ export default function Image({
       alt={alt}
       className={classes}
       loading={loading}
+      width={width}
+      height={height}
+      data-chat-avatar={dataChatAvatar ? "" : undefined}
       decoding="async"
       fetchPriority={fetchPriority}
       srcSet={srcSet}
