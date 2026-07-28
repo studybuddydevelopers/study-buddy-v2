@@ -1,6 +1,7 @@
 "use client";
 import ReactMarkdown from "react-markdown";
 import Image from "@/components/Image";
+import { FAILED_ASSISTANT_MESSAGE } from "@/components/chatFailureCopy";
 
 
 interface ChatMessageProps {
@@ -20,7 +21,6 @@ export default function ChatMessage({
   name,
   avatar,
   status = "COMPLETED",
-  failureCode,
   onRetry,
   retrying = false,
 }: ChatMessageProps) {
@@ -70,10 +70,7 @@ export default function ChatMessage({
             </div>
           ) : isFailed ? (
             <div className="space-y-2">
-              <p>
-                Sorry, I couldn&apos;t respond right now
-                {failureCode ? ` (${failureCode})` : ""}.
-              </p>
+              <p>{FAILED_ASSISTANT_MESSAGE}</p>
               {onRetry && (
                 <button
                   type="button"
