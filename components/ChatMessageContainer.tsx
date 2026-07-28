@@ -12,6 +12,7 @@ export interface ChatMessageData {
   failureCode?: string | null;
   requestId?: string | null;
   retrying?: boolean;
+  createdAt?: string;
 }
 
 interface ChatMessageContainerProps {
@@ -21,7 +22,7 @@ interface ChatMessageContainerProps {
 
 export default function ChatMessageContainer({ messages, onRetry }: Readonly<ChatMessageContainerProps>) {
   return (
-    <div className="flex flex-col w-full space-y-4">
+    <div className="flex w-full min-w-0 flex-col space-y-3">
       {messages.map((msg) => (
         <ChatMessage
           key={msg.id}
