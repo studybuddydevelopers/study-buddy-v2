@@ -19,9 +19,7 @@ export async function POST(_req: Request, context: RouteContext) {
       chatId,
       requestId
     );
-    const status =
-      (result as { error?: { status?: number } }).error?.status ?? 200;
-    return NextResponse.json(result, { status });
+    return NextResponse.json(result);
   } catch (error) {
     return chatRouteErrorResponse(error);
   }
