@@ -310,6 +310,13 @@ class InMemoryChatDb {
       ...chat,
       subject: this.subjects.find((item) => item.id === chat.subjectId) ?? null,
       topic: this.topics.find((item) => item.id === chat.topicId) ?? null,
+      messages: this.messages
+        .filter(
+          (message) =>
+            message.chatId === chat.id && message.role === AiChatRole.USER
+        )
+        .slice(0, 1)
+        .map((message) => ({ id: message.id })),
     };
   }
 
@@ -419,6 +426,103 @@ describe("ChatService Stage 1 lifecycle", () => {
     expect(result.chat.topicId).toBeNull();
   });
 
+  it("allows an empty chat to change subject and topic", async () => {
+    const { db, service } = createService();
+    db.seedChat({ id: "chat-1", userId: "user-a" });
+
+    const result = await service.updateChat("user-a", "chat-1", {
+      subjectId: "11111111-1111-4111-8111-111111111111",
+      topicId: "22222222-2222-4222-8222-222222222222",
+    });
+
+    expect(result.chat.subjectId).toBe("11111111-1111-4111-8111-111111111111");
+    expect(result.chat.topicId).toBe("22222222-2222-4222-8222-222222222222");
+    expect(result.chat.isStarted).toBe(false);
+  });
+
+  it("rejects subject changes after the first user message", async () => {
+    const { db, service } = createService();
+    db.subjects.push({ id: "44444444-4444-4444-8444-444444444444", name: "Biology", examCode: "BIO" });
+    db.seedChat({
+      id: "chat-1",
+      userId: "user-a",
+      subjectId: "11111111-1111-4111-8111-111111111111",
+      topicId: "22222222-2222-4222-8222-222222222222",
+    });
+    await db.aiChatMessage.create({
+      data: {
+        chatId: "chat-1",
+        role: AiChatRole.USER,
+        content: "Started",
+        status: AiChatMessageStatus.COMPLETED,
+      },
+    });
+
+    await expect(
+      service.updateChat("user-a", "chat-1", {
+        subjectId: "44444444-4444-4444-8444-444444444444",
+      })
+    ).rejects.toMatchObject({
+      code: "CHAT_LOCKED",
+      status: 409,
+    });
+  });
+
+  it("rejects topic changes after the first user message", async () => {
+    const { db, service } = createService();
+    db.seedChat({
+      id: "chat-1",
+      userId: "user-a",
+      subjectId: "11111111-1111-4111-8111-111111111111",
+      topicId: "22222222-2222-4222-8222-222222222222",
+    });
+    await db.aiChatMessage.create({
+      data: {
+        chatId: "chat-1",
+        role: AiChatRole.USER,
+        content: "Started",
+        status: AiChatMessageStatus.COMPLETED,
+      },
+    });
+
+    await expect(
+      service.updateChat("user-a", "chat-1", {
+        topicId: null,
+      })
+    ).rejects.toMatchObject({
+      code: "CHAT_LOCKED",
+      status: 409,
+    });
+  });
+
+  it("allows rename after a chat has started", async () => {
+    const { db, service } = createService();
+    db.seedChat({
+      id: "chat-1",
+      userId: "user-a",
+      title: "Before",
+      subjectId: "11111111-1111-4111-8111-111111111111",
+      topicId: "22222222-2222-4222-8222-222222222222",
+    });
+    await db.aiChatMessage.create({
+      data: {
+        chatId: "chat-1",
+        role: AiChatRole.USER,
+        content: "Started",
+        status: AiChatMessageStatus.COMPLETED,
+      },
+    });
+
+    const result = await service.updateChat("user-a", "chat-1", {
+      title: "After",
+    });
+
+    expect(result.chat.title).toBe("After");
+    expect(result.chat.subjectId).toBe("11111111-1111-4111-8111-111111111111");
+    expect(result.chat.topicId).toBe("22222222-2222-4222-8222-222222222222");
+    expect(result.chat.isStarted).toBe(true);
+  });
+
   it("creates one user message and an empty pending assistant before successful completion", async () => {
     const { db, service } = createService();
     db.seedChat({ id: "chat-1", userId: "user-a" });
@@ -452,6 +556,41 @@ describe("ChatService Stage 1 lifecycle", () => {
     expect(provider.invocations).toBe(1);
     expect(duplicate.generated).toBe(false);
     expect(db.messages.filter((message) => message.role === AiChatRole.USER)).toHaveLength(1);
+  });
+
+  it("lists persisted two-turn messages in chronological chat order", async () => {
+    const { db, service } = createService(
+      new InMemoryChatDb(),
+      new SequenceProvider([
+        { text: "Assistant 1", provider: "fake", model: "fake-chat" },
+        { text: "Assistant 2", provider: "fake", model: "fake-chat" },
+      ])
+    );
+    db.seedChat({ id: "chat-1", userId: "user-a" });
+
+    await service.sendMessage("user-a", "chat-1", {
+      message: "User 1",
+      clientRequestId: "request-1",
+    });
+    await service.sendMessage("user-a", "chat-1", {
+      message: "User 2",
+      clientRequestId: "request-2",
+    });
+
+    const result = await service.listMessages("user-a", "chat-1");
+
+    expect(result.messages.map((message) => message.role)).toEqual([
+      AiChatRole.USER,
+      AiChatRole.ASSISTANT,
+      AiChatRole.USER,
+      AiChatRole.ASSISTANT,
+    ]);
+    expect(result.messages.map((message) => message.content)).toEqual([
+      "User 1",
+      "Assistant 1",
+      "User 2",
+      "Assistant 2",
+    ]);
   });
 
   it("duplicate pending requests return pending state and do not regenerate", async () => {
@@ -495,6 +634,12 @@ describe("ChatService Stage 1 lifecycle", () => {
       message: "Explain indices",
       clientRequestId: "request-failed",
     });
+
+    expect(failed.assistantMessage.requestId).toBe(failed.request.id);
+    expect(failed.assistantMessage.requestStatus).toBe(
+      AiGenerationRequestStatus.FAILED
+    );
+
     const retry = await service.retryGeneration(
       "user-a",
       "chat-1",
@@ -542,6 +687,7 @@ describe("ChatService Stage 1 lifecycle", () => {
     });
 
     expect(result.request.status).toBe(AiGenerationRequestStatus.FAILED);
+    expect(result.assistantMessage.requestId).toBe(result.request.id);
     expect(result.assistantMessage.status).toBe(AiChatMessageStatus.FAILED);
     expect(result.assistantMessage.content).toBe("");
     expect(result.assistantMessage.failureCode).toBe(AiGenerationFailureCode.INVALID_PROVIDER_RESPONSE);
