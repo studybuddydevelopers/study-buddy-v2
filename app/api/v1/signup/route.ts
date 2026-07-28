@@ -3,6 +3,7 @@
 import { NextResponse } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 import { prisma } from "@/lib/prisma";
+import { getServerSupabaseConfig } from "@/lib/supabase/config";
 
 export async function POST(req: Request) {
   const body = await req.json();
@@ -26,10 +27,11 @@ export async function POST(req: Request) {
 
   // MUST be created before supabase so cookies attach to it
   const res = NextResponse.json({ success: true });
+  const supabaseConfig = getServerSupabaseConfig();
 
   const supabase = createServerClient(
-    process.env.SUPABASE_URL!,          // ✅ FIXED
-    process.env.SUPABASE_ANON_KEY!,     // ✅ FIXED
+    supabaseConfig.url,
+    supabaseConfig.key,
     {
       cookies: {
         get(name) {
