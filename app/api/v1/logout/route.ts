@@ -1,12 +1,14 @@
 import { NextResponse } from "next/server";
 import { createServerClient } from "@supabase/ssr";
+import { getServerSupabaseConfig } from "@/lib/supabase/config";
 
 export async function POST(req: Request) {
   const res = NextResponse.json({ ok: true });
+  const supabaseConfig = getServerSupabaseConfig();
 
   const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    supabaseConfig.url,
+    supabaseConfig.key,
     {
       cookies: {
         get(name) {
