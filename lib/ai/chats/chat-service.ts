@@ -27,6 +27,11 @@ const MESSAGE_PAGE_SIZE_MAX = 100;
 const chatInclude = {
   subject: { select: { id: true, name: true, examCode: true } },
   topic: { select: { id: true, title: true, subjectId: true } },
+  messages: {
+    where: { role: AiChatRole.USER },
+    select: { id: true },
+    take: 1,
+  },
 } satisfies Prisma.AiChatInclude;
 
 const requestInclude = {
@@ -131,6 +136,7 @@ function serializeChat(chat: AiChatWithRelations) {
     deletedAt: chat.deletedAt?.toISOString() ?? null,
     subject: chat.subject,
     topic: chat.topic,
+    isStarted: chat.messages.length > 0,
   };
 }
 
@@ -172,6 +178,18 @@ function serializeMessage(message: AiChatMessageWithRequest | AiGenerationWithMe
     requestId: request?.id ?? null,
     requestStatus: request?.status ?? null,
     clientRequestId: request?.clientRequestId ?? null,
+  };
+}
+
+function serializeGenerationMessage(
+  message: AiGenerationWithMessages["userMessage"],
+  request: AiGenerationWithMessages
+) {
+  return {
+    ...serializeMessage(message),
+    requestId: request.id,
+    requestStatus: request.status,
+    clientRequestId: request.clientRequestId,
   };
 }
 
@@ -330,6 +348,16 @@ export class ChatService {
         : subjectChanged
           ? null
           : existing.topicId;
+      const classificationChanged =
+        nextSubjectId !== existing.subjectId || nextTopicId !== existing.topicId;
+
+      if (classificationChanged && existing.messages.length > 0) {
+        throw new ChatServiceError(
+          "CHAT_LOCKED",
+          409,
+          "Subject and topic cannot be changed after a chat has started."
+        );
+      }
 
       await this.validateSubjectTopic(tx, nextSubjectId, nextTopicId);
 
@@ -450,6 +478,7 @@ export class ChatService {
             role: AiChatRole.ASSISTANT,
             content: "",
             status: AiChatMessageStatus.PENDING,
+            createdAt: new Date(userMessage.createdAt.getTime() + 1),
           },
         });
 
@@ -701,8 +730,11 @@ export class ChatService {
           false
         ),
         request: serializeGenerationRequest(request),
-        userMessage: serializeMessage(request.userMessage),
-        assistantMessage: serializeMessage(request.assistantMessage),
+        userMessage: serializeGenerationMessage(request.userMessage, request),
+        assistantMessage: serializeGenerationMessage(
+          request.assistantMessage,
+          request
+        ),
         error: {
           code: serviceCode,
           status,
@@ -807,8 +839,14 @@ export class ChatService {
     return {
       chat: serializeChat(initialized.chat),
       request: serializeGenerationRequest(initialized.request),
-      userMessage: serializeMessage(initialized.request.userMessage),
-      assistantMessage: serializeMessage(initialized.request.assistantMessage),
+      userMessage: serializeGenerationMessage(
+        initialized.request.userMessage,
+        initialized.request
+      ),
+      assistantMessage: serializeGenerationMessage(
+        initialized.request.assistantMessage,
+        initialized.request
+      ),
       generated,
       retryRequired,
     };
