@@ -9,6 +9,10 @@ import Button from "@/components/Button";
 import ChatMessageContainer, {
   type ChatMessageData,
 } from "@/components/ChatMessageContainer";
+import {
+  getChatErrorMessage,
+  isGenerationFailureCode,
+} from "@/components/chatFailureCopy";
 
 const AI_AVATAR = "https://i.pravatar.cc/40?img=32";
 const DEFAULT_USER_AVATAR =
@@ -408,12 +412,12 @@ export default function ChatClient() {
       );
       applyGenerationResponse(data);
 
-      if (data.error) {
-        setError(data.error.code);
+      if (data.error && !isGenerationFailureCode(data.error.code)) {
+        setError(getChatErrorMessage(data.error.code));
       }
     } catch (err) {
       console.error(err);
-      setError((err as Error).message);
+      setError(getChatErrorMessage(err));
       setMessages((prev) =>
         prev.map((item) =>
           item.id === optimisticAssistantId
@@ -448,12 +452,12 @@ export default function ChatClient() {
         { method: "POST" }
       );
       applyGenerationResponse(data);
-      if (data.error) {
-        setError(data.error.code);
+      if (data.error && !isGenerationFailureCode(data.error.code)) {
+        setError(getChatErrorMessage(data.error.code));
       }
     } catch (err) {
       console.error(err);
-      setError((err as Error).message);
+      setError(getChatErrorMessage(err));
       setMessages((prev) =>
         prev.map((item) =>
           item.id === message.id
