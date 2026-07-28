@@ -30,26 +30,32 @@ export default function ChatMessage({
 
   return (
     <div
-      className={`flex items-start gap-2 w-full mb-4 ${isUser ? "justify-end text-right" : "justify-start text-left"
+      data-chat-message
+      data-sender={sender}
+      className={`flex items-start gap-2 w-full min-w-0 ${isUser ? "justify-end text-right" : "justify-start text-left"
         }`}
     >
       {/* Avatar (left for AI, right for user) */}
       {!isUser && avatar && (
         <Image
+          dataChatAvatar
           src={avatar}
           alt={name ?? ""}
-          className="h-8 w-8 rounded-full object-cover"
+          className="!h-9 !w-9 min-w-[36px] max-w-[36px] shrink-0 rounded-full object-cover"
           sizes="32px"
           widths={[32, 64]}
+          width={36}
+          height={36}
+          rounded="full"
         />
       )}
 
       {/* Message + Name wrapper */}
-      <div className="flex flex-col">
-        {name && <div className="text-sm text-gray-500 mb-1">{name}</div>}
+      <div className={`flex min-w-0 max-w-[78%] flex-col sm:max-w-[70%] ${isUser ? "items-end" : "items-start"}`}>
+        {name && <div className="mb-1 text-xs font-medium text-gray-500">{name}</div>}
 
         <div
-          className={`px-4 py-3 rounded-2xl text-sm leading-relaxed max-w-lg ${isUser
+          className={`max-w-full overflow-hidden break-words rounded-2xl px-4 py-3 text-sm leading-relaxed shadow-sm ${isUser
               ? "bg-primary-500 text-background"
               : isFailed
                 ? "bg-red-50 text-red-900 border border-red-100"
@@ -57,7 +63,7 @@ export default function ChatMessage({
             }`}
         >
           {isPending ? (
-            <div className="flex items-center gap-2 text-gray-600">
+            <div className="flex min-h-5 items-center gap-2 text-gray-600">
               <span className="h-2 w-2 rounded-full bg-primary-400 animate-pulse" />
               <span className="h-2 w-2 rounded-full bg-primary-300 animate-pulse [animation-delay:120ms]" />
               <span className="h-2 w-2 rounded-full bg-primary-200 animate-pulse [animation-delay:240ms]" />
@@ -73,14 +79,14 @@ export default function ChatMessage({
                   type="button"
                   onClick={retrying ? undefined : onRetry}
                   disabled={retrying}
-                  className="text-sm font-semibold text-red-700 underline disabled:opacity-60"
+                  className="rounded-md bg-red-100 px-3 py-1 text-sm font-semibold text-red-800 transition hover:bg-red-200 disabled:opacity-60"
                 >
                   {retrying ? "Retrying..." : "Retry"}
                 </button>
               )}
             </div>
           ) : (
-            <div className="prose prose-sm max-w-none">
+            <div className="prose prose-sm max-w-none break-words prose-p:my-1 prose-pre:max-w-full prose-pre:overflow-x-auto">
               <ReactMarkdown skipHtml>{text}</ReactMarkdown>
             </div>
           )}
@@ -91,11 +97,15 @@ export default function ChatMessage({
 
       {isUser && avatar && (
         <Image
+          dataChatAvatar
           src={avatar}
           alt={name ?? ""}
-          className="h-8 w-8 rounded-full object-cover"
+          className="!h-9 !w-9 min-w-[36px] max-w-[36px] shrink-0 rounded-full object-cover"
           sizes="32px"
           widths={[32, 64]}
+          width={36}
+          height={36}
+          rounded="full"
         />
       )}
     </div>
