@@ -1,6 +1,7 @@
 // app/api/v1/reset-password/route.ts
 import { NextResponse } from "next/server";
 import { createServerClient, type CookieOptions } from "@supabase/ssr";
+import { getServerSupabaseConfig } from "@/lib/supabase/config";
 
 export async function POST(req: Request) {
   const body = await req.json();
@@ -9,10 +10,11 @@ export async function POST(req: Request) {
     typeof body?.captchaToken === "string" ? body.captchaToken : undefined;
 
   const res = NextResponse.json({ ok: true });
+  const supabaseConfig = getServerSupabaseConfig();
 
   const supabase = createServerClient(
-    process.env.SUPABASE_URL!,
-    process.env.SUPABASE_ANON_KEY!,
+    supabaseConfig.url,
+    supabaseConfig.key,
     {
       cookies: {
         get(name: string) {
