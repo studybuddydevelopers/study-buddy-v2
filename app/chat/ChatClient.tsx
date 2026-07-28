@@ -46,6 +46,7 @@ interface ApiChat {
   createdAt: string;
   updatedAt: string;
   deletedAt: string | null;
+  isStarted: boolean;
   subject?: { id: string; name: string; examCode: string | null } | null;
   topic?: { id: string; title: string; subjectId: string } | null;
 }
@@ -67,6 +68,26 @@ interface GenerationResponse {
   userMessage: ApiMessage;
   assistantMessage: ApiMessage;
   error?: { code: string; status: number };
+}
+
+function sortApiMessages(messages: ApiMessage[]) {
+  return [...messages].sort((a, b) => {
+    const dateDelta =
+      new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+    if (dateDelta !== 0) return dateDelta;
+    return a.id.localeCompare(b.id);
+  });
+}
+
+function sortChatMessages(messages: ChatMessageData[]) {
+  return [...messages].sort((a, b) => {
+    const aCreatedAt = a.createdAt ?? "";
+    const bCreatedAt = b.createdAt ?? "";
+    if (aCreatedAt !== bCreatedAt) {
+      return aCreatedAt.localeCompare(bCreatedAt);
+    }
+    return String(a.id).localeCompare(String(b.id));
+  });
 }
 
 function sortChats(chats: ApiChat[]) {
@@ -92,6 +113,7 @@ function toChatMessageData(
     status: message.status,
     failureCode: message.failureCode,
     requestId: message.requestId,
+    createdAt: message.createdAt,
   };
 }
 
@@ -135,6 +157,10 @@ export default function ChatClient() {
   const selectedSubject = useMemo(
     () => subjects.find((subject) => subject.id === selectedChat?.subjectId),
     [subjects, selectedChat?.subjectId]
+  );
+  const selectedChatStarted = Boolean(
+    selectedChat?.isStarted ||
+      messages.some((message) => message.sender === "user")
   );
   const titleDraft = selectedChat
     ? titleDraftByChat[selectedChat.id] ?? selectedChat.title
@@ -201,7 +227,7 @@ export default function ChatClient() {
 
         if (ignore) return;
         setMessages(
-          (data.messages ?? []).map((message) =>
+          sortApiMessages(data.messages ?? []).map((message) =>
             toChatMessageData(message, me?.profile?.avatarUrl)
           )
         );
@@ -318,7 +344,7 @@ export default function ChatClient() {
         if (!seen.has(message.id)) updated.push(message);
       }
 
-      return updated;
+      return sortChatMessages(updated);
     });
   };
 
@@ -352,6 +378,7 @@ export default function ChatClient() {
         text: message,
         avatar: me?.profile?.avatarUrl ?? DEFAULT_USER_AVATAR,
         status: "COMPLETED",
+        createdAt: new Date().toISOString(),
       },
       {
         id: optimisticAssistantId,
@@ -360,6 +387,7 @@ export default function ChatClient() {
         text: "",
         avatar: AI_AVATAR,
         status: "PENDING",
+        createdAt: new Date(Date.now() + 1).toISOString(),
       },
     ]);
 
@@ -545,8 +573,8 @@ export default function ChatClient() {
                           topicId: null,
                         })
                       }
-                      disabled={savingChat}
-                      className="w-full rounded-lg border border-accent-200 px-3 py-2 bg-white font-normal focus:outline-none focus:ring-2 focus:ring-primary-300"
+                      disabled={savingChat || selectedChatStarted}
+                      className="w-full rounded-lg border border-accent-200 px-3 py-2 bg-white font-normal focus:outline-none focus:ring-2 focus:ring-primary-300 disabled:bg-gray-100 disabled:text-gray-500"
                     >
                       <option value="">General</option>
                       {subjects.map((subject) => (
@@ -566,8 +594,12 @@ export default function ChatClient() {
                           topicId: e.target.value || null,
                         })
                       }
-                      disabled={savingChat || !selectedChat.subjectId}
-                      className="w-full rounded-lg border border-accent-200 px-3 py-2 bg-white font-normal focus:outline-none focus:ring-2 focus:ring-primary-300 disabled:bg-gray-100"
+                      disabled={
+                        savingChat ||
+                        !selectedChat.subjectId ||
+                        selectedChatStarted
+                      }
+                      className="w-full rounded-lg border border-accent-200 px-3 py-2 bg-white font-normal focus:outline-none focus:ring-2 focus:ring-primary-300 disabled:bg-gray-100 disabled:text-gray-500"
                     >
                       <option value="">No topic</option>
                       {(selectedSubject?.topics ?? []).map((topic) => (
