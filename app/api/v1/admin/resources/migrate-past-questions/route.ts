@@ -1,7 +1,10 @@
 import { NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/auth";
 import { migrateLegacyPastQuestions } from "@/lib/resources/past-question-migration";
-import { resourceRouteErrorResponse } from "@/lib/resources/http";
+import {
+  resourceJsonResponse,
+  resourceRouteErrorResponse,
+} from "@/lib/resources/http";
 import { migratePastQuestionsSchema } from "@/lib/resources/schemas";
 
 export async function POST(req: Request) {
@@ -28,7 +31,7 @@ export async function POST(req: Request) {
 
   try {
     const report = await migrateLegacyPastQuestions(parsed.data);
-    return NextResponse.json({ report });
+    return resourceJsonResponse({ report });
   } catch (error) {
     return resourceRouteErrorResponse(error);
   }
