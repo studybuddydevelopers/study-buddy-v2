@@ -526,6 +526,9 @@ model Resource {
   byteSize              Int?
   contentHash           String
   version               Int                        @default(1)
+  activeChunkVersion    Int?
+  activeChunkSetHash    String?
+  processingVersion     Int?
   processingStatus      ResourceProcessingStatus   @default(UPLOADED)
   approvalStatus        ResourceApprovalStatus     @default(PENDING_REVIEW)
   extractionQuality     ResourceExtractionQuality?
@@ -556,12 +559,14 @@ model Resource {
   @@index([approvalStatus, processingStatus, updatedAt, id], map: "Resource_approval_processing_updatedAt_id_idx")
   @@index([subjectId, topicId, approvalStatus], map: "Resource_subjectId_topicId_approval_idx")
   @@index([contentHash, version], map: "Resource_contentHash_version_idx")
+  @@index([activeChunkVersion], map: "Resource_activeChunkVersion_idx")
   @@index([sourceKind, updatedAt, id], map: "Resource_sourceKind_updatedAt_id_idx")
 }
 
 model ResourceChunk {
   id             String            @id @default(uuid())
   resourceId     String
+  version        Int               @default(1)
   subjectId      String?
   topicId        String?
   chunkType      ResourceChunkType
@@ -581,8 +586,8 @@ model ResourceChunk {
   subject  Subject? @relation(fields: [subjectId], references: [id], onDelete: SetNull)
   topic    Topic?   @relation(fields: [topicId], references: [id], onDelete: SetNull)
 
-  @@unique([resourceId, chunkIndex], map: "ResourceChunk_resourceId_chunkIndex_key")
-  @@index([resourceId, chunkType, chunkIndex], map: "ResourceChunk_resourceId_chunkType_chunkIndex_idx")
+  @@unique([resourceId, version, chunkIndex], map: "ResourceChunk_resourceId_version_chunkIndex_key")
+  @@index([resourceId, version, chunkType, chunkIndex], map: "ResourceChunk_resourceId_version_chunkType_chunkIndex_idx")
   @@index([subjectId, topicId, chunkType], map: "ResourceChunk_subjectId_topicId_chunkType_idx")
   @@index([contentHash], map: "ResourceChunk_contentHash_idx")
 }
