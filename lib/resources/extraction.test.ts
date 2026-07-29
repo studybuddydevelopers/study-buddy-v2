@@ -51,4 +51,35 @@ describe("Stage 2 resource extraction and chunking", () => {
     expect(extraction.text).toBe("");
     expect(extraction.warnings.join(" ")).toContain("OCR");
   });
+
+  it("preserves ordinary lesson text before the first past-question block", () => {
+    const extraction = extractDocument({
+      buffer: Buffer.from(
+        [
+          "# Linear Equations",
+          "Move constants to the other side before dividing by the coefficient.",
+          "",
+          "Question 1. Solve 3x = 12.",
+          "A. 2",
+          "B. 4",
+          "Answer: B",
+        ].join("\n")
+      ),
+      mimeType: "text/markdown",
+      fileName: "linear.md",
+    });
+
+    const chunks = buildResourceChunks({ extraction });
+
+    expect(chunks[0]).toMatchObject({
+      chunkType: ResourceChunkType.CONTENT_SECTION,
+      title: "Linear Equations",
+    });
+    expect(chunks[0].content).toContain("Move constants");
+    expect(chunks[1]).toMatchObject({
+      chunkType: ResourceChunkType.PAST_QUESTION,
+      questionNumber: "1",
+    });
+    expect(chunks[1].content).toContain("Answer: B");
+  });
 });
