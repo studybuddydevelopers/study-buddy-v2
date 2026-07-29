@@ -89,9 +89,9 @@ Admin Resources (Stage 2)
 -------------------------
 - GET `/admin/resources` (admin) — Query: `page?=1`, `pageSize?=20` (max 50), `sourceKind?`, `processingStatus?`, `approvalStatus?`, `subjectId?`, `topicId?`. Lists resources ordered by `updatedAt DESC, id DESC`.
 - POST `/admin/resources` (admin) — Multipart form: `file` (PDF, DOCX, Markdown, or plain text), optional `title`, `description`, `subjectId`, `topicId`, `provenance`, `usageRights`. Stores the file in the private resource bucket and creates a `Resource` with `processingStatus = UPLOADED` and `approvalStatus = PENDING_REVIEW`.
-- GET `/admin/resources/:resourceId` (admin) — Returns resource metadata plus up to 100 chunks ordered by `chunkIndex`.
-- POST `/admin/resources/:resourceId/process` (admin) — Downloads the private object server-side, extracts text, creates versioned structure-aware chunks, and marks the resource `PROCESSED` or `FAILED`.
-- POST `/admin/resources/:resourceId/approval` (admin) — Body: `{ action: "APPROVE" | "REJECT", notes? }`. Approves only successfully processed resources or rejects with notes.
+- GET `/admin/resources/:resourceId` (admin) — Returns resource metadata plus up to 100 active-version chunks ordered by `chunkIndex`.
+- POST `/admin/resources/:resourceId/process` (admin) — Downloads the private object server-side, extracts text, creates versioned structure-aware chunks, and marks the resource `PROCESSED` or `FAILED`. Successful changed content activates a replacement chunk version; failed reprocessing preserves the previous active version.
+- POST `/admin/resources/:resourceId/approval` (admin) — Body: `{ action: "APPROVE" | "REJECT", notes? }`. Approves only successfully processed resources with usable active chunks or rejects with notes.
 - POST `/admin/resources/migrate-past-questions` (admin) — Body: `{ dryRun?: boolean, limit?: number }`. Builds a migration report for legacy `PastQuestion` rows; with `dryRun: false`, creates resource/chunk records. Legacy rows lacking provenance or usage-rights remain pending admin review.
 
 Stage 2 resource APIs do not expose retrieval, embeddings, vector search, citations, source previews, grounded generation, or tutor modes.
