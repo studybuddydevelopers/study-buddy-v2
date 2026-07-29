@@ -48,6 +48,40 @@ enum AiGenerationFailureCode {
   INTERNAL_ERROR
 }
 
+enum ResourceSourceKind {
+  UPLOAD
+  LEGACY_PAST_QUESTION
+}
+
+enum ResourceProcessingStatus {
+  UPLOADED
+  PROCESSING
+  PROCESSED
+  FAILED
+}
+
+enum ResourceApprovalStatus {
+  PENDING_REVIEW
+  APPROVED
+  REJECTED
+}
+
+enum ResourceExtractionQuality {
+  HIGH
+  MEDIUM
+  LOW
+  FAILED
+}
+
+enum ResourceChunkType {
+  CONTENT_SECTION
+  PAST_QUESTION
+  MARK_SCHEME
+  WORKED_SOLUTION
+  SYLLABUS_OBJECTIVE
+  FORMULA_REFERENCE
+}
+
 enum SubscriptionPlan {
   free
   premium
@@ -71,19 +105,21 @@ model User {
 
   adminUser AdminUser?
 
-  profile          UserProfile?
-  settings         UserSettings?
-  aiChats          AiChat[]
-  aiQuestions      AiQuestion[]
-  attempts         PastQuestionAttempt[]
-  practiceDrafts   PracticeAnswerDraft[]
-  practiceSessions PracticeQuizSession[]
-  mockExams        MockExamInstance[]
-  recommendations  Recommendation[]
-  progress         ProgressTrack[]
-  subscriptions    Subscription[]
-  schoolStudents   SchoolStudent[]
-  transactions     Transaction[]
+  profile           UserProfile?
+  settings          UserSettings?
+  aiChats           AiChat[]
+  aiQuestions       AiQuestion[]
+  attempts          PastQuestionAttempt[]
+  practiceDrafts    PracticeAnswerDraft[]
+  practiceSessions  PracticeQuizSession[]
+  mockExams         MockExamInstance[]
+  recommendations   Recommendation[]
+  progress          ProgressTrack[]
+  subscriptions     Subscription[]
+  schoolStudents    SchoolStudent[]
+  transactions      Transaction[]
+  uploadedResources Resource[]            @relation("ResourceUploadedBy")
+  approvedResources Resource[]            @relation("ResourceApprovedBy")
 
   @@index([createdAt], map: "User_createdAt_idx")
   @@index([isAdmin, createdAt], map: "User_isAdmin_createdAt_idx")
@@ -126,6 +162,8 @@ model Subject {
   mockTemplates   MockExamTemplate[]
   pastQuestions   PastQuestion[]
   curriculumFiles CurriculumFile[]
+  resources       Resource[]
+  resourceChunks  ResourceChunk[]
   progressTracks  ProgressTrack[]
   aiChats         AiChat[]
   aiQuestions     AiQuestion[]
@@ -144,6 +182,8 @@ model Topic {
 
   subject          Subject               @relation(fields: [subjectId], references: [id], onDelete: Cascade)
   pastQuestions    PastQuestion[]
+  resources        Resource[]
+  resourceChunks   ResourceChunk[]
   recommendations  Recommendation[]
   aiChats          AiChat[]
   aiQuestions      AiQuestion[]
@@ -171,10 +211,11 @@ model PastQuestion {
   subject Subject @relation(fields: [subjectId], references: [id], onDelete: Cascade)
   topic   Topic?  @relation(fields: [topicId], references: [id], onDelete: SetNull)
 
-  attempts    PastQuestionAttempt[]
-  drafts      PracticeAnswerDraft[]
-  quizAnswers PracticeQuizAnswer[]
-  mockAnswers MockExamAnswer[]
+  attempts         PastQuestionAttempt[]
+  drafts           PracticeAnswerDraft[]
+  quizAnswers      PracticeQuizAnswer[]
+  mockAnswers      MockExamAnswer[]
+  migratedResource Resource?
 
   @@index([topicId, difficulty, id], map: "PastQuestion_topicId_difficulty_id_idx")
   @@index([subjectId, id], map: "PastQuestion_subjectId_id_idx")
@@ -466,6 +507,84 @@ model CurriculumFile {
   uploadedAt DateTime @default(now())
 
   subject Subject @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+}
+
+model Resource {
+  id                    String                     @id @default(uuid())
+  sourceKind            ResourceSourceKind
+  title                 String
+  description           String?
+  subjectId             String?
+  topicId               String?
+  uploadedById          String?
+  approvedById          String?
+  legacyPastQuestionId  String?                    @unique(map: "Resource_legacyPastQuestionId_key")
+  storageBucket         String?
+  storagePath           String?
+  originalFileName      String?
+  mimeType              String?
+  byteSize              Int?
+  contentHash           String
+  version               Int                        @default(1)
+  processingStatus      ResourceProcessingStatus   @default(UPLOADED)
+  approvalStatus        ResourceApprovalStatus     @default(PENDING_REVIEW)
+  extractionQuality     ResourceExtractionQuality?
+  extractionWarnings    Json?
+  provenance            String?
+  usageRights           String?
+  duplicateOfResourceId String?
+  migrationReport       Json?
+  createdAt             DateTime                   @default(now())
+  updatedAt             DateTime                   @updatedAt
+  processedAt           DateTime?
+  failedAt              DateTime?
+  failureReason         String?
+  approvedAt            DateTime?
+  rejectedAt            DateTime?
+  approvalNotes         String?
+
+  subject            Subject?      @relation(fields: [subjectId], references: [id], onDelete: SetNull)
+  topic              Topic?        @relation(fields: [topicId], references: [id], onDelete: SetNull)
+  uploadedBy         User?         @relation("ResourceUploadedBy", fields: [uploadedById], references: [id], onDelete: SetNull)
+  approvedBy         User?         @relation("ResourceApprovedBy", fields: [approvedById], references: [id], onDelete: SetNull)
+  legacyPastQuestion PastQuestion? @relation(fields: [legacyPastQuestionId], references: [id], onDelete: SetNull)
+  duplicateOf        Resource?     @relation("ResourceDuplicate", fields: [duplicateOfResourceId], references: [id], onDelete: SetNull)
+  duplicates         Resource[]    @relation("ResourceDuplicate")
+
+  chunks ResourceChunk[]
+
+  @@index([approvalStatus, processingStatus, updatedAt, id], map: "Resource_approval_processing_updatedAt_id_idx")
+  @@index([subjectId, topicId, approvalStatus], map: "Resource_subjectId_topicId_approval_idx")
+  @@index([contentHash, version], map: "Resource_contentHash_version_idx")
+  @@index([sourceKind, updatedAt, id], map: "Resource_sourceKind_updatedAt_id_idx")
+}
+
+model ResourceChunk {
+  id             String            @id @default(uuid())
+  resourceId     String
+  subjectId      String?
+  topicId        String?
+  chunkType      ResourceChunkType
+  chunkIndex     Int
+  title          String?
+  content        String
+  tokenEstimate  Int
+  pageStart      Int?
+  pageEnd        Int?
+  questionNumber String?
+  contentHash    String
+  metadata       Json?
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
+
+  resource Resource @relation(fields: [resourceId], references: [id], onDelete: Cascade)
+  subject  Subject? @relation(fields: [subjectId], references: [id], onDelete: SetNull)
+  topic    Topic?   @relation(fields: [topicId], references: [id], onDelete: SetNull)
+
+  @@unique([resourceId, chunkIndex], map: "ResourceChunk_resourceId_chunkIndex_key")
+  @@index([resourceId, chunkType, chunkIndex], map: "ResourceChunk_resourceId_chunkType_chunkIndex_idx")
+  @@index([subjectId, topicId, chunkType], map: "ResourceChunk_subjectId_topicId_chunkType_idx")
+  @@index([contentHash], map: "ResourceChunk_contentHash_idx")
 }
 
 model PastQuestionSource {
