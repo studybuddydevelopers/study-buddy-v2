@@ -35,12 +35,21 @@ export interface PastQuestionMigrationDecision {
 
 export interface PastQuestionMigrationReport {
   dryRun: boolean;
+  examined: number;
   scanned: number;
   created: number;
   skippedExisting: number;
+  skippedExactDuplicate: number;
+  possibleDuplicate: number;
+  invalid: number;
+  missingProvenance: number;
+  missingRights: number;
+  missingTopic: number;
   pendingReview: number;
   autoApproved: number;
   rejected: number;
+  warnings: string[];
+  failures: string[];
   decisions: PastQuestionMigrationDecision[];
 }
 
@@ -98,9 +107,25 @@ export async function migrateLegacyPastQuestions(
 
   return {
     dryRun: input.dryRun,
+    examined: questions.length,
     scanned: questions.length,
     created,
     skippedExisting,
+    skippedExactDuplicate: skippedExisting,
+    possibleDuplicate: decisions.filter((item) => !item.checks.duplication)
+      .length,
+    invalid: decisions.filter(
+      (item) =>
+        !item.checks.completeness ||
+        !item.checks.subjectMapping ||
+        !item.checks.topicPresent ||
+        !item.checks.topicMapping ||
+        !item.checks.usableExtractedContent
+    ).length,
+    missingProvenance: decisions.filter((item) => !item.checks.provenance)
+      .length,
+    missingRights: decisions.filter((item) => !item.checks.usageRights).length,
+    missingTopic: decisions.filter((item) => !item.checks.topicPresent).length,
     pendingReview: decisions.filter(
       (item) => item.approvalStatus === ResourceApprovalStatus.PENDING_REVIEW
     ).length,
@@ -110,6 +135,10 @@ export async function migrateLegacyPastQuestions(
     rejected: decisions.filter(
       (item) => item.approvalStatus === ResourceApprovalStatus.REJECTED
     ).length,
+    warnings: Array.from(
+      new Set(decisions.flatMap((item) => item.warnings))
+    ).slice(0, 200),
+    failures: [],
     decisions,
   };
 }
@@ -130,6 +159,7 @@ export function buildLegacyPastQuestionMigrationDecision(
       question.questionText.trim() && question.answerText.trim()
     ),
     subjectMapping: Boolean(question.subject?.id || question.subjectId),
+    topicPresent: Boolean(question.topicId),
     topicMapping:
       !question.topicId || question.topic?.subjectId === question.subjectId,
     usableExtractedContent: content.trim().length >= 30,
@@ -194,6 +224,15 @@ async function createLegacyPastQuestionResource(
     explanationText: question.explanationText,
     questionNumber: question.questionNumber,
   });
+  const chunkSetHash = hashContent(
+    JSON.stringify([
+      {
+        chunkIndex: chunk.chunkIndex,
+        chunkType: chunk.chunkType,
+        contentHash: chunk.contentHash,
+      },
+    ])
+  );
 
   await prisma.resource.create({
     data: {
@@ -204,6 +243,8 @@ async function createLegacyPastQuestionResource(
       legacyPastQuestionId: question.id,
       contentHash: decision.contentHash,
       version: 1,
+      activeChunkVersion: 1,
+      activeChunkSetHash: chunkSetHash,
       processingStatus: decision.processingStatus,
       approvalStatus: decision.approvalStatus,
       extractionQuality: decision.extractionQuality,
@@ -217,6 +258,7 @@ async function createLegacyPastQuestionResource(
       } as Prisma.InputJsonValue,
       chunks: {
         create: {
+          version: 1,
           subjectId: question.subjectId,
           topicId: question.topicId,
           chunkType: chunk.chunkType,
@@ -258,8 +300,14 @@ function collectLegacyPastQuestionWarnings(
   if (!checks.subjectMapping) {
     warnings.push("Subject mapping could not be verified.");
   }
+  if (!checks.topicPresent) {
+    warnings.push("Missing topic; admin review required.");
+  }
   if (!checks.topicMapping) {
     warnings.push("Topic does not belong to the question subject.");
+  }
+  if (!checks.topicMapping || !checks.subjectMapping) {
+    warnings.push("Missing or invalid topic mapping; admin review required.");
   }
   if (!checks.usableExtractedContent) {
     warnings.push("Question content is too short to create a usable chunk.");
