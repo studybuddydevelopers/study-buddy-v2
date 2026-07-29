@@ -42,6 +42,7 @@ describe("Stage 2 legacy past-question migration planning", () => {
     );
     expect(decision.checks.provenance).toBe(false);
     expect(decision.checks.usageRights).toBe(false);
+    expect(decision.checks.topicPresent).toBe(true);
     expect(decision.warnings.join(" ")).toContain("admin review");
   });
 
@@ -52,5 +53,18 @@ describe("Stage 2 legacy past-question migration planning", () => {
 
     expect(decision.checks.duplication).toBe(false);
     expect(decision.warnings.join(" ")).toContain("Potential duplicate");
+  });
+
+  it("reports missing topics as an explicit admin-review condition", () => {
+    const decision = buildLegacyPastQuestionMigrationDecision(
+      { ...question, topicId: null, topic: null },
+      { dryRun: true }
+    );
+
+    expect(decision.checks.topicPresent).toBe(false);
+    expect(decision.warnings.join(" ")).toContain("Missing topic");
+    expect(decision.approvalStatus).toBe(
+      ResourceApprovalStatus.PENDING_REVIEW
+    );
   });
 });
