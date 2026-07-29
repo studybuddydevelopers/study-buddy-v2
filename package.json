@@ -12,7 +12,8 @@
     "start": "next start",
     "lint": "eslint .",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "resources:migrate-past-questions": "tsx scripts/migrate-past-questions-to-resources.ts"
   },
   "dependencies": {
     "@hcaptcha/react-hcaptcha": "^2.0.2",
