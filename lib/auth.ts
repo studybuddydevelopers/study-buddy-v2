@@ -14,12 +14,14 @@ export async function requireUser() {
     supabaseConfig.key,
     {
       cookies: {
-        get(name) {
-          return cookieStore.get(name)?.value;
+        getAll() {
+          return cookieStore.getAll().map(({ name, value }) => ({
+            name,
+            value,
+          }));
         },
-        // no-ops for app routes (we only need to read cookies here)
-        set() {},
-        remove() {},
+        // no-op for app routes that only need to read the current user
+        setAll() {},
       },
     }
   );
