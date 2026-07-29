@@ -25,18 +25,13 @@ export async function POST(req: Request) {
     supabaseConfig.key,
     {
       cookies: {
-        get(name) {
-          return req.headers
-            .get("cookie")
-            ?.split("; ")
-            .find((c) => c.startsWith(name + "="))
-            ?.split("=")?.[1] ?? null;
+        getAll() {
+          return parseCookieHeader(req.headers.get("cookie"));
         },
-        set(name, value, options) {
-          res.cookies.set(name, value, { ...options, path: "/" });
-        },
-        remove(name, options) {
-          res.cookies.set(name, "", { ...options, maxAge: 0, path: "/" });
+        setAll(cookiesToSet) {
+          cookiesToSet.forEach(({ name, value, options }) => {
+            res.cookies.set(name, value, { ...options, path: "/" });
+          });
         },
       },
     }
@@ -73,4 +68,19 @@ export async function POST(req: Request) {
 
   // NO PRISMA. NO UPSERT. NO SYNCING.
   return res;
+}
+
+function parseCookieHeader(cookieHeader: string | null) {
+  if (!cookieHeader) return [];
+
+  return cookieHeader
+    .split(";")
+    .map((cookie) => {
+      const [name, ...valueParts] = cookie.trim().split("=");
+      return {
+        name,
+        value: valueParts.join("="),
+      };
+    })
+    .filter((cookie) => cookie.name);
 }
