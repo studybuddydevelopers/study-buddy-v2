@@ -172,9 +172,11 @@ Implemented admin-only resource ingestion:
 - New Stage 2 models: `Resource` and `ResourceChunk`.
 - Admin uploads store files in a private Supabase Storage bucket configured by `SUPABASE_RESOURCE_BUCKET` (default: `resources-private`). No public resource URLs are stored.
 - Uploads create `Resource.processingStatus = UPLOADED`; extraction/chunking runs through a separate admin process endpoint or CLI flow.
+- Chunks are versioned. `Resource.activeChunkVersion` points at the only active chunk set; replacement chunks become active only after successful processing, and failed reprocessing preserves the previous active chunks.
+- Changed extracted content resets approval to `PENDING_REVIEW`; unchanged reprocessing does not create duplicate chunk versions.
 - Supported extraction adapters exist for plain text, Markdown, PDF, and DOCX. PDF/DOCX extraction is deliberately best-effort and marked low/failed quality when structure cannot be trusted. OCR is not included in Stage 2.
 - Chunking preserves educational structures where possible, including past-question blocks, answer/solution material, headings, syllabus/objective sections, formulas, and mark schemes. Generic token chunking is only a fallback for long ordinary sections.
-- Approval is separate from processing. Only `PROCESSED` resources can be approved, and low-quality extraction remains admin-reviewable.
+- Approval is separate from processing. Only `PROCESSED` resources with a usable active chunk set can be approved, and low-quality extraction remains admin-reviewable.
 - Legacy `PastQuestion` records can be migrated into `Resource`/`ResourceChunk` using a conservative report-first workflow. Existing past questions are not automatically approved unless explicit provenance, completeness, subject mapping, usable content, duplication, and usage-rights checks all pass. The current legacy model lacks provenance and usage-rights fields, so migrated records normally remain `PENDING_REVIEW`.
 
 Migration/report command:
