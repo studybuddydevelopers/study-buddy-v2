@@ -87,10 +87,6 @@ export class ResourceService {
       include: {
         subject: { select: { id: true, name: true, examCode: true } },
         topic: { select: { id: true, title: true, subjectId: true } },
-        chunks: {
-          orderBy: [{ chunkIndex: "asc" }],
-          take: 100,
-        },
       },
     });
 
@@ -101,7 +97,18 @@ export class ResourceService {
       );
     }
 
-    return { resource };
+    const chunks = resource.activeChunkVersion
+      ? await prisma.resourceChunk.findMany({
+          where: {
+            resourceId,
+            version: resource.activeChunkVersion,
+          },
+          orderBy: [{ chunkIndex: "asc" }],
+          take: 100,
+        })
+      : [];
+
+    return { resource: { ...resource, chunks } };
   }
 
   async createUploadedResource(
@@ -142,40 +149,49 @@ export class ResourceService {
       );
     }
 
-    const duplicate = await prisma.resource.findFirst({
-      where: { contentHash },
-      orderBy: [{ createdAt: "asc" }, { id: "asc" }],
-      select: { id: true },
-    });
+    try {
+      const duplicate = await prisma.resource.findFirst({
+        where: { contentHash },
+        orderBy: [{ createdAt: "asc" }, { id: "asc" }],
+        select: { id: true },
+      });
 
-    const resource = await prisma.resource.create({
-      data: {
-        id: resourceId,
-        sourceKind: ResourceSourceKind.UPLOAD,
-        title,
-        description: emptyToNull(input.description),
-        subjectId: input.subjectId ?? null,
-        topicId: input.topicId ?? null,
-        uploadedById,
-        storageBucket: bucket,
-        storagePath,
-        originalFileName: file.name,
-        mimeType,
-        byteSize: file.size,
-        contentHash,
-        version,
-        processingStatus: ResourceProcessingStatus.UPLOADED,
-        approvalStatus: ResourceApprovalStatus.PENDING_REVIEW,
-        provenance: emptyToNull(input.provenance),
-        usageRights: emptyToNull(input.usageRights),
-        duplicateOfResourceId: duplicate?.id ?? null,
-        extractionWarnings: duplicate
-          ? (["Potential duplicate content hash; admin review required."] as Prisma.InputJsonValue)
-          : undefined,
-      },
-    });
+      const resource = await prisma.resource.create({
+        data: {
+          id: resourceId,
+          sourceKind: ResourceSourceKind.UPLOAD,
+          title,
+          description: emptyToNull(input.description),
+          subjectId: input.subjectId ?? null,
+          topicId: input.topicId ?? null,
+          uploadedById,
+          storageBucket: bucket,
+          storagePath,
+          originalFileName: file.name,
+          mimeType,
+          byteSize: file.size,
+          contentHash,
+          version,
+          processingStatus: ResourceProcessingStatus.UPLOADED,
+          approvalStatus: ResourceApprovalStatus.PENDING_REVIEW,
+          provenance: emptyToNull(input.provenance),
+          usageRights: emptyToNull(input.usageRights),
+          duplicateOfResourceId: duplicate?.id ?? null,
+          extractionWarnings: duplicate
+            ? (["Potential duplicate content hash; admin review required."] as Prisma.InputJsonValue)
+            : undefined,
+        },
+      });
 
-    return { resource };
+      return { resource };
+    } catch (error) {
+      await removePrivateResourceObject(bucket, storagePath);
+      if (error instanceof ResourceServiceError) throw error;
+      throw new ResourceServiceError(
+        "INTERNAL_ERROR",
+        "The resource record could not be created."
+      );
+    }
   }
 
   async processResource(resourceId: string) {
@@ -224,6 +240,12 @@ export class ResourceService {
       );
     }
 
+    const nextChunkVersion = await this.nextChunkVersion(resourceId);
+    await prisma.resource.update({
+      where: { id: resourceId },
+      data: { processingVersion: nextChunkVersion },
+    });
+
     try {
       const buffer = await downloadPrivateResource(resource);
       const extraction = extractDocument({
@@ -248,11 +270,42 @@ export class ResourceService {
         );
       }
 
+      const chunkSetHash = hashChunkSet(chunks);
+      const hasActiveChunks =
+        resource.activeChunkVersion === null
+          ? false
+          : (await prisma.resourceChunk.count({
+              where: {
+                resourceId,
+                version: resource.activeChunkVersion,
+              },
+            })) > 0;
+      const unchangedActiveChunkSet =
+        hasActiveChunks && resource.activeChunkSetHash === chunkSetHash;
+
       const processed = await prisma.$transaction(async (tx) => {
-        await tx.resourceChunk.deleteMany({ where: { resourceId } });
+        if (unchangedActiveChunkSet) {
+          return tx.resource.update({
+            where: { id: resourceId },
+            data: {
+              processingStatus: ResourceProcessingStatus.PROCESSED,
+              extractionQuality: extraction.quality,
+              extractionWarnings: extraction.warnings as Prisma.InputJsonValue,
+              processedAt: new Date(),
+              failedAt: null,
+              failureReason: null,
+              processingVersion: null,
+            },
+            include: {
+              _count: { select: { chunks: true } },
+            },
+          });
+        }
+
         await tx.resourceChunk.createMany({
           data: chunks.map((chunk) => ({
             resourceId,
+            version: nextChunkVersion,
             subjectId: resource.subjectId,
             topicId: resource.topicId,
             chunkType: chunk.chunkType,
@@ -270,12 +323,21 @@ export class ResourceService {
         return tx.resource.update({
           where: { id: resourceId },
           data: {
+            version: nextChunkVersion,
+            activeChunkVersion: nextChunkVersion,
+            activeChunkSetHash: chunkSetHash,
+            processingVersion: null,
             processingStatus: ResourceProcessingStatus.PROCESSED,
+            approvalStatus: ResourceApprovalStatus.PENDING_REVIEW,
             extractionQuality: extraction.quality,
             extractionWarnings: extraction.warnings as Prisma.InputJsonValue,
             processedAt: new Date(),
             failedAt: null,
             failureReason: null,
+            approvedById: null,
+            approvedAt: null,
+            rejectedAt: null,
+            approvalNotes: null,
           },
           include: {
             _count: { select: { chunks: true } },
@@ -324,6 +386,32 @@ export class ResourceService {
         "RESOURCE_NOT_APPROVABLE",
         "Only successfully processed resources can be approved."
       );
+    }
+
+    if (input.action === "APPROVE") {
+      if (
+        !resource.activeChunkVersion ||
+        resource.extractionQuality === ResourceExtractionQuality.FAILED
+      ) {
+        throw new ResourceServiceError(
+          "RESOURCE_NOT_APPROVABLE",
+          "Only resources with usable active chunks can be approved."
+        );
+      }
+
+      const activeChunkCount = await prisma.resourceChunk.count({
+        where: {
+          resourceId,
+          version: resource.activeChunkVersion,
+        },
+      });
+
+      if (activeChunkCount < 1) {
+        throw new ResourceServiceError(
+          "RESOURCE_NOT_APPROVABLE",
+          "Only resources with usable active chunks can be approved."
+        );
+      }
     }
 
     const now = new Date();
@@ -400,16 +488,36 @@ export class ResourceService {
   }
 
   private async markProcessingFailed(resourceId: string, reason: string) {
+    const resource = await prisma.resource.findUnique({
+      where: { id: resourceId },
+      select: { activeChunkVersion: true },
+    });
+    const hasActiveVersion = Boolean(resource?.activeChunkVersion);
+
     await prisma.resource.update({
       where: { id: resourceId },
       data: {
-        processingStatus: ResourceProcessingStatus.FAILED,
-        extractionQuality: ResourceExtractionQuality.FAILED,
+        processingStatus: hasActiveVersion
+          ? ResourceProcessingStatus.PROCESSED
+          : ResourceProcessingStatus.FAILED,
+        ...(!hasActiveVersion
+          ? { extractionQuality: ResourceExtractionQuality.FAILED }
+          : {}),
+        processingVersion: null,
         extractionWarnings: [reason] as Prisma.InputJsonValue,
         failureReason: reason,
         failedAt: new Date(),
       },
     });
+  }
+
+  private async nextChunkVersion(resourceId: string) {
+    const result = await prisma.resourceChunk.aggregate({
+      where: { resourceId },
+      _max: { version: true },
+    });
+
+    return (result._max.version ?? 0) + 1;
   }
 }
 
@@ -498,4 +606,30 @@ async function downloadPrivateResource(resource: Resource) {
   }
 
   return Buffer.from(await data.arrayBuffer());
+}
+
+async function removePrivateResourceObject(bucket: string, storagePath: string) {
+  try {
+    const supabase = getSupabaseAdminClient();
+    const { error } = await supabase.storage.from(bucket).remove([storagePath]);
+    if (error) {
+      console.warn("Resource upload compensation cleanup failed.");
+    }
+  } catch {
+    console.warn("Resource upload compensation cleanup failed.");
+  }
+}
+
+function hashChunkSet(chunks: Array<{ chunkIndex: number; chunkType: string; contentHash: string }>) {
+  return hashContent(
+    JSON.stringify(
+      chunks
+        .map((chunk) => ({
+          chunkIndex: chunk.chunkIndex,
+          chunkType: chunk.chunkType,
+          contentHash: chunk.contentHash,
+        }))
+        .sort((a, b) => a.chunkIndex - b.chunkIndex)
+    )
+  );
 }
