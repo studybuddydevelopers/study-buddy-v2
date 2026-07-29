@@ -1,7 +1,10 @@
 import { NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/auth";
 import { getResourceService } from "@/lib/resources/resource-service";
-import { resourceRouteErrorResponse } from "@/lib/resources/http";
+import {
+  resourceJsonResponse,
+  resourceRouteErrorResponse,
+} from "@/lib/resources/http";
 import { resourceApprovalSchema } from "@/lib/resources/schemas";
 
 interface RouteContext {
@@ -38,7 +41,7 @@ export async function POST(req: Request, context: RouteContext) {
       auth.dbUser.id,
       parsed.data
     );
-    return NextResponse.json(result);
+    return resourceJsonResponse(result);
   } catch (error) {
     return resourceRouteErrorResponse(error);
   }
