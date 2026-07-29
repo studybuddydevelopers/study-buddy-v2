@@ -30,14 +30,32 @@ export function buildResourceChunks(input: ChunkInput): ResourceChunkDraft[] {
 
   const questionBlocks = splitQuestionBlocks(text);
   if (questionBlocks.length > 0) {
-    return questionBlocks.map((block, index) =>
-      toChunk(block.content, index, {
-        chunkType: ResourceChunkType.PAST_QUESTION,
-        title: block.questionNumber ? `Question ${block.questionNumber}` : undefined,
-        questionNumber: block.questionNumber,
-        metadata: { structure: "question_block" },
-      })
-    );
+    return questionBlocks.flatMap((block) => {
+      if (block.questionNumber) {
+        return [
+          toChunk(block.content, 0, {
+            chunkType: ResourceChunkType.PAST_QUESTION,
+            title: `Question ${block.questionNumber}`,
+            questionNumber: block.questionNumber,
+            metadata: { structure: "question_block" },
+          }),
+        ];
+      }
+
+      return splitLongText(block.content).map((content, partIndex) =>
+        toChunk(content, 0, {
+          chunkType: classifyChunk(content),
+          title:
+            block.title && partIndex > 0
+              ? `${block.title} (${partIndex + 1})`
+              : block.title,
+          metadata: {
+            structure: "pre_question_section",
+            forcedSplit: partIndex > 0,
+          },
+        })
+      );
+    }).map((chunk, chunkIndex) => ({ ...chunk, chunkIndex }));
   }
 
   const sectionBlocks = splitHeadingSections(text);
@@ -115,7 +133,22 @@ function splitQuestionBlocks(text: string) {
   const matches = Array.from(text.matchAll(pattern));
   if (matches.length === 0) return [];
 
-  return matches
+  const blocks: Array<{
+    title?: string;
+    questionNumber?: string;
+    content: string;
+  }> = [];
+  const firstStart = matches[0]?.index ?? 0;
+  const preamble = text.slice(0, firstStart).trim();
+  if (preamble.length >= 20) {
+    blocks.push({
+      title: firstHeading(preamble),
+      content: preamble,
+    });
+  }
+
+  blocks.push(
+    ...matches
     .map((match, index) => {
       const start = match.index ?? 0;
       const end = matches[index + 1]?.index ?? text.length;
@@ -124,7 +157,10 @@ function splitQuestionBlocks(text: string) {
         content: text.slice(start, end).trim(),
       };
     })
-    .filter((block) => block.content.length >= 20);
+    .filter((block) => block.content.length >= 20)
+  );
+
+  return blocks;
 }
 
 function splitHeadingSections(text: string) {
@@ -198,4 +234,13 @@ function classifyChunk(content: string) {
 function estimateTokens(content: string) {
   const words = content.split(/\s+/).filter(Boolean).length;
   return Math.max(1, Math.ceil(words * 1.33));
+}
+
+function firstHeading(content: string) {
+  const firstLine = content
+    .split("\n")
+    .map((line) => line.trim())
+    .find(Boolean);
+
+  return firstLine?.replace(/^#{1,6}\s+/, "").slice(0, 120);
 }
