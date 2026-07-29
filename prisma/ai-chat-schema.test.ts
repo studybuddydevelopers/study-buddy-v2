@@ -30,6 +30,11 @@ describe("Stage 1 AI chat Prisma schema", () => {
   it("adds Stage 2 resource ingestion models without vector or embedding tables", () => {
     expect(schema).toMatch(/model Resource\s*{/);
     expect(schema).toMatch(/model ResourceChunk\s*{/);
+    expect(schema).toMatch(/activeChunkVersion\s+Int\?/);
+    expect(schema).toMatch(/activeChunkSetHash\s+String\?/);
+    expect(schema).toMatch(/processingVersion\s+Int\?/);
+    expect(schema).toMatch(/version\s+Int\s+@default\(1\)/);
+    expect(schema).toMatch(/@@unique\(\[resourceId, version, chunkIndex\]/);
     expect(schema).toMatch(/enum ResourceProcessingStatus\s*{/);
     expect(schema).toMatch(/UPLOADED\s+PROCESSING\s+PROCESSED\s+FAILED/s);
     expect(schema).not.toMatch(/ResourceChunkEmbedding|pgvector|vector\(/i);
