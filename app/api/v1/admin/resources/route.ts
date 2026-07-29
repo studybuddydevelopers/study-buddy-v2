@@ -1,7 +1,11 @@
 import { NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/auth";
 import { getResourceService } from "@/lib/resources/resource-service";
-import { resourceRouteErrorResponse, parsePositiveInt } from "@/lib/resources/http";
+import {
+  resourceJsonResponse,
+  resourceRouteErrorResponse,
+  parsePositiveInt,
+} from "@/lib/resources/http";
 import { listResourcesQuerySchema } from "@/lib/resources/schemas";
 
 export async function GET(req: Request) {
@@ -28,7 +32,7 @@ export async function GET(req: Request) {
 
   try {
     const result = await getResourceService().listResources(parsed.data);
-    return NextResponse.json(result);
+    return resourceJsonResponse(result);
   } catch (error) {
     return resourceRouteErrorResponse(error);
   }
@@ -69,7 +73,7 @@ export async function POST(req: Request) {
         usageRights: formData.get("usageRights")?.toString(),
       }
     );
-    return NextResponse.json(result, { status: 201 });
+    return resourceJsonResponse(result, { status: 201 });
   } catch (error) {
     return resourceRouteErrorResponse(error);
   }
