@@ -8,6 +8,7 @@ Stage 2 adds admin-only resource ingestion and approval plumbing. It deliberatel
 - Private Supabase Storage uploads through a server-side admin client.
 - Processing states: `UPLOADED`, `PROCESSING`, `PROCESSED`, `FAILED`.
 - Approval states: `PENDING_REVIEW`, `APPROVED`, `REJECTED`.
+- Versioned active chunk sets through `Resource.activeChunkVersion`.
 - Extraction adapters for plain text, Markdown, PDF, and DOCX.
 - Structure-aware chunking for educational material.
 - Admin approval/rejection workflow.
@@ -37,6 +38,14 @@ The bucket should be private. The application stores only bucket/path metadata i
 6. Admin calls `POST /api/v1/admin/resources/:resourceId/approval`.
 
 The upload route does not perform large extraction/chunking work.
+
+## Versioning And Reprocessing
+
+`ResourceChunk.version` stores historical chunk sets. `Resource.activeChunkVersion` selects the active set. Processing creates replacement chunks under a new version and switches `activeChunkVersion` in the success transaction. If processing fails, the previous active chunk version remains addressable.
+
+If extracted content changes, approval is reset to `PENDING_REVIEW`. If extracted content is unchanged, processing refreshes metadata without creating another duplicate chunk version.
+
+Approval requires `PROCESSED`, non-failed extraction quality, and at least one chunk in the active chunk version. `LOW` quality resources, such as best-effort PDF/DOCX extraction, may be approved only through explicit admin review.
 
 ## Extraction Quality
 
