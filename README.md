@@ -20,6 +20,7 @@ Study Buddy v2 is a Next.js learning platform for exam preparation. It combines 
 - Progress: subject progress, practice accuracy, and exam history
 - AI: quick chat, saved AI question threads, and study recommendations
 - AI Chat Stage 1: persistent general chat threads with provider-neutral generation, idempotent sends, retry-safe failures, and refresh-safe history. This is not yet resource-grounded RAG.
+- Resource Ingestion Stage 2: admin-only private resource uploads, extraction, chunking, approval workflows, and legacy past-question migration reports. This is not retrieval or RAG yet.
 - Accounts and billing: auth, profile, subscriptions, and payments
 - Admin and schools: content upload, user lookup, and school membership management
 
@@ -140,6 +141,7 @@ Key models:
 - `PastQuestionAttempt`
 - `MockExamTemplate`, `MockExamInstance`, `MockExamAnswer`
 - `AiChat`, `AiChatMessage`, `AiGenerationRequest`
+- `Resource`, `ResourceChunk`
 - `AiQuestion`, `AiQuestionMessage`, `Recommendation`
 - `ProgressTrack`
 - `Subscription`, `Transaction`
@@ -162,6 +164,27 @@ Implemented persistent general chat:
 Stage 1 is intentionally not resource-grounded. It does not add resources, chunks, embeddings, vector search, citations, PDF/DOCX extraction, RAG prompts, source previews, grounding evaluation, or tutor modes.
 
 Migration and rollback notes: [`docs/AI_CHAT_STAGE_1_MIGRATION.md`](/Users/efeon/study-buddy-v2/docs/AI_CHAT_STAGE_1_MIGRATION.md).
+
+## Resource Ingestion Stage 2
+
+Implemented admin-only resource ingestion:
+
+- New Stage 2 models: `Resource` and `ResourceChunk`.
+- Admin uploads store files in a private Supabase Storage bucket configured by `SUPABASE_RESOURCE_BUCKET` (default: `resources-private`). No public resource URLs are stored.
+- Uploads create `Resource.processingStatus = UPLOADED`; extraction/chunking runs through a separate admin process endpoint or CLI flow.
+- Supported extraction adapters exist for plain text, Markdown, PDF, and DOCX. PDF/DOCX extraction is deliberately best-effort and marked low/failed quality when structure cannot be trusted. OCR is not included in Stage 2.
+- Chunking preserves educational structures where possible, including past-question blocks, answer/solution material, headings, syllabus/objective sections, formulas, and mark schemes. Generic token chunking is only a fallback for long ordinary sections.
+- Approval is separate from processing. Only `PROCESSED` resources can be approved, and low-quality extraction remains admin-reviewable.
+- Legacy `PastQuestion` records can be migrated into `Resource`/`ResourceChunk` using a conservative report-first workflow. Existing past questions are not automatically approved unless explicit provenance, completeness, subject mapping, usable content, duplication, and usage-rights checks all pass. The current legacy model lacks provenance and usage-rights fields, so migrated records normally remain `PENDING_REVIEW`.
+
+Migration/report command:
+
+```bash
+npm run resources:migrate-past-questions -- --dry-run --report=docs/reports/past-question-migration-report.json
+npm run resources:migrate-past-questions -- --apply --report=docs/reports/past-question-migration-report.json
+```
+
+Stage 2 intentionally does not add embeddings, pgvector, keyword search, retrieval, RAG prompts, citations, source previews, grounded generation, or tutor modes. Those remain Stage 3+ work.
 
 ## Database And Query Optimizations
 
