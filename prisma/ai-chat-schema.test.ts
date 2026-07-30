@@ -27,7 +27,7 @@ describe("Stage 1 AI chat Prisma schema", () => {
     expect(schema).toMatch(/@@index\(\[chatId, createdAt, id\]/);
   });
 
-  it("adds Stage 2 resource ingestion models without vector or embedding tables", () => {
+  it("keeps Stage 2 resource ingestion models and active chunk versions", () => {
     expect(schema).toMatch(/model Resource\s*{/);
     expect(schema).toMatch(/model ResourceChunk\s*{/);
     expect(schema).toMatch(/activeChunkVersion\s+Int\?/);
@@ -37,6 +37,15 @@ describe("Stage 1 AI chat Prisma schema", () => {
     expect(schema).toMatch(/@@unique\(\[resourceId, version, chunkIndex\]/);
     expect(schema).toMatch(/enum ResourceProcessingStatus\s*{/);
     expect(schema).toMatch(/UPLOADED\s+PROCESSING\s+PROCESSED\s+FAILED/s);
-    expect(schema).not.toMatch(/ResourceChunkEmbedding|pgvector|vector\(/i);
+  });
+
+  it("adds Stage 3 retrieval models without changing legacy AI Q&A tables", () => {
+    expect(schema).toMatch(/model ResourceEmbeddingConfiguration\s*{/);
+    expect(schema).toMatch(/BUILDING\s+READY\s+ACTIVE\s+RETIRED\s+FAILED/s);
+    expect(schema).toMatch(/model ResourceChunkEmbedding\s*{/);
+    expect(schema).toMatch(/embedding\s+Unsupported\("vector"\)\?/);
+    expect(schema).toMatch(/searchText\s+String\?/);
+    expect(schema).toMatch(/searchVector\s+Unsupported\("tsvector"\)\?/);
+    expect(schema).toMatch(/@@unique\(\[resourceChunkId, configurationId, contentHash\]/);
   });
 });
