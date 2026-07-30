@@ -7,6 +7,7 @@ import {
 } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { buildPastQuestionChunk, hashContent } from "./chunking";
+import { buildResourceChunkSearchText } from "./retrieval/search-text";
 
 export interface LegacyPastQuestionForMigration {
   id: string;
@@ -268,6 +269,16 @@ async function createLegacyPastQuestionResource(
           tokenEstimate: chunk.tokenEstimate,
           questionNumber: chunk.questionNumber,
           contentHash: chunk.contentHash,
+          searchText: buildResourceChunkSearchText({
+            resource: {
+              title: decision.title,
+              sourceKind: ResourceSourceKind.LEGACY_PAST_QUESTION,
+              subjectId: question.subjectId,
+              topicId: question.topicId,
+              contentHash: decision.contentHash,
+            },
+            chunk,
+          }),
           metadata: chunk.metadata as Prisma.InputJsonValue,
         },
       },
