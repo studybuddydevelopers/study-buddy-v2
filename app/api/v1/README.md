@@ -96,6 +96,17 @@ Admin Resources (Stage 2)
 
 Stage 2 resource APIs do not expose retrieval, embeddings, vector search, citations, source previews, grounded generation, or tutor modes.
 
+Resource Retrieval (Stage 3)
+----------------------------
+- Stage 3 retrieval is CLI/internal-only. There are no student-facing or admin-facing HTTP retrieval endpoints yet.
+- Retrieval infrastructure lives under `lib/resources/retrieval/*` and scripts:
+  - `npm run resources:rebuild-search-text`
+  - `npm run resources:embed-chunks`
+  - `npm run resources:search`
+  - `npm run resources:evaluate-retrieval -- --mode=keyword|vector|hybrid`
+- Keyword retrieval, exact vector retrieval, RRF hybrid ranking, filter checks, and evaluation tooling exist for approved processed active chunks.
+- `/chat` and `/api/v1/ai/chats/*` do not call retrieval in Stage 3 and must not claim resource grounding.
+
 Notes
 -----
 - This file documents the current implemented API under `app/api/v1`.
