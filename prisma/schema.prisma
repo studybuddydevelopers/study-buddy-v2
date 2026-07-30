@@ -82,6 +82,29 @@ enum ResourceChunkType {
   FORMULA_REFERENCE
 }
 
+enum ResourceEmbeddingConfigurationStatus {
+  BUILDING
+  READY
+  ACTIVE
+  RETIRED
+  FAILED
+}
+
+enum ResourceChunkEmbeddingStatus {
+  PENDING
+  COMPLETED
+  FAILED
+}
+
+enum ResourceChunkEmbeddingFailureCode {
+  PROVIDER_TIMEOUT
+  RATE_LIMITED
+  PROVIDER_ERROR
+  INVALID_PROVIDER_RESPONSE
+  DIMENSION_MISMATCH
+  INTERNAL_ERROR
+}
+
 enum SubscriptionPlan {
   free
   premium
@@ -564,9 +587,9 @@ model Resource {
 }
 
 model ResourceChunk {
-  id             String            @id @default(uuid())
+  id             String                   @id @default(uuid())
   resourceId     String
-  version        Int               @default(1)
+  version        Int                      @default(1)
   subjectId      String?
   topicId        String?
   chunkType      ResourceChunkType
@@ -578,18 +601,65 @@ model ResourceChunk {
   pageEnd        Int?
   questionNumber String?
   contentHash    String
+  searchText     String?
+  searchVector   Unsupported("tsvector")?
   metadata       Json?
-  createdAt      DateTime          @default(now())
-  updatedAt      DateTime          @updatedAt
+  createdAt      DateTime                 @default(now())
+  updatedAt      DateTime                 @updatedAt
 
-  resource Resource @relation(fields: [resourceId], references: [id], onDelete: Cascade)
-  subject  Subject? @relation(fields: [subjectId], references: [id], onDelete: SetNull)
-  topic    Topic?   @relation(fields: [topicId], references: [id], onDelete: SetNull)
+  resource   Resource                 @relation(fields: [resourceId], references: [id], onDelete: Cascade)
+  subject    Subject?                 @relation(fields: [subjectId], references: [id], onDelete: SetNull)
+  topic      Topic?                   @relation(fields: [topicId], references: [id], onDelete: SetNull)
+  embeddings ResourceChunkEmbedding[]
 
   @@unique([resourceId, version, chunkIndex], map: "ResourceChunk_resourceId_version_chunkIndex_key")
   @@index([resourceId, version, chunkType, chunkIndex], map: "ResourceChunk_resourceId_version_chunkType_chunkIndex_idx")
   @@index([subjectId, topicId, chunkType], map: "ResourceChunk_subjectId_topicId_chunkType_idx")
   @@index([contentHash], map: "ResourceChunk_contentHash_idx")
+}
+
+model ResourceEmbeddingConfiguration {
+  id                  String                               @id @default(uuid())
+  provider            String
+  model               String
+  dimensions          Int
+  embeddingVersion    Int                                  @default(1)
+  status              ResourceEmbeddingConfigurationStatus @default(BUILDING)
+  eligibleChunkCount  Int                                  @default(0)
+  completedChunkCount Int                                  @default(0)
+  failedChunkCount    Int                                  @default(0)
+  createdAt           DateTime                             @default(now())
+  updatedAt           DateTime                             @updatedAt
+  activatedAt         DateTime?
+  retiredAt           DateTime?
+
+  embeddings ResourceChunkEmbedding[]
+
+  @@unique([provider, model, dimensions, embeddingVersion], map: "ResourceEmbeddingConfig_provider_model_dim_ver_key")
+  @@index([status, provider, model, dimensions, embeddingVersion], map: "ResourceEmbeddingConfig_status_provider_model_idx")
+}
+
+model ResourceChunkEmbedding {
+  id              String                             @id @default(uuid())
+  resourceChunkId String
+  configurationId String
+  contentHash     String
+  status          ResourceChunkEmbeddingStatus       @default(PENDING)
+  failureCode     ResourceChunkEmbeddingFailureCode?
+  attemptCount    Int                                @default(0)
+  leasedUntil     DateTime?
+  embedding       Unsupported("vector")?
+  createdAt       DateTime                           @default(now())
+  updatedAt       DateTime                           @updatedAt
+  completedAt     DateTime?
+
+  resourceChunk ResourceChunk                  @relation(fields: [resourceChunkId], references: [id], onDelete: Cascade)
+  configuration ResourceEmbeddingConfiguration @relation(fields: [configurationId], references: [id], onDelete: Cascade)
+
+  @@unique([resourceChunkId, configurationId, contentHash], map: "ResourceChunkEmbedding_chunk_config_hash_key")
+  @@index([configurationId, status, leasedUntil, updatedAt, id], map: "ResourceChunkEmbedding_config_status_lease_idx")
+  @@index([resourceChunkId, configurationId, status], map: "ResourceChunkEmbedding_chunk_config_status_idx")
+  @@index([contentHash], map: "ResourceChunkEmbedding_contentHash_idx")
 }
 
 model PastQuestionSource {
