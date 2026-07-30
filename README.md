@@ -142,6 +142,7 @@ Key models:
 - `MockExamTemplate`, `MockExamInstance`, `MockExamAnswer`
 - `AiChat`, `AiChatMessage`, `AiGenerationRequest`
 - `Resource`, `ResourceChunk`
+- `ResourceEmbeddingConfiguration`, `ResourceChunkEmbedding`
 - `AiQuestion`, `AiQuestionMessage`, `Recommendation`
 - `ProgressTrack`
 - `Subscription`, `Transaction`
@@ -187,6 +188,34 @@ npm run resources:migrate-past-questions -- --apply --report=docs/reports/past-q
 ```
 
 Stage 2 intentionally does not add embeddings, pgvector, keyword search, retrieval, RAG prompts, citations, source previews, grounded generation, or tutor modes. Those remain Stage 3+ work.
+
+## Resource Retrieval Stage 3
+
+Implemented retrieval infrastructure:
+
+- New Stage 3 models: `ResourceEmbeddingConfiguration` and `ResourceChunkEmbedding`.
+- `ResourceChunk.searchText` stores denormalized searchable text; `ResourceChunk.searchVector` is a generated PostgreSQL `simple` full-text vector.
+- The migration installs `vector` in Supabase's `extensions` schema and stores embeddings as `extensions.vector(1536)` for the first release.
+- Embedding configuration lifecycle uses `BUILDING`, `READY`, `ACTIVE`, `RETIRED`, and `FAILED`; only one configuration may be `ACTIVE`.
+- Exact vector search only. No HNSW/IVFFlat index is added in Stage 3.
+- `pg_trgm` is not installed. Add it only after retrieval evaluation shows a measured need.
+- Keyword retrieval works for approved processed active chunks even when embeddings are incomplete.
+- Vector retrieval requires the active configuration, completed embedding rows, and matching current chunk content hashes.
+- Hybrid retrieval uses Reciprocal Rank Fusion, deterministic tie-breaking, subject/topic filters, and exact duplicate suppression with alternate provenance retained.
+- OpenAI-specific embedding code lives in [`lib/ai/embeddings/openai-provider.ts`](/Users/efeon/study-buddy-v2/lib/ai/embeddings/openai-provider.ts); tests use `FakeEmbeddingProvider`.
+
+Stage 3 is intentionally not connected to `/chat`. It does not add grounded prompts, citations, source previews, answer generation, query rewriting, or tutor modes.
+
+Commands:
+
+```bash
+npm run resources:rebuild-search-text -- --dry-run
+npm run resources:embed-chunks -- --dry-run
+npm run resources:search -- --mode=keyword --query="WAEC Mathematics question 5"
+npm run resources:evaluate-retrieval -- --mode=hybrid --with-vector --split=development
+```
+
+Details, activation rules, evaluation notes, and rollback: [`docs/RESOURCE_RETRIEVAL_STAGE_3.md`](/Users/efeon/study-buddy-v2/docs/RESOURCE_RETRIEVAL_STAGE_3.md).
 
 ## Database And Query Optimizations
 
@@ -264,6 +293,11 @@ The app expects environment variables for:
 - Stage 1 AI chat config:
   - `AI_CHAT_PROVIDER=openai`
   - `AI_CHAT_MODEL=gpt-4o-mini`
+- Stage 3 embedding config:
+  - `AI_EMBEDDING_PROVIDER=openai`
+  - `AI_EMBEDDING_MODEL=text-embedding-3-small`
+  - `AI_EMBEDDING_DIMENSIONS=1536`
+  - `AI_EMBEDDING_VERSION=1`
 - payment provider secrets
 - optional cron secret for recommendation generation
 - CAPTCHA frontend config when Supabase Auth CAPTCHA is enabled:
@@ -276,5 +310,7 @@ The app expects environment variables for:
 - [`docs/WEBSITE_GUIDE.md`](/Users/efeon/study-buddy-v2/docs/WEBSITE_GUIDE.md): path-by-path app walkthrough
 - [`docs/PERFORMANCE_AND_LOW_DATA_RULEBOOK.md`](/Users/efeon/study-buddy-v2/docs/PERFORMANCE_AND_LOW_DATA_RULEBOOK.md): mandatory performance, bandwidth, low-data, and resilience rules for future LLM/code changes
 - [`docs/AI_CHAT_STAGE_1_MIGRATION.md`](/Users/efeon/study-buddy-v2/docs/AI_CHAT_STAGE_1_MIGRATION.md): persistent chat migration, lifecycle, retry, and rollback notes
+- [`docs/RESOURCE_INGESTION_STAGE_2.md`](/Users/efeon/study-buddy-v2/docs/RESOURCE_INGESTION_STAGE_2.md): admin resource ingestion, extraction, approval, and past-question migration notes
+- [`docs/RESOURCE_RETRIEVAL_STAGE_3.md`](/Users/efeon/study-buddy-v2/docs/RESOURCE_RETRIEVAL_STAGE_3.md): retrieval, embeddings, evaluation, activation, and rollback notes
 - [`AI_FEATURES_GUIDE.md`](/Users/efeon/study-buddy-v2/AI_FEATURES_GUIDE.md): AI-specific implementation notes
 - [`app/api/v1/README.md`](/Users/efeon/study-buddy-v2/app/api/v1/README.md): API contracts
