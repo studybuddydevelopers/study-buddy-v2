@@ -17,6 +17,7 @@ import { getPaginationMeta } from "@/lib/pagination";
 import { hashContent, buildResourceChunks } from "./chunking";
 import { extractDocument } from "./extraction";
 import { ResourceServiceError } from "./errors";
+import { buildResourceChunkSearchText } from "./retrieval/search-text";
 import type {
   ListResourcesInput,
   ResourceApprovalInput,
@@ -317,6 +318,10 @@ export class ResourceService {
             pageEnd: chunk.pageEnd ?? null,
             questionNumber: chunk.questionNumber ?? null,
             contentHash: chunk.contentHash,
+            searchText: buildResourceChunkSearchText({
+              resource,
+              chunk,
+            }),
             metadata: chunk.metadata as Prisma.InputJsonValue,
           })),
         });
