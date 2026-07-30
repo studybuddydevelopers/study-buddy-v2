@@ -13,7 +13,11 @@
     "lint": "eslint .",
     "test": "vitest run",
     "test:watch": "vitest",
-    "resources:migrate-past-questions": "tsx scripts/migrate-past-questions-to-resources.ts"
+    "resources:migrate-past-questions": "tsx scripts/migrate-past-questions-to-resources.ts",
+    "resources:rebuild-search-text": "tsx scripts/rebuild-resource-search-text.ts",
+    "resources:embed-chunks": "tsx scripts/embed-resource-chunks.ts",
+    "resources:search": "tsx scripts/search-resources.ts",
+    "resources:evaluate-retrieval": "tsx scripts/evaluate-retrieval.ts"
   },
   "dependencies": {
     "@hcaptcha/react-hcaptcha": "^2.0.2",
