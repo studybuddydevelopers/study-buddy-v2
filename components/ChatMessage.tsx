@@ -2,6 +2,7 @@
 import ReactMarkdown from "react-markdown";
 import Image from "@/components/Image";
 import { FAILED_ASSISTANT_MESSAGE } from "@/components/chatFailureCopy";
+import type { ChatCitationData } from "./ChatMessageContainer";
 
 
 interface ChatMessageProps {
@@ -11,7 +12,16 @@ interface ChatMessageProps {
   avatar?: string; // image URL or emoji
   status?: "PENDING" | "COMPLETED" | "FAILED";
   failureCode?: string | null;
+  grounding?: {
+    attemptId: string;
+    insufficientContext: boolean;
+    sufficiencyStatus: string;
+    sufficiencyReason: string;
+    confidence: string;
+  } | null;
+  citations?: ChatCitationData[];
   onRetry?: () => void;
+  onCitationClick?: (citation: ChatCitationData) => void;
   retrying?: boolean;
 }
 
@@ -21,12 +31,17 @@ export default function ChatMessage({
   name,
   avatar,
   status = "COMPLETED",
+  grounding,
+  citations = [],
   onRetry,
+  onCitationClick,
   retrying = false,
 }: ChatMessageProps) {
   const isUser = sender === "user";
   const isPending = status === "PENDING";
   const isFailed = status === "FAILED";
+  const showCitations = !isPending && !isFailed && citations.length > 0;
+  const isInsufficient = Boolean(grounding?.insufficientContext);
 
   return (
     <div
@@ -59,7 +74,9 @@ export default function ChatMessage({
               ? "bg-primary-500 text-background"
               : isFailed
                 ? "bg-red-50 text-red-900 border border-red-100"
-                : "bg-gray-100 text-gray-900"
+                : isInsufficient
+                  ? "bg-amber-50 text-amber-950 border border-amber-100"
+                  : "bg-gray-100 text-gray-900"
             }`}
         >
           {isPending ? (
@@ -83,8 +100,24 @@ export default function ChatMessage({
               )}
             </div>
           ) : (
-            <div className="prose prose-sm max-w-none break-words prose-p:my-1 prose-pre:max-w-full prose-pre:overflow-x-auto">
-              <ReactMarkdown skipHtml>{text}</ReactMarkdown>
+            <div className="space-y-2">
+              <div className="prose prose-sm max-w-none break-words prose-p:my-1 prose-pre:max-w-full prose-pre:overflow-x-auto">
+                <ReactMarkdown skipHtml>{text}</ReactMarkdown>
+              </div>
+              {showCitations && (
+                <div className="flex flex-wrap gap-2 border-t border-black/5 pt-2">
+                  {citations.map((citation) => (
+                    <button
+                      key={citation.id}
+                      type="button"
+                      onClick={() => onCitationClick?.(citation)}
+                      className="rounded-full border border-primary-200 bg-white px-2.5 py-1 text-xs font-semibold text-primary-800 transition hover:bg-primary-50"
+                    >
+                      {citation.sourceLabel}
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
           )}
 
