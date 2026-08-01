@@ -1,7 +1,13 @@
 import { AiGenerationFailureCode } from "@prisma/client";
 import OpenAI from "openai";
 import { ChatProviderError } from "./errors";
-import type { ChatModelProvider, GenerateInput, GenerateResult } from "./types";
+import type {
+  ChatModelProvider,
+  GenerateInput,
+  GenerateResult,
+  StructuredGenerateInput,
+  StructuredGenerateResult,
+} from "./types";
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
@@ -69,6 +75,50 @@ export class OpenAIChatModelProvider implements ChatModelProvider {
         },
       };
     } catch (error) {
+      throw new ChatProviderError(mapOpenAIError(error));
+    }
+  }
+
+  async generateStructured(
+    input: StructuredGenerateInput
+  ): Promise<StructuredGenerateResult> {
+    try {
+      const completion = await this.client.chat.completions.create({
+        model: this.model,
+        messages: input.messages.map((message) => ({
+          role: message.role,
+          content: message.content,
+        })),
+        temperature: input.temperature ?? 0.2,
+        max_tokens: input.maxOutputTokens ?? 700,
+        response_format: {
+          type: "json_schema",
+          json_schema: {
+            name: input.outputSchema.name,
+            schema: input.outputSchema.schema,
+            strict: input.outputSchema.strict ?? true,
+          },
+        },
+      });
+      const rawText = completion.choices?.[0]?.message?.content ?? "";
+
+      return {
+        value: JSON.parse(rawText),
+        rawText,
+        provider: "openai",
+        model: this.model,
+        usage: {
+          inputTokens: completion.usage?.prompt_tokens,
+          outputTokens: completion.usage?.completion_tokens,
+          totalTokens: completion.usage?.total_tokens,
+        },
+      };
+    } catch (error) {
+      if (error instanceof SyntaxError) {
+        throw new ChatProviderError(
+          AiGenerationFailureCode.INVALID_PROVIDER_RESPONSE
+        );
+      }
       throw new ChatProviderError(mapOpenAIError(error));
     }
   }
