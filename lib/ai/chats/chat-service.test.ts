@@ -2,11 +2,29 @@ import { describe, expect, it } from "vitest";
 import {
   AiChatMessageStatus,
   AiChatRole,
+  AiGroundingConfidence,
+  AiGroundingSufficiencyReason,
+  AiGroundingSufficiencyStatus,
   AiGenerationFailureCode,
   AiGenerationRequestStatus,
+  ResourceApprovalStatus,
+  ResourceChunkType,
+  ResourceProcessingStatus,
+  ResourceSourceKind,
 } from "@prisma/client";
-import type { ChatModelProvider, GenerateInput, GenerateResult } from "@/lib/ai/chat/types";
+import type {
+  ChatModelProvider,
+  GenerateInput,
+  GenerateResult,
+  StructuredGenerateInput,
+  StructuredGenerateResult,
+} from "@/lib/ai/chat/types";
 import { ChatProviderError } from "@/lib/ai/chat/errors";
+import { GroundedGenerationService } from "@/lib/ai/grounding/grounded-generation-service";
+import type {
+  ResourceSearchRepository,
+  RetrievedChunk,
+} from "@/lib/resources/retrieval/types";
 import { ChatService } from "./chat-service";
 import { ChatServiceError } from "./errors";
 
@@ -32,6 +50,7 @@ type MessageRow = {
   modelName: string | null;
   inputTokens: number | null;
   outputTokens: number | null;
+  currentGroundingAttemptId: string | null;
   createdAt: Date;
   updatedAt: Date;
 };
@@ -48,6 +67,62 @@ type RequestRow = {
   createdAt: Date;
   updatedAt: Date;
   completedAt: Date | null;
+};
+
+type GroundingAttemptRow = {
+  id: string;
+  generationRequestId: string;
+  assistantMessageId: string;
+  attemptNumber: number;
+  retrievalQuery: string;
+  embeddingConfigurationId: string | null;
+  sufficiencyStatus: AiGroundingSufficiencyStatus;
+  sufficiencyReason: AiGroundingSufficiencyReason;
+  confidence: AiGroundingConfidence;
+  selectedEvidenceMetadata: unknown;
+  groundingVersion: string;
+  promptVersion: string;
+  sufficiencyPolicyVersion: string;
+  retrievalDurationMs: number | null;
+  generationDurationMs: number | null;
+  createdAt: Date;
+};
+
+type CitationRow = {
+  id: string;
+  groundingAttemptId: string;
+  messageId: string;
+  resourceId: string;
+  resourceChunkId: string;
+  sourceLabel: string;
+  retrievalRank: number | null;
+  vectorDistance: number | null;
+  keywordRank: number | null;
+  fusionScore: number | null;
+  contentHash: string;
+  createdAt: Date;
+};
+
+type ResourceRow = {
+  id: string;
+  title: string;
+  sourceKind: ResourceSourceKind;
+  processingStatus: ResourceProcessingStatus;
+  approvalStatus: ResourceApprovalStatus;
+  activeChunkVersion: number | null;
+};
+
+type ResourceChunkRow = {
+  id: string;
+  resourceId: string;
+  version: number;
+  chunkType: ResourceChunkType;
+  title: string | null;
+  content: string;
+  contentHash: string;
+  pageStart: number | null;
+  pageEnd: number | null;
+  questionNumber: string | null;
 };
 
 class SequenceProvider implements ChatModelProvider {
@@ -70,6 +145,37 @@ class SequenceProvider implements ChatModelProvider {
   }
 }
 
+class StructuredSequenceProvider extends SequenceProvider {
+  structuredInvocations = 0;
+
+  constructor(
+    results: Array<GenerateResult | Error>,
+    private readonly structuredResults: Array<StructuredGenerateResult | Error>
+  ) {
+    super(results);
+  }
+
+  async generateStructured(
+    input: StructuredGenerateInput
+  ): Promise<StructuredGenerateResult> {
+    void input;
+    this.structuredInvocations += 1;
+    const next = this.structuredResults.shift();
+    if (next instanceof Error) throw next;
+    return (
+      next ?? {
+        value: {
+          answer: "Grounded answer. [SOURCE_1]",
+          citations: [{ sourceLabel: "SOURCE_1" }],
+          insufficientContext: false,
+        },
+        provider: "fake",
+        model: "fake-structured",
+      }
+    );
+  }
+}
+
 class InMemoryChatDb {
   subjects = [{ id: "11111111-1111-4111-8111-111111111111", name: "Mathematics", examCode: "MATH" }];
   topics = [
@@ -87,6 +193,32 @@ class InMemoryChatDb {
   chats: ChatRow[] = [];
   messages: MessageRow[] = [];
   requests: RequestRow[] = [];
+  groundingAttempts: GroundingAttemptRow[] = [];
+  citations: CitationRow[] = [];
+  resources: ResourceRow[] = [
+    {
+      id: "resource-1",
+      title: "Approved Maths Notes",
+      sourceKind: ResourceSourceKind.UPLOAD,
+      processingStatus: ResourceProcessingStatus.PROCESSED,
+      approvalStatus: ResourceApprovalStatus.APPROVED,
+      activeChunkVersion: 1,
+    },
+  ];
+  resourceChunks: ResourceChunkRow[] = [
+    {
+      id: "chunk-1",
+      resourceId: "resource-1",
+      version: 1,
+      chunkType: ResourceChunkType.CONTENT_SECTION,
+      title: "Ratios",
+      content: "A ratio compares quantities using division.",
+      contentHash: "chunk-hash-1",
+      pageStart: 1,
+      pageEnd: 1,
+      questionNumber: null,
+    },
+  ];
   private nextId = 1;
 
   $transaction = async (input: unknown) => {
@@ -175,6 +307,7 @@ class InMemoryChatDb {
         modelName: data.modelName ?? null,
         inputTokens: data.inputTokens ?? null,
         outputTokens: data.outputTokens ?? null,
+        currentGroundingAttemptId: data.currentGroundingAttemptId ?? null,
         createdAt: data.createdAt ?? now,
         updatedAt: data.updatedAt ?? now,
       };
@@ -278,6 +411,81 @@ class InMemoryChatDb {
     },
   };
 
+  aiGroundingAttempt = {
+    create: async ({ data }: { data: Partial<GroundingAttemptRow> }) => {
+      const now = this.date();
+      const attempt: GroundingAttemptRow = {
+        id: data.id ?? this.id("attempt"),
+        generationRequestId: data.generationRequestId!,
+        assistantMessageId: data.assistantMessageId!,
+        attemptNumber: data.attemptNumber!,
+        retrievalQuery: data.retrievalQuery!,
+        embeddingConfigurationId: data.embeddingConfigurationId ?? null,
+        sufficiencyStatus: data.sufficiencyStatus!,
+        sufficiencyReason: data.sufficiencyReason!,
+        confidence: data.confidence!,
+        selectedEvidenceMetadata: data.selectedEvidenceMetadata ?? [],
+        groundingVersion: data.groundingVersion!,
+        promptVersion: data.promptVersion!,
+        sufficiencyPolicyVersion: data.sufficiencyPolicyVersion!,
+        retrievalDurationMs: data.retrievalDurationMs ?? null,
+        generationDurationMs: data.generationDurationMs ?? null,
+        createdAt: data.createdAt ?? now,
+      };
+      this.groundingAttempts.push(attempt);
+      return attempt;
+    },
+  };
+
+  aiMessageCitation = {
+    createMany: async ({ data }: { data: Array<Partial<CitationRow>> }) => {
+      for (const row of data) {
+        this.citations.push({
+          id: row.id ?? this.id("citation"),
+          groundingAttemptId: row.groundingAttemptId!,
+          messageId: row.messageId!,
+          resourceId: row.resourceId!,
+          resourceChunkId: row.resourceChunkId!,
+          sourceLabel: row.sourceLabel!,
+          retrievalRank: row.retrievalRank ?? null,
+          vectorDistance: row.vectorDistance ?? null,
+          keywordRank: row.keywordRank ?? null,
+          fusionScore: row.fusionScore ?? null,
+          contentHash: row.contentHash!,
+          createdAt: row.createdAt ?? this.date(),
+        });
+      }
+      return { count: data.length };
+    },
+    findFirst: async ({ where }: { where: { id: string; message?: { chatId?: string; role?: AiChatRole } } }) => {
+      const citation = this.citations.find((item) => item.id === where.id);
+      if (!citation) return null;
+      const message = this.messages.find((item) => item.id === citation.messageId);
+      if (!message) return null;
+      if (where.message?.chatId && message.chatId !== where.message.chatId) return null;
+      if (where.message?.role && message.role !== where.message.role) return null;
+      const groundingAttempt = this.groundingAttempts.find(
+        (item) => item.id === citation.groundingAttemptId
+      )!;
+      const resource = this.resources.find((item) => item.id === citation.resourceId)!;
+      const resourceChunk = this.resourceChunks.find(
+        (item) => item.id === citation.resourceChunkId
+      )!;
+
+      return {
+        ...citation,
+        groundingAttempt,
+        message: {
+          id: message.id,
+          chatId: message.chatId,
+          currentGroundingAttemptId: message.currentGroundingAttemptId,
+        },
+        resource,
+        resourceChunk,
+      };
+    },
+  };
+
   seedChat(input: Partial<ChatRow>) {
     const now = this.date();
     const chat: ChatRow = {
@@ -323,8 +531,12 @@ class InMemoryChatDb {
   private withRequestMessages(request: RequestRow) {
     return {
       ...request,
-      userMessage: this.messages.find((item) => item.id === request.userMessageId)!,
-      assistantMessage: this.messages.find((item) => item.id === request.assistantMessageId)!,
+      userMessage: this.withMessageRequest(
+        this.messages.find((item) => item.id === request.userMessageId)!
+      ),
+      assistantMessage: this.withMessageRequest(
+        this.messages.find((item) => item.id === request.assistantMessageId)!
+      ),
     };
   }
 
@@ -341,11 +553,35 @@ class InMemoryChatDb {
       ...message,
       userGenerationRequest,
       assistantGenerationRequest,
+      currentGroundingAttempt: message.currentGroundingAttemptId
+        ? this.withGroundingAttempt(message.currentGroundingAttemptId)
+        : null,
+    };
+  }
+
+  private withGroundingAttempt(attemptId: string) {
+    const attempt = this.groundingAttempts.find((item) => item.id === attemptId);
+    if (!attempt) return null;
+    return {
+      ...attempt,
+      citations: this.citations
+        .filter((citation) => citation.groundingAttemptId === attempt.id)
+        .sort((a, b) => a.sourceLabel.localeCompare(b.sourceLabel)),
     };
   }
 
   private matches<T extends Record<string, unknown>>(item: T, where: Partial<T>) {
-    return Object.entries(where).every(([key, value]) => item[key] === value);
+    return Object.entries(where).every(([key, value]) => {
+      if (
+        value &&
+        typeof value === "object" &&
+        !Array.isArray(value) &&
+        "not" in value
+      ) {
+        return item[key] !== (value as { not: unknown }).not;
+      }
+      return item[key] === value;
+    });
   }
 
   private sorter(orderBy?: Array<Record<string, "asc" | "desc">>) {
@@ -374,6 +610,55 @@ function createService(
     provider,
     service: new ChatService(db as never, provider),
   };
+}
+
+function retrievedChunk(input: Partial<RetrievedChunk> = {}): RetrievedChunk {
+  return {
+    id: input.id ?? "chunk-1",
+    resourceId: input.resourceId ?? "resource-1",
+    resourceTitle: input.resourceTitle ?? "Approved Maths Notes",
+    sourceKind: input.sourceKind ?? ResourceSourceKind.UPLOAD,
+    chunkIndex: input.chunkIndex ?? 0,
+    chunkType: input.chunkType ?? ResourceChunkType.CONTENT_SECTION,
+    title: input.title ?? "Ratios",
+    content: input.content ?? "A ratio compares quantities using division.",
+    snippet: input.snippet ?? "A ratio compares quantities...",
+    contentHash: input.contentHash ?? "chunk-hash-1",
+    subjectId: input.subjectId ?? null,
+    topicId: input.topicId ?? null,
+    questionNumber: input.questionNumber ?? null,
+    vectorRank: input.vectorRank ?? null,
+    vectorDistance: input.vectorDistance ?? 0.2,
+    keywordRank: input.keywordRank ?? 1,
+    keywordScore: input.keywordScore ?? 0.3,
+    exactSignals: input.exactSignals ?? [],
+    fusionScore: input.fusionScore ?? 0.05,
+    bestBranchRank: input.bestBranchRank ?? 1,
+    alternateProvenance: input.alternateProvenance ?? [],
+  };
+}
+
+class FakeSearchRepository implements ResourceSearchRepository {
+  calls = 0;
+
+  constructor(private readonly chunks: RetrievedChunk[]) {}
+
+  async keywordSearch() {
+    return this.chunks;
+  }
+
+  async vectorSearch() {
+    return this.chunks;
+  }
+
+  async hybridSearch() {
+    this.calls += 1;
+    return this.chunks;
+  }
+
+  async getActiveEmbeddingConfiguration() {
+    return null;
+  }
 }
 
 describe("ChatService Stage 1 lifecycle", () => {
@@ -741,5 +1026,210 @@ describe("ChatService Stage 1 lifecycle", () => {
     const messages = await service.listMessages("user-a", "chat-a", { page: 1, pageSize: 500 });
     expect(messages.pagination.pageSize).toBe(100);
     expect(messages.messages.map((message) => message.id)).toEqual(["msg-a", "msg-b"]);
+  });
+
+  it("feature-gated grounded generation persists an attempt and visible citations", async () => {
+    const db = new InMemoryChatDb();
+    const provider = new StructuredSequenceProvider([], [
+      {
+        value: {
+          answer: "A ratio compares quantities using division. [SOURCE_1]",
+          citations: [{ sourceLabel: "SOURCE_1" }],
+          insufficientContext: false,
+        },
+        provider: "fake",
+        model: "fake-structured",
+        usage: { inputTokens: 10, outputTokens: 12 },
+      },
+    ]);
+    const searchRepository = new FakeSearchRepository([retrievedChunk()]);
+    const service = new ChatService(db as never, provider, {
+      groundedChatEnabled: true,
+      groundingService: new GroundedGenerationService({ searchRepository }),
+    });
+    db.seedChat({ id: "chat-1", userId: "user-a" });
+
+    const result = await service.sendMessage("user-a", "chat-1", {
+      message: "Explain ratios",
+      clientRequestId: "request-grounded",
+    });
+
+    expect(searchRepository.calls).toBe(1);
+    expect(provider.structuredInvocations).toBe(1);
+    expect(db.groundingAttempts).toHaveLength(1);
+    expect(db.citations).toHaveLength(1);
+    expect(result.assistantMessage.content).toContain("[SOURCE_1]");
+    expect(result.assistantMessage.citations).toHaveLength(1);
+    expect(result.assistantMessage.grounding?.insufficientContext).toBe(false);
+    expect(
+      db.messages.find((message) => message.id === result.assistantMessage.id)
+        ?.currentGroundingAttemptId
+    ).toBe(db.groundingAttempts[0].id);
+  });
+
+  it("grounded no-result cases complete with deterministic refusal and no model call", async () => {
+    const db = new InMemoryChatDb();
+    const provider = new StructuredSequenceProvider([], []);
+    const service = new ChatService(db as never, provider, {
+      groundedChatEnabled: true,
+      groundingService: new GroundedGenerationService({
+        searchRepository: new FakeSearchRepository([]),
+      }),
+    });
+    db.seedChat({ id: "chat-1", userId: "user-a" });
+
+    const result = await service.sendMessage("user-a", "chat-1", {
+      message: "What is the official WAEC question this year?",
+      clientRequestId: "request-refusal",
+    });
+
+    expect(provider.structuredInvocations).toBe(0);
+    expect(db.groundingAttempts).toHaveLength(1);
+    expect(db.citations).toHaveLength(0);
+    expect(result.assistantMessage.status).toBe(AiChatMessageStatus.COMPLETED);
+    expect(result.assistantMessage.grounding?.insufficientContext).toBe(true);
+    expect(result.assistantMessage.content).toContain("approved StudyBuddy material");
+  });
+
+  it("grounded retry creates a new attempt and refreshes current citations", async () => {
+    const db = new InMemoryChatDb();
+    const provider = new StructuredSequenceProvider([], [
+      {
+        value: {
+          answer: "Bad citation.",
+          citations: [{ sourceLabel: "SOURCE_9" }],
+          insufficientContext: false,
+        },
+        provider: "fake",
+        model: "fake-structured",
+      },
+      {
+        value: {
+          answer: "Still bad.",
+          citations: [{ sourceLabel: "SOURCE_9" }],
+          insufficientContext: false,
+        },
+        provider: "fake",
+        model: "fake-structured",
+      },
+      {
+        value: {
+          answer: "Recovered grounded answer. [SOURCE_1]",
+          citations: [{ sourceLabel: "SOURCE_1" }],
+          insufficientContext: false,
+        },
+        provider: "fake",
+        model: "fake-structured",
+      },
+    ]);
+    const service = new ChatService(db as never, provider, {
+      groundedChatEnabled: true,
+      groundingService: new GroundedGenerationService({
+        searchRepository: new FakeSearchRepository([retrievedChunk()]),
+      }),
+    });
+    db.seedChat({ id: "chat-1", userId: "user-a" });
+
+    const failed = await service.sendMessage("user-a", "chat-1", {
+      message: "Explain ratios",
+      clientRequestId: "request-retry-grounded",
+    });
+    expect(failed.request.status).toBe(AiGenerationRequestStatus.FAILED);
+    expect(db.groundingAttempts).toHaveLength(1);
+    expect(db.citations).toHaveLength(0);
+
+    const retry = await service.retryGeneration(
+      "user-a",
+      "chat-1",
+      failed.request.id
+    );
+
+    expect(db.messages.filter((message) => message.role === AiChatRole.USER)).toHaveLength(1);
+    expect(db.messages.filter((message) => message.role === AiChatRole.ASSISTANT)).toHaveLength(1);
+    expect(db.groundingAttempts).toHaveLength(2);
+    expect(db.citations).toHaveLength(1);
+    expect(db.groundingAttempts.map((attempt) => attempt.attemptNumber)).toEqual([1, 2]);
+    expect(retry.assistantMessage.id).toBe(failed.assistantMessage.id);
+    expect(retry.assistantMessage.citations).toHaveLength(1);
+    expect(retry.assistantMessage.content).toContain("Recovered");
+  });
+
+  it("marks grounded generations failed when citation persistence fails", async () => {
+    const db = new InMemoryChatDb();
+    db.aiMessageCitation.createMany = async () => {
+      throw new Error("citation persistence failed");
+    };
+    const provider = new StructuredSequenceProvider([], [
+      {
+        value: {
+          answer: "A ratio compares quantities. [SOURCE_1]",
+          citations: [{ sourceLabel: "SOURCE_1" }],
+          insufficientContext: false,
+        },
+        provider: "fake",
+        model: "fake-structured",
+      },
+    ]);
+    const service = new ChatService(db as never, provider, {
+      groundedChatEnabled: true,
+      groundingService: new GroundedGenerationService({
+        searchRepository: new FakeSearchRepository([retrievedChunk()]),
+      }),
+    });
+    db.seedChat({ id: "chat-1", userId: "user-a" });
+
+    const result = await service.sendMessage("user-a", "chat-1", {
+      message: "Explain ratios",
+      clientRequestId: "request-citation-fail",
+    });
+
+    expect(result.request.status).toBe(AiGenerationRequestStatus.FAILED);
+    expect(result.assistantMessage.status).toBe(AiChatMessageStatus.FAILED);
+    expect(result.assistantMessage.content).toBe("");
+    expect(result.assistantMessage.citations).toHaveLength(0);
+    const errorCode =
+      "error" in result
+        ? (result.error as { code?: string } | undefined)?.code
+        : undefined;
+    expect(errorCode).toBe("INTERNAL_ERROR");
+  });
+
+  it("citation preview enforces ownership and returns bounded historical evidence", async () => {
+    const db = new InMemoryChatDb();
+    const provider = new StructuredSequenceProvider([], [
+      {
+        value: {
+          answer: "A ratio compares quantities. [SOURCE_1]",
+          citations: [{ sourceLabel: "SOURCE_1" }],
+          insufficientContext: false,
+        },
+        provider: "fake",
+        model: "fake-structured",
+      },
+    ]);
+    const service = new ChatService(db as never, provider, {
+      groundedChatEnabled: true,
+      groundingService: new GroundedGenerationService({
+        searchRepository: new FakeSearchRepository([retrievedChunk()]),
+      }),
+    });
+    db.seedChat({ id: "chat-1", userId: "user-a" });
+    const result = await service.sendMessage("user-a", "chat-1", {
+      message: "Explain ratios",
+      clientRequestId: "request-preview",
+    });
+    const citationId = result.assistantMessage.citations[0].id;
+
+    const preview = await service.getCitationPreview(
+      "user-a",
+      "chat-1",
+      citationId
+    );
+
+    expect(preview.chunk.excerpt).toContain("ratio compares quantities");
+    expect(preview.citation.isCurrentForMessage).toBe(true);
+    await expect(
+      service.getCitationPreview("intruder", "chat-1", citationId)
+    ).rejects.toMatchObject({ code: "CHAT_NOT_FOUND" });
   });
 });
