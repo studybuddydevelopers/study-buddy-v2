@@ -6,6 +6,9 @@ export function getChatModelProvider(): ChatModelProvider {
   const provider = process.env.AI_CHAT_PROVIDER ?? "openai";
 
   if (provider === "fake") {
+    if (process.env.NODE_ENV === "production") {
+      throw new Error("Fake chat provider is not available in production.");
+    }
     return new FakeChatModelProvider();
   }
 
