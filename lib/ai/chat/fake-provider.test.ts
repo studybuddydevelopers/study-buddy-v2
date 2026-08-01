@@ -5,6 +5,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { AiGenerationFailureCode } from "@prisma/client";
 import { ChatProviderError } from "./errors";
 import { FakeChatModelProvider } from "./fake-provider";
+import { getChatModelProvider } from "./provider";
 
 describe("FakeChatModelProvider", () => {
   afterEach(() => {
@@ -54,6 +55,23 @@ describe("FakeChatModelProvider", () => {
     expect(provider.invocationCount).toBe(1);
   });
 
+  it("supports deterministic structured output modes through fake runtime controls", async () => {
+    vi.stubEnv("AI_CHAT_PROVIDER", "fake");
+    vi.stubEnv("AI_FAKE_STRUCTURED_CHAT_MODE", "UNKNOWN_LABEL");
+    const provider = new FakeChatModelProvider({ text: "Structured reply" });
+
+    const result = await provider.generateStructured({
+      messages: [{ role: "user", content: "Explain ratios" }],
+      outputSchema: { name: "test", schema: {} },
+    });
+
+    expect(result.value).toMatchObject({
+      answer: "Structured reply [SOURCE_9]",
+      citations: [{ sourceLabel: "SOURCE_9" }],
+      insufficientContext: false,
+    });
+  });
+
   it("reads strict fake provider controls from an OS temp file", async () => {
     const controlFile = path.join(
       fs.mkdtempSync(path.join(os.tmpdir(), "studybuddy-fake-chat-")),
@@ -63,6 +81,7 @@ describe("FakeChatModelProvider", () => {
       controlFile,
       JSON.stringify({
         mode: "FAILURE",
+        structuredMode: "VALID",
         delayMs: 0,
         failureCode: AiGenerationFailureCode.RATE_LIMITED,
       })
@@ -91,5 +110,14 @@ describe("FakeChatModelProvider", () => {
     ).rejects.toMatchObject({
       failureCode: AiGenerationFailureCode.INTERNAL_ERROR,
     });
+  });
+
+  it("does not resolve the fake chat provider in production", () => {
+    vi.stubEnv("NODE_ENV", "production");
+    vi.stubEnv("AI_CHAT_PROVIDER", "fake");
+
+    expect(() => getChatModelProvider()).toThrow(
+      "Fake chat provider is not available in production."
+    );
   });
 });
