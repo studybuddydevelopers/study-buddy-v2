@@ -21,6 +21,7 @@ Study Buddy v2 is a Next.js learning platform for exam preparation. It combines 
 - AI: quick chat, saved AI question threads, and study recommendations
 - AI Chat Stage 1: persistent general chat threads with provider-neutral generation, idempotent sends, retry-safe failures, and refresh-safe history. This is not yet resource-grounded RAG.
 - Resource Ingestion Stage 2: admin-only private resource uploads, extraction, chunking, approval workflows, and legacy past-question migration reports. This is not retrieval or RAG yet.
+- Grounded Chat Stage 4: feature-gated TEACH responses that retrieve approved active StudyBuddy evidence, validate structured output, persist grounding attempts/citations, and show safe source previews. Disabled by default until evaluations pass.
 - Accounts and billing: auth, profile, subscriptions, and payments
 - Admin and schools: content upload, user lookup, and school membership management
 
@@ -143,6 +144,7 @@ Key models:
 - `AiChat`, `AiChatMessage`, `AiGenerationRequest`
 - `Resource`, `ResourceChunk`
 - `ResourceEmbeddingConfiguration`, `ResourceChunkEmbedding`
+- `AiGroundingAttempt`, `AiMessageCitation`
 - `AiQuestion`, `AiQuestionMessage`, `Recommendation`
 - `ProgressTrack`
 - `Subscription`, `Transaction`
@@ -216,6 +218,30 @@ npm run resources:evaluate-retrieval -- --mode=hybrid --with-vector --split=deve
 ```
 
 Details, activation rules, evaluation notes, and rollback: [`docs/RESOURCE_RETRIEVAL_STAGE_3.md`](/Users/efeon/study-buddy-v2/docs/RESOURCE_RETRIEVAL_STAGE_3.md).
+
+## Grounded Chat Stage 4
+
+Implemented behind `AI_GROUNDED_CHAT_ENABLED=false` by default:
+
+- Persistent `/chat` can run a grounded TEACH pipeline after the Stage 1 user-message and pending-assistant transaction commits.
+- Message classification is deterministic: substantive educational questions require retrieval, conversational messages get fixed non-factual copy, and unsupported modes such as HINT, SOLVE, and MARK are unavailable.
+- Retrieval uses the Stage 3 repository and only approved, processed, active-version resources/chunks.
+- Evidence sufficiency is versioned and considers result count, keyword/vector signals, RRF rank, exact signals, subject/topic match, score separation, selected-evidence coverage, and citation availability.
+- Insufficient evidence uses deterministic refusal and skips the model call.
+- The chat provider contract now supports structured generation without importing OpenAI inside routes or services.
+- `AiGroundingAttempt` stores bounded diagnostics for every substantive grounded attempt, including retries.
+- `AiMessageCitation` stores validated server-controlled labels, historical chunk IDs, content hashes, ranks, and scores.
+- Citation previews are bounded, authenticated, ownership-checked, storage-redacted, and indicate when a cited chunk is no longer from the active resource version.
+
+Stage 4 still does not add HINT, SOLVE, MARK, public web search, external browsing, unrestricted fallback, or official WAEC marking claims.
+
+Do not enable `AI_GROUNDED_CHAT_ENABLED=true` in production until the development and holdout grounding evaluations pass. Details and rollback: [`docs/GROUNDED_CHAT_STAGE_4.md`](/Users/efeon/study-buddy-v2/docs/GROUNDED_CHAT_STAGE_4.md).
+
+Grounding evaluation command:
+
+```bash
+npm run ai:evaluate-grounding -- --answers=docs/reports/grounded-answers.json --split=development
+```
 
 ## Database And Query Optimizations
 
