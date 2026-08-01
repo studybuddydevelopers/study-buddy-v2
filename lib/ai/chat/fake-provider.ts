@@ -3,7 +3,13 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { ChatProviderError } from "./errors";
-import type { ChatModelProvider, GenerateInput, GenerateResult } from "./types";
+import type {
+  ChatModelProvider,
+  GenerateInput,
+  GenerateResult,
+  StructuredGenerateInput,
+  StructuredGenerateResult,
+} from "./types";
 
 const FAKE_CHAT_MODES = [
   "SUCCESS",
@@ -11,11 +17,26 @@ const FAKE_CHAT_MODES = [
   "FAILURE",
   "INVALID_RESPONSE",
 ] as const;
+const FAKE_STRUCTURED_CHAT_MODES = [
+  "VALID",
+  "EMPTY_ANSWER",
+  "MALFORMED",
+  "UNKNOWN_LABEL",
+  "MISSING_CITATION",
+  "OBJECT_WITHOUT_MARKER",
+  "MARKER_WITHOUT_OBJECT",
+  "DUPLICATE_LABEL",
+  "INSUFFICIENT_FACTUAL",
+  "EXCESSIVE_SUGGESTIONS",
+  "FAKE_LINK_CITATION",
+] as const;
 
 type FakeChatMode = (typeof FAKE_CHAT_MODES)[number];
+type FakeStructuredChatMode = (typeof FAKE_STRUCTURED_CHAT_MODES)[number];
 
 interface FakeChatModelProviderOptions {
   text?: string;
+  structuredValue?: unknown;
   provider?: string;
   model?: string;
   delayMs?: number;
@@ -26,6 +47,7 @@ interface FakeChatModelProviderOptions {
 
 interface FakeChatRuntimeControl {
   mode?: FakeChatMode;
+  structuredMode?: FakeStructuredChatMode;
   delayMs?: number;
   failureCode?: AiGenerationFailureCode;
 }
@@ -43,6 +65,15 @@ function isFailureCode(value: unknown): value is AiGenerationFailureCode {
     Object.values(AiGenerationFailureCode).includes(
       value as AiGenerationFailureCode
     )
+  );
+}
+
+function isFakeStructuredChatMode(
+  value: unknown
+): value is FakeStructuredChatMode {
+  return (
+    typeof value === "string" &&
+    FAKE_STRUCTURED_CHAT_MODES.includes(value as FakeStructuredChatMode)
   );
 }
 
@@ -68,7 +99,12 @@ function parseRuntimeControlObject(value: unknown): FakeChatRuntimeControl {
   }
 
   const record = value as Record<string, unknown>;
-  const allowedKeys = new Set(["mode", "delayMs", "failureCode"]);
+  const allowedKeys = new Set([
+    "mode",
+    "structuredMode",
+    "delayMs",
+    "failureCode",
+  ]);
   if (Object.keys(record).some((key) => !allowedKeys.has(key))) {
     throw new ChatProviderError(
       AiGenerationFailureCode.INTERNAL_ERROR,
@@ -90,6 +126,15 @@ function parseRuntimeControlObject(value: unknown): FakeChatRuntimeControl {
       "Invalid fake provider mode."
     );
   }
+  if (
+    record.structuredMode !== undefined &&
+    !isFakeStructuredChatMode(record.structuredMode)
+  ) {
+    throw new ChatProviderError(
+      AiGenerationFailureCode.INTERNAL_ERROR,
+      "Invalid fake structured provider mode."
+    );
+  }
 
   if (failureCode !== undefined && !isFailureCode(failureCode)) {
     throw new ChatProviderError(
@@ -100,6 +145,7 @@ function parseRuntimeControlObject(value: unknown): FakeChatRuntimeControl {
 
   return {
     mode: mode as FakeChatMode | undefined,
+    structuredMode: record.structuredMode as FakeStructuredChatMode | undefined,
     delayMs: parseDelayMs(record.delayMs),
     failureCode,
   };
@@ -139,6 +185,7 @@ function getRuntimeControl(): FakeChatRuntimeControl {
 
   const hasRuntimeControls =
     process.env.AI_FAKE_CHAT_MODE ||
+    process.env.AI_FAKE_STRUCTURED_CHAT_MODE ||
     process.env.AI_FAKE_CHAT_DELAY_MS ||
     process.env.AI_FAKE_CHAT_FAILURE_CODE ||
     process.env.AI_FAKE_CHAT_CONTROL_FILE;
@@ -157,6 +204,7 @@ function getRuntimeControl(): FakeChatRuntimeControl {
 
   return parseRuntimeControlObject({
     mode: process.env.AI_FAKE_CHAT_MODE || undefined,
+    structuredMode: process.env.AI_FAKE_STRUCTURED_CHAT_MODE || undefined,
     delayMs: process.env.AI_FAKE_CHAT_DELAY_MS || undefined,
     failureCode: process.env.AI_FAKE_CHAT_FAILURE_CODE || undefined,
   });
@@ -207,5 +255,93 @@ export class FakeChatModelProvider implements ChatModelProvider {
       model: this.options.model ?? "fake-chat-model",
       usage: this.options.usage,
     };
+  }
+
+  async generateStructured(
+    input: StructuredGenerateInput
+  ): Promise<StructuredGenerateResult> {
+    const result = await this.generate(input);
+    const runtimeControl = getRuntimeControl();
+    const value =
+      this.options.structuredValue ??
+      buildStructuredValue(runtimeControl.structuredMode ?? "VALID", result.text);
+
+    return {
+      value,
+      rawText: JSON.stringify(value),
+      provider: result.provider,
+      model: result.model,
+      usage: result.usage,
+    };
+  }
+}
+
+function buildStructuredValue(mode: FakeStructuredChatMode, text: string) {
+  switch (mode) {
+    case "EMPTY_ANSWER":
+      return {
+        answer: "",
+        citations: [{ sourceLabel: "SOURCE_1" }],
+        insufficientContext: false,
+      };
+    case "MALFORMED":
+      return { answer: text };
+    case "UNKNOWN_LABEL":
+      return {
+        answer: `${text} [SOURCE_9]`,
+        citations: [{ sourceLabel: "SOURCE_9" }],
+        insufficientContext: false,
+      };
+    case "MISSING_CITATION":
+      return {
+        answer: text,
+        citations: [],
+        insufficientContext: false,
+      };
+    case "OBJECT_WITHOUT_MARKER":
+      return {
+        answer: text,
+        citations: [{ sourceLabel: "SOURCE_1" }],
+        insufficientContext: false,
+      };
+    case "MARKER_WITHOUT_OBJECT":
+      return {
+        answer: `${text} [SOURCE_1]`,
+        citations: [],
+        insufficientContext: false,
+      };
+    case "DUPLICATE_LABEL":
+      return {
+        answer: `${text} [SOURCE_1]`,
+        citations: [{ sourceLabel: "SOURCE_1" }, { sourceLabel: "SOURCE_1" }],
+        insufficientContext: false,
+      };
+    case "INSUFFICIENT_FACTUAL":
+      return {
+        answer: "The factual answer is unsupported.",
+        citations: [],
+        insufficientContext: true,
+      };
+    case "EXCESSIVE_SUGGESTIONS":
+      return {
+        answer: `${text} [SOURCE_1]`,
+        citations: [{ sourceLabel: "SOURCE_1" }],
+        insufficientContext: false,
+        suggestedQuestions: ["one", "two", "three", "four"],
+      };
+    case "FAKE_LINK_CITATION":
+      return {
+        answer: `${text} [SOURCE_1](https://example.test/source)`,
+        citations: [{ sourceLabel: "SOURCE_1" }],
+        insufficientContext: false,
+      };
+    case "VALID":
+    default:
+      return {
+        answer: `${text} [SOURCE_1]`,
+        citations: [{ sourceLabel: "SOURCE_1" }],
+        insufficientContext: false,
+        suggestedQuestions: [],
+      };
   }
 }
