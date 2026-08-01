@@ -48,4 +48,20 @@ describe("Stage 1 AI chat Prisma schema", () => {
     expect(schema).toMatch(/searchVector\s+Unsupported\("tsvector"\)\?/);
     expect(schema).toMatch(/@@unique\(\[resourceChunkId, configurationId, contentHash\]/);
   });
+
+  it("adds Stage 4 grounding attempts and citations without replacing Stage 1 chats", () => {
+    expect(schema).toMatch(/enum AiGroundingSufficiencyStatus\s*{/);
+    expect(schema).toMatch(/model AiGroundingAttempt\s*{/);
+    expect(schema).toMatch(/generationRequestId\s+String/);
+    expect(schema).toMatch(/assistantMessageId\s+String/);
+    expect(schema).toMatch(/selectedEvidenceMetadata\s+Json/);
+    expect(schema).toMatch(/sufficiencyPolicyVersion\s+String/);
+    expect(schema).toMatch(/@@unique\(\[generationRequestId, attemptNumber\]/);
+    expect(schema).toMatch(/model AiMessageCitation\s*{/);
+    expect(schema).toMatch(/sourceLabel\s+String/);
+    expect(schema).toMatch(/contentHash\s+String/);
+    expect(schema).toMatch(/@@unique\(\[groundingAttemptId, sourceLabel\]/);
+    expect(schema).toMatch(/@@unique\(\[groundingAttemptId, resourceChunkId, contentHash\]/);
+    expect(schema).toMatch(/currentGroundingAttemptId\s+String\?\s+@unique/);
+  });
 });
