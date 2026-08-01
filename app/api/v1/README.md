@@ -38,12 +38,15 @@ AI
 - GET `/ai/chats/:chatId/messages` (auth) — Query: `page?=1`, `pageSize?=50` (max 100). Lists messages ordered by `createdAt ASC, id ASC`.
 - POST `/ai/chats/:chatId/messages` (auth) — Body: `message` (1–4000 chars), `clientRequestId` (req). Creates/persists one user message, one empty pending assistant message, and one generation request. Duplicate completed/pending requests return existing state. Duplicate failed requests return failed state with `retryRequired`; use retry endpoint.
 - POST `/ai/chats/:chatId/requests/:requestId/retry` (auth) — Atomically retries a failed generation request without duplicating the user or assistant message.
+- GET `/ai/chats/:chatId/citations/:citationId` (auth) — Stage 4 citation preview. Verifies chat ownership and citation/message/attempt relationships, then returns bounded historical excerpt metadata. Does not expose private storage bucket/path or full original files.
 - POST `/ai/recommendations` (auth) — Body: `subjectId?`, `topicId?`, `context?` (string). Validates subject/topic when provided, saves recommendation, returns `{ recommendation }`.
 - POST `/ai/questions/create` (auth) — Body: `questionText` (req), `subjectId?`, `topicId?`. Creates thread + first user message, generates/saves AI reply, returns `{ question, messages: [userMessage, aiMessage] }`.
 - GET `/ai/questions/list` (auth) — Query: `page?=1`, `pageSize?=20` (max 50). Returns `{ threads: [{ id, questionText, createdAt, subjectId, topicId, lastMessage }], pagination }` for the requesting user.
 - POST `/ai/questions/:id/reply` (auth) — Body: `message` (req). User must own thread. Saves user message, generates/saves AI reply, returns `{ userMessage, aiMessage }`.
 
 Stage 1 chat note: `/ai/chats/*` provides persistence, ownership checks, idempotency, retry-safe lifecycle tracking, and a provider-neutral chat adapter. It is not resource-grounded and does not provide citations or StudyBuddy resource retrieval.
+
+Stage 4 grounded chat note: grounded TEACH generation is implemented behind `AI_GROUNDED_CHAT_ENABLED=false` by default. When disabled, Stage 1 general chat behaviour is preserved. When enabled, substantive educational messages retrieve approved active StudyBuddy evidence, validate structured output and server-controlled citations, persist `AiGroundingAttempt`/`AiMessageCitation` rows, and expose only safe bounded citation previews. HINT, SOLVE, MARK, public web search, and unrestricted fallback are not implemented.
 
 Past Questions
 --------------
@@ -106,6 +109,13 @@ Resource Retrieval (Stage 3)
   - `npm run resources:evaluate-retrieval -- --mode=keyword|vector|hybrid`
 - Keyword retrieval, exact vector retrieval, RRF hybrid ranking, filter checks, and evaluation tooling exist for approved processed active chunks.
 - `/chat` and `/api/v1/ai/chats/*` do not call retrieval in Stage 3 and must not claim resource grounding.
+
+Grounded Chat (Stage 4)
+-----------------------
+- Stage 4 integrates retrieval into persistent `/chat` only when `AI_GROUNDED_CHAT_ENABLED=true`.
+- New persistence: `AiGroundingAttempt` and `AiMessageCitation`.
+- New user-facing API: `GET /ai/chats/:chatId/citations/:citationId`.
+- Feature flag remains disabled until development and holdout grounding evaluations pass.
 
 Notes
 -----
