@@ -1,0 +1,175 @@
+import fs from "node:fs/promises";
+import { groundedEvaluationCases } from "@/lib/ai/grounding/evaluation/fixtures";
+import { runGroundedEvaluation } from "@/lib/ai/grounding/evaluation/runner";
+import type {
+  GroundedEvaluationAnswer,
+} from "@/lib/ai/grounding/evaluation/runner";
+import type {
+  GroundedEvaluationCase,
+  GroundedEvaluationSplit,
+} from "@/lib/ai/grounding/evaluation/types";
+
+interface Args {
+  answersFile?: string;
+  split: GroundedEvaluationSplit | "all";
+}
+
+async function main() {
+  const args = parseArgs(process.argv.slice(2));
+  const answers = args.answersFile ? await readAnswers(args.answersFile) : null;
+  const report = await runGroundedEvaluation({
+    cases: groundedEvaluationCases,
+    split: args.split,
+    answerCase: async (evaluationCase) => {
+      if (!answers) {
+        return buildFixtureBaselineAnswer(evaluationCase);
+      }
+      const answer = answers.get(evaluationCase.id);
+      if (!answer) {
+        throw new Error(`Missing grounded answer for case ${evaluationCase.id}.`);
+      }
+      return answer;
+    },
+  });
+
+  console.log(JSON.stringify(report, null, 2));
+}
+
+function parseArgs(values: string[]): Args {
+  return {
+    answersFile: readStringArg(values, "--answers"),
+    split: readSplit(values),
+  };
+}
+
+function readStringArg(values: string[], name: string) {
+  const value = values.find((item) => item.startsWith(`${name}=`));
+  return value ? value.slice(name.length + 1) : undefined;
+}
+
+function readSplit(values: string[]): GroundedEvaluationSplit | "all" {
+  const value = readStringArg(values, "--split");
+  if (value === "development" || value === "holdout") return value;
+  return "all";
+}
+
+async function readAnswers(filePath: string) {
+  const parsed = JSON.parse(await fs.readFile(filePath, "utf8"));
+  if (!Array.isArray(parsed)) {
+    throw new Error("Grounded answer file must contain a JSON array.");
+  }
+
+  return new Map(
+    parsed.map((item) => {
+      const normalized = normalizeAnswer(item);
+      return [normalized.caseId, normalized.answer] as const;
+    })
+  );
+}
+
+function normalizeAnswer(input: unknown): {
+  caseId: GroundedEvaluationCase["id"];
+  answer: GroundedEvaluationAnswer;
+} {
+  if (!input || typeof input !== "object" || Array.isArray(input)) {
+    throw new Error("Each grounded answer row must be an object.");
+  }
+  const row = input as Record<string, unknown>;
+  if (typeof row.caseId !== "string") {
+    throw new Error("Each grounded answer row requires caseId.");
+  }
+  if (typeof row.answer !== "string") {
+    throw new Error(`Grounded answer ${row.caseId} requires answer.`);
+  }
+
+  return {
+    caseId: row.caseId,
+    answer: {
+      answer: row.answer,
+      insufficientContext: row.insufficientContext === true,
+      citations: Array.isArray(row.citations)
+        ? row.citations
+            .filter((citation) => citation && typeof citation === "object")
+            .map((citation) => {
+              const record = citation as Record<string, unknown>;
+              return {
+                sourceLabel:
+                  typeof record.sourceLabel === "string"
+                    ? record.sourceLabel
+                    : "",
+                resourceId:
+                  typeof record.resourceId === "string"
+                    ? record.resourceId
+                    : undefined,
+                chunkId:
+                  typeof record.chunkId === "string"
+                    ? record.chunkId
+                    : undefined,
+                subjectId:
+                  typeof record.subjectId === "string"
+                    ? record.subjectId
+                    : undefined,
+                topicId:
+                  typeof record.topicId === "string"
+                    ? record.topicId
+                    : undefined,
+              };
+            })
+        : [],
+      structuredOutputFailed: row.structuredOutputFailed === true,
+      repairAttempted: row.repairAttempted === true,
+      retrievalLatencyMs: readOptionalNumber(row.retrievalLatencyMs),
+      generationLatencyMs: readOptionalNumber(row.generationLatencyMs),
+      inputTokens: readOptionalNumber(row.inputTokens),
+      outputTokens: readOptionalNumber(row.outputTokens),
+      estimatedCostUsd: readOptionalNumber(row.estimatedCostUsd),
+    },
+  };
+}
+
+function buildFixtureBaselineAnswer(
+  evaluationCase: GroundedEvaluationCase
+): GroundedEvaluationAnswer {
+  if (!evaluationCase.shouldAnswer) {
+    return {
+      answer:
+        "I do not have enough approved StudyBuddy material to answer that reliably.",
+      insufficientContext: true,
+      citations: [],
+    };
+  }
+
+  return {
+    answer: `Supported fixture answer ${(evaluationCase.requiredFacts ?? []).join(" ")} [SOURCE_1]`,
+    insufficientContext: false,
+    citations: [
+      {
+        sourceLabel: "SOURCE_1",
+        resourceId: evaluationCase.expectedResourceIds?.[0],
+        chunkId: evaluationCase.expectedChunkIds?.[0],
+        subjectId: evaluationCase.subjectId,
+        topicId: evaluationCase.topicId,
+      },
+    ],
+    structuredOutputFailed: false,
+    repairAttempted: false,
+    retrievalLatencyMs: 0,
+    generationLatencyMs: 0,
+    inputTokens: 0,
+    outputTokens: 0,
+    estimatedCostUsd: 0,
+  };
+}
+
+function readOptionalNumber(value: unknown) {
+  return typeof value === "number" && Number.isFinite(value) && value >= 0
+    ? value
+    : undefined;
+}
+
+main().catch((error) => {
+  console.error(
+    error instanceof Error ? error.message : "Grounded evaluation failed."
+  );
+  process.exitCode = 1;
+});
