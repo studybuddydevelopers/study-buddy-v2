@@ -1,9 +1,14 @@
 import {
   AiChatMessageStatus,
   AiChatRole,
+  AiGroundingConfidence,
+  AiGroundingSufficiencyReason,
+  AiGroundingSufficiencyStatus,
   AiGenerationFailureCode,
   AiGenerationRequestStatus,
   Prisma,
+  ResourceApprovalStatus,
+  ResourceProcessingStatus,
 } from "@prisma/client";
 import { getSafeProviderFailureCode } from "@/lib/ai/chat/errors";
 import { getChatModelProvider } from "@/lib/ai/chat/provider";
@@ -15,6 +20,12 @@ import type {
 } from "@/lib/ai/chat/types";
 import { getPaginationMeta } from "@/lib/pagination";
 import { prisma } from "@/lib/prisma";
+import { isGroundedChatEnabled } from "@/lib/ai/grounding/config";
+import {
+  GroundedGenerationService,
+  type GroundedGenerationOutcome,
+  type GroundingAttemptDraft,
+} from "@/lib/ai/grounding/grounded-generation-service";
 import type { CreateChatInput, SendChatMessageInput, UpdateChatInput } from "./schemas";
 import { ChatServiceError } from "./errors";
 
@@ -37,6 +48,27 @@ const chatInclude = {
 const requestInclude = {
   userMessage: true,
   assistantMessage: true,
+} satisfies Prisma.AiGenerationRequestInclude;
+
+const requestIncludeWithGrounding = {
+  userMessage: {
+    include: {
+      currentGroundingAttempt: {
+        include: {
+          citations: { orderBy: [{ sourceLabel: "asc" as const }] },
+        },
+      },
+    },
+  },
+  assistantMessage: {
+    include: {
+      currentGroundingAttempt: {
+        include: {
+          citations: { orderBy: [{ sourceLabel: "asc" as const }] },
+        },
+      },
+    },
+  },
 } satisfies Prisma.AiGenerationRequestInclude;
 
 const messageInclude = {
@@ -62,6 +94,15 @@ const messageInclude = {
   },
 } satisfies Prisma.AiChatMessageInclude;
 
+const messageIncludeWithGrounding = {
+  ...messageInclude,
+  currentGroundingAttempt: {
+    include: {
+      citations: { orderBy: [{ sourceLabel: "asc" }] },
+    },
+  },
+} satisfies Prisma.AiChatMessageInclude;
+
 type PrismaClient = typeof prisma;
 type PrismaOrTransaction = PrismaClient | Prisma.TransactionClient;
 type AiChatWithRelations = Prisma.AiChatGetPayload<{ include: typeof chatInclude }>;
@@ -71,6 +112,26 @@ type AiGenerationWithMessages = Prisma.AiGenerationRequestGetPayload<{
 type AiChatMessageWithRequest = Prisma.AiChatMessageGetPayload<{
   include: typeof messageInclude;
 }>;
+
+interface SerializableCitation {
+  id: string;
+  sourceLabel: string;
+  resourceId: string;
+  resourceChunkId: string;
+  contentHash: string;
+  retrievalRank: number | null;
+  vectorDistance: number | null;
+  keywordRank: number | null;
+  fusionScore: number | null;
+}
+
+interface SerializableGroundingAttempt {
+  id: string;
+  sufficiencyStatus: AiGroundingSufficiencyStatus;
+  sufficiencyReason: AiGroundingSufficiencyReason;
+  confidence: AiGroundingConfidence;
+  citations: SerializableCitation[];
+}
 
 interface PaginationInput {
   page?: number;
@@ -88,6 +149,11 @@ interface RetryAcquireResult {
   kind: "acquired" | "existing";
   chat: AiChatWithRelations;
   request: AiGenerationWithMessages;
+}
+
+interface ChatServiceOptions {
+  groundedChatEnabled?: boolean;
+  groundingService?: GroundedGenerationService;
 }
 
 function normalizePagination(
@@ -156,11 +222,23 @@ function serializeGenerationRequest(request: AiGenerationWithMessages) {
   };
 }
 
+function getSerializableGroundingAttempt(
+  message: unknown
+): SerializableGroundingAttempt | null {
+  if (!message || typeof message !== "object") return null;
+  if (!("currentGroundingAttempt" in message)) return null;
+  const value = message.currentGroundingAttempt;
+  if (!value || typeof value !== "object") return null;
+  return value as SerializableGroundingAttempt;
+}
+
 function serializeMessage(message: AiChatMessageWithRequest | AiGenerationWithMessages["userMessage"]) {
   const request =
     "assistantGenerationRequest" in message
       ? message.assistantGenerationRequest ?? message.userGenerationRequest
       : null;
+  const grounding = getSerializableGroundingAttempt(message);
+  const citations = grounding?.citations ?? [];
 
   return {
     id: message.id,
@@ -178,6 +256,27 @@ function serializeMessage(message: AiChatMessageWithRequest | AiGenerationWithMe
     requestId: request?.id ?? null,
     requestStatus: request?.status ?? null,
     clientRequestId: request?.clientRequestId ?? null,
+    grounding: grounding
+      ? {
+          attemptId: grounding.id,
+          insufficientContext:
+            grounding.sufficiencyStatus === AiGroundingSufficiencyStatus.INSUFFICIENT,
+          sufficiencyStatus: grounding.sufficiencyStatus,
+          sufficiencyReason: grounding.sufficiencyReason,
+          confidence: grounding.confidence,
+        }
+      : null,
+    citations: citations.map((citation) => ({
+      id: citation.id,
+      sourceLabel: citation.sourceLabel,
+      resourceId: citation.resourceId,
+      resourceChunkId: citation.resourceChunkId,
+      contentHash: citation.contentHash,
+      retrievalRank: citation.retrievalRank,
+      vectorDistance: citation.vectorDistance,
+      keywordRank: citation.keywordRank,
+      fusionScore: citation.fusionScore,
+    })),
   };
 }
 
@@ -277,10 +376,12 @@ function ensureSameChat(request: AiGenerationWithMessages) {
 
 export class ChatService {
   private resolvedProvider: ChatModelProvider | null = null;
+  private resolvedGroundingService: GroundedGenerationService | null = null;
 
   constructor(
     private readonly db: PrismaClient = prisma,
-    private readonly provider?: ChatModelProvider
+    private readonly provider?: ChatModelProvider,
+    private readonly options: ChatServiceOptions = {}
   ) {}
 
   async createChat(userId: string, input: CreateChatInput) {
@@ -401,7 +502,9 @@ export class ChatService {
       this.db.aiChatMessage.count({ where: { chatId } }),
       this.db.aiChatMessage.findMany({
         where: { chatId },
-        include: messageInclude,
+        include: this.isGroundedEnabled()
+          ? messageIncludeWithGrounding
+          : messageInclude,
         orderBy: [{ createdAt: "asc" }, { id: "asc" }],
         skip: page.skip,
         take: page.pageSize,
@@ -411,6 +514,93 @@ export class ChatService {
     return {
       messages: messages.map(serializeMessage),
       pagination: getPaginationMeta(total, page.page, page.pageSize),
+    };
+  }
+
+  async getCitationPreview(userId: string, chatId: string, citationId: string) {
+    if (!this.isGroundedEnabled()) {
+      throw new ChatServiceError("CHAT_NOT_FOUND", 404, "Citation not found.");
+    }
+
+    await this.findOwnedActiveChat(this.db, userId, chatId);
+
+    const citation = await this.db.aiMessageCitation.findFirst({
+      where: {
+        id: citationId,
+        message: {
+          chatId,
+          role: AiChatRole.ASSISTANT,
+        },
+      },
+      include: {
+        groundingAttempt: true,
+        message: { select: { id: true, chatId: true, currentGroundingAttemptId: true } },
+        resource: {
+          select: {
+            id: true,
+            title: true,
+            sourceKind: true,
+            processingStatus: true,
+            approvalStatus: true,
+            activeChunkVersion: true,
+          },
+        },
+        resourceChunk: {
+          select: {
+            id: true,
+            resourceId: true,
+            version: true,
+            chunkType: true,
+            title: true,
+            content: true,
+            contentHash: true,
+            pageStart: true,
+            pageEnd: true,
+            questionNumber: true,
+          },
+        },
+      },
+    });
+
+    if (
+      !citation ||
+      citation.groundingAttempt.assistantMessageId !== citation.messageId ||
+      citation.resourceChunk.resourceId !== citation.resourceId
+    ) {
+      throw new ChatServiceError("CHAT_NOT_FOUND", 404, "Citation not found.");
+    }
+
+    const isActiveResourceVersion =
+      citation.resource.processingStatus === ResourceProcessingStatus.PROCESSED &&
+      citation.resource.approvalStatus === ResourceApprovalStatus.APPROVED &&
+      citation.resource.activeChunkVersion === citation.resourceChunk.version;
+
+    return {
+      citation: {
+        id: citation.id,
+        sourceLabel: citation.sourceLabel,
+        messageId: citation.messageId,
+        groundingAttemptId: citation.groundingAttemptId,
+        contentHash: citation.contentHash,
+        contentHashMatches: citation.contentHash === citation.resourceChunk.contentHash,
+        isCurrentForMessage:
+          citation.message.currentGroundingAttemptId === citation.groundingAttemptId,
+        isActiveResourceVersion,
+      },
+      resource: {
+        id: citation.resource.id,
+        title: citation.resource.title,
+        sourceKind: citation.resource.sourceKind,
+      },
+      chunk: {
+        id: citation.resourceChunk.id,
+        title: citation.resourceChunk.title,
+        chunkType: citation.resourceChunk.chunkType,
+        pageStart: citation.resourceChunk.pageStart,
+        pageEnd: citation.resourceChunk.pageEnd,
+        questionNumber: citation.resourceChunk.questionNumber,
+        excerpt: buildCitationExcerpt(citation.resourceChunk.content),
+      },
     };
   }
 
@@ -617,6 +807,7 @@ export class ChatService {
           modelName: null,
           inputTokens: null,
           outputTokens: null,
+          currentGroundingAttemptId: null,
         },
       });
 
@@ -646,6 +837,10 @@ export class ChatService {
     initialized: InitializedGeneration | RetryAcquireResult,
     source: "send" | "retry"
   ) {
+    if (this.isGroundedEnabled()) {
+      return this.generateGroundedAndPersist(initialized, source);
+    }
+
     try {
       const messages = await this.buildProviderMessages(initialized.chat);
       const providerResult = await this.getProvider().generate({
@@ -743,6 +938,246 @@ export class ChatService {
     }
   }
 
+  private async generateGroundedAndPersist(
+    initialized: InitializedGeneration | RetryAcquireResult,
+    source: "send" | "retry"
+  ) {
+    const outcome = await this.getGroundingService().generate({
+      context: await this.buildGroundedContext(initialized),
+      provider: this.getProvider(),
+    });
+
+    if (outcome.kind === "FAILED") {
+      const request = await this.markGroundedGenerationFailed(
+        initialized,
+        outcome
+      );
+      const serviceCode = mapServiceErrorCode(outcome.failureCode);
+      const status =
+        outcome.failureCode === AiGenerationFailureCode.RATE_LIMITED
+          ? 429
+          : outcome.failureCode === AiGenerationFailureCode.INVALID_PROVIDER_RESPONSE
+            ? 502
+            : 500;
+
+      return {
+        ...this.serializeGenerationResult(
+          { kind: source === "send" ? "created" : "acquired", chat: initialized.chat, request },
+          false
+        ),
+        request: serializeGenerationRequest(request),
+        userMessage: serializeGenerationMessage(request.userMessage, request),
+        assistantMessage: serializeGenerationMessage(
+          request.assistantMessage,
+          request
+        ),
+        error: { code: serviceCode, status },
+      };
+    }
+
+    let request: AiGenerationWithMessages;
+    try {
+      request = await this.completeGroundedGeneration(initialized, outcome);
+    } catch {
+      request = await this.markGroundedGenerationFailed(initialized, {
+        kind: "FAILED",
+        failureCode: AiGenerationFailureCode.INTERNAL_ERROR,
+        attempt:
+          outcome.kind === "COMPLETED" || outcome.kind === "INSUFFICIENT_CONTEXT"
+            ? outcome.attempt
+            : undefined,
+      });
+      return {
+        ...this.serializeGenerationResult(
+          { kind: source === "send" ? "created" : "acquired", chat: initialized.chat, request },
+          false
+        ),
+        request: serializeGenerationRequest(request),
+        userMessage: serializeGenerationMessage(request.userMessage, request),
+        assistantMessage: serializeGenerationMessage(
+          request.assistantMessage,
+          request
+        ),
+        error: { code: "INTERNAL_ERROR", status: 500 },
+      };
+    }
+    return this.serializeGenerationResult(
+      { kind: source === "send" ? "created" : "acquired", chat: initialized.chat, request },
+      outcome.kind !== "DETERMINISTIC"
+    );
+  }
+
+  private async completeGroundedGeneration(
+    initialized: InitializedGeneration | RetryAcquireResult,
+    outcome: Exclude<GroundedGenerationOutcome, { kind: "FAILED" }>
+  ) {
+    return this.db.$transaction(async (tx) => {
+      let currentGroundingAttemptId: string | null = null;
+
+      if (outcome.kind === "COMPLETED" || outcome.kind === "INSUFFICIENT_CONTEXT") {
+        const attempt = await this.createGroundingAttempt(tx, initialized, outcome.attempt);
+        currentGroundingAttemptId = attempt.id;
+
+        if (outcome.kind === "COMPLETED" && outcome.citations.length > 0) {
+          await tx.aiMessageCitation.createMany({
+            data: outcome.citations.map((citation) => ({
+              groundingAttemptId: attempt.id,
+              messageId: initialized.request.assistantMessageId,
+              resourceId: citation.evidence.chunk.resourceId,
+              resourceChunkId: citation.evidence.chunk.id,
+              sourceLabel: citation.sourceLabel,
+              retrievalRank: citation.evidence.retrievalRank,
+              vectorDistance: citation.evidence.chunk.vectorDistance,
+              keywordRank: citation.evidence.chunk.keywordRank,
+              fusionScore: citation.evidence.chunk.fusionScore,
+              contentHash: citation.evidence.chunk.contentHash,
+            })),
+          });
+        }
+      }
+
+      const validatedUsage =
+        outcome.kind === "COMPLETED"
+          ? validateUsage(outcome.usage)
+          : { inputTokens: undefined, outputTokens: undefined };
+      await tx.aiChatMessage.updateMany({
+        where: {
+          id: initialized.request.assistantMessageId,
+          chatId: initialized.chat.id,
+        },
+        data: {
+          content: outcome.content,
+          status: AiChatMessageStatus.COMPLETED,
+          failureCode: null,
+          modelProvider:
+            outcome.kind === "COMPLETED" ? outcome.provider : "studybuddy",
+          modelName:
+            outcome.kind === "COMPLETED"
+              ? outcome.model
+              : outcome.kind === "INSUFFICIENT_CONTEXT"
+                ? "deterministic-insufficient-context"
+                : `deterministic-${outcome.category.toLowerCase()}`,
+          inputTokens: validatedUsage.inputTokens,
+          outputTokens: validatedUsage.outputTokens,
+          currentGroundingAttemptId,
+        },
+      });
+
+      await tx.aiGenerationRequest.update({
+        where: { id: initialized.request.id },
+        data: {
+          status: AiGenerationRequestStatus.COMPLETED,
+          failureCode: null,
+          completedAt: new Date(),
+        },
+      });
+
+      await tx.aiChat.update({
+        where: { id: initialized.chat.id },
+        data: { updatedAt: new Date() },
+      });
+
+      return this.loadGenerationRequest(tx, initialized.request.id);
+    });
+  }
+
+  private async markGroundedGenerationFailed(
+    initialized: InitializedGeneration | RetryAcquireResult,
+    outcome: Extract<GroundedGenerationOutcome, { kind: "FAILED" }>
+  ) {
+    return this.db.$transaction(async (tx) => {
+      if (outcome.attempt) {
+        await this.createGroundingAttempt(tx, initialized, outcome.attempt);
+      }
+
+      await tx.aiChatMessage.updateMany({
+        where: {
+          id: initialized.request.assistantMessageId,
+          chatId: initialized.chat.id,
+        },
+        data: {
+          content: "",
+          status: AiChatMessageStatus.FAILED,
+          failureCode: outcome.failureCode,
+          currentGroundingAttemptId: null,
+        },
+      });
+
+      await tx.aiGenerationRequest.update({
+        where: { id: initialized.request.id },
+        data: {
+          status: AiGenerationRequestStatus.FAILED,
+          failureCode: outcome.failureCode,
+          completedAt: new Date(),
+        },
+      });
+
+      return this.loadGenerationRequest(tx, initialized.request.id);
+    });
+  }
+
+  private async createGroundingAttempt(
+    tx: Prisma.TransactionClient,
+    initialized: InitializedGeneration | RetryAcquireResult,
+    attempt: GroundingAttemptDraft
+  ) {
+    return tx.aiGroundingAttempt.create({
+      data: {
+        generationRequestId: initialized.request.id,
+        assistantMessageId: initialized.request.assistantMessageId,
+        attemptNumber: initialized.request.attemptCount,
+        retrievalQuery: attempt.retrievalQuery,
+        embeddingConfigurationId: attempt.embeddingConfigurationId,
+        sufficiencyStatus:
+          attempt.sufficiencyStatus === "SUFFICIENT"
+            ? AiGroundingSufficiencyStatus.SUFFICIENT
+            : AiGroundingSufficiencyStatus.INSUFFICIENT,
+        sufficiencyReason: toSufficiencyReason(attempt.sufficiencyReason),
+        confidence: toGroundingConfidence(attempt.confidence),
+        selectedEvidenceMetadata:
+          attempt.selectedEvidenceMetadata as Prisma.InputJsonValue,
+        groundingVersion: attempt.groundingVersion,
+        promptVersion: attempt.promptVersion,
+        sufficiencyPolicyVersion: attempt.sufficiencyPolicyVersion,
+        retrievalDurationMs: attempt.retrievalDurationMs,
+        generationDurationMs: attempt.generationDurationMs,
+      },
+    });
+  }
+
+  private async buildGroundedContext(
+    initialized: InitializedGeneration | RetryAcquireResult
+  ) {
+    const recentMessages = await this.db.aiChatMessage.findMany({
+      where: {
+        chatId: initialized.chat.id,
+        status: AiChatMessageStatus.COMPLETED,
+        id: { not: initialized.request.userMessageId },
+      },
+      orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+      take: 10,
+    });
+
+    return {
+      chatId: initialized.chat.id,
+      userMessageId: initialized.request.userMessageId,
+      assistantMessageId: initialized.request.assistantMessageId,
+      generationRequestId: initialized.request.id,
+      attemptNumber: initialized.request.attemptCount,
+      userMessage: initialized.request.userMessage.content,
+      subjectId: initialized.chat.subjectId,
+      subjectName: initialized.chat.subject?.name ?? null,
+      topicId: initialized.chat.topicId,
+      topicTitle: initialized.chat.topic?.title ?? null,
+      recentMessages: [...recentMessages]
+        .reverse()
+        .map((message) => ({
+          role: message.role,
+          content: message.content,
+        })),
+    };
+  }
+
   private async markGenerationFailed(
     chatId: string,
     requestId: string,
@@ -756,6 +1191,7 @@ export class ChatService {
           content: "",
           status: AiChatMessageStatus.FAILED,
           failureCode,
+          currentGroundingAttemptId: null,
         },
       });
 
@@ -924,6 +1360,41 @@ export class ChatService {
     );
   }
 
+  private async loadGenerationRequest(
+    db: PrismaOrTransaction,
+    requestId: string
+  ) {
+    const request = await db.aiGenerationRequest.findUnique({
+      where: { id: requestId },
+      include: this.isGroundedEnabled()
+        ? requestIncludeWithGrounding
+        : requestInclude,
+    });
+
+    if (!request) {
+      throw new ChatServiceError(
+        "INTERNAL_ERROR",
+        500,
+        "Generation request could not be loaded."
+      );
+    }
+
+    ensureSameChat(request);
+    return request;
+  }
+
+  private isGroundedEnabled() {
+    return this.options.groundedChatEnabled ?? isGroundedChatEnabled();
+  }
+
+  private getGroundingService() {
+    if (this.options.groundingService) return this.options.groundingService;
+    if (!this.resolvedGroundingService) {
+      this.resolvedGroundingService = new GroundedGenerationService();
+    }
+    return this.resolvedGroundingService;
+  }
+
   private getProvider() {
     if (this.provider) return this.provider;
     if (!this.resolvedProvider) {
@@ -931,6 +1402,47 @@ export class ChatService {
     }
     return this.resolvedProvider;
   }
+}
+
+function validateUsage(usage: GenerateUsage | undefined) {
+  return {
+    inputTokens: getTokenValue(usage?.inputTokens),
+    outputTokens: getTokenValue(usage?.outputTokens),
+  };
+}
+
+function toSufficiencyReason(value: GroundingAttemptDraft["sufficiencyReason"]) {
+  switch (value) {
+    case "SUPPORTED":
+      return AiGroundingSufficiencyReason.SUPPORTED;
+    case "NO_RESULTS":
+      return AiGroundingSufficiencyReason.NO_RESULTS;
+    case "LOW_RELEVANCE":
+      return AiGroundingSufficiencyReason.LOW_RELEVANCE;
+    case "FILTERED_CORPUS_GAP":
+      return AiGroundingSufficiencyReason.FILTERED_CORPUS_GAP;
+    case "POSSIBLE_CONFLICT":
+      return AiGroundingSufficiencyReason.POSSIBLE_CONFLICT;
+    case "MISSING_REQUIRED_SOURCE_TYPE":
+      return AiGroundingSufficiencyReason.MISSING_REQUIRED_SOURCE_TYPE;
+  }
+}
+
+function toGroundingConfidence(value: GroundingAttemptDraft["confidence"]) {
+  switch (value) {
+    case "HIGH":
+      return AiGroundingConfidence.HIGH;
+    case "MEDIUM":
+      return AiGroundingConfidence.MEDIUM;
+    case "LOW":
+      return AiGroundingConfidence.LOW;
+  }
+}
+
+function buildCitationExcerpt(content: string) {
+  const normalized = content.trim().replace(/\s+/g, " ");
+  if (normalized.length <= 1_200) return normalized;
+  return `${normalized.slice(0, 1_197).trim()}...`;
 }
 
 export function getChatService() {
