@@ -27,3 +27,31 @@ export interface GenerateResult {
 export interface ChatModelProvider {
   generate(input: GenerateInput): Promise<GenerateResult>;
 }
+
+export interface StructuredOutputSchema {
+  name: string;
+  schema: Record<string, unknown>;
+  strict?: boolean;
+}
+
+export interface StructuredGenerateInput extends GenerateInput {
+  outputSchema: StructuredOutputSchema;
+}
+
+export interface StructuredGenerateResult {
+  value: unknown;
+  rawText?: string;
+  provider: string;
+  model: string;
+  usage?: GenerateUsage;
+}
+
+export interface StructuredChatModelProvider extends ChatModelProvider {
+  generateStructured(input: StructuredGenerateInput): Promise<StructuredGenerateResult>;
+}
+
+export function supportsStructuredGeneration(
+  provider: ChatModelProvider
+): provider is StructuredChatModelProvider {
+  return "generateStructured" in provider && typeof provider.generateStructured === "function";
+}
