@@ -48,6 +48,26 @@ enum AiGenerationFailureCode {
   INTERNAL_ERROR
 }
 
+enum AiGroundingSufficiencyStatus {
+  SUFFICIENT
+  INSUFFICIENT
+}
+
+enum AiGroundingSufficiencyReason {
+  SUPPORTED
+  NO_RESULTS
+  LOW_RELEVANCE
+  FILTERED_CORPUS_GAP
+  POSSIBLE_CONFLICT
+  MISSING_REQUIRED_SOURCE_TYPE
+}
+
+enum AiGroundingConfidence {
+  HIGH
+  MEDIUM
+  LOW
+}
+
 enum ResourceSourceKind {
   UPLOAD
   LEGACY_PAST_QUESTION
@@ -373,23 +393,27 @@ model AiChat {
 }
 
 model AiChatMessage {
-  id            String                   @id @default(uuid())
-  chatId        String
-  role          AiChatRole
-  content       String
-  status        AiChatMessageStatus      @default(COMPLETED)
-  failureCode   AiGenerationFailureCode?
-  modelProvider String?
-  modelName     String?
-  inputTokens   Int?
-  outputTokens  Int?
-  createdAt     DateTime                 @default(now())
-  updatedAt     DateTime                 @updatedAt
+  id                        String                   @id @default(uuid())
+  chatId                    String
+  role                      AiChatRole
+  content                   String
+  status                    AiChatMessageStatus      @default(COMPLETED)
+  failureCode               AiGenerationFailureCode?
+  modelProvider             String?
+  modelName                 String?
+  inputTokens               Int?
+  outputTokens              Int?
+  currentGroundingAttemptId String?                  @unique(map: "AiChatMessage_currentGroundingAttemptId_key")
+  createdAt                 DateTime                 @default(now())
+  updatedAt                 DateTime                 @updatedAt
 
   chat AiChat @relation(fields: [chatId], references: [id], onDelete: Cascade)
 
   userGenerationRequest      AiGenerationRequest? @relation("AiGenerationUserMessage")
   assistantGenerationRequest AiGenerationRequest? @relation("AiGenerationAssistantMessage")
+  groundingAttempts          AiGroundingAttempt[] @relation("AiGroundingAssistantMessage")
+  currentGroundingAttempt    AiGroundingAttempt?  @relation("AiMessageCurrentGroundingAttempt", fields: [currentGroundingAttemptId], references: [id], onDelete: SetNull)
+  citations                  AiMessageCitation[]
 
   @@index([chatId, createdAt, id], map: "AiChatMessage_chatId_createdAt_id_idx")
 }
@@ -411,8 +435,65 @@ model AiGenerationRequest {
   userMessage      AiChatMessage @relation("AiGenerationUserMessage", fields: [userMessageId], references: [id], onDelete: Cascade)
   assistantMessage AiChatMessage @relation("AiGenerationAssistantMessage", fields: [assistantMessageId], references: [id], onDelete: Cascade)
 
+  groundingAttempts AiGroundingAttempt[]
+
   @@unique([chatId, clientRequestId], map: "AiGenerationRequest_chatId_clientRequestId_key")
   @@index([chatId, status, updatedAt], map: "AiGenerationRequest_chatId_status_updatedAt_idx")
+}
+
+model AiGroundingAttempt {
+  id                       String                       @id @default(uuid())
+  generationRequestId      String
+  assistantMessageId       String
+  attemptNumber            Int
+  retrievalQuery           String
+  embeddingConfigurationId String?
+  sufficiencyStatus        AiGroundingSufficiencyStatus
+  sufficiencyReason        AiGroundingSufficiencyReason
+  confidence               AiGroundingConfidence
+  selectedEvidenceMetadata Json
+  groundingVersion         String
+  promptVersion            String
+  sufficiencyPolicyVersion String
+  retrievalDurationMs      Int?
+  generationDurationMs     Int?
+  createdAt                DateTime                     @default(now())
+
+  generationRequest      AiGenerationRequest             @relation(fields: [generationRequestId], references: [id], onDelete: Cascade)
+  assistantMessage       AiChatMessage                   @relation("AiGroundingAssistantMessage", fields: [assistantMessageId], references: [id], onDelete: Cascade)
+  embeddingConfiguration ResourceEmbeddingConfiguration? @relation(fields: [embeddingConfigurationId], references: [id], onDelete: SetNull)
+  currentForMessage      AiChatMessage?                  @relation("AiMessageCurrentGroundingAttempt")
+  citations              AiMessageCitation[]
+
+  @@unique([generationRequestId, attemptNumber], map: "AiGroundingAttempt_request_attemptNumber_key")
+  @@index([assistantMessageId, createdAt, id], map: "AiGroundingAttempt_assistant_createdAt_id_idx")
+  @@index([embeddingConfigurationId], map: "AiGroundingAttempt_embeddingConfigurationId_idx")
+}
+
+model AiMessageCitation {
+  id                 String   @id @default(uuid())
+  groundingAttemptId String
+  messageId          String
+  resourceId         String
+  resourceChunkId    String
+  sourceLabel        String
+  retrievalRank      Int?
+  vectorDistance     Float?
+  keywordRank        Int?
+  fusionScore        Float?
+  contentHash        String
+  createdAt          DateTime @default(now())
+
+  groundingAttempt AiGroundingAttempt @relation(fields: [groundingAttemptId], references: [id], onDelete: Cascade)
+  message          AiChatMessage      @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  resource         Resource           @relation(fields: [resourceId], references: [id], onDelete: Cascade)
+  resourceChunk    ResourceChunk      @relation(fields: [resourceChunkId], references: [id], onDelete: Cascade)
+
+  @@unique([groundingAttemptId, sourceLabel], map: "AiMessageCitation_attempt_sourceLabel_key")
+  @@unique([groundingAttemptId, resourceChunkId, contentHash], map: "AiMessageCitation_attempt_chunk_hash_key")
+  @@index([messageId, createdAt, id], map: "AiMessageCitation_message_createdAt_id_idx")
+  @@index([resourceId], map: "AiMessageCitation_resourceId_idx")
+  @@index([resourceChunkId], map: "AiMessageCitation_resourceChunkId_idx")
 }
 
 // =========================================================
@@ -577,7 +658,8 @@ model Resource {
   duplicateOf        Resource?     @relation("ResourceDuplicate", fields: [duplicateOfResourceId], references: [id], onDelete: SetNull)
   duplicates         Resource[]    @relation("ResourceDuplicate")
 
-  chunks ResourceChunk[]
+  chunks    ResourceChunk[]
+  citations AiMessageCitation[]
 
   @@index([approvalStatus, processingStatus, updatedAt, id], map: "Resource_approval_processing_updatedAt_id_idx")
   @@index([subjectId, topicId, approvalStatus], map: "Resource_subjectId_topicId_approval_idx")
@@ -611,6 +693,7 @@ model ResourceChunk {
   subject    Subject?                 @relation(fields: [subjectId], references: [id], onDelete: SetNull)
   topic      Topic?                   @relation(fields: [topicId], references: [id], onDelete: SetNull)
   embeddings ResourceChunkEmbedding[]
+  citations  AiMessageCitation[]
 
   @@unique([resourceId, version, chunkIndex], map: "ResourceChunk_resourceId_version_chunkIndex_key")
   @@index([resourceId, version, chunkType, chunkIndex], map: "ResourceChunk_resourceId_version_chunkType_chunkIndex_idx")
@@ -633,7 +716,8 @@ model ResourceEmbeddingConfiguration {
   activatedAt         DateTime?
   retiredAt           DateTime?
 
-  embeddings ResourceChunkEmbedding[]
+  embeddings        ResourceChunkEmbedding[]
+  groundingAttempts AiGroundingAttempt[]
 
   @@unique([provider, model, dimensions, embeddingVersion], map: "ResourceEmbeddingConfig_provider_model_dim_ver_key")
   @@index([status, provider, model, dimensions, embeddingVersion], map: "ResourceEmbeddingConfig_status_provider_model_idx")
