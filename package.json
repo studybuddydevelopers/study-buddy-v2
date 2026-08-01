@@ -17,7 +17,8 @@
     "resources:rebuild-search-text": "tsx scripts/rebuild-resource-search-text.ts",
     "resources:embed-chunks": "tsx scripts/embed-resource-chunks.ts",
     "resources:search": "tsx scripts/search-resources.ts",
-    "resources:evaluate-retrieval": "tsx scripts/evaluate-retrieval.ts"
+    "resources:evaluate-retrieval": "tsx scripts/evaluate-retrieval.ts",
+    "ai:evaluate-grounding": "tsx scripts/evaluate-grounded-chat.ts"
   },
   "dependencies": {
     "@hcaptcha/react-hcaptcha": "^2.0.2",
