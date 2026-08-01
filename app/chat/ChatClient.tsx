@@ -7,6 +7,7 @@ import Heading1 from "@/components/Heading1";
 import Paragraph from "@/components/Paragraph";
 import Button from "@/components/Button";
 import ChatMessageContainer, {
+  type ChatCitationData,
   type ChatMessageData,
 } from "@/components/ChatMessageContainer";
 import {
@@ -65,6 +66,14 @@ interface ApiMessage {
   createdAt: string;
   updatedAt: string;
   requestId: string | null;
+  grounding: {
+    attemptId: string;
+    insufficientContext: boolean;
+    sufficiencyStatus: string;
+    sufficiencyReason: string;
+    confidence: string;
+  } | null;
+  citations: ChatCitationData[];
 }
 
 interface GenerationResponse {
@@ -72,6 +81,30 @@ interface GenerationResponse {
   userMessage: ApiMessage;
   assistantMessage: ApiMessage;
   error?: { code: string; status: number };
+}
+
+interface CitationPreviewResponse {
+  citation: {
+    id: string;
+    sourceLabel: string;
+    isCurrentForMessage: boolean;
+    isActiveResourceVersion: boolean;
+    contentHashMatches: boolean;
+  };
+  resource: {
+    id: string;
+    title: string;
+    sourceKind: string;
+  };
+  chunk: {
+    id: string;
+    title: string | null;
+    chunkType: string;
+    pageStart: number | null;
+    pageEnd: number | null;
+    questionNumber: string | null;
+    excerpt: string;
+  };
 }
 
 function sortApiMessages(messages: ApiMessage[]) {
@@ -118,6 +151,8 @@ function toChatMessageData(
     failureCode: message.failureCode,
     requestId: message.requestId,
     createdAt: message.createdAt,
+    grounding: message.grounding,
+    citations: message.citations ?? [],
   };
 }
 
@@ -151,6 +186,9 @@ export default function ChatClient() {
   const [savingChat, setSavingChat] = useState(false);
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [citationPreview, setCitationPreview] =
+    useState<CitationPreviewResponse | null>(null);
+  const [loadingCitationId, setLoadingCitationId] = useState<string | null>(null);
   const listRef = useRef<HTMLDivElement | null>(null);
 
   const selectedChat = useMemo(
@@ -257,6 +295,29 @@ export default function ChatClient() {
     );
   };
 
+  const selectChat = (chatId: string) => {
+    setCitationPreview(null);
+    setSelectedChatId(chatId);
+  };
+
+  const handleCitationClick = async (citation: ChatCitationData) => {
+    if (!selectedChatId) return;
+    setLoadingCitationId(citation.id);
+    setError(null);
+    try {
+      const data = await fetchJson<CitationPreviewResponse>(
+        `/api/v1/ai/chats/${selectedChatId}/citations/${citation.id}`,
+        { cache: "no-store" }
+      );
+      setCitationPreview(data);
+    } catch (err) {
+      console.error(err);
+      setError((err as Error).message);
+    } finally {
+      setLoadingCitationId(null);
+    }
+  };
+
   const createChat = async () => {
     setSavingChat(true);
     setError(null);
@@ -266,7 +327,7 @@ export default function ChatClient() {
         body: JSON.stringify({}),
       });
       upsertChat(data.chat);
-      setSelectedChatId(data.chat.id);
+      selectChat(data.chat.id);
       setMessages([]);
       return data.chat;
     } catch (err) {
@@ -312,6 +373,7 @@ export default function ChatClient() {
       });
       setChats((prev) => {
         const remaining = prev.filter((chat) => chat.id !== chatId);
+        setCitationPreview(null);
         setSelectedChatId(remaining[0]?.id ?? null);
         return remaining;
       });
@@ -510,7 +572,7 @@ export default function ChatClient() {
                 <button
                   key={chat.id}
                   type="button"
-                  onClick={() => setSelectedChatId(chat.id)}
+                  onClick={() => selectChat(chat.id)}
                   className={`w-full text-left rounded-xl border px-3 py-2 transition ${
                     chat.id === selectedChatId
                       ? "border-primary-400 bg-primary-50 text-primary-900"
@@ -637,9 +699,67 @@ export default function ChatClient() {
                 </Paragraph>
               </div>
             ) : (
-              <ChatMessageContainer messages={messages} onRetry={handleRetry} />
+              <ChatMessageContainer
+                messages={messages}
+                onRetry={handleRetry}
+                onCitationClick={handleCitationClick}
+              />
             )}
           </div>
+
+          {(citationPreview || loadingCitationId) && (
+            <div className="border border-accent-200 rounded-2xl bg-white shadow-sm p-4">
+              {loadingCitationId ? (
+                <Paragraph variant="muted" gutter="none" className="text-sm">
+                  Loading source...
+                </Paragraph>
+              ) : citationPreview ? (
+                <div className="space-y-2">
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <p className="text-sm font-semibold text-gray-900">
+                        {citationPreview.citation.sourceLabel} ·{" "}
+                        {citationPreview.resource.title}
+                      </p>
+                      <p className="text-xs text-gray-500">
+                        {citationPreview.chunk.title ??
+                          citationPreview.chunk.chunkType}
+                        {citationPreview.chunk.questionNumber
+                          ? ` · Question ${citationPreview.chunk.questionNumber}`
+                          : ""}
+                        {citationPreview.chunk.pageStart
+                          ? ` · Page ${citationPreview.chunk.pageStart}${
+                              citationPreview.chunk.pageEnd &&
+                              citationPreview.chunk.pageEnd !==
+                                citationPreview.chunk.pageStart
+                                ? `-${citationPreview.chunk.pageEnd}`
+                                : ""
+                            }`
+                          : ""}
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setCitationPreview(null)}
+                      className="rounded-md px-2 py-1 text-sm text-gray-500 hover:bg-gray-100"
+                    >
+                      Close
+                    </button>
+                  </div>
+                  {(!citationPreview.citation.isActiveResourceVersion ||
+                    !citationPreview.citation.contentHashMatches) && (
+                    <p className="rounded-lg bg-amber-50 px-3 py-2 text-xs font-medium text-amber-900">
+                      This preview shows the historical cited chunk. The current
+                      resource version may have changed.
+                    </p>
+                  )}
+                  <p className="text-sm leading-6 text-gray-800">
+                    {citationPreview.chunk.excerpt}
+                  </p>
+                </div>
+              ) : null}
+            </div>
+          )}
 
           {error && (
             <Paragraph variant="error" className="mt-1">
