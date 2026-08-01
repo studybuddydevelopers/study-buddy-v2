@@ -7,6 +7,7 @@ const serviceMocks = vi.hoisted(() => ({
   listChats: vi.fn(),
   sendMessage: vi.fn(),
   retryGeneration: vi.fn(),
+  getCitationPreview: vi.fn(),
 }));
 
 vi.mock("@/lib/auth", () => ({
@@ -50,6 +51,7 @@ describe("Stage 1 chat routes", () => {
       "[chatId]/route.ts",
       "[chatId]/messages/route.ts",
       "[chatId]/requests/[requestId]/retry/route.ts",
+      "[chatId]/citations/[citationId]/route.ts",
     ];
 
     for (const routeFile of routeFiles) {
