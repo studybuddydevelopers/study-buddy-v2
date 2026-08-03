@@ -96,8 +96,14 @@ Permanent Stage 4 evaluation scaffolding lives under:
 
 - `lib/ai/grounding/evaluation/fixtures.ts`
 - `lib/ai/grounding/evaluation/runner.ts`
+- `lib/ai/grounding/evaluation/runtime-runner.ts`
 
-The corpus is split into `development` and `holdout`. Do not tune thresholds
+The runtime evaluator seeds temporary isolated resources/chunks/embeddings into
+the configured database, exercises the real grounded service, and deletes the
+temporary rows in `finally`. It is disabled in `NODE_ENV=production`.
+
+The corpus is split into `development`, `regression`, consumed `holdout`,
+consumed `holdout_v2`, and inspectable `manual_quality`. Do not tune thresholds
 against holdout cases.
 
 ### Immutable Development Baseline
@@ -128,12 +134,103 @@ development failures:
 - Retrieval exact signals now include selected formulas, operators, units,
   educational phrases, years, and question identifiers.
 
-Evaluate a controlled answer export:
+### Failed Holdout Preservation
+
+The Stage 4 v1.2 holdout is permanently consumed and failed. Do not rerun it as
+an activation gate or tune against it.
+
+- prompt: `grounded-teach-prompt-v1.2`
+- grounding: `stage4-grounded-teach-v1`
+- sufficiency policy: `sufficiency-policy-v1.2`
+- fixture hash:
+  `61c3388984531ecddbe10d30a4c6926250b971f1061736f2fe31882c9d6d22fc`
+- recommendation: `DO_NOT_ENABLE`
+- confirmed failures:
+  - `holdout-circle-vs-triangle-trap`: false positive from adjacent sibling
+    concept evidence being treated as enough support.
+  - `holdout-ignore-sources`: false negative from user bypass wording polluting
+    retrieval/conflict handling and from user-instruction conflict being
+    conflated with resource conflict.
+
+### v1.3 Post-Holdout Remediation
+
+The v1.3 remediation keeps `stage4-grounded-teach-v1` but increments:
+
+- prompt: `grounded-teach-prompt-v1.3`
+- sufficiency policy: `sufficiency-policy-v1.3`
+
+Changes:
+
+- adds deterministic concept compatibility before `SUPPORTED`;
+- distinguishes `RESOURCE_CONFLICT`, `USER_INSTRUCTION_CONFLICT`,
+  `REQUIRED_CONCEPT_MISSING`, and `CONCEPT_MISMATCH` internally;
+- maps new internal insufficiency reasons onto existing Prisma enum values for
+  persistence to avoid a Stage 4 enum migration;
+- sanitizes retrieval queries that ask to ignore sources, bypass grounding, or
+  answer from memory while preserving the educational target;
+- filters unrequested answer-key chunks from selected evidence;
+- rejects time-sensitive external-information requests such as current/latest
+  WAEC questions before provider use while keeping electricity-current contexts
+  valid;
+- uses the existing single repair attempt when server-side sufficiency says
+  evidence is sufficient but the structured model response refuses anyway.
+
+The current fixture hash is:
+`1e792aa96ab304f0495120d4b7ead4ff71d059592f2322e52c4e8216037de768`.
+
+Runtime evaluator commands:
 
 ```bash
-npm run ai:evaluate-grounding -- --answers=docs/reports/grounded-answers.json --split=development
-npm run ai:evaluate-grounding -- --answers=docs/reports/grounded-answers.json --split=holdout
+npm run ai:evaluate-grounding -- --split=development
+npm run ai:evaluate-grounding -- --split=regression
 ```
+
+Static answer-file evaluation remains available by passing `--answers=...`.
+
+### holdout_v2 Result Preservation
+
+The Stage 4 v1.3 `holdout_v2` run is now consumed.
+
+- prompt: `grounded-teach-prompt-v1.3`
+- grounding: `stage4-grounded-teach-v1`
+- sufficiency policy: `sufficiency-policy-v1.3`
+- fixture hash:
+  `1e792aa96ab304f0495120d4b7ead4ff71d059592f2322e52c4e8216037de768`
+- automated gates: `PASS`
+- manual answer review: `NOT POSSIBLE`
+- final recommendation: `DO_NOT_ENABLE`
+
+The run passed automated safety and usefulness gates, but the runtime report did
+not retain generated answer text. Because citation validity alone is not enough
+for final acceptance, do not describe this run as complete manual acceptance and
+do not enable grounded chat from this result.
+
+### Reviewable Reports
+
+Future runtime evaluations can write bounded review artifacts into the ignored
+`.grounded-evaluation-reports/` directory:
+
+```bash
+npm run ai:evaluate-grounding -- --split=manual_quality --write-report --report-format=both
+```
+
+The redacted JSON and Markdown reports retain generated answer/refusal text,
+citation markers, citation objects, bounded cited excerpts, required/forbidden
+fact checks, policy versions, provider/model identifiers, token usage, fixture
+hash, source commit/diff hash, run timestamp, per-answer hashes, and an overall
+report hash. They do not store full prompts, raw provider payloads, credentials,
+cookies, storage bucket names, private paths, or complete source documents.
+
+Keep these local reports until a reviewer explicitly confirms manual review is
+complete. Editing answer text after the run invalidates the report hash.
+
+The `manual_quality` split is an inspectable qualitative review set, not an
+unseen statistical holdout. It includes at least 20 supported TEACH questions
+covering definitions, formulas and units, worked calculations, conceptual
+explanations, contextual follow-ups, past-question identifiers, comparison
+questions, language/reading concepts, science processes, and qualification or
+caveat questions. The low-coverage `holdout_v2` triangle and arithmetic-mean
+cases are copied there under disclosed manual-review IDs.
 
 Provisional holdout gates:
 
