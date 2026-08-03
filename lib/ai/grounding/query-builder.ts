@@ -19,7 +19,7 @@ export interface BuildStandaloneRetrievalQueryInput {
 export function buildStandaloneRetrievalQuery(
   input: BuildStandaloneRetrievalQueryInput
 ) {
-  const current = normalizeText(input.message);
+  const current = stripGroundingBypassInstructions(normalizeText(input.message));
   const contextWindow = buildBoundedRecentContext(input.recentMessages ?? []);
   const nounPhraseContext = extractEducationalNounPhrases(contextWindow)
     .slice(0, 8)
@@ -75,6 +75,20 @@ function extractEducationalNounPhrases(messages: GroundedQueryMessage[]) {
 
 function normalizeText(value: string) {
   return value.trim().replace(/\s+/g, " ");
+}
+
+function stripGroundingBypassInstructions(value: string) {
+  return value
+    .replace(
+      /\bignore\s+(?:the\s+)?(?:supplied\s+)?(?:sources?|evidence|resource\s+rules?|grounding)\b/gi,
+      " "
+    )
+    .replace(/\banswer\s+([a-z0-9][a-z0-9\s]{0,80}?)\s+from\s+memory\b/gi, " $1 ")
+    .replace(/\banswer\s+(?:it\s+)?from\s+memory\b/gi, " ")
+    .replace(/\buse\s+(?:your\s+)?own\s+knowledge\b/gi, " ")
+    .replace(/\bbypass\s+(?:the\s+)?(?:sources?|grounding|rules?)\b/gi, " ")
+    .replace(/\s+/g, " ")
+    .trim();
 }
 
 function estimateTokens(value: string) {
