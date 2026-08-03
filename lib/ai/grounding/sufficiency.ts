@@ -35,20 +35,30 @@ const HIGH_SIGNAL_STOPWORDS = new Set([
   "also",
   "answer",
   "could",
+  "does",
   "explain",
+  "find",
   "from",
   "give",
   "have",
   "help",
   "many",
+  "mean",
   "official",
   "please",
   "question",
+  "relevant",
+  "show",
+  "simple",
   "state",
   "that",
+  "terms",
   "this",
   "today",
+  "topic",
+  "teach",
   "using",
+  "used",
   "what",
   "when",
   "where",
@@ -77,7 +87,8 @@ export function evaluateRetrievalSufficiency(
     return insufficient("POSSIBLE_CONFLICT", "LOW", selected);
   }
 
-  if (hasLowHighSignalTermCoverage(input.query, selected)) {
+  const hasDecisiveExactSupport = selected.some(hasDecisiveExactEvidence);
+  if (!hasDecisiveExactSupport && hasLowHighSignalTermCoverage(input.query, selected)) {
     return insufficient("LOW_RELEVANCE", "LOW", selected);
   }
 
@@ -94,7 +105,9 @@ export function evaluateRetrievalSufficiency(
       chunk.vectorDistance <= MAX_LOW_VECTOR_DISTANCE
   );
   const hasStrongRank = top.bestBranchRank <= 5 || top.fusionScore > 0.025;
-  const hasExactSignal = selected.some((chunk) => chunk.exactSignals.length > 0);
+  const hasExactSignal =
+    hasDecisiveExactSupport ||
+    selected.some((chunk) => chunk.exactSignals.length > 0);
   const topTwoSeparated =
     input.candidates.length < 2 ||
     top.fusionScore - input.candidates[1].fusionScore >= 0.0005 ||
@@ -120,6 +133,24 @@ export function evaluateRetrievalSufficiency(
   };
 }
 
+function hasDecisiveExactEvidence(chunk: RetrievedChunk) {
+  if (chunk.exactSignals.length === 0 || chunk.bestBranchRank > 10) return false;
+
+  const signalText = chunk.exactSignals.join(" ");
+  if (
+    chunk.chunkType === "FORMULA_REFERENCE" &&
+    /\b(?:expression|unit|phrase):/.test(signalText)
+  ) {
+    return true;
+  }
+
+  if (chunk.questionNumber && /\bquestion:/.test(signalText)) {
+    return true;
+  }
+
+  return false;
+}
+
 function hasLowHighSignalTermCoverage(query: string, chunks: RetrievedChunk[]) {
   const terms = extractHighSignalTerms(query);
   if (terms.length < MIN_TERMS_FOR_COVERAGE_GATE) return false;
@@ -141,7 +172,7 @@ function hasLowHighSignalTermCoverage(query: string, chunks: RetrievedChunk[]) {
 }
 
 function extractHighSignalTerms(query: string) {
-  const normalized = query
+  const normalized = normalizeQueryForTermCoverage(query)
     .toLowerCase()
     .normalize("NFKD")
     .replace(/[^\p{L}\p{N}]+/gu, " ");
@@ -154,10 +185,18 @@ function extractHighSignalTerms(query: string) {
 
 function termAppearsInText(term: string, haystack: string) {
   if (haystack.includes(term)) return true;
+  if (haystack.includes(`${term}s`)) return true;
   if (term.endsWith("s") && haystack.includes(term.slice(0, -1))) return true;
   if (term.endsWith("y") && haystack.includes(`${term.slice(0, -1)}ies`)) return true;
   if (term.endsWith("e") && haystack.includes(`${term.slice(0, -1)}ing`)) return true;
   return false;
+}
+
+function normalizeQueryForTermCoverage(query: string) {
+  return query
+    .replace(/\bSubject:\s*[^.]+\.?/gi, " ")
+    .replace(/\bTopic:\s*[^.]+\.?/gi, " ")
+    .replace(/\bRelevant context:\s*/gi, " ");
 }
 
 function insufficient(
