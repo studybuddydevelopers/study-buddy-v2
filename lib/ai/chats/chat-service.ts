@@ -1425,6 +1425,12 @@ function toSufficiencyReason(value: GroundingAttemptDraft["sufficiencyReason"]) 
       return AiGroundingSufficiencyReason.POSSIBLE_CONFLICT;
     case "MISSING_REQUIRED_SOURCE_TYPE":
       return AiGroundingSufficiencyReason.MISSING_REQUIRED_SOURCE_TYPE;
+    case "RESOURCE_CONFLICT":
+      return AiGroundingSufficiencyReason.POSSIBLE_CONFLICT;
+    case "USER_INSTRUCTION_CONFLICT":
+    case "REQUIRED_CONCEPT_MISSING":
+    case "CONCEPT_MISMATCH":
+      return AiGroundingSufficiencyReason.LOW_RELEVANCE;
   }
 }
 
