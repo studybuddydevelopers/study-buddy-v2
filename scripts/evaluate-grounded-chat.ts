@@ -1,6 +1,11 @@
 import fs from "node:fs/promises";
 import { groundedEvaluationCases } from "@/lib/ai/grounding/evaluation/fixtures";
+import { runRuntimeGroundedEvaluation } from "@/lib/ai/grounding/evaluation/runtime-runner";
 import { runGroundedEvaluation } from "@/lib/ai/grounding/evaluation/runner";
+import {
+  DEFAULT_REVIEW_REPORT_DIR,
+  writeReviewArtifacts,
+} from "@/lib/ai/grounding/evaluation/review-report";
 import type {
   GroundedEvaluationAnswer,
 } from "@/lib/ai/grounding/evaluation/runner";
@@ -12,10 +17,42 @@ import type {
 interface Args {
   answersFile?: string;
   split: GroundedEvaluationSplit | "all";
+  fixtureBaseline: boolean;
+  allowConsumedHoldoutDiagnostic: boolean;
+  confirmHoldoutFixtureHash?: string;
+  maxCases?: number;
+  writeReport: boolean;
+  reportDir?: string;
+  reportFormat: "json" | "markdown" | "both";
 }
 
 async function main() {
   const args = parseArgs(process.argv.slice(2));
+  if (!args.answersFile && !args.fixtureBaseline) {
+    const report = await runRuntimeGroundedEvaluation({
+      split: args.split,
+      allowConsumedHoldoutDiagnostic: args.allowConsumedHoldoutDiagnostic,
+      confirmHoldoutFixtureHash: args.confirmHoldoutFixtureHash,
+      maxCases: args.maxCases,
+    });
+    if (args.writeReport) {
+      const written = await writeReviewArtifacts(report.review, {
+        reportDir: args.reportDir,
+        writeJson: args.reportFormat === "json" || args.reportFormat === "both",
+        writeMarkdown:
+          args.reportFormat === "markdown" || args.reportFormat === "both",
+      });
+      console.error(
+        JSON.stringify({
+          reviewReportDir: args.reportDir ?? DEFAULT_REVIEW_REPORT_DIR,
+          ...written,
+        })
+      );
+    }
+    console.log(JSON.stringify(report, null, 2));
+    return;
+  }
+
   const answers = args.answersFile ? await readAnswers(args.answersFile) : null;
   const report = await runGroundedEvaluation({
     cases: groundedEvaluationCases,
@@ -39,6 +76,13 @@ function parseArgs(values: string[]): Args {
   return {
     answersFile: readStringArg(values, "--answers"),
     split: readSplit(values),
+    fixtureBaseline: values.includes("--fixture-baseline"),
+    allowConsumedHoldoutDiagnostic: values.includes("--diagnostic-consumed-holdout"),
+    confirmHoldoutFixtureHash: readStringArg(values, "--confirm-holdout-fixture-hash"),
+    maxCases: readOptionalNumberArg(values, "--max-cases"),
+    writeReport: values.includes("--write-report"),
+    reportDir: readStringArg(values, "--report-dir"),
+    reportFormat: readReportFormat(values),
   };
 }
 
@@ -49,8 +93,31 @@ function readStringArg(values: string[], name: string) {
 
 function readSplit(values: string[]): GroundedEvaluationSplit | "all" {
   const value = readStringArg(values, "--split");
-  if (value === "development" || value === "holdout") return value;
+  if (
+    value === "development" ||
+    value === "regression" ||
+    value === "holdout" ||
+    value === "holdout_v2" ||
+    value === "manual_quality"
+  ) {
+    return value;
+  }
   return "all";
+}
+
+function readReportFormat(values: string[]) {
+  const value = readStringArg(values, "--report-format");
+  if (value === "json" || value === "markdown" || value === "both") {
+    return value;
+  }
+  return "both";
+}
+
+function readOptionalNumberArg(values: string[], name: string) {
+  const value = readStringArg(values, name);
+  if (!value) return undefined;
+  const parsed = Number.parseInt(value, 10);
+  return Number.isInteger(parsed) && parsed > 0 ? parsed : undefined;
 }
 
 async function readAnswers(filePath: string) {
