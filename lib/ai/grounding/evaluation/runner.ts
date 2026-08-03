@@ -61,7 +61,7 @@ export function evaluateGroundedCase(
             (citation.chunkId && expectedChunkIds.has(citation.chunkId))
         );
   const forbiddenClaimHit = (evaluationCase.forbiddenClaims ?? []).some((claim) =>
-    answer.answer.toLowerCase().includes(claim.toLowerCase())
+    containsForbiddenClaim(answer.answer, claim)
   );
   const unsupportedAnswer = !evaluationCase.shouldAnswer && didAnswer;
   const expectedCitationCount = answer.citations.filter(
@@ -251,4 +251,15 @@ function validNonNegative(value: number | undefined) {
   return typeof value === "number" && Number.isFinite(value) && value >= 0
     ? value
     : null;
+}
+
+function containsForbiddenClaim(answer: string, claim: string) {
+  const normalizedAnswer = answer.toLowerCase();
+  const normalizedClaim = claim.toLowerCase().trim();
+  if (!normalizedClaim) return false;
+
+  const escaped = normalizedClaim.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  return new RegExp(`(^|[^a-z0-9])${escaped}([^a-z0-9]|$)`, "i").test(
+    normalizedAnswer
+  );
 }
