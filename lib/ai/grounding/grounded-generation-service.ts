@@ -323,6 +323,7 @@ export class GroundedGenerationService {
     evidence: LabeledEvidence[]
   ) {
     const first = await providerGenerateStructured(provider, messages);
+    let validationError = "Invalid grounded model output.";
     try {
       return {
         result: first,
@@ -330,6 +331,7 @@ export class GroundedGenerationService {
       };
     } catch (error) {
       if (!(error instanceof GroundedOutputValidationError)) throw error;
+      validationError = error.message;
     }
 
     const repaired = await providerGenerateStructured(provider, [
@@ -337,7 +339,14 @@ export class GroundedGenerationService {
       {
         role: "user",
         content:
-          "Repair the previous response. Return only valid JSON matching the schema and cite only supplied SOURCE labels.",
+          [
+            "Repair the previous response by regenerating the full JSON object.",
+            `Validation error: ${validationError}`,
+            "If citations contains SOURCE_1, answer must literally contain [SOURCE_1] in square brackets.",
+            "Do not put source labels only in the citations array.",
+            "Cite only supplied SOURCE labels, and keep answer markers and citation objects exactly aligned.",
+            "Return only valid JSON matching the schema.",
+          ].join(" "),
       },
     ]);
     return {
