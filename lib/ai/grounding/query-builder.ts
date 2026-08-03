@@ -68,7 +68,7 @@ function isShortFollowUp(value: string) {
 function extractEducationalNounPhrases(messages: GroundedQueryMessage[]) {
   const text = messages.map((message) => message.content).join(" ");
   const matches = text.match(
-    /\b(?:[A-Z][a-z]+(?:\s+[A-Z][a-z]+)*|acceleration|force|ratio|fraction|equation|formula|algebra|geometry|number|numeration|probability|percentage|angle|triangle|quadratic|simultaneous equations)\b/gi
+    /\b(?:[A-Z][a-z]+(?:\s+[A-Z][a-z]+)*|acceleration|velocity|force|ratio|equivalent ratios?|fraction|equation|linear equation|formula|algebra|geometry|number|numeration|probability|percentage|discount|angle|triangle|quadratic|simultaneous equations|ohm'?s law|voltage|current|resistance|density|litmus|photosynthesis|main idea|supporting details)\b/gi
   );
   return Array.from(new Set((matches ?? []).map((item) => item.toLowerCase())));
 }
