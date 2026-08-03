@@ -13,6 +13,7 @@
 # testing
 /coverage
 .playwright-mcp/
+.grounded-evaluation-reports/
 
 # next.js
 /.next/
