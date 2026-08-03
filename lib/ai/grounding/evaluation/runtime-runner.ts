@@ -1,0 +1,735 @@
+import { createHash, randomUUID } from "node:crypto";
+import { execFile as execFileCallback } from "node:child_process";
+import fs from "node:fs/promises";
+import path from "node:path";
+import { promisify } from "node:util";
+import {
+  ResourceApprovalStatus,
+  ResourceExtractionQuality,
+  ResourceProcessingStatus,
+  ResourceSourceKind,
+} from "@prisma/client";
+import { prisma as defaultPrisma } from "@/lib/prisma";
+import { getChatModelProvider } from "@/lib/ai/chat/provider";
+import type { ChatModelProvider } from "@/lib/ai/chat/types";
+import { getConfiguredEmbeddingProvider } from "@/lib/ai/embeddings/provider";
+import type { EmbeddingProvider } from "@/lib/ai/embeddings/types";
+import { GroundedGenerationService } from "@/lib/ai/grounding/grounded-generation-service";
+import {
+  GROUNDED_PROMPT_VERSION,
+  GROUNDING_VERSION,
+  SUFFICIENCY_POLICY_VERSION,
+  isGroundedChatEnabled,
+} from "@/lib/ai/grounding/config";
+import { buildStandaloneRetrievalQuery } from "@/lib/ai/grounding/query-builder";
+import { selectGroundingEvidence } from "@/lib/ai/grounding/evidence";
+import { evaluateRetrievalSufficiency } from "@/lib/ai/grounding/sufficiency";
+import { PostgresResourceSearchRepository } from "@/lib/resources/retrieval/postgres-resource-search-repository";
+import {
+  groundedEvaluationCases,
+  groundedEvaluationResources,
+} from "./fixtures";
+import {
+  runGroundedEvaluation,
+  type GroundedEvaluationAnswer,
+} from "./runner";
+import {
+  buildReviewCase,
+  buildReviewReport,
+} from "./review-report";
+import type {
+  GroundedEvaluationCase,
+  GroundedEvaluationReport,
+  GroundedEvaluationReportSourceState,
+  GroundedEvaluationReviewCase,
+  GroundedEvaluationReviewReport,
+  GroundedEvaluationSplit,
+} from "./types";
+
+type PrismaClient = typeof defaultPrisma;
+const execFile = promisify(execFileCallback);
+
+export interface RuntimeGroundedEvaluationOptions {
+  split: GroundedEvaluationSplit | "all";
+  provider?: ChatModelProvider;
+  embeddingProvider?: EmbeddingProvider;
+  prisma?: PrismaClient;
+  allowConsumedHoldoutDiagnostic?: boolean;
+  confirmHoldoutFixtureHash?: string;
+  maxCases?: number;
+}
+
+export interface RuntimeGroundedEvaluationReport {
+  runId: string;
+  fixtureHash: string;
+  frozenConfig: Record<string, unknown>;
+  report: GroundedEvaluationReport & {
+    supportedAnswerRate: number | null;
+    firstPassStructuredSuccess: number;
+    repairedStructuredSuccess: number | null;
+    finalStructuredOutputSuccess: number;
+  };
+  diagnostics: Array<{
+    caseId: string;
+    shouldAnswer: boolean;
+    providerCalled: boolean;
+    sufficiencyReason: string;
+    sufficiencyStatus: "SUFFICIENT" | "INSUFFICIENT";
+    selectedEvidence: Array<{
+      sourceLabel: string;
+      resourceId: string;
+      chunkId: string;
+      retrievalRank: number;
+      exactSignals: string[];
+      keywordScore: number | null;
+      vectorDistance: number | null;
+      fusionScore: number;
+    }>;
+  }>;
+  review: GroundedEvaluationReviewReport;
+  cleanup: Awaited<ReturnType<typeof cleanupRuntimeFixtures>>;
+}
+
+interface SeedState {
+  configurationId: string;
+  createdConfiguration: boolean;
+}
+
+const FIXTURE_PATH = "lib/ai/grounding/evaluation/fixtures.ts";
+const RUNTIME_PREFIX = "eval-";
+
+export async function runRuntimeGroundedEvaluation(
+  options: RuntimeGroundedEvaluationOptions
+): Promise<RuntimeGroundedEvaluationReport> {
+  if (process.env.NODE_ENV === "production") {
+    throw new Error("Runtime grounding evaluation is not available in production.");
+  }
+
+  const prisma = options.prisma ?? defaultPrisma;
+  const fixtureHash = await hashFixtureFile();
+  enforceHoldoutGuard(options, fixtureHash);
+
+  const runId = `grounded-runtime-${Date.now()}`;
+  const runTimestamp = new Date().toISOString();
+  const sourceState = await getSourceState();
+  const provider = options.provider ?? getChatModelProvider();
+  const embeddingProvider = options.embeddingProvider ?? getConfiguredEmbeddingProvider();
+  const cases = selectCases(options.split).slice(0, options.maxCases ?? undefined);
+  const answers = new Map<string, GroundedEvaluationAnswer>();
+  const diagnostics: RuntimeGroundedEvaluationReport["diagnostics"] = [];
+  const reviewCases: GroundedEvaluationReviewCase[] = [];
+  let seedState: SeedState | null = null;
+  let cleanup: RuntimeGroundedEvaluationReport["cleanup"] | null = null;
+
+  try {
+    await cleanupRuntimeFixtures(prisma, null);
+    seedState = await seedRuntimeFixtures(prisma, embeddingProvider);
+    const searchRepository = new PostgresResourceSearchRepository(prisma);
+    const groundingService = new GroundedGenerationService({
+      searchRepository,
+      embeddingProvider,
+    });
+
+    for (const evaluationCase of cases) {
+      const answer = await answerRuntimeCase({
+        evaluationCase,
+        provider,
+        groundingService,
+      });
+      answers.set(evaluationCase.id, answer.answer);
+      diagnostics.push(answer.diagnostic);
+      reviewCases.push(answer.review);
+    }
+
+    const report = await runGroundedEvaluation({
+      cases,
+      split: "all",
+      answerCase: async (evaluationCase) => {
+        const answer = answers.get(evaluationCase.id);
+        if (!answer) throw new Error(`Missing answer for ${evaluationCase.id}.`);
+        return answer;
+      },
+    });
+
+    cleanup = await cleanupRuntimeFixtures(prisma, seedState);
+    return {
+      runId,
+      fixtureHash,
+      frozenConfig: buildFrozenConfig(),
+      report: withRuntimeMetrics(report),
+      diagnostics,
+      review: buildReviewReport({
+        runId,
+        runTimestamp,
+        fixtureHash,
+        sourceState,
+        frozenConfig: buildFrozenConfig(),
+        cases: reviewCases,
+      }),
+      cleanup,
+    };
+  } finally {
+    if (!cleanup) {
+      await cleanupRuntimeFixtures(prisma, seedState).catch(() => undefined);
+    }
+  }
+}
+
+function selectCases(split: GroundedEvaluationSplit | "all") {
+  if (split === "all") return groundedEvaluationCases;
+  return groundedEvaluationCases.filter((item) => item.split === split);
+}
+
+function enforceHoldoutGuard(
+  options: RuntimeGroundedEvaluationOptions,
+  fixtureHash: string
+) {
+  if (options.split !== "holdout" && options.split !== "holdout_v2") return;
+
+  if (options.confirmHoldoutFixtureHash !== fixtureHash) {
+    throw new Error("Holdout run requires explicit matching fixture hash confirmation.");
+  }
+
+  if (options.split === "holdout" && !options.allowConsumedHoldoutDiagnostic) {
+    throw new Error(
+      "The original holdout split is consumed. Use diagnostic mode only, or run a newly approved holdout split."
+    );
+  }
+}
+
+async function answerRuntimeCase(input: {
+  evaluationCase: GroundedEvaluationCase;
+  provider: ChatModelProvider;
+  groundingService: GroundedGenerationService;
+}) {
+  const lastMessage = input.evaluationCase.messages.at(-1);
+  if (!lastMessage) throw new Error(`Case ${input.evaluationCase.id} has no message.`);
+
+  const context = {
+    chatId: `runtime-chat-${input.evaluationCase.id}`,
+    userMessageId: `runtime-user-${input.evaluationCase.id}`,
+    assistantMessageId: `runtime-assistant-${input.evaluationCase.id}`,
+    generationRequestId: `runtime-request-${input.evaluationCase.id}`,
+    attemptNumber: 1,
+    userMessage: lastMessage.content,
+    subjectId: input.evaluationCase.subjectId,
+    subjectName: subjectName(input.evaluationCase.subjectId),
+    topicId: input.evaluationCase.topicId,
+    topicTitle: topicTitle(input.evaluationCase.topicId),
+    recentMessages: input.evaluationCase.messages.slice(0, -1),
+  };
+
+  const outcome = await input.groundingService.generate({
+    context,
+    provider: input.provider,
+  });
+  const diagnostic = await buildCaseDiagnostic(input.evaluationCase);
+
+  if (outcome.kind === "COMPLETED") {
+    const citations = outcome.citations.map((citation) => ({
+      sourceLabel: citation.sourceLabel,
+      resourceId: citation.evidence.chunk.resourceId,
+      chunkId: citation.evidence.chunk.id,
+      subjectId: citation.evidence.chunk.subjectId ?? undefined,
+      topicId: citation.evidence.chunk.topicId ?? undefined,
+    }));
+    return {
+      answer: {
+        answer: outcome.content,
+        insufficientContext: false,
+        citations,
+        repairAttempted: outcome.repairAttempted,
+        retrievalLatencyMs: outcome.attempt.retrievalDurationMs,
+        generationLatencyMs: outcome.attempt.generationDurationMs,
+        inputTokens: outcome.usage?.inputTokens,
+        outputTokens: outcome.usage?.outputTokens,
+        estimatedCostUsd: estimateCostUsd(
+          outcome.usage?.inputTokens ?? 0,
+          outcome.usage?.outputTokens ?? 0
+        ),
+      },
+      diagnostic: { ...diagnostic, providerCalled: true },
+      review: buildReviewCase({
+        evaluationCase: input.evaluationCase,
+        actualClassification: "SUPPORTED",
+        generatedAnswerText: outcome.content,
+        citations,
+        citedExcerpts: outcome.citations.map((citation) => ({
+          ...citations.find((item) => item.sourceLabel === citation.sourceLabel)!,
+          excerpt: citation.evidence.chunk.content,
+          excerptTruncated: false,
+        })),
+        insufficiencyReason: null,
+        versions: reviewVersions(),
+        provider: outcome.provider,
+        model: outcome.model,
+        repairUsed: outcome.repairAttempted,
+        inputTokens: outcome.usage?.inputTokens,
+        outputTokens: outcome.usage?.outputTokens,
+      }),
+    };
+  }
+
+  if (outcome.kind === "INSUFFICIENT_CONTEXT") {
+    const providerCalled =
+      typeof outcome.attempt.generationDurationMs === "number";
+    return {
+      answer: {
+        answer: outcome.content,
+        insufficientContext: true,
+        citations: [],
+        repairAttempted: false,
+        retrievalLatencyMs: outcome.attempt.retrievalDurationMs,
+        generationLatencyMs: outcome.attempt.generationDurationMs,
+        estimatedCostUsd: 0,
+      },
+      diagnostic: { ...diagnostic, providerCalled },
+      review: buildReviewCase({
+        evaluationCase: input.evaluationCase,
+        actualClassification: "INSUFFICIENT_CONTEXT",
+        generatedAnswerText: outcome.content,
+        citations: [],
+        citedExcerpts: [],
+        insufficiencyReason: outcome.attempt.sufficiencyReason,
+        versions: reviewVersions(),
+        provider: configuredChatProviderName(),
+        model: configuredChatModelName(),
+        repairUsed: false,
+      }),
+    };
+  }
+
+  if (outcome.kind === "FAILED") {
+    const providerCalled =
+      typeof outcome.attempt?.generationDurationMs === "number";
+    return {
+      answer: {
+        answer: "",
+        insufficientContext: false,
+        citations: [],
+        structuredOutputFailed: true,
+        repairAttempted: false,
+        retrievalLatencyMs: outcome.attempt?.retrievalDurationMs,
+        generationLatencyMs: outcome.attempt?.generationDurationMs,
+        estimatedCostUsd: 0,
+      },
+      diagnostic: { ...diagnostic, providerCalled },
+      review: buildReviewCase({
+        evaluationCase: input.evaluationCase,
+        actualClassification: "FAILED",
+        generatedAnswerText: "",
+        citations: [],
+        citedExcerpts: [],
+        insufficiencyReason: outcome.attempt?.sufficiencyReason,
+        versions: reviewVersions(),
+        provider: configuredChatProviderName(),
+        model: configuredChatModelName(),
+        repairUsed: false,
+      }),
+    };
+  }
+
+  return {
+    answer: {
+      answer: outcome.content,
+      insufficientContext: true,
+      citations: [],
+      repairAttempted: false,
+      estimatedCostUsd: 0,
+    },
+    diagnostic: { ...diagnostic, providerCalled: false },
+    review: buildReviewCase({
+      evaluationCase: input.evaluationCase,
+      actualClassification: "INSUFFICIENT_CONTEXT",
+      generatedAnswerText: outcome.content,
+      citations: [],
+      citedExcerpts: [],
+      insufficiencyReason: null,
+      versions: reviewVersions(),
+      provider: null,
+      model: null,
+      repairUsed: false,
+    }),
+  };
+}
+
+async function buildCaseDiagnostic(evaluationCase: GroundedEvaluationCase) {
+  const searchRepository = new PostgresResourceSearchRepository();
+  const embeddingProvider = getConfiguredEmbeddingProvider();
+  const lastMessage = evaluationCase.messages.at(-1);
+  const query = buildStandaloneRetrievalQuery({
+    message: lastMessage?.content ?? "",
+    subjectName: subjectName(evaluationCase.subjectId),
+    topicTitle: topicTitle(evaluationCase.topicId),
+    recentMessages: evaluationCase.messages.slice(0, -1),
+  });
+  const queryEmbedding = await embeddingProvider.embedQuery(query);
+  const candidates = await searchRepository.hybridSearch({
+    query,
+    queryEmbedding,
+    filters: {
+      ...(evaluationCase.subjectId ? { subjectId: evaluationCase.subjectId } : {}),
+      ...(evaluationCase.topicId ? { topicId: evaluationCase.topicId } : {}),
+    },
+    keywordLimit: 40,
+    vectorLimit: 40,
+    limit: 20,
+  });
+  const evidence = selectGroundingEvidence({ candidates, query });
+  const sufficiency = evaluateRetrievalSufficiency({
+    query,
+    candidates,
+    selectedChunks: evidence.map((item) => item.chunk),
+    subjectId: evaluationCase.subjectId,
+    topicId: evaluationCase.topicId,
+  });
+
+  return {
+    caseId: evaluationCase.id,
+    shouldAnswer: evaluationCase.shouldAnswer,
+    providerCalled: false,
+    sufficiencyReason: sufficiency.reason,
+    sufficiencyStatus: sufficiency.sufficient
+      ? ("SUFFICIENT" as const)
+      : ("INSUFFICIENT" as const),
+    selectedEvidence: evidence.map((item) => ({
+      sourceLabel: item.sourceLabel,
+      resourceId: item.chunk.resourceId,
+      chunkId: item.chunk.id,
+      retrievalRank: item.retrievalRank,
+      exactSignals: item.chunk.exactSignals.slice(0, 10),
+      keywordScore: item.chunk.keywordScore,
+      vectorDistance: item.chunk.vectorDistance,
+      fusionScore: item.chunk.fusionScore,
+    })),
+  };
+}
+
+async function seedRuntimeFixtures(
+  prisma: PrismaClient,
+  embeddingProvider: EmbeddingProvider
+): Promise<SeedState> {
+  for (const subjectId of unique(groundedEvaluationResources.map((item) => item.subjectId))) {
+    await prisma.subject.create({
+      data: {
+        id: subjectId,
+        name: subjectName(subjectId) ?? subjectId,
+        examCode: `EVAL-${subjectId.replace("eval-subject-", "").toUpperCase()}`,
+      },
+    });
+  }
+
+  for (const resource of groundedEvaluationResources) {
+    if (!resource.topicId) continue;
+    await prisma.topic.upsert({
+      where: { id: resource.topicId },
+      create: {
+        id: resource.topicId,
+        subjectId: resource.subjectId,
+        title: topicTitle(resource.topicId) ?? resource.topicId,
+      },
+      update: {},
+    });
+  }
+
+  for (const resource of groundedEvaluationResources) {
+    const contentHash = hashText(resource.content);
+    const searchText = [
+      resource.title,
+      resource.chunkType,
+      resource.questionNumber ? `Question ${resource.questionNumber}` : "",
+      resource.content,
+    ].filter(Boolean).join("\n");
+
+    await prisma.resource.create({
+      data: {
+        id: resource.id,
+        sourceKind: ResourceSourceKind.UPLOAD,
+        title: resource.title,
+        subjectId: resource.subjectId,
+        topicId: resource.topicId ?? null,
+        contentHash,
+        activeChunkVersion: 1,
+        activeChunkSetHash: hashText(`${resource.chunkId}:${contentHash}`),
+        processingVersion: 1,
+        processingStatus: ResourceProcessingStatus.PROCESSED,
+        approvalStatus: ResourceApprovalStatus.APPROVED,
+        extractionQuality: ResourceExtractionQuality.HIGH,
+        extractionWarnings: [],
+        provenance: resource.provenance,
+        usageRights: resource.usageRights,
+        processedAt: new Date(),
+        approvedAt: new Date(),
+        chunks: {
+          create: {
+            id: resource.chunkId,
+            version: 1,
+            subjectId: resource.subjectId,
+            topicId: resource.topicId ?? null,
+            chunkType: resource.chunkType,
+            chunkIndex: 0,
+            title: resource.title,
+            content: resource.content,
+            tokenEstimate: estimateTokens(resource.content),
+            questionNumber: resource.questionNumber ?? null,
+            contentHash,
+            searchText,
+            metadata: resource.notes ? { notes: resource.notes } : {},
+          },
+        },
+      },
+    });
+  }
+
+  const providerConfig = {
+    provider: embeddingProvider.getProviderName(),
+    model: embeddingProvider.getModelName(),
+    dimensions: embeddingProvider.getDimensions(),
+    embeddingVersion: Number(process.env.AI_EMBEDDING_VERSION ?? 1),
+  };
+  const existingConfiguration =
+    await prisma.resourceEmbeddingConfiguration.findUnique({
+      where: { provider_model_dimensions_embeddingVersion: providerConfig },
+    });
+  const configuration =
+    existingConfiguration ??
+    await prisma.resourceEmbeddingConfiguration.create({
+      data: {
+        ...providerConfig,
+        status: "ACTIVE",
+        activatedAt: new Date(),
+        eligibleChunkCount: groundedEvaluationResources.length,
+        completedChunkCount: groundedEvaluationResources.length,
+      },
+    });
+
+  if (existingConfiguration && existingConfiguration.status !== "ACTIVE") {
+    throw new Error("Matching embedding configuration exists but is not active.");
+  }
+
+  const vectors = await embeddingProvider.embedDocuments(
+    groundedEvaluationResources.map((item) => item.content)
+  );
+  for (const [index, resource] of groundedEvaluationResources.entries()) {
+    const vector = vectors[index];
+    if (!vector) throw new Error(`Missing embedding for ${resource.id}.`);
+    await prisma.$executeRaw`
+      INSERT INTO "ResourceChunkEmbedding" (
+        "id",
+        "resourceChunkId",
+        "configurationId",
+        "contentHash",
+        "status",
+        "attemptCount",
+        "embedding",
+        "createdAt",
+        "updatedAt",
+        "completedAt"
+      )
+      VALUES (
+        ${randomUUID()},
+        ${resource.chunkId},
+        ${configuration.id},
+        ${hashText(resource.content)},
+        ${"COMPLETED"}::"ResourceChunkEmbeddingStatus",
+        1,
+        ${toVectorLiteral(vector)}::extensions.vector,
+        CURRENT_TIMESTAMP,
+        CURRENT_TIMESTAMP,
+        CURRENT_TIMESTAMP
+      )
+      ON CONFLICT ("resourceChunkId", "configurationId", "contentHash") DO NOTHING
+    `;
+  }
+
+  return {
+    configurationId: configuration.id,
+    createdConfiguration: !existingConfiguration,
+  };
+}
+
+async function cleanupRuntimeFixtures(
+  prisma: PrismaClient,
+  seedState: SeedState | null
+) {
+  const resourceDelete = await prisma.resource.deleteMany({
+    where: { id: { in: groundedEvaluationResources.map((item) => item.id) } },
+  });
+  const embeddingDelete = await prisma.resourceChunkEmbedding.deleteMany({
+    where: {
+      resourceChunkId: {
+        in: groundedEvaluationResources.map((item) => item.chunkId),
+      },
+    },
+  });
+  const configDelete =
+    seedState?.createdConfiguration
+      ? await prisma.resourceEmbeddingConfiguration.deleteMany({
+          where: { id: seedState.configurationId },
+        })
+      : { count: 0 };
+  const topicDelete = await prisma.topic.deleteMany({
+    where: { id: { startsWith: "eval-topic-" } },
+  });
+  const subjectDelete = await prisma.subject.deleteMany({
+    where: { id: { startsWith: "eval-subject-" } },
+  });
+
+  return {
+    resourceDelete: resourceDelete.count,
+    embeddingDelete: embeddingDelete.count,
+    configDelete: configDelete.count,
+    topicDelete: topicDelete.count,
+    subjectDelete: subjectDelete.count,
+    remaining: {
+      resources: await prisma.resource.count({
+        where: { id: { startsWith: RUNTIME_PREFIX } },
+      }),
+      chunks: await prisma.resourceChunk.count({
+        where: { id: { startsWith: RUNTIME_PREFIX } },
+      }),
+      embeddings: await prisma.resourceChunkEmbedding.count({
+        where: {
+          resourceChunkId: { startsWith: RUNTIME_PREFIX },
+        },
+      }),
+      configs: seedState?.createdConfiguration
+        ? await prisma.resourceEmbeddingConfiguration.count({
+            where: { id: seedState.configurationId },
+          })
+        : 0,
+    },
+  };
+}
+
+function withRuntimeMetrics(report: GroundedEvaluationReport) {
+  const supportedCases = report.results.filter((item) => item.shouldAnswer);
+  const repairCases = report.results.filter((item) => item.repairAttempted);
+  return {
+    ...report,
+    supportedAnswerRate:
+      supportedCases.length === 0
+        ? null
+        : supportedCases.filter((item) => item.didAnswer).length / supportedCases.length,
+    firstPassStructuredSuccess:
+      1 -
+      report.results.filter(
+        (item) => item.structuredOutputFailed && !item.repairAttempted
+      ).length /
+        Math.max(1, report.results.length),
+    repairedStructuredSuccess:
+      repairCases.length === 0
+        ? null
+        : 1 -
+          repairCases.filter((item) => item.structuredOutputFailed).length /
+            repairCases.length,
+    finalStructuredOutputSuccess: 1 - report.structuredOutputFailureRate,
+  };
+}
+
+function buildFrozenConfig() {
+  return {
+    promptVersion: GROUNDED_PROMPT_VERSION,
+    groundingVersion: GROUNDING_VERSION,
+    sufficiencyPolicyVersion: SUFFICIENCY_POLICY_VERSION,
+    featureFlagEnabledForOrdinaryUsers: isGroundedChatEnabled(),
+    chatProvider: process.env.AI_CHAT_PROVIDER ?? "openai",
+    chatModel: process.env.AI_CHAT_MODEL ?? "gpt-4o-mini",
+    embeddingProvider: process.env.AI_EMBEDDING_PROVIDER ?? "openai",
+    embeddingModel: process.env.AI_EMBEDDING_MODEL ?? "text-embedding-3-small",
+    embeddingDimensions: Number(process.env.AI_EMBEDDING_DIMENSIONS ?? 1536),
+    embeddingVersion: Number(process.env.AI_EMBEDDING_VERSION ?? 1),
+    temperature: 0.2,
+    maxOutputTokens: 700,
+    repairAttemptLimit: 1,
+    keywordCandidateCount: 40,
+    vectorCandidateCount: 40,
+    hybridRrfK: 60,
+    retrievalLimit: 20,
+  };
+}
+
+function reviewVersions() {
+  return {
+    prompt: GROUNDED_PROMPT_VERSION,
+    grounding: GROUNDING_VERSION,
+    sufficiency: SUFFICIENCY_POLICY_VERSION,
+  };
+}
+
+function configuredChatProviderName() {
+  return process.env.AI_CHAT_PROVIDER ?? "openai";
+}
+
+function configuredChatModelName() {
+  return process.env.AI_CHAT_MODEL ?? "gpt-4o-mini";
+}
+
+async function getSourceState(): Promise<GroundedEvaluationReportSourceState> {
+  const commit = await readGitOutput(["rev-parse", "HEAD"]);
+  const diff = await readGitOutput(["diff", "--binary", "HEAD", "--"]);
+  return {
+    commit,
+    diffHash: hashText(diff ?? ""),
+    dirty: Boolean(diff),
+  };
+}
+
+async function readGitOutput(args: string[]) {
+  try {
+    const result = await execFile("git", args, {
+      cwd: process.cwd(),
+      maxBuffer: 20 * 1024 * 1024,
+    });
+    return result.stdout.trim();
+  } catch {
+    return null;
+  }
+}
+
+async function hashFixtureFile() {
+  const fixturePath = path.join(process.cwd(), FIXTURE_PATH);
+  return hashText(await fs.readFile(fixturePath, "utf8"));
+}
+
+function subjectName(subjectId: string | undefined | null) {
+  if (!subjectId) return null;
+  return (
+    {
+      "eval-subject-mathematics": "Mathematics",
+      "eval-subject-physics": "Physics",
+      "eval-subject-chemistry": "Chemistry",
+      "eval-subject-biology": "Biology",
+      "eval-subject-english": "English",
+    } satisfies Record<string, string>
+  )[subjectId] ?? subjectId.replace(/^eval-subject-/, "").replace(/-/g, " ");
+}
+
+function topicTitle(topicId: string | undefined | null) {
+  if (!topicId) return null;
+  return topicId
+    .replace(/^eval-topic-/, "")
+    .split("-")
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(" ");
+}
+
+function unique<T>(items: T[]) {
+  return Array.from(new Set(items));
+}
+
+function hashText(value: string) {
+  return createHash("sha256").update(value).digest("hex");
+}
+
+function estimateTokens(value: string) {
+  return Math.max(1, Math.ceil(value.split(/\s+/).length * 1.33));
+}
+
+function estimateCostUsd(inputTokens: number, outputTokens: number) {
+  return inputTokens * 0.00000015 + outputTokens * 0.0000006;
+}
+
+function toVectorLiteral(vector: number[]) {
+  return `[${vector.map((value) => Number(value).toPrecision(12)).join(",")}]`;
+}
