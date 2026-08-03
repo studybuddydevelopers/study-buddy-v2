@@ -11,6 +11,7 @@ export interface LabeledEvidence {
 
 export interface SelectEvidenceInput {
   candidates: RetrievedChunk[];
+  query?: string;
   tokenBudget?: number;
   maxChunks?: number;
 }
@@ -22,9 +23,13 @@ export function selectGroundingEvidence(input: SelectEvidenceInput) {
   const usedResources = new Set<string>();
   let usedTokens = 0;
   const topHasExactSupport = (input.candidates[0]?.exactSignals.length ?? 0) > 0;
+  const requestedQuestionNumbers = extractRequestedQuestionNumbers(input.query ?? "");
 
   for (const candidate of input.candidates) {
     if (selected.length >= maxChunks) break;
+    if (isUnrequestedAnswerKeyCandidate(candidate, requestedQuestionNumbers)) {
+      continue;
+    }
     if (
       selected.length > 0 &&
       topHasExactSupport &&
@@ -55,6 +60,23 @@ export function selectGroundingEvidence(input: SelectEvidenceInput) {
   }
 
   return selected;
+}
+
+function isUnrequestedAnswerKeyCandidate(
+  candidate: RetrievedChunk,
+  requestedQuestionNumbers: Set<string>
+) {
+  if (!candidate.questionNumber) return false;
+  if (requestedQuestionNumbers.has(candidate.questionNumber)) return false;
+  return /\banswer\s*:/i.test(candidate.content);
+}
+
+function extractRequestedQuestionNumbers(query: string) {
+  return new Set(
+    Array.from(query.matchAll(/\b(?:question|q)\s*#?\s*([0-9]{1,3})\b/gi)).map(
+      (match) => match[1]
+    )
+  );
 }
 
 export function buildSelectedEvidenceMetadata(evidence: LabeledEvidence[]) {
