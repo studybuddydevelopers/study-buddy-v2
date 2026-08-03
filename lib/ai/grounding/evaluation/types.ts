@@ -1,4 +1,9 @@
-export type GroundedEvaluationSplit = "development" | "holdout";
+export type GroundedEvaluationSplit =
+  | "development"
+  | "regression"
+  | "holdout"
+  | "holdout_v2"
+  | "manual_quality";
 
 export interface GroundedEvaluationResource {
   id: string;
@@ -87,4 +92,68 @@ export interface GroundedEvaluationReport {
   tokenUsage: { inputTokens: number; outputTokens: number };
   estimatedCostUsd: number | null;
   results: GroundedEvaluationCaseResult[];
+}
+
+export type GroundedEvaluationClassification =
+  | "SUPPORTED"
+  | "INSUFFICIENT_CONTEXT"
+  | "FAILED";
+
+export interface GroundedEvaluationReviewCitation {
+  sourceLabel: string;
+  resourceId?: string;
+  chunkId?: string;
+  subjectId?: string;
+  topicId?: string;
+  excerpt: string;
+  excerptTruncated: boolean;
+}
+
+export interface GroundedEvaluationReviewCase {
+  caseId: string;
+  userQuery: string;
+  expectedClassification: GroundedEvaluationClassification;
+  actualClassification: GroundedEvaluationClassification;
+  generatedAnswerText: string;
+  generatedAnswerTruncated: boolean;
+  answerContentHash: string;
+  citationMarkers: string[];
+  sourceLabels: string[];
+  citations: GroundedEvaluationCitation[];
+  citedExcerpts: GroundedEvaluationReviewCitation[];
+  requiredFacts: string[];
+  detectedRequiredFacts: string[];
+  forbiddenClaims: string[];
+  detectedForbiddenClaims: string[];
+  insufficiencyReason: string | null;
+  versions: {
+    prompt: string;
+    grounding: string;
+    sufficiency: string;
+  };
+  provider: string | null;
+  model: string | null;
+  repairUsed: boolean;
+  tokenUsage: {
+    inputTokens: number | null;
+    outputTokens: number | null;
+  };
+}
+
+export interface GroundedEvaluationReportSourceState {
+  commit: string | null;
+  diffHash: string;
+  dirty: boolean;
+}
+
+export interface GroundedEvaluationReviewReport {
+  reportSchemaVersion: string;
+  runId: string;
+  runTimestamp: string;
+  fixtureHash: string;
+  sourceState: GroundedEvaluationReportSourceState;
+  frozenConfig: Record<string, unknown>;
+  caseCount: number;
+  cases: GroundedEvaluationReviewCase[];
+  reportHash: string;
 }
