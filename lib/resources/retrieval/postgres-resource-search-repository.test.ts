@@ -23,6 +23,35 @@ describe("PostgresResourceSearchRepository", () => {
     expect(prisma.resourceEmbeddingConfiguration.findFirstCalls).toBe(0);
   });
 
+  it("collects exact formula, phrase, unit, year, and question signals for keyword retrieval", async () => {
+    const prisma = fakePrisma({
+      queryRows: [
+        row("chunk-1", {
+          title: "Ohm's law",
+          content:
+            "Physics 2021 Question 5. Ohm's law states V = I x R and voltage is measured in volts.",
+          questionNumber: "5",
+        }),
+      ],
+      activeConfig: null,
+    });
+    const repository = new PostgresResourceSearchRepository(prisma);
+
+    const results = await repository.keywordSearch({
+      query: "Physics 2021 Question 5: teach me Ohm's law, V = I x R, and volts.",
+    });
+
+    expect(results[0]?.exactSignals).toEqual(
+      expect.arrayContaining([
+        "year:2021",
+        "question:5",
+        "phrase:ohm's law",
+        "expression:V = I x R",
+        "unit:volts",
+      ])
+    );
+  });
+
   it("requires an active embedding configuration for vector retrieval", async () => {
     const repository = new PostgresResourceSearchRepository(
       fakePrisma({ activeConfig: null })
@@ -146,6 +175,9 @@ function row(
   overrides: {
     keywordScore?: number | null;
     vectorDistance?: number | null;
+    title?: string | null;
+    content?: string;
+    questionNumber?: string | null;
   } = {}
 ) {
   return {
@@ -155,12 +187,12 @@ function row(
     sourceKind: ResourceSourceKind.UPLOAD,
     chunkIndex: 0,
     chunkType: ResourceChunkType.CONTENT_SECTION,
-    title: null,
-    content: `Question 5 content ${id}`,
+    title: overrides.title ?? null,
+    content: overrides.content ?? `Question 5 content ${id}`,
     contentHash: `${id}-hash`,
     subjectId: null,
     topicId: null,
-    questionNumber: "5",
+    questionNumber: overrides.questionNumber ?? "5",
     keywordScore: overrides.keywordScore ?? 0.7,
     vectorDistance: overrides.vectorDistance ?? null,
   };
