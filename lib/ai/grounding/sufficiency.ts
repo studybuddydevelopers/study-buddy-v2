@@ -8,7 +8,11 @@ export type SufficiencyReason =
   | "LOW_RELEVANCE"
   | "FILTERED_CORPUS_GAP"
   | "POSSIBLE_CONFLICT"
-  | "MISSING_REQUIRED_SOURCE_TYPE";
+  | "MISSING_REQUIRED_SOURCE_TYPE"
+  | "RESOURCE_CONFLICT"
+  | "USER_INSTRUCTION_CONFLICT"
+  | "REQUIRED_CONCEPT_MISSING"
+  | "CONCEPT_MISMATCH";
 
 export interface RetrievalSufficiency {
   sufficient: boolean;
@@ -42,15 +46,24 @@ const HIGH_SIGNAL_STOPWORDS = new Set([
   "give",
   "have",
   "help",
+  "ignore",
   "many",
   "mean",
+  "memory",
+  "need",
+  "needed",
   "official",
   "please",
   "question",
   "relevant",
+  "resource",
+  "rules",
   "show",
   "simple",
+  "source",
+  "sources",
   "state",
+  "supplied",
   "that",
   "terms",
   "this",
@@ -66,6 +79,43 @@ const HIGH_SIGNAL_STOPWORDS = new Set([
   "with",
   "year",
 ]);
+
+interface ConceptDefinition {
+  id: string;
+  group: string;
+  aliases: string[];
+}
+
+const CONCEPT_DEFINITIONS: ConceptDefinition[] = [
+  concept("triangle", "shape", ["triangle", "triangular"]),
+  concept("circle", "shape", ["circle", "circular"]),
+  concept("rectangle", "shape", ["rectangle", "rectangular"]),
+  concept("area", "measurement", ["area"]),
+  concept("perimeter", "measurement", ["perimeter"]),
+  concept("speed", "motion_quantity", ["speed"]),
+  concept("acceleration", "motion_quantity", ["acceleration", "accelerate"]),
+  concept("velocity", "motion_quantity", ["velocity"]),
+  concept("mass", "mechanics_quantity", ["mass"]),
+  concept("weight", "mechanics_quantity", ["weight"]),
+  concept("force", "mechanics_quantity", ["force", "newton", "newtons"]),
+  concept("voltage", "electricity_quantity", ["voltage", "potential difference", "volts"]),
+  concept("current", "electricity_quantity", ["current", "amperes"]),
+  concept("resistance", "electricity_quantity", ["resistance", "ohms"]),
+  concept("acid", "chemistry_substance", ["acid", "acids", "acidic"]),
+  concept("base", "chemistry_substance", ["base", "bases", "alkali", "alkaline"]),
+  concept("photosynthesis", "biology_process", ["photosynthesis"]),
+  concept("respiration", "biology_process", ["respiration"]),
+  concept("mitosis", "cell_division", ["mitosis"]),
+  concept("meiosis", "cell_division", ["meiosis"]),
+  concept("noun", "grammar_concept", ["noun", "nouns"]),
+  concept("adjective", "grammar_concept", ["adjective", "adjectives"]),
+  concept("main_idea", "reading_concept", ["main idea", "central point"]),
+  concept("inference", "reading_concept", ["inference", "infer"]),
+  concept("ratio", "comparison_math", ["ratio", "ratios"]),
+  concept("percentage", "comparison_math", ["percentage", "percent", "percentages"]),
+  concept("mean", "statistics_concept", ["arithmetic mean", "average"]),
+  concept("median", "statistics_concept", ["median"]),
+];
 
 export function evaluateRetrievalSufficiency(
   input: EvaluateRetrievalSufficiencyInput
@@ -83,8 +133,17 @@ export function evaluateRetrievalSufficiency(
     return insufficient("FILTERED_CORPUS_GAP", "LOW", []);
   }
 
-  if (hasStructuredConflict(selected)) {
-    return insufficient("POSSIBLE_CONFLICT", "LOW", selected);
+  if (requestsTimeSensitiveExternalInformation(input.query)) {
+    return insufficient("FILTERED_CORPUS_GAP", "LOW", selected);
+  }
+
+  const compatibility = evaluateConceptCompatibility(input.query, selected);
+  if (!compatibility.compatible) {
+    return insufficient(compatibility.reason, "LOW", selected);
+  }
+
+  if (hasStructuredConflict(input.query, selected)) {
+    return insufficient("RESOURCE_CONFLICT", "LOW", selected);
   }
 
   const hasDecisiveExactSupport = selected.some(hasDecisiveExactEvidence);
@@ -131,6 +190,119 @@ export function evaluateRetrievalSufficiency(
     selectedChunks: confidence === "LOW" ? [] : selected,
     policyVersion: SUFFICIENCY_POLICY_VERSION,
   };
+}
+
+function concept(id: string, group: string, aliases: string[]): ConceptDefinition {
+  return { id, group, aliases };
+}
+
+function requestsTimeSensitiveExternalInformation(query: string) {
+  const normalized = normalizeForConceptMatching(
+    normalizeQueryForTermCoverage(query)
+  );
+  const hasElectricityContext =
+    /\b(?:ampere|amperes|circuit|current electricity|electricity|ohm|ohms|resistance|voltage|volts)\b/.test(
+      normalized
+    );
+  if (hasElectricityContext) return false;
+
+  const asksForFreshness =
+    /\b(?:current|latest|newest|recent|today|this year|online|internet|web)\b/.test(
+      normalized
+    );
+  const asksForExternalAcademicFact =
+    /\b(?:waec|exam|paper|question|questions|answer|answers|discovery|discoveries|news|official)\b/.test(
+      normalized
+    );
+
+  return asksForFreshness && asksForExternalAcademicFact;
+}
+
+function evaluateConceptCompatibility(query: string, chunks: RetrievedChunk[]) {
+  const queryText = normalizeForConceptMatching(
+    normalizeQueryForTermCoverage(query)
+  );
+  const chunkTexts = chunks.map((chunk) =>
+    normalizeForConceptMatching(
+      [
+        chunk.resourceTitle,
+        chunk.title,
+        chunk.questionNumber ? `question ${chunk.questionNumber}` : "",
+        chunk.chunkType,
+        chunk.content,
+      ].join(" ")
+    )
+  );
+  const evidenceText = chunkTexts.join(" ");
+  const requiredConcepts = conceptsInText(queryText);
+
+  if (requiredConcepts.length === 0) {
+    return { compatible: true as const };
+  }
+
+  for (const concept of requiredConcepts) {
+    if (conceptAppears(concept, evidenceText)) continue;
+    const siblingEvidence = CONCEPT_DEFINITIONS.some(
+      (candidate) =>
+        candidate.group === concept.group &&
+        candidate.id !== concept.id &&
+        conceptAppears(candidate, evidenceText)
+    );
+
+    return {
+      compatible: false as const,
+      reason: siblingEvidence
+        ? ("CONCEPT_MISMATCH" as const)
+        : ("REQUIRED_CONCEPT_MISSING" as const),
+    };
+  }
+
+  const conceptsByGroup = new Map<string, ConceptDefinition[]>();
+  for (const concept of requiredConcepts) {
+    const existing = conceptsByGroup.get(concept.group) ?? [];
+    existing.push(concept);
+    conceptsByGroup.set(concept.group, existing);
+  }
+
+  for (const concepts of conceptsByGroup.values()) {
+    if (concepts.length < 2) continue;
+    const allSupportedInOneChunk = chunkTexts.some((chunkText) =>
+      concepts.every((item) => conceptAppears(item, chunkText))
+    );
+    if (!allSupportedInOneChunk) {
+      return {
+        compatible: false as const,
+        reason: "CONCEPT_MISMATCH" as const,
+      };
+    }
+  }
+
+  return { compatible: true as const };
+}
+
+function conceptsInText(text: string) {
+  return CONCEPT_DEFINITIONS.filter((definition) =>
+    conceptAppears(definition, text)
+  );
+}
+
+function conceptAppears(definition: ConceptDefinition, text: string) {
+  return definition.aliases.some((alias) => phraseAppears(alias, text));
+}
+
+function phraseAppears(phrase: string, text: string) {
+  const normalized = normalizeForConceptMatching(phrase);
+  const escaped = normalized.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  return new RegExp(`(^|[^a-z0-9])${escaped}([^a-z0-9]|$)`, "i").test(text);
+}
+
+function normalizeForConceptMatching(value: string) {
+  return value
+    .toLowerCase()
+    .normalize("NFKD")
+    .replace(/[^\p{L}\p{N}]+/gu, " ")
+    .replace(/\s+/g, " ")
+    .trim();
 }
 
 function hasDecisiveExactEvidence(chunk: RetrievedChunk) {
@@ -188,6 +360,7 @@ function termAppearsInText(term: string, haystack: string) {
   if (haystack.includes(`${term}s`)) return true;
   if (term.endsWith("s") && haystack.includes(term.slice(0, -1))) return true;
   if (term.endsWith("y") && haystack.includes(`${term.slice(0, -1)}ies`)) return true;
+  if (term.endsWith("y") && haystack.includes(`${term.slice(0, -1)}ying`)) return true;
   if (term.endsWith("e") && haystack.includes(`${term.slice(0, -1)}ing`)) return true;
   return false;
 }
@@ -222,10 +395,14 @@ function matchesFilters(
   return true;
 }
 
-function hasStructuredConflict(chunks: RetrievedChunk[]) {
+function hasStructuredConflict(query: string, chunks: RetrievedChunk[]) {
+  const requestedQuestionNumbers = extractRequestedQuestionNumbers(query);
+  if (requestedQuestionNumbers.size === 0) return false;
+
   const answerByQuestion = new Map<string, string>();
   for (const chunk of chunks) {
     if (!chunk.questionNumber) continue;
+    if (!requestedQuestionNumbers.has(chunk.questionNumber)) continue;
     const answer = extractAnswerKey(chunk.content);
     if (!answer) continue;
     const key = `${chunk.subjectId ?? ""}:${chunk.topicId ?? ""}:${chunk.questionNumber}`;
@@ -234,6 +411,14 @@ function hasStructuredConflict(chunks: RetrievedChunk[]) {
     answerByQuestion.set(key, answer);
   }
   return false;
+}
+
+function extractRequestedQuestionNumbers(query: string) {
+  return new Set(
+    Array.from(query.matchAll(/\b(?:question|q)\s*#?\s*([0-9]{1,3})\b/gi)).map(
+      (match) => match[1]
+    )
+  );
 }
 
 function extractAnswerKey(content: string) {
