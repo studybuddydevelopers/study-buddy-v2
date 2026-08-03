@@ -147,6 +147,7 @@ class SequenceProvider implements ChatModelProvider {
 
 class StructuredSequenceProvider extends SequenceProvider {
   structuredInvocations = 0;
+  structuredInputs: StructuredGenerateInput[] = [];
 
   constructor(
     results: Array<GenerateResult | Error>,
@@ -158,7 +159,7 @@ class StructuredSequenceProvider extends SequenceProvider {
   async generateStructured(
     input: StructuredGenerateInput
   ): Promise<StructuredGenerateResult> {
-    void input;
+    this.structuredInputs.push(input);
     this.structuredInvocations += 1;
     const next = this.structuredResults.shift();
     if (next instanceof Error) throw next;
@@ -1152,6 +1153,51 @@ describe("ChatService Stage 1 lifecycle", () => {
     expect(retry.assistantMessage.id).toBe(failed.assistantMessage.id);
     expect(retry.assistantMessage.citations).toHaveLength(1);
     expect(retry.assistantMessage.content).toContain("Recovered");
+  });
+
+  it("sends only the safe validation reason into the single structured repair attempt", async () => {
+    const db = new InMemoryChatDb();
+    const provider = new StructuredSequenceProvider([], [
+      {
+        value: {
+          answer: "Citation object but no marker.",
+          citations: [{ sourceLabel: "SOURCE_1" }],
+          insufficientContext: false,
+        },
+        provider: "fake",
+        model: "fake-structured",
+      },
+      {
+        value: {
+          answer: "A ratio compares quantities. [SOURCE_1]",
+          citations: [{ sourceLabel: "SOURCE_1" }],
+          insufficientContext: false,
+        },
+        provider: "fake",
+        model: "fake-structured",
+      },
+    ]);
+    const service = new ChatService(db as never, provider, {
+      groundedChatEnabled: true,
+      groundingService: new GroundedGenerationService({
+        searchRepository: new FakeSearchRepository([retrievedChunk()]),
+      }),
+    });
+    db.seedChat({ id: "chat-1", userId: "user-a" });
+
+    const result = await service.sendMessage("user-a", "chat-1", {
+      message: "Explain ratios",
+      clientRequestId: "request-repair-message",
+    });
+
+    expect(result.request.status).toBe(AiGenerationRequestStatus.COMPLETED);
+    expect(provider.structuredInvocations).toBe(2);
+    const repairMessage = provider.structuredInputs[1]?.messages.at(-1)?.content;
+    expect(repairMessage).toContain(
+      "Citation markers and objects differ."
+    );
+    expect(repairMessage).toContain("Cite only supplied SOURCE labels");
+    expect(repairMessage).not.toContain("api key");
   });
 
   it("marks grounded generations failed when citation persistence fails", async () => {
