@@ -21,9 +21,17 @@ export function selectGroundingEvidence(input: SelectEvidenceInput) {
   const selected: LabeledEvidence[] = [];
   const usedResources = new Set<string>();
   let usedTokens = 0;
+  const topHasExactSupport = (input.candidates[0]?.exactSignals.length ?? 0) > 0;
 
   for (const candidate of input.candidates) {
     if (selected.length >= maxChunks) break;
+    if (
+      selected.length > 0 &&
+      topHasExactSupport &&
+      candidate.exactSignals.length === 0
+    ) {
+      continue;
+    }
     const estimate = estimateTokens(candidate.content);
     if (selected.length > 0 && usedTokens + estimate > tokenBudget) continue;
 
