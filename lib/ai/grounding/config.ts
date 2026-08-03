@@ -1,6 +1,6 @@
 export const GROUNDING_VERSION = "stage4-grounded-teach-v1";
-export const GROUNDED_PROMPT_VERSION = "grounded-teach-prompt-v1.2";
-export const SUFFICIENCY_POLICY_VERSION = "sufficiency-policy-v1.2";
+export const GROUNDED_PROMPT_VERSION = "grounded-teach-prompt-v1.3";
+export const SUFFICIENCY_POLICY_VERSION = "sufficiency-policy-v1.3";
 
 export function isGroundedChatEnabled() {
   return parseBooleanFlag(process.env.AI_GROUNDED_CHAT_ENABLED, false);
