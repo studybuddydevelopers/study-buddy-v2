@@ -235,6 +235,8 @@ Implemented behind `AI_GROUNDED_CHAT_ENABLED=false` by default:
 
 Stage 4 still does not add HINT, SOLVE, MARK, public web search, external browsing, unrestricted fallback, or official WAEC marking claims.
 
+Current Stage 4 validation status: `DO_NOT_ENABLE`. The immutable v1.1 development baseline had 20 cases, structured-output success `0.75`, answerability accuracy `0.40`, correct refusal rate `1.00`, unsupported no-evidence answers `0`, and invalid citation rate `0`. Remediation now uses `grounded-teach-prompt-v1.2` and `sufficiency-policy-v1.2`; holdout must not run until the full development gates pass.
+
 Do not enable `AI_GROUNDED_CHAT_ENABLED=true` in production until the development and holdout grounding evaluations pass. Details and rollback: [`docs/GROUNDED_CHAT_STAGE_4.md`](/Users/efeon/study-buddy-v2/docs/GROUNDED_CHAT_STAGE_4.md).
 
 Grounding evaluation command:
