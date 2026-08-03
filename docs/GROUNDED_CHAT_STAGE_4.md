@@ -100,6 +100,34 @@ Permanent Stage 4 evaluation scaffolding lives under:
 The corpus is split into `development` and `holdout`. Do not tune thresholds
 against holdout cases.
 
+### Immutable Development Baseline
+
+The first 20-case Stage 4 development run is retained as the v1.1 baseline:
+
+- prompt: `grounded-teach-prompt-v1.1`
+- sufficiency policy: `sufficiency-policy-v1.1`
+- development cases: `20`
+- structured-output success: `0.75`
+- answerability accuracy: `0.40`
+- correct refusal rate: `1.00`
+- unsupported no-evidence answers: `0`
+- invalid citation rate: `0`
+
+This run remains `DO_NOT_ENABLE`. Later remediation must use new prompt or
+policy versions and must not relabel this baseline.
+
+### Development Remediation
+
+The v1.2 remediation keeps refusal safety intact while addressing confirmed
+development failures:
+
+- `grounded-teach-prompt-v1.2` no longer requires optional
+  `suggestedQuestions` in the provider schema.
+- `sufficiency-policy-v1.2` ignores subject metadata prefixes during term
+  coverage while preserving topic and recent educational context.
+- Retrieval exact signals now include selected formulas, operators, units,
+  educational phrases, years, and question identifiers.
+
 Evaluate a controlled answer export:
 
 ```bash
