@@ -235,15 +235,20 @@ Implemented behind `AI_GROUNDED_CHAT_ENABLED=false` by default:
 
 Stage 4 still does not add HINT, SOLVE, MARK, public web search, external browsing, unrestricted fallback, or official WAEC marking claims.
 
-Current Stage 4 validation status: `DO_NOT_ENABLE`. The immutable v1.1 development baseline had 20 cases, structured-output success `0.75`, answerability accuracy `0.40`, correct refusal rate `1.00`, unsupported no-evidence answers `0`, and invalid citation rate `0`. Remediation now uses `grounded-teach-prompt-v1.2` and `sufficiency-policy-v1.2`; holdout must not run until the full development gates pass.
+Current Stage 4 validation status: `DO_NOT_ENABLE`. The immutable v1.1 development baseline had 20 cases, structured-output success `0.75`, answerability accuracy `0.40`, correct refusal rate `1.00`, unsupported no-evidence answers `0`, and invalid citation rate `0`. The consumed v1.2 holdout failed with fixture hash `61c3388984531ecddbe10d30a4c6926250b971f1061736f2fe31882c9d6d22fc` and remains permanently `DO_NOT_ENABLE`. The consumed v1.3 `holdout_v2` run with fixture hash `1e792aa96ab304f0495120d4b7ead4ff71d059592f2322e52c4e8216037de768` passed automated gates, but manual answer review was not possible because the old report did not retain answer text; final recommendation remains `DO_NOT_ENABLE`.
 
 Do not enable `AI_GROUNDED_CHAT_ENABLED=true` in production until the development and holdout grounding evaluations pass. Details and rollback: [`docs/GROUNDED_CHAT_STAGE_4.md`](/Users/efeon/study-buddy-v2/docs/GROUNDED_CHAT_STAGE_4.md).
 
 Grounding evaluation command:
 
 ```bash
-npm run ai:evaluate-grounding -- --answers=docs/reports/grounded-answers.json --split=development
+npm run ai:evaluate-grounding -- --split=development
+npm run ai:evaluate-grounding -- --split=regression
+npm run ai:evaluate-grounding -- --split=manual_quality --write-report --report-format=both
 ```
+
+Review reports are written to ignored local `.grounded-evaluation-reports/`
+files and should be kept until manual review is confirmed complete.
 
 ## Database And Query Optimizations
 
