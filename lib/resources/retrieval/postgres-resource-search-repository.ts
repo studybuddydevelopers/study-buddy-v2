@@ -94,8 +94,8 @@ export class PostgresResourceSearchRepository
           ${exactSignalSql(exact)}
         )
       ORDER BY
-        ts_rank_cd(c."searchVector", websearch_to_tsquery('simple'::regconfig, ${query})) DESC,
         ${exactSortSql(exact)} DESC,
+        ts_rank_cd(c."searchVector", websearch_to_tsquery('simple'::regconfig, ${query})) DESC,
         r."id" ASC,
         c."chunkIndex" ASC,
         c."id" ASC
@@ -293,6 +293,15 @@ function exactSignalSql(exact: ExactQueryParts) {
       Prisma.sql`c."searchText" ILIKE ${`%Question ${questionNumber}%`}`
     );
   }
+  for (const phrase of exact.educationalPhrases) {
+    clauses.push(Prisma.sql`c."searchText" ILIKE ${`%${phrase}%`}`);
+  }
+  for (const expression of exact.symbolicExpressions) {
+    clauses.push(Prisma.sql`c."searchText" ILIKE ${`%${expression}%`}`);
+  }
+  for (const unit of exact.units) {
+    clauses.push(Prisma.sql`c."searchText" ILIKE ${`%${unit}%`}`);
+  }
 
   if (clauses.length === 0) return Prisma.empty;
   return Prisma.sql`OR ${Prisma.join(clauses, " OR ")}`;
@@ -313,6 +322,21 @@ function exactSortSql(exact: ExactQueryParts) {
   for (const questionNumber of exact.questionNumbers) {
     clauses.push(
       Prisma.sql`CASE WHEN c."questionNumber" = ${questionNumber} OR c."searchText" ILIKE ${`%Question ${questionNumber}%`} THEN 1 ELSE 0 END`
+    );
+  }
+  for (const phrase of exact.educationalPhrases) {
+    clauses.push(
+      Prisma.sql`CASE WHEN c."searchText" ILIKE ${`%${phrase}%`} THEN 1 ELSE 0 END`
+    );
+  }
+  for (const expression of exact.symbolicExpressions) {
+    clauses.push(
+      Prisma.sql`CASE WHEN c."searchText" ILIKE ${`%${expression}%`} THEN 1 ELSE 0 END`
+    );
+  }
+  for (const unit of exact.units) {
+    clauses.push(
+      Prisma.sql`CASE WHEN c."searchText" ILIKE ${`%${unit}%`} THEN 1 ELSE 0 END`
     );
   }
 
@@ -362,9 +386,13 @@ interface ExactQueryParts {
   quotedPhrases: string[];
   years: string[];
   questionNumbers: string[];
+  educationalPhrases: string[];
+  symbolicExpressions: string[];
+  units: string[];
 }
 
 function extractExactQueryParts(query: string): ExactQueryParts {
+  const normalized = normalizeQuery(query);
   const quotedPhrases = Array.from(query.matchAll(/"([^"]{2,80})"/g)).map(
     (match) => match[1].trim()
   );
@@ -374,11 +402,17 @@ function extractExactQueryParts(query: string): ExactQueryParts {
   const questionNumbers = Array.from(
     query.matchAll(/\b(?:question|q)\s*#?\s*([0-9]{1,3})\b/gi)
   ).map((match) => match[1]);
+  const symbolicExpressions = extractSymbolicExpressions(normalized);
+  const educationalPhrases = extractEducationalExactPhrases(normalized);
+  const units = extractExactUnits(normalized);
 
   return {
     quotedPhrases: Array.from(new Set(quotedPhrases)),
     years: Array.from(new Set(years)),
     questionNumbers: Array.from(new Set(questionNumbers)),
+    educationalPhrases: Array.from(new Set(educationalPhrases)),
+    symbolicExpressions: Array.from(new Set(symbolicExpressions)),
+    units: Array.from(new Set(units)),
   };
 }
 
@@ -400,8 +434,82 @@ function collectExactSignals(query: string, row: ChunkRow) {
       signals.push(`question:${questionNumber}`);
     }
   }
+  for (const phrase of exact.educationalPhrases) {
+    if (haystack.includes(phrase.toLowerCase())) {
+      signals.push(`phrase:${phrase}`);
+    }
+  }
+  for (const expression of exact.symbolicExpressions) {
+    if (haystack.includes(expression.toLowerCase())) {
+      signals.push(`expression:${expression}`);
+    }
+  }
+  for (const unit of exact.units) {
+    if (haystack.includes(unit.toLowerCase())) {
+      signals.push(`unit:${unit}`);
+    }
+  }
 
   return signals;
+}
+
+function extractEducationalExactPhrases(query: string) {
+  const normalized = query.toLowerCase();
+  const phrases = [
+    "area of a triangle",
+    "area of a circle",
+    "ohm's law",
+    "ohms law",
+    "potential difference",
+    "linear equation",
+    "fair die",
+    "percentage discount",
+    "sale price",
+    "litmus paper",
+    "blue litmus",
+    "red litmus",
+    "photosynthesis",
+    "main idea",
+    "supporting details",
+    "equivalent ratios",
+    "highest common factor",
+    "positive direction",
+    "blue counters",
+  ];
+
+  return phrases.filter((phrase) => normalized.includes(phrase));
+}
+
+function extractSymbolicExpressions(query: string) {
+  const expressions = Array.from(
+    query.matchAll(
+      /\b(?:[a-z]\s*[+\-]\s*\d+\s*=\s*\d+|[a-z]\s*=\s*[a-z]\s*(?:x|\*)\s*[a-z]|[a-z]\s*=\s*pi\s*[a-z]\^2|1\/2|\d+\s*:\s*\d+)\b/gi
+    )
+  ).map((match) => match[0].replace(/\s+/g, " ").trim());
+
+  const toRatios = Array.from(
+    query.matchAll(/\b(\d+)\s+to\s+(\d+)\b/gi)
+  ).map((match) => `${match[1]}:${match[2]}`);
+
+  return [...expressions, ...toRatios];
+}
+
+function extractExactUnits(query: string) {
+  const normalized = query.toLowerCase();
+  const units = [
+    "volts",
+    "voltage",
+    "amperes",
+    "current",
+    "resistance",
+    "ohms",
+    "kilograms",
+    "cubic metres",
+    "kilograms per cubic metre",
+    "newtons",
+  ];
+
+  return units.filter((unit) => normalized.includes(unit));
 }
 
 function normalizeQuery(query: string) {
