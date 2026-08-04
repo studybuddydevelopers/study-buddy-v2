@@ -46,7 +46,7 @@ AI
 
 Stage 1 chat note: `/ai/chats/*` provides persistence, ownership checks, idempotency, retry-safe lifecycle tracking, and a provider-neutral chat adapter. It is not resource-grounded and does not provide citations or StudyBuddy resource retrieval.
 
-Stage 4 grounded chat note: grounded TEACH generation is implemented behind `AI_GROUNDED_CHAT_ENABLED=false` by default. When disabled, Stage 1 general chat behaviour is preserved. When enabled, substantive educational messages retrieve approved active StudyBuddy evidence, validate structured output and server-controlled citations, persist `AiGroundingAttempt`/`AiMessageCitation` rows, and expose only safe bounded citation previews. HINT, SOLVE, MARK, public web search, and unrestricted fallback are not implemented.
+Stage 4 grounded chat note: grounded TEACH generation is implemented behind `AI_GROUNDED_CHAT_ENABLED=false` by default. When disabled, Stage 1 general chat behaviour is preserved. When enabled, substantive educational messages retrieve approved active StudyBuddy evidence, validate segment-based structured output and server-controlled citations, persist `AiGroundingAttempt`/`AiMessageCitation` rows, and expose only safe bounded citation previews. Unsupported generated segments fail closed with `UNSUPPORTED_GENERATED_CLAIM` after one constrained regeneration. HINT, SOLVE, MARK, public web search, and unrestricted fallback are not implemented.
 
 Past Questions
 --------------
@@ -115,7 +115,7 @@ Grounded Chat (Stage 4)
 - Stage 4 integrates retrieval into persistent `/chat` only when `AI_GROUNDED_CHAT_ENABLED=true`.
 - New persistence: `AiGroundingAttempt` and `AiMessageCitation`.
 - New user-facing API: `GET /ai/chats/:chatId/citations/:citationId`.
-- Feature flag remains disabled. The consumed v1.2 holdout failed. The consumed v1.3 `holdout_v2` passed automated gates but lacked retained answer text for mandatory manual review, so Stage 4 remains `DO_NOT_ENABLE`.
+- Feature flag remains disabled. The consumed v1.2 holdout failed. The consumed v1.3 `holdout_v2` passed automated gates but lacked retained answer text for mandatory manual review. The v1.3 `manual_quality` run retained answers and failed manual review; v1.4 remediation is still `DO_NOT_ENABLE` pending real-provider and repeated manual validation.
 
 Notes
 -----
