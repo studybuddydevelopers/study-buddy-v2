@@ -944,6 +944,133 @@ describe("Stage 4 grounding primitives", () => {
     );
   });
 
+  it("accepts useful-for pedagogical glue only when the evidence supports the relation", async () => {
+    const evidence = [
+      {
+        sourceLabel: "SOURCE_1",
+        excerpt:
+          "Mitosis is cell division that produces two genetically identical daughter cells for growth and repair.",
+      },
+    ];
+
+    const validation = await validateGroundedAnswerSegments({
+      segments: [
+        {
+          text:
+            "Mitosis is useful because it produces two genetically identical daughter cells for growth and repair.",
+          sourceLabels: ["SOURCE_1"],
+        },
+      ],
+      evidenceByLabel: new Map(evidence.map((item) => [item.sourceLabel, item])),
+      validator: new DeterministicGroundingValidator(),
+    });
+
+    expect(validation.supported).toBe(true);
+    expect(validation.results[0].reason).toBe("LOW_RISK_RELATIONAL_GLUE");
+  });
+
+  it.each([
+    {
+      name: "strong importance claim",
+      segment: "Mitosis is essential for growth and repair.",
+      reason: "UNSUPPORTED_IMPORTANCE_CLAIM",
+      rejected: ["essential"],
+    },
+    {
+      name: "tissue health expansion",
+      segment: "Mitosis keeps tissues healthy.",
+      reason: "UNSUPPORTED_CAUSAL_EXTENSION",
+      rejected: ["healthy"],
+    },
+    {
+      name: "damaged-cell replacement expansion",
+      segment: "Mitosis replaces damaged cells.",
+      reason: "UNSUPPORTED_CONTEXT",
+      rejected: ["replaces", "damaged"],
+    },
+    {
+      name: "changed subject",
+      segment: "Meiosis is useful for growth and repair.",
+      reason: "UNSUPPORTED_ENTITY",
+      rejected: ["meiosis"],
+    },
+    {
+      name: "changed purpose",
+      segment: "Mitosis is useful for preventing illness.",
+      reason: "UNSUPPORTED_CAUSAL_EXTENSION",
+      rejected: ["illness"],
+    },
+  ])("rejects unsupported relational/evaluative expansion: $name", async ({ segment, reason, rejected }) => {
+    const evidence = [
+      {
+        sourceLabel: "SOURCE_1",
+        excerpt:
+          "Mitosis is cell division that produces two genetically identical daughter cells for growth and repair.",
+      },
+    ];
+    const validation = await validateGroundedAnswerSegments({
+      segments: [{ text: segment, sourceLabels: ["SOURCE_1"] }],
+      evidenceByLabel: new Map(evidence.map((item) => [item.sourceLabel, item])),
+      validator: new DeterministicGroundingValidator(),
+    });
+
+    expect(validation.supported).toBe(false);
+    expect(validation.results[0].reason).toBe(reason);
+    expect(validation.results[0].unsupportedTerms).toEqual(
+      expect.arrayContaining(rejected)
+    );
+  });
+
+  it("accepts convection relational glue only when the heat-transfer relation is present", async () => {
+    const evidence = [
+      {
+        sourceLabel: "SOURCE_1",
+        excerpt:
+          "Convection transfers heat by the movement of a fluid such as air or water.",
+      },
+    ];
+    const validation = await validateGroundedAnswerSegments({
+      segments: [
+        {
+          text: "Convection is useful for heat transfer in fluids.",
+          sourceLabels: ["SOURCE_1"],
+        },
+      ],
+      evidenceByLabel: new Map(evidence.map((item) => [item.sourceLabel, item])),
+      validator: new DeterministicGroundingValidator(),
+    });
+
+    expect(validation.supported).toBe(true);
+    expect(validation.results[0].reason).toBe("LOW_RISK_RELATIONAL_GLUE");
+  });
+
+  it("keeps unsupported convection mechanism rejected", async () => {
+    const evidence = [
+      {
+        sourceLabel: "SOURCE_1",
+        excerpt:
+          "Convection transfers heat by the movement of a fluid such as air or water.",
+      },
+    ];
+    const validation = await validateGroundedAnswerSegments({
+      segments: [
+        {
+          text:
+            "Convection causes warm fluid to rise and cool fluid to sink.",
+          sourceLabels: ["SOURCE_1"],
+        },
+      ],
+      evidenceByLabel: new Map(evidence.map((item) => [item.sourceLabel, item])),
+      validator: new DeterministicGroundingValidator(),
+    });
+
+    expect(validation.supported).toBe(false);
+    expect(validation.results[0].reason).toBe("UNSUPPORTED_MECHANISM");
+    expect(validation.results[0].unsupportedTerms).toEqual(
+      expect.arrayContaining(["causes", "rise", "sink"])
+    );
+  });
+
   it("runs the permanent grounded evaluation report shape offline", async () => {
     const report = await runGroundedEvaluation({
       cases: groundedEvaluationCases,
