@@ -66,9 +66,11 @@ describe("FakeChatModelProvider", () => {
     });
 
     expect(result.value).toMatchObject({
-      answer: "Structured reply [SOURCE_9]",
-      citations: [{ sourceLabel: "SOURCE_9" }],
+      answerSegments: [
+        { text: "Structured reply", sourceLabels: ["SOURCE_9"] },
+      ],
       insufficientContext: false,
+      suggestedQuestions: [],
     });
   });
 
