@@ -61,6 +61,7 @@ export interface GroundedEvaluationGroundingValidationResult {
   supported: boolean;
   reason: string;
   unsupportedTerms: string[];
+  unsupportedClaim?: string;
   validatorVersion: string;
 }
 
