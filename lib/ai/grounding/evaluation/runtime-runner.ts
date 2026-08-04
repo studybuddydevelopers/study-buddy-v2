@@ -4,6 +4,7 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { promisify } from "node:util";
 import {
+  AiGenerationFailureCode,
   ResourceApprovalStatus,
   ResourceExtractionQuality,
   ResourceProcessingStatus,
@@ -16,13 +17,23 @@ import { getConfiguredEmbeddingProvider } from "@/lib/ai/embeddings/provider";
 import type { EmbeddingProvider } from "@/lib/ai/embeddings/types";
 import { GroundedGenerationService } from "@/lib/ai/grounding/grounded-generation-service";
 import {
+  GROUNDING_VALIDATOR_VERSION,
   GROUNDED_PROMPT_VERSION,
   GROUNDING_VERSION,
   SUFFICIENCY_POLICY_VERSION,
   isGroundedChatEnabled,
 } from "@/lib/ai/grounding/config";
-import { buildStandaloneRetrievalQuery } from "@/lib/ai/grounding/query-builder";
-import { selectGroundingEvidence } from "@/lib/ai/grounding/evidence";
+import {
+  buildStandaloneRetrievalQuery,
+  QUERY_CONTEXT_MESSAGE_LIMIT,
+  QUERY_CONTEXT_TOKEN_LIMIT,
+  RETRIEVAL_QUERY_MAX_CHARS,
+} from "@/lib/ai/grounding/query-builder";
+import {
+  DEFAULT_EVIDENCE_TOKEN_BUDGET,
+  DEFAULT_MAX_EVIDENCE_CHUNKS,
+  selectGroundingEvidence,
+} from "@/lib/ai/grounding/evidence";
 import { evaluateRetrievalSufficiency } from "@/lib/ai/grounding/sufficiency";
 import { PostgresResourceSearchRepository } from "@/lib/resources/retrieval/postgres-resource-search-repository";
 import {
@@ -239,6 +250,10 @@ async function answerRuntimeCase(input: {
         insufficientContext: false,
         citations,
         repairAttempted: outcome.repairAttempted,
+        regenerationUsed: outcome.groundingValidation?.regenerationUsed,
+        successfulRepair: outcome.groundingValidation?.regenerationUsed === true,
+        answerSegments: outcome.answerSegments ?? [],
+        groundingValidatorResults: outcome.groundingValidation?.finalResults ?? [],
         retrievalLatencyMs: outcome.attempt.retrievalDurationMs,
         generationLatencyMs: outcome.attempt.generationDurationMs,
         inputTokens: outcome.usage?.inputTokens,
@@ -259,6 +274,11 @@ async function answerRuntimeCase(input: {
           excerpt: citation.evidence.chunk.content,
           excerptTruncated: false,
         })),
+        answerSegments: outcome.answerSegments ?? [],
+        groundingValidatorResults: outcome.groundingValidation?.finalResults ?? [],
+        regenerationUsed: outcome.groundingValidation?.regenerationUsed,
+        originalUnsupportedSegmentIndices:
+          outcome.groundingValidation?.originalUnsupportedSegmentIndices,
         insufficiencyReason: null,
         versions: reviewVersions(),
         provider: outcome.provider,
@@ -308,7 +328,14 @@ async function answerRuntimeCase(input: {
         insufficientContext: false,
         citations: [],
         structuredOutputFailed: true,
+        unsupportedSegmentFailed:
+          outcome.failureCode === AiGenerationFailureCode.UNSUPPORTED_GENERATED_CLAIM,
         repairAttempted: false,
+        regenerationUsed: outcome.attempt?.groundingValidation?.regenerationUsed,
+        successfulRepair: false,
+        answerSegments: outcome.attempt?.answerSegments ?? [],
+        groundingValidatorResults:
+          outcome.attempt?.groundingValidation?.finalResults ?? [],
         retrievalLatencyMs: outcome.attempt?.retrievalDurationMs,
         generationLatencyMs: outcome.attempt?.generationDurationMs,
         estimatedCostUsd: 0,
@@ -320,6 +347,12 @@ async function answerRuntimeCase(input: {
         generatedAnswerText: "",
         citations: [],
         citedExcerpts: [],
+        answerSegments: outcome.attempt?.answerSegments ?? [],
+        groundingValidatorResults:
+          outcome.attempt?.groundingValidation?.finalResults ?? [],
+        regenerationUsed: outcome.attempt?.groundingValidation?.regenerationUsed,
+        originalUnsupportedSegmentIndices:
+          outcome.attempt?.groundingValidation?.originalUnsupportedSegmentIndices,
         insufficiencyReason: outcome.attempt?.sufficiencyReason,
         versions: reviewVersions(),
         provider: configuredChatProviderName(),
@@ -632,6 +665,7 @@ function buildFrozenConfig() {
     promptVersion: GROUNDED_PROMPT_VERSION,
     groundingVersion: GROUNDING_VERSION,
     sufficiencyPolicyVersion: SUFFICIENCY_POLICY_VERSION,
+    groundingValidatorVersion: GROUNDING_VALIDATOR_VERSION,
     featureFlagEnabledForOrdinaryUsers: isGroundedChatEnabled(),
     chatProvider: process.env.AI_CHAT_PROVIDER ?? "openai",
     chatModel: process.env.AI_CHAT_MODEL ?? "gpt-4o-mini",
@@ -646,6 +680,11 @@ function buildFrozenConfig() {
     vectorCandidateCount: 40,
     hybridRrfK: 60,
     retrievalLimit: 20,
+    selectedEvidenceLimit: DEFAULT_MAX_EVIDENCE_CHUNKS,
+    evidenceTokenBudget: DEFAULT_EVIDENCE_TOKEN_BUDGET,
+    recentMessageLimit: QUERY_CONTEXT_MESSAGE_LIMIT,
+    queryContextTokenBudget: QUERY_CONTEXT_TOKEN_LIMIT,
+    retrievalQueryMaxChars: RETRIEVAL_QUERY_MAX_CHARS,
   };
 }
 
