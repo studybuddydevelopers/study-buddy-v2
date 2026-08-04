@@ -20,6 +20,7 @@ export interface RetrievalSufficiency {
   reason: SufficiencyReason;
   selectedChunks: RetrievedChunk[];
   policyVersion: string;
+  evidenceShape?: "DIRECT_SHORT_DEFINITION_SUPPORT";
 }
 
 export interface EvaluateRetrievalSufficiencyInput {
@@ -115,6 +116,10 @@ const CONCEPT_DEFINITIONS: ConceptDefinition[] = [
   concept("percentage", "comparison_math", ["percentage", "percent", "percentages"]),
   concept("mean", "statistics_concept", ["arithmetic mean", "average"]),
   concept("median", "statistics_concept", ["median"]),
+  concept("food_chain", "ecology_sequence", ["food chain", "food chains"]),
+  concept("food_web", "ecology_sequence", ["food web", "food webs"]),
+  concept("conduction", "heat_transfer", ["conduction"]),
+  concept("convection", "heat_transfer", ["convection"]),
 ];
 
 export function evaluateRetrievalSufficiency(
@@ -144,6 +149,17 @@ export function evaluateRetrievalSufficiency(
 
   if (hasStructuredConflict(input.query, selected)) {
     return insufficient("RESOURCE_CONFLICT", "LOW", selected);
+  }
+
+  if (hasDirectShortDefinitionSupport(input.query, selected)) {
+    return {
+      sufficient: true,
+      confidence: "HIGH",
+      reason: "SUPPORTED",
+      selectedChunks: selected,
+      policyVersion: SUFFICIENCY_POLICY_VERSION,
+      evidenceShape: "DIRECT_SHORT_DEFINITION_SUPPORT",
+    };
   }
 
   const hasDecisiveExactSupport = selected.some(hasDecisiveExactEvidence);
@@ -321,6 +337,41 @@ function hasDecisiveExactEvidence(chunk: RetrievedChunk) {
   }
 
   return false;
+}
+
+function hasDirectShortDefinitionSupport(query: string, chunks: RetrievedChunk[]) {
+  const queryText = normalizeForConceptMatching(
+    normalizeQueryForTermCoverage(query)
+  );
+  const requestedConcepts = conceptsInText(queryText);
+  if (requestedConcepts.length === 0) return false;
+
+  const evidenceText = normalizeForConceptMatching(
+    chunks
+      .map((chunk) =>
+        [
+          chunk.resourceTitle,
+          chunk.title,
+          chunk.questionNumber ? `question ${chunk.questionNumber}` : "",
+          chunk.content,
+        ].join(" ")
+      )
+      .join(" ")
+  );
+
+  return requestedConcepts.every((concept) =>
+    concept.aliases.some((alias) =>
+      hasDirectDefinitionPattern(normalizeForConceptMatching(alias), evidenceText)
+    )
+  );
+}
+
+function hasDirectDefinitionPattern(alias: string, evidenceText: string) {
+  const escaped = alias.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  return new RegExp(
+    `(^|[^a-z0-9])(?:a |an |the )?${escaped}([^a-z0-9].{0,120})?\\b(?:is|are|means|refers to|found by|called|names|can be|produces|shows)\\b`,
+    "i"
+  ).test(evidenceText);
 }
 
 function hasLowHighSignalTermCoverage(query: string, chunks: RetrievedChunk[]) {
