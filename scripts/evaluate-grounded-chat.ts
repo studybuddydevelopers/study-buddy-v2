@@ -17,6 +17,7 @@ import type {
 interface Args {
   answersFile?: string;
   split: GroundedEvaluationSplit | "all";
+  caseIds?: string[];
   fixtureBaseline: boolean;
   allowConsumedHoldoutDiagnostic: boolean;
   confirmHoldoutFixtureHash?: string;
@@ -31,6 +32,7 @@ async function main() {
   if (!args.answersFile && !args.fixtureBaseline) {
     const report = await runRuntimeGroundedEvaluation({
       split: args.split,
+      caseIds: args.caseIds,
       allowConsumedHoldoutDiagnostic: args.allowConsumedHoldoutDiagnostic,
       confirmHoldoutFixtureHash: args.confirmHoldoutFixtureHash,
       maxCases: args.maxCases,
@@ -76,6 +78,7 @@ function parseArgs(values: string[]): Args {
   return {
     answersFile: readStringArg(values, "--answers"),
     split: readSplit(values),
+    caseIds: readListArg(values, "--case"),
     fixtureBaseline: values.includes("--fixture-baseline"),
     allowConsumedHoldoutDiagnostic: values.includes("--diagnostic-consumed-holdout"),
     confirmHoldoutFixtureHash: readStringArg(values, "--confirm-holdout-fixture-hash"),
@@ -84,6 +87,19 @@ function parseArgs(values: string[]): Args {
     reportDir: readStringArg(values, "--report-dir"),
     reportFormat: readReportFormat(values),
   };
+}
+
+function readListArg(values: string[], name: string) {
+  const directValues = values
+    .filter((item) => item.startsWith(`${name}=`))
+    .map((item) => item.slice(name.length + 1));
+  if (directValues.length === 0) return undefined;
+
+  const ids = directValues
+    .flatMap((value) => value.split(","))
+    .map((value) => value.trim())
+    .filter(Boolean);
+  return ids.length > 0 ? Array.from(new Set(ids)) : undefined;
 }
 
 function readStringArg(values: string[], name: string) {
