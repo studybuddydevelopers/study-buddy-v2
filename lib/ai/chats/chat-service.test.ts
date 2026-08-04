@@ -165,16 +165,28 @@ class StructuredSequenceProvider extends SequenceProvider {
     if (next instanceof Error) throw next;
     return (
       next ?? {
-        value: {
-          answer: "Grounded answer. [SOURCE_1]",
-          citations: [{ sourceLabel: "SOURCE_1" }],
-          insufficientContext: false,
-        },
+        value: groundedStructuredValue("Grounded answer."),
         provider: "fake",
         model: "fake-structured",
       }
     );
   }
+}
+
+function groundedStructuredValue(text: string, sourceLabels = ["SOURCE_1"]) {
+  return {
+    answerSegments: [{ text, sourceLabels }],
+    insufficientContext: false,
+    suggestedQuestions: [],
+  };
+}
+
+function groundedInsufficientValue() {
+  return {
+    answerSegments: [],
+    insufficientContext: true,
+    suggestedQuestions: [],
+  };
 }
 
 class InMemoryChatDb {
@@ -1033,11 +1045,7 @@ describe("ChatService Stage 1 lifecycle", () => {
     const db = new InMemoryChatDb();
     const provider = new StructuredSequenceProvider([], [
       {
-        value: {
-          answer: "A ratio compares quantities using division. [SOURCE_1]",
-          citations: [{ sourceLabel: "SOURCE_1" }],
-          insufficientContext: false,
-        },
+        value: groundedStructuredValue("A ratio compares quantities using division."),
         provider: "fake",
         model: "fake-structured",
         usage: { inputTokens: 10, outputTokens: 12 },
@@ -1096,29 +1104,17 @@ describe("ChatService Stage 1 lifecycle", () => {
     const db = new InMemoryChatDb();
     const provider = new StructuredSequenceProvider([], [
       {
-        value: {
-          answer: "Bad citation.",
-          citations: [{ sourceLabel: "SOURCE_9" }],
-          insufficientContext: false,
-        },
+        value: groundedStructuredValue("Bad citation.", ["SOURCE_9"]),
         provider: "fake",
         model: "fake-structured",
       },
       {
-        value: {
-          answer: "Still bad.",
-          citations: [{ sourceLabel: "SOURCE_9" }],
-          insufficientContext: false,
-        },
+        value: groundedStructuredValue("Still bad.", ["SOURCE_9"]),
         provider: "fake",
         model: "fake-structured",
       },
       {
-        value: {
-          answer: "Recovered grounded answer. [SOURCE_1]",
-          citations: [{ sourceLabel: "SOURCE_1" }],
-          insufficientContext: false,
-        },
+        value: groundedStructuredValue("A ratio compares quantities using division."),
         provider: "fake",
         model: "fake-structured",
       },
@@ -1152,7 +1148,7 @@ describe("ChatService Stage 1 lifecycle", () => {
     expect(db.groundingAttempts.map((attempt) => attempt.attemptNumber)).toEqual([1, 2]);
     expect(retry.assistantMessage.id).toBe(failed.assistantMessage.id);
     expect(retry.assistantMessage.citations).toHaveLength(1);
-    expect(retry.assistantMessage.content).toContain("Recovered");
+    expect(retry.assistantMessage.content).toContain("division");
   });
 
   it("sends only the safe validation reason into the single structured repair attempt", async () => {
@@ -1160,19 +1156,17 @@ describe("ChatService Stage 1 lifecycle", () => {
     const provider = new StructuredSequenceProvider([], [
       {
         value: {
-          answer: "Citation object but no marker.",
-          citations: [{ sourceLabel: "SOURCE_1" }],
+          answerSegments: [
+            { text: "Citation object but no marker. [SOURCE_1]", sourceLabels: ["SOURCE_1"] },
+          ],
           insufficientContext: false,
+          suggestedQuestions: [],
         },
         provider: "fake",
         model: "fake-structured",
       },
       {
-        value: {
-          answer: "A ratio compares quantities. [SOURCE_1]",
-          citations: [{ sourceLabel: "SOURCE_1" }],
-          insufficientContext: false,
-        },
+        value: groundedStructuredValue("A ratio compares quantities."),
         provider: "fake",
         model: "fake-structured",
       },
@@ -1194,31 +1188,122 @@ describe("ChatService Stage 1 lifecycle", () => {
     expect(provider.structuredInvocations).toBe(2);
     const repairMessage = provider.structuredInputs[1]?.messages.at(-1)?.content;
     expect(repairMessage).toContain(
-      "Citation markers and objects differ."
+      "Answer segment text must not embed source markers."
     );
-    expect(repairMessage).toContain("Cite only supplied SOURCE labels");
+    expect(repairMessage).toContain("Each supported segment needs sourceLabels");
     expect(repairMessage).not.toContain("api key");
+  });
+
+  it("repairs unsupported grounded segments without persisting the unsupported text", async () => {
+    const db = new InMemoryChatDb();
+    const provider = new StructuredSequenceProvider([], [
+      {
+        value: groundedStructuredValue(
+          "A ratio compares quantities using division. Ratios are useful in cooking."
+        ),
+        provider: "fake",
+        model: "fake-structured",
+      },
+      {
+        value: groundedStructuredValue("A ratio compares quantities using division."),
+        provider: "fake",
+        model: "fake-structured",
+      },
+    ]);
+    const service = new ChatService(db as never, provider, {
+      groundedChatEnabled: true,
+      groundingService: new GroundedGenerationService({
+        searchRepository: new FakeSearchRepository([retrievedChunk()]),
+      }),
+    });
+    db.seedChat({ id: "chat-1", userId: "user-a" });
+
+    const result = await service.sendMessage("user-a", "chat-1", {
+      message: "Explain ratios",
+      clientRequestId: "request-unsupported-repair",
+    });
+
+    expect(result.request.status).toBe(AiGenerationRequestStatus.COMPLETED);
+    expect(provider.structuredInvocations).toBe(2);
+    expect(result.assistantMessage.content).toContain("division");
+    expect(result.assistantMessage.content).not.toContain("cooking");
+    expect(db.citations).toHaveLength(1);
+    const metadata = db.groundingAttempts[0]
+      .selectedEvidenceMetadata as Record<string, unknown>;
+    expect(metadata.groundingValidation).toMatchObject({
+      regenerationUsed: true,
+      originalUnsupportedSegmentIndices: [0],
+    });
+  });
+
+  it("fails closed when unsupported grounded segments remain after repair and retry stays possible", async () => {
+    const db = new InMemoryChatDb();
+    const provider = new StructuredSequenceProvider([], [
+      {
+        value: groundedStructuredValue(
+          "A ratio compares quantities using division. Ratios are useful in cooking."
+        ),
+        provider: "fake",
+        model: "fake-structured",
+      },
+      {
+        value: groundedStructuredValue(
+          "A ratio compares quantities using division. Ratios are useful in cooking."
+        ),
+        provider: "fake",
+        model: "fake-structured",
+      },
+      {
+        value: groundedStructuredValue("A ratio compares quantities using division."),
+        provider: "fake",
+        model: "fake-structured",
+      },
+    ]);
+    const service = new ChatService(db as never, provider, {
+      groundedChatEnabled: true,
+      groundingService: new GroundedGenerationService({
+        searchRepository: new FakeSearchRepository([retrievedChunk()]),
+      }),
+    });
+    db.seedChat({ id: "chat-1", userId: "user-a" });
+
+    const failed = await service.sendMessage("user-a", "chat-1", {
+      message: "Explain ratios",
+      clientRequestId: "request-unsupported-failed",
+    });
+
+    expect(failed.request.status).toBe(AiGenerationRequestStatus.FAILED);
+    expect(failed.request.failureCode).toBe(
+      AiGenerationFailureCode.UNSUPPORTED_GENERATED_CLAIM
+    );
+    expect(failed.assistantMessage.status).toBe(AiChatMessageStatus.FAILED);
+    expect(failed.assistantMessage.content).toBe("");
+    expect(db.citations).toHaveLength(0);
+
+    const retry = await service.retryGeneration(
+      "user-a",
+      "chat-1",
+      failed.request.id
+    );
+
+    expect(retry.request.status).toBe(AiGenerationRequestStatus.COMPLETED);
+    expect(retry.assistantMessage.id).toBe(failed.assistantMessage.id);
+    expect(retry.assistantMessage.content).toContain("division");
+    expect(retry.assistantMessage.content).not.toContain("cooking");
+    expect(db.messages.filter((message) => message.role === AiChatRole.USER)).toHaveLength(1);
+    expect(db.messages.filter((message) => message.role === AiChatRole.ASSISTANT)).toHaveLength(1);
   });
 
   it("repairs model refusals when server-side sufficiency already found supporting evidence", async () => {
     const db = new InMemoryChatDb();
     const provider = new StructuredSequenceProvider([], [
       {
-        value: {
-          answer:
-            "I do not have enough approved StudyBuddy material to answer that reliably yet.",
-          citations: [],
-          insufficientContext: true,
-        },
+        value: groundedInsufficientValue(),
         provider: "fake",
         model: "fake-structured",
       },
       {
-        value: {
-          answer: "A ratio compares quantities using division. [SOURCE_1]",
-          citations: [{ sourceLabel: "SOURCE_1" }],
-          insufficientContext: false,
-        },
+        value: groundedStructuredValue("A ratio compares quantities using division."),
         provider: "fake",
         model: "fake-structured",
       },
@@ -1255,11 +1340,7 @@ describe("ChatService Stage 1 lifecycle", () => {
     };
     const provider = new StructuredSequenceProvider([], [
       {
-        value: {
-          answer: "A ratio compares quantities. [SOURCE_1]",
-          citations: [{ sourceLabel: "SOURCE_1" }],
-          insufficientContext: false,
-        },
+        value: groundedStructuredValue("A ratio compares quantities."),
         provider: "fake",
         model: "fake-structured",
       },
@@ -1292,11 +1373,7 @@ describe("ChatService Stage 1 lifecycle", () => {
     const db = new InMemoryChatDb();
     const provider = new StructuredSequenceProvider([], [
       {
-        value: {
-          answer: "A ratio compares quantities. [SOURCE_1]",
-          citations: [{ sourceLabel: "SOURCE_1" }],
-          insufficientContext: false,
-        },
+        value: groundedStructuredValue("A ratio compares quantities."),
         provider: "fake",
         model: "fake-structured",
       },
