@@ -48,6 +48,22 @@ export interface GroundedEvaluationCitation {
   topicId?: string;
 }
 
+export interface GroundedEvaluationAnswerSegment {
+  index: number;
+  text: string;
+  sourceLabels: string[];
+}
+
+export interface GroundedEvaluationGroundingValidationResult {
+  index: number;
+  text: string;
+  sourceLabels: string[];
+  supported: boolean;
+  reason: string;
+  unsupportedTerms: string[];
+  validatorVersion: string;
+}
+
 export interface GroundedEvaluationCaseResult {
   caseId: string;
   split: GroundedEvaluationSplit;
@@ -64,6 +80,9 @@ export interface GroundedEvaluationCaseResult {
   crossTopicLeakage: boolean;
   structuredOutputFailed: boolean;
   repairAttempted: boolean;
+  unsupportedSegmentFailed: boolean;
+  regenerationUsed: boolean;
+  successfulRepair: boolean;
   retrievalLatencyMs: number | null;
   generationLatencyMs: number | null;
   inputTokens: number | null;
@@ -87,6 +106,12 @@ export interface GroundedEvaluationReport {
   crossTopicLeakageRate: number;
   structuredOutputFailureRate: number;
   repairAttemptRate: number;
+  unsupportedSegmentFailureRate: number;
+  groundingValidationFailureRate: number;
+  regenerationRate: number;
+  successfulRepairRate: number | null;
+  supportedQuestionAnsweredRate: number | null;
+  supportedQuestionFalseRefusalRate: number | null;
   retrievalLatencyMs: { p50: number; p95: number; p99: number } | null;
   generationLatencyMs: { p50: number; p95: number; p99: number } | null;
   tokenUsage: { inputTokens: number; outputTokens: number };
@@ -121,6 +146,12 @@ export interface GroundedEvaluationReviewCase {
   sourceLabels: string[];
   citations: GroundedEvaluationCitation[];
   citedExcerpts: GroundedEvaluationReviewCitation[];
+  answerSegments: GroundedEvaluationAnswerSegment[];
+  groundingValidatorResults: GroundedEvaluationGroundingValidationResult[];
+  regenerationUsed: boolean;
+  originalUnsupportedSegmentIndices: number[];
+  finalAcceptedSegments: GroundedEvaluationAnswerSegment[];
+  groundingValidatorVersion: string | null;
   requiredFacts: string[];
   detectedRequiredFacts: string[];
   forbiddenClaims: string[];
