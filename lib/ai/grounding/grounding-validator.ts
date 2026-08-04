@@ -3,8 +3,13 @@ import type { GroundedTeachAnswerSegment } from "./structured-output";
 
 export type GroundingValidationReason =
   | "SUPPORTED"
+  | "SUPPORTED_WITH_CONNECTIVE_LANGUAGE"
+  | "MISSING_SYMBOL_DEFINITION"
+  | "UNSUPPORTED_ENTITY"
+  | "UNSUPPORTED_RELATION"
+  | "UNSUPPORTED_MECHANISM"
+  | "UNSUPPORTED_CONTEXT"
   | "PARTIALLY_SUPPORTED"
-  | "UNSUPPORTED"
   | "INSUFFICIENT_EVIDENCE";
 
 export interface GroundingValidatorInput {
@@ -19,6 +24,7 @@ export interface GroundingValidatorResult {
   supported: boolean;
   reason: GroundingValidationReason;
   unsupportedTerms: string[];
+  unsupportedClaim?: string;
   validatorVersion: string;
 }
 
@@ -33,6 +39,7 @@ export interface SegmentGroundingValidation {
   supported: boolean;
   reason: GroundingValidationReason;
   unsupportedTerms: string[];
+  unsupportedClaim?: string;
   validatorVersion: string;
 }
 
@@ -61,12 +68,14 @@ const CLAIM_TERM_STOPWORDS = new Set([
   "from",
   "give",
   "helps",
+  "here",
   "into",
   "means",
   "mentioned",
   "must",
   "note",
   "only",
+  "other",
   "question",
   "same",
   "show",
@@ -89,6 +98,8 @@ const CLAIM_TERM_STOPWORDS = new Set([
   "where",
   "which",
   "with",
+  "word",
+  "words",
 ]);
 
 const IMPORTANT_SHORT_TERMS = new Set([
@@ -100,6 +111,58 @@ const IMPORTANT_SHORT_TERMS = new Set([
   "f",
   "m",
   "a",
+]);
+
+const LOW_RISK_CONNECTIVE_TERMS = new Set([
+  "formula",
+  "formulas",
+  "represent",
+  "represents",
+  "represented",
+  "representing",
+]);
+
+const UNSUPPORTED_MECHANISM_TERMS = new Set([
+  "cause",
+  "causes",
+  "circulation",
+  "consequence",
+  "consequences",
+  "cooler",
+  "ecosystem",
+  "mechanism",
+  "photosynthesis",
+  "purpose",
+  "rise",
+  "rises",
+  "sink",
+  "sinks",
+  "warmer",
+]);
+
+const UNSUPPORTED_CONTEXT_TERMS = new Set([
+  "author",
+  "damaged",
+  "example",
+  "examples",
+  "intent",
+  "multicellular",
+  "opposite",
+  "remember",
+  "tissue",
+  "vertex",
+]);
+
+const SYMBOL_TERM_HINTS = new Map<string, Set<string>>([
+  ["a", new Set(["area", "acceleration"])],
+  ["b", new Set(["base"])],
+  ["f", new Set(["force"])],
+  ["h", new Set(["height"])],
+  ["i", new Set(["current"])],
+  ["m", new Set(["mass"])],
+  ["r", new Set(["radius", "resistance"])],
+  ["v", new Set(["velocity", "voltage", "volume"])],
+  ["x", new Set(["unknown", "value", "variable"])],
 ]);
 
 const NUMBER_WORDS = new Map([
@@ -131,22 +194,39 @@ export class DeterministicGroundingValidator implements GroundingValidator {
       return result(false, "INSUFFICIENT_EVIDENCE", []);
     }
 
-    const evidence = normalizeForMatching(
-      input.citedEvidence.map((item) => item.excerpt).join(" ")
-    );
+    const rawEvidence = input.citedEvidence.map((item) => item.excerpt).join(" ");
+    const evidence = normalizeForMatching(rawEvidence);
     if (!evidence) return result(false, "INSUFFICIENT_EVIDENCE", []);
 
     const terms = extractClaimTerms(input.segment);
-    const unsupportedTerms = terms.filter((term) => !termAppears(term, evidence));
+    const highSignalTerms = terms.filter(
+      (term) => !LOW_RISK_CONNECTIVE_TERMS.has(term)
+    );
+    const unsupportedTerms = highSignalTerms.filter(
+      (term) => !termAppears(term, evidence)
+    );
+    const relationFailure = validateConnectiveRelations(input.segment, rawEvidence);
+    const boundedUnsupportedTerms = unique([
+      ...unsupportedTerms,
+      ...(relationFailure?.unsupportedTerms ?? []),
+    ]);
 
-    if (unsupportedTerms.length === 0) {
-      return result(true, "SUPPORTED", []);
+    if (boundedUnsupportedTerms.length === 0) {
+      return result(
+        true,
+        terms.some((term) => LOW_RISK_CONNECTIVE_TERMS.has(term))
+          ? "SUPPORTED_WITH_CONNECTIVE_LANGUAGE"
+          : "SUPPORTED",
+        []
+      );
     }
 
     return result(
       false,
-      unsupportedTerms.length === terms.length ? "UNSUPPORTED" : "PARTIALLY_SUPPORTED",
-      unsupportedTerms
+      relationFailure?.reason ??
+        classifyUnsupportedTerms(boundedUnsupportedTerms, highSignalTerms),
+      boundedUnsupportedTerms,
+      relationFailure?.unsupportedClaim
     );
   }
 }
@@ -176,6 +256,7 @@ export async function validateGroundedAnswerSegments(input: {
       supported: validation.supported,
       reason: validation.reason,
       unsupportedTerms: validation.unsupportedTerms,
+      unsupportedClaim: validation.unsupportedClaim,
       validatorVersion: validation.validatorVersion,
     });
   }
@@ -189,12 +270,14 @@ export async function validateGroundedAnswerSegments(input: {
 function result(
   supported: boolean,
   reason: GroundingValidationReason,
-  unsupportedTerms: string[]
+  unsupportedTerms: string[],
+  unsupportedClaim?: string
 ): GroundingValidatorResult {
   return {
     supported,
     reason,
     unsupportedTerms,
+    unsupportedClaim,
     validatorVersion: GROUNDING_VALIDATOR_VERSION,
   };
 }
@@ -232,6 +315,121 @@ function termAppears(term: string, evidence: string) {
   return false;
 }
 
+function validateConnectiveRelations(segment: string, rawEvidence: string):
+  | {
+      reason: GroundingValidationReason;
+      unsupportedTerms: string[];
+      unsupportedClaim: string;
+    }
+  | null {
+  const evidence = normalizeForMatching(rawEvidence);
+  const mathEvidence = normalizeMathForMatching(rawEvidence);
+  const normalizedSegment = normalizeForMatching(segment);
+
+  if (
+    (hasTerm(normalizedSegment, "formula") ||
+      hasTerm(normalizedSegment, "formulas")) &&
+    !evidenceContainsFormula(mathEvidence)
+  ) {
+    return {
+      reason: "UNSUPPORTED_RELATION",
+      unsupportedTerms: ["formula"],
+      unsupportedClaim: "formula",
+    };
+  }
+
+  for (const definition of extractSymbolDefinitions(segment)) {
+    if (!symbolDefinitionSupported(definition, evidence, mathEvidence)) {
+      return {
+        reason: "MISSING_SYMBOL_DEFINITION",
+        unsupportedTerms: unique([definition.symbol, definition.term]),
+        unsupportedClaim: `${definition.symbol} represents ${definition.term}`,
+      };
+    }
+  }
+
+  return null;
+}
+
+function extractSymbolDefinitions(segment: string) {
+  const normalized = segment
+    .normalize("NFKC")
+    .replace(/[’']/g, "'")
+    .replace(/[;:,().]/g, " ");
+  const definitions: Array<{ symbol: string; term: string }> = [];
+  const pattern =
+    /\b([A-Za-z])\s+(?:represents|represent|represented|representing|stands\s+for|means|is)\s+(?:the\s+)?([A-Za-z][A-Za-z-]*)/gi;
+
+  for (const match of normalized.matchAll(pattern)) {
+    const symbol = normalizeForMatching(match[1] ?? "");
+    const term = normalizeForMatching(match[2] ?? "");
+    if (!symbol || !term) continue;
+    if (LOW_RISK_CONNECTIVE_TERMS.has(term)) continue;
+    definitions.push({ symbol, term });
+  }
+
+  return definitions;
+}
+
+function symbolDefinitionSupported(
+  definition: { symbol: string; term: string },
+  evidence: string,
+  mathEvidence: string
+) {
+  if (!hasTerm(evidence, definition.term)) return false;
+  if (!formulaContainsSymbol(mathEvidence, definition.symbol)) return false;
+  if (!evidenceContainsFormula(mathEvidence)) return false;
+
+  const hints = SYMBOL_TERM_HINTS.get(definition.symbol);
+  if (!hints?.has(definition.term)) return false;
+
+  return true;
+}
+
+function evidenceContainsFormula(mathEvidence: string) {
+  return (
+    mathEvidence.includes("=") ||
+    /\bpi\b.{0,20}\^[0-9]/i.test(mathEvidence) ||
+    /\b(one half|half)\b.{0,30}\b(times|x|multiplied)\b/i.test(mathEvidence)
+  );
+}
+
+function formulaContainsSymbol(mathEvidence: string, symbol: string) {
+  return formulaFragments(mathEvidence).some((fragment) =>
+    hasMathTerm(fragment, symbol)
+  );
+}
+
+function formulaFragments(mathEvidence: string) {
+  const fragments: string[] = [];
+  for (const match of mathEvidence.matchAll(/=/g)) {
+    const index = match.index ?? 0;
+    fragments.push(mathEvidence.slice(Math.max(0, index - 40), index + 60));
+  }
+  for (const match of mathEvidence.matchAll(/\^[0-9]/g)) {
+    const index = match.index ?? 0;
+    fragments.push(mathEvidence.slice(Math.max(0, index - 30), index + 30));
+  }
+  return fragments.length > 0 ? fragments : [mathEvidence];
+}
+
+function classifyUnsupportedTerms(
+  unsupportedTerms: string[],
+  highSignalTerms: string[]
+): GroundingValidationReason {
+  if (unsupportedTerms.some((term) => UNSUPPORTED_MECHANISM_TERMS.has(term))) {
+    return "UNSUPPORTED_MECHANISM";
+  }
+  if (unsupportedTerms.some((term) => UNSUPPORTED_CONTEXT_TERMS.has(term))) {
+    return "UNSUPPORTED_CONTEXT";
+  }
+  if (unsupportedTerms.length >= Math.max(1, highSignalTerms.length)) {
+    return "UNSUPPORTED_ENTITY";
+  }
+
+  return "PARTIALLY_SUPPORTED";
+}
+
 function hasTerm(text: string, term: string) {
   const escaped = term.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
   return new RegExp(`(^|[^a-z0-9])${escaped}([^a-z0-9]|$)`, "i").test(text);
@@ -241,12 +439,35 @@ function hasPhrase(text: string, phrase: string) {
   return text.includes(normalizeForMatching(phrase));
 }
 
+function hasMathTerm(text: string, term: string) {
+  const escaped = term.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  return new RegExp(`(^|[^a-z0-9])${escaped}([^a-z0-9]|$)`, "i").test(text);
+}
+
 function normalizeForMatching(value: string) {
   return value
     .toLowerCase()
     .normalize("NFKD")
+    .replace(/π/g, " pi ")
     .replace(/×/g, " x ")
+    .replace(/²/g, " 2 ")
     .replace(/[^\p{L}\p{N}/]+/gu, " ")
     .replace(/\s+/g, " ")
     .trim();
+}
+
+function normalizeMathForMatching(value: string) {
+  return value
+    .toLowerCase()
+    .normalize("NFKD")
+    .replace(/π/g, " pi ")
+    .replace(/×/g, " x ")
+    .replace(/²/g, "^2")
+    .replace(/[^\p{L}\p{N}/=^+\-*/]+/gu, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function unique(values: string[]) {
+  return Array.from(new Set(values.filter(Boolean))).slice(0, 40);
 }
