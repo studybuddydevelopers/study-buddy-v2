@@ -62,6 +62,7 @@ const execFile = promisify(execFileCallback);
 
 export interface RuntimeGroundedEvaluationOptions {
   split: GroundedEvaluationSplit | "all";
+  caseIds?: string[];
   provider?: ChatModelProvider;
   embeddingProvider?: EmbeddingProvider;
   prisma?: PrismaClient;
@@ -125,7 +126,10 @@ export async function runRuntimeGroundedEvaluation(
   const sourceState = await getSourceState();
   const provider = options.provider ?? getChatModelProvider();
   const embeddingProvider = options.embeddingProvider ?? getConfiguredEmbeddingProvider();
-  const cases = selectCases(options.split).slice(0, options.maxCases ?? undefined);
+  const cases = selectCases(options.split, options.caseIds).slice(
+    0,
+    options.maxCases ?? undefined
+  );
   const answers = new Map<string, GroundedEvaluationAnswer>();
   const diagnostics: RuntimeGroundedEvaluationReport["diagnostics"] = [];
   const reviewCases: GroundedEvaluationReviewCase[] = [];
@@ -186,9 +190,22 @@ export async function runRuntimeGroundedEvaluation(
   }
 }
 
-function selectCases(split: GroundedEvaluationSplit | "all") {
-  if (split === "all") return groundedEvaluationCases;
-  return groundedEvaluationCases.filter((item) => item.split === split);
+function selectCases(split: GroundedEvaluationSplit | "all", caseIds?: string[]) {
+  const cases =
+    split === "all"
+      ? groundedEvaluationCases
+      : groundedEvaluationCases.filter((item) => item.split === split);
+  if (!caseIds || caseIds.length === 0) return cases;
+
+  const requested = new Set(caseIds);
+  const selected = cases.filter((item) => requested.has(item.id));
+  const found = new Set(selected.map((item) => item.id));
+  const missing = caseIds.filter((id) => !found.has(id));
+  if (missing.length > 0) {
+    throw new Error(`Unknown grounded evaluation case id(s): ${missing.join(", ")}.`);
+  }
+
+  return selected;
 }
 
 function enforceHoldoutGuard(
