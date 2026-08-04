@@ -205,6 +205,49 @@ not retain generated answer text. Because citation validity alone is not enough
 for final acceptance, do not describe this run as complete manual acceptance and
 do not enable grounded chat from this result.
 
+### manual_quality v1.3 Failure Preservation
+
+The Stage 4 v1.3 `manual_quality` run is immutable and failed manual review.
+Do not overwrite, relabel, rerun as if unseen, or use it as an activation gate.
+
+- prompt: `grounded-teach-prompt-v1.3`
+- grounding: `stage4-grounded-teach-v1`
+- sufficiency policy: `sufficiency-policy-v1.3`
+- fixture hash:
+  `ef220918c1688d741378774176255d3f8ffe7093b8c809c0d65cc56f255a296d`
+- report hash:
+  `d915160f1adea981122ffc1323f1b7ab4cbefe936c78ba5835eeff0a69bf5811`
+- verdict: `MANUAL_REVIEW_FAILED`
+- recommendation: `DO_NOT_ENABLE`
+
+The seven non-passing cases are copied into the disclosed regression set:
+triangle formula, arithmetic mean, heat-transfer comparison, food chain,
+mitosis purpose, main idea, and noun definition.
+
+### v1.4 Grounding-Discipline Remediation
+
+The v1.4 remediation keeps `stage4-grounded-teach-v1` but increments:
+
+- prompt: `grounded-teach-prompt-v1.4`
+- sufficiency policy: `sufficiency-policy-v1.4`
+- grounding validator: `grounding-validator-v1.4`
+
+Changes:
+
+- replaces free-form model citations with server-rendered `answerSegments`;
+- requires each substantive segment to name selected source labels;
+- rejects arbitrary links, unknown labels, embedded source markers, and
+  source-free educational segments before persistence;
+- validates each segment against only its cited excerpts using a deterministic
+  fail-closed grounding validator;
+- allows one constrained regeneration using the same selected evidence and only
+  unsupported segment indices;
+- fails with `UNSUPPORTED_GENERATED_CLAIM` if unsupported segments remain;
+- adds `DIRECT_SHORT_DEFINITION_SUPPORT` metadata for exact, direct
+  short-definition evidence without lowering global thresholds;
+- extends review reports with segment labels, validator results, regeneration
+  details, and unsupported-segment metrics.
+
 ### Reviewable Reports
 
 Future runtime evaluations can write bounded review artifacts into the ignored
