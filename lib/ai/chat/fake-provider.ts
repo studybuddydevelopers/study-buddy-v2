@@ -280,66 +280,68 @@ function buildStructuredValue(mode: FakeStructuredChatMode, text: string) {
   switch (mode) {
     case "EMPTY_ANSWER":
       return {
-        answer: "",
-        citations: [{ sourceLabel: "SOURCE_1" }],
+        answerSegments: [],
         insufficientContext: false,
+        suggestedQuestions: [],
       };
     case "MALFORMED":
       return { answer: text };
     case "UNKNOWN_LABEL":
       return {
-        answer: `${text} [SOURCE_9]`,
-        citations: [{ sourceLabel: "SOURCE_9" }],
+        answerSegments: [{ text, sourceLabels: ["SOURCE_9"] }],
         insufficientContext: false,
+        suggestedQuestions: [],
       };
     case "MISSING_CITATION":
       return {
-        answer: text,
-        citations: [],
+        answerSegments: [{ text, sourceLabels: [] }],
         insufficientContext: false,
+        suggestedQuestions: [],
       };
     case "OBJECT_WITHOUT_MARKER":
       return {
-        answer: text,
-        citations: [{ sourceLabel: "SOURCE_1" }],
+        answerSegments: [{ text, sourceLabels: ["SOURCE_1"] }],
         insufficientContext: false,
+        suggestedQuestions: [],
       };
     case "MARKER_WITHOUT_OBJECT":
       return {
-        answer: `${text} [SOURCE_1]`,
-        citations: [],
+        answerSegments: [{ text: `${text} [SOURCE_1]`, sourceLabels: [] }],
         insufficientContext: false,
+        suggestedQuestions: [],
       };
     case "DUPLICATE_LABEL":
       return {
-        answer: `${text} [SOURCE_1]`,
-        citations: [{ sourceLabel: "SOURCE_1" }, { sourceLabel: "SOURCE_1" }],
+        answerSegments: [
+          { text, sourceLabels: ["SOURCE_1", "SOURCE_1"] },
+        ],
         insufficientContext: false,
+        suggestedQuestions: [],
       };
     case "INSUFFICIENT_FACTUAL":
       return {
-        answer: "The factual answer is unsupported.",
-        citations: [],
+        answerSegments: [{ text: "The factual answer is unsupported.", sourceLabels: [] }],
         insufficientContext: true,
+        suggestedQuestions: [],
       };
     case "EXCESSIVE_SUGGESTIONS":
       return {
-        answer: `${text} [SOURCE_1]`,
-        citations: [{ sourceLabel: "SOURCE_1" }],
+        answerSegments: [{ text, sourceLabels: ["SOURCE_1"] }],
         insufficientContext: false,
         suggestedQuestions: ["one", "two", "three", "four"],
       };
     case "FAKE_LINK_CITATION":
       return {
-        answer: `${text} [SOURCE_1](https://example.test/source)`,
-        citations: [{ sourceLabel: "SOURCE_1" }],
+        answerSegments: [
+          { text: `${text} [SOURCE_1](https://example.test/source)`, sourceLabels: ["SOURCE_1"] },
+        ],
         insufficientContext: false,
+        suggestedQuestions: [],
       };
     case "VALID":
     default:
       return {
-        answer: `${text} [SOURCE_1]`,
-        citations: [{ sourceLabel: "SOURCE_1" }],
+        answerSegments: [{ text, sourceLabels: ["SOURCE_1"] }],
         insufficientContext: false,
         suggestedQuestions: [],
       };
