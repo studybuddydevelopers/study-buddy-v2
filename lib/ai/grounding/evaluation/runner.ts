@@ -1,7 +1,9 @@
 import type {
+  GroundedEvaluationAnswerSegment,
   GroundedEvaluationCitation,
   GroundedEvaluationCase,
   GroundedEvaluationCaseResult,
+  GroundedEvaluationGroundingValidationResult,
   GroundedEvaluationReport,
   GroundedEvaluationSplit,
 } from "./types";
@@ -12,6 +14,11 @@ export interface GroundedEvaluationAnswer {
   citations: GroundedEvaluationCitation[];
   structuredOutputFailed?: boolean;
   repairAttempted?: boolean;
+  unsupportedSegmentFailed?: boolean;
+  regenerationUsed?: boolean;
+  successfulRepair?: boolean;
+  answerSegments?: GroundedEvaluationAnswerSegment[];
+  groundingValidatorResults?: GroundedEvaluationGroundingValidationResult[];
   retrievalLatencyMs?: number;
   generationLatencyMs?: number;
   inputTokens?: number;
@@ -114,6 +121,9 @@ export function evaluateGroundedCase(
     crossTopicLeakage,
     structuredOutputFailed: answer.structuredOutputFailed === true,
     repairAttempted: answer.repairAttempted === true,
+    unsupportedSegmentFailed: answer.unsupportedSegmentFailed === true,
+    regenerationUsed: answer.regenerationUsed === true,
+    successfulRepair: answer.successfulRepair === true,
     retrievalLatencyMs: validNonNegative(answer.retrievalLatencyMs),
     generationLatencyMs: validNonNegative(answer.generationLatencyMs),
     inputTokens: validNonNegative(answer.inputTokens),
@@ -205,6 +215,45 @@ function buildGroundedReport(
       results.filter((result) => result.repairAttempted).length,
       results.length
     ),
+    unsupportedSegmentFailureRate: ratio(
+      results.filter((result) => result.unsupportedSegmentFailed).length,
+      results.length
+    ),
+    groundingValidationFailureRate: ratio(
+      results.filter((result) => result.unsupportedSegmentFailed).length,
+      results.length
+    ),
+    regenerationRate: ratio(
+      results.filter((result) => result.regenerationUsed).length,
+      results.length
+    ),
+    successfulRepairRate:
+      results.filter((result) => result.regenerationUsed).length === 0
+        ? null
+        : ratio(
+            results.filter((result) => result.successfulRepair).length,
+            results.filter((result) => result.regenerationUsed).length
+          ),
+    supportedQuestionAnsweredRate:
+      results.filter((result) => result.shouldAnswer).length === 0
+        ? null
+        : ratio(
+            results.filter((result) => result.shouldAnswer && result.didAnswer)
+              .length,
+            results.filter((result) => result.shouldAnswer).length
+          ),
+    supportedQuestionFalseRefusalRate:
+      results.filter((result) => result.shouldAnswer).length === 0
+        ? null
+        : ratio(
+            results.filter(
+              (result) =>
+                result.shouldAnswer &&
+                !result.didAnswer &&
+                !result.structuredOutputFailed
+            ).length,
+            results.filter((result) => result.shouldAnswer).length
+          ),
     retrievalLatencyMs: percentileSummary(retrievalLatencies),
     generationLatencyMs: percentileSummary(generationLatencies),
     tokenUsage: {
