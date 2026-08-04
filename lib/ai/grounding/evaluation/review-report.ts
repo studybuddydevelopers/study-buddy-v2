@@ -11,7 +11,7 @@ import type {
   GroundedEvaluationReviewReport,
 } from "./types";
 
-export const REVIEW_REPORT_SCHEMA_VERSION = "grounded-runtime-review-report-v1";
+export const REVIEW_REPORT_SCHEMA_VERSION = "grounded-runtime-review-report-v1.1";
 export const DEFAULT_REVIEW_REPORT_DIR = ".grounded-evaluation-reports";
 export const GENERATED_ANSWER_REVIEW_CHAR_LIMIT = 12_000;
 export const CITED_EXCERPT_CHAR_LIMIT = 700;
@@ -22,6 +22,10 @@ export interface BuildReviewCaseInput {
   generatedAnswerText: string;
   citations: GroundedEvaluationCitation[];
   citedExcerpts: GroundedEvaluationReviewCitation[];
+  answerSegments?: GroundedEvaluationReviewCase["answerSegments"];
+  groundingValidatorResults?: GroundedEvaluationReviewCase["groundingValidatorResults"];
+  regenerationUsed?: boolean;
+  originalUnsupportedSegmentIndices?: number[];
   insufficiencyReason?: string | null;
   versions: GroundedEvaluationReviewCase["versions"];
   provider?: string | null;
@@ -72,6 +76,17 @@ export function buildReviewCase(input: BuildReviewCaseInput) {
     sourceLabels,
     citations: input.citations,
     citedExcerpts: input.citedExcerpts.map(boundReviewCitationExcerpt),
+    answerSegments: (input.answerSegments ?? []).map(boundReviewAnswerSegment),
+    groundingValidatorResults: (input.groundingValidatorResults ?? []).map(
+      boundGroundingValidatorResult
+    ),
+    regenerationUsed: input.regenerationUsed === true,
+    originalUnsupportedSegmentIndices:
+      input.originalUnsupportedSegmentIndices?.slice(0, 32) ?? [],
+    finalAcceptedSegments: (input.answerSegments ?? []).map(boundReviewAnswerSegment),
+    groundingValidatorVersion:
+      input.groundingValidatorResults?.find((item) => item.validatorVersion)
+        ?.validatorVersion ?? null,
     requiredFacts,
     detectedRequiredFacts: findPresentPhrases(generatedAnswerText.value, requiredFacts),
     forbiddenClaims,
@@ -177,8 +192,11 @@ export function toReviewMarkdown(report: GroundedEvaluationReviewReport) {
       `- Actual: \`${item.actualClassification}\``,
       `- Answer hash: \`${item.answerContentHash}\``,
       `- Repair used: \`${String(item.repairUsed)}\``,
+      `- Regeneration used: \`${String(item.regenerationUsed)}\``,
       `- Source labels: ${item.sourceLabels.map((label) => `\`${label}\``).join(", ") || "none"}`,
       `- Citation markers: ${item.citationMarkers.map((label) => `\`${label}\``).join(", ") || "none"}`,
+      `- Grounding validator: \`${item.groundingValidatorVersion ?? "none"}\``,
+      `- Original unsupported segments: ${item.originalUnsupportedSegmentIndices.join(", ") || "none"}`,
       `- Required facts: ${item.requiredFacts.join(", ") || "none"}`,
       `- Detected required facts: ${item.detectedRequiredFacts.join(", ") || "none"}`,
       `- Forbidden claims: ${item.forbiddenClaims.join(", ") || "none"}`,
@@ -191,6 +209,26 @@ export function toReviewMarkdown(report: GroundedEvaluationReviewReport) {
       "```",
       ""
     );
+
+    if (item.answerSegments.length > 0) {
+      lines.push("Answer segments:", "");
+      for (const segment of item.answerSegments) {
+        lines.push(
+          `- ${segment.index}: ${segment.text} (${segment.sourceLabels.join(", ") || "no sources"})`
+        );
+      }
+      lines.push("");
+    }
+
+    if (item.groundingValidatorResults.length > 0) {
+      lines.push("Grounding validation:", "");
+      for (const result of item.groundingValidatorResults) {
+        lines.push(
+          `- ${result.index}: ${result.reason}; supported=${String(result.supported)}; unsupportedTerms=${result.unsupportedTerms.join(", ") || "none"}`
+        );
+      }
+      lines.push("");
+    }
 
     if (item.citedExcerpts.length > 0) {
       lines.push("Cited excerpts:", "");
@@ -218,6 +256,23 @@ function boundReviewCitationExcerpt(
     ...citation,
     excerpt: excerpt.value,
     excerptTruncated: citation.excerptTruncated || excerpt.truncated,
+  };
+}
+
+function boundReviewAnswerSegment<T extends { text: string }>(segment: T): T {
+  const text = boundedText(segment.text, 1200);
+  return {
+    ...segment,
+    text: text.value,
+  };
+}
+
+function boundGroundingValidatorResult<
+  T extends { text: string; unsupportedTerms: string[] },
+>(result: T): T {
+  return {
+    ...boundReviewAnswerSegment(result),
+    unsupportedTerms: result.unsupportedTerms.slice(0, 40),
   };
 }
 
