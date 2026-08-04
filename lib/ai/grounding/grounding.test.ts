@@ -803,9 +803,144 @@ describe("Stage 4 grounding primitives", () => {
     });
 
     expect(validation.supported).toBe(false);
-    expect(validation.results[0].reason).toBe("PARTIALLY_SUPPORTED");
+    expect(validation.results[0].reason).toBe("UNSUPPORTED_MECHANISM");
     expect(validation.results[0].unsupportedTerms).toEqual(
       expect.arrayContaining(["warmer", "cooler", "sink", "circulation"])
+    );
+  });
+
+  it("accepts circle formula wording when the cited excerpt supports the relationship", async () => {
+    const evidence = [
+      {
+        sourceLabel: "SOURCE_1",
+        excerpt:
+          "The area of a circle is pi times radius squared: A = pi r^2. The radius is the distance from the centre of the circle to the edge.",
+      },
+    ];
+
+    const validation = await validateGroundedAnswerSegments({
+      segments: [
+        {
+          text:
+            "This formula is for the area of a circle. Here, A represents area and r represents radius.",
+          sourceLabels: ["SOURCE_1"],
+        },
+      ],
+      evidenceByLabel: new Map(evidence.map((item) => [item.sourceLabel, item])),
+      validator: new DeterministicGroundingValidator(),
+    });
+
+    expect(validation.supported).toBe(true);
+    expect(validation.results[0].reason).toBe(
+      "SUPPORTED_WITH_CONNECTIVE_LANGUAGE"
+    );
+  });
+
+  it("rejects represents wording when the symbol relationship is absent", async () => {
+    const evidence = [
+      {
+        sourceLabel: "SOURCE_1",
+        excerpt:
+          "The area of a circle is pi times radius squared: pi r^2. The radius is the distance from the centre of the circle to the edge.",
+      },
+    ];
+
+    const validation = await validateGroundedAnswerSegments({
+      segments: [
+        {
+          text: "Here, A represents area and r represents radius.",
+          sourceLabels: ["SOURCE_1"],
+        },
+      ],
+      evidenceByLabel: new Map(evidence.map((item) => [item.sourceLabel, item])),
+      validator: new DeterministicGroundingValidator(),
+    });
+
+    expect(validation.supported).toBe(false);
+    expect(validation.results[0]).toMatchObject({
+      reason: "MISSING_SYMBOL_DEFINITION",
+      unsupportedClaim: "a represents area",
+    });
+  });
+
+  it("does not let generic formula language attach the wrong formula to a concept", async () => {
+    const evidence = [
+      {
+        sourceLabel: "SOURCE_1",
+        excerpt:
+          "The area of a triangle is one half times base times perpendicular height: Area = 1/2 x base x height.",
+      },
+    ];
+
+    const validation = await validateGroundedAnswerSegments({
+      segments: [
+        {
+          text: "This formula is for the area of a circle.",
+          sourceLabels: ["SOURCE_1"],
+        },
+      ],
+      evidenceByLabel: new Map(evidence.map((item) => [item.sourceLabel, item])),
+      validator: new DeterministicGroundingValidator(),
+    });
+
+    expect(validation.supported).toBe(false);
+    expect(validation.results[0].unsupportedTerms).toContain("circle");
+  });
+
+  it.each([
+    {
+      name: "triangle geometry expansion",
+      evidence:
+        "The area of a triangle is one half times base times perpendicular height: Area = 1/2 x base x height. The height must meet the base at a right angle.",
+      segment:
+        "The height runs from the opposite vertex to the bottom side and the formula gives the space contained inside the triangle.",
+      rejected: ["vertex", "bottom", "space"],
+    },
+    {
+      name: "heat-transfer circulation mechanism",
+      evidence:
+        "Conduction transfers heat through direct contact, especially in solids. Convection transfers heat by the movement of a fluid such as air or water.",
+      segment:
+        "Warmer parts of the fluid rise and cooler parts sink, creating a circulation pattern.",
+      rejected: ["warmer", "cooler", "sink", "circulation"],
+    },
+    {
+      name: "food-chain photosynthesis/ecosystem framing",
+      evidence:
+        "A food chain shows how energy passes from one organism to another. Producers make food, primary consumers eat producers, and secondary consumers eat primary consumers.",
+      segment:
+        "A food chain is part of an ecosystem where producers use photosynthesis to make food.",
+      rejected: ["ecosystem", "photosynthesis"],
+    },
+    {
+      name: "mitosis tissue/damaged-cell framing",
+      evidence:
+        "Mitosis is cell division that produces two genetically identical daughter cells for growth and repair.",
+      segment:
+        "Mitosis repairs damaged tissue and keeps multicellular organisms healthy.",
+      rejected: ["damaged", "tissue", "multicellular"],
+    },
+    {
+      name: "main-idea author-intent framing",
+      evidence:
+        "The main idea is the central point of a paragraph or passage. Supporting details explain, prove, or give examples for the main idea.",
+      segment:
+        "The main idea is what the author wants the reader to remember.",
+      rejected: ["author", "remember"],
+    },
+  ])("keeps unsupported elaboration rejected: $name", async ({ evidence, segment, rejected }) => {
+    const citedEvidence = [{ sourceLabel: "SOURCE_1", excerpt: evidence }];
+    const validation = await validateGroundedAnswerSegments({
+      segments: [{ text: segment, sourceLabels: ["SOURCE_1"] }],
+      evidenceByLabel: new Map(
+        citedEvidence.map((item) => [item.sourceLabel, item])
+      ),
+      validator: new DeterministicGroundingValidator(),
+    });
+
+    expect(validation.supported).toBe(false);
+    expect(validation.results[0].unsupportedTerms).toEqual(
+      expect.arrayContaining(rejected)
     );
   });
 
