@@ -355,6 +355,8 @@ function mapServiceErrorCode(failureCode: AiGenerationFailureCode) {
       return "PROVIDER_ERROR";
     case AiGenerationFailureCode.INVALID_PROVIDER_RESPONSE:
       return "INVALID_PROVIDER_RESPONSE";
+    case AiGenerationFailureCode.UNSUPPORTED_GENERATED_CLAIM:
+      return "UNSUPPORTED_GENERATED_CLAIM";
     case AiGenerationFailureCode.INTERNAL_ERROR:
     default:
       return "INTERNAL_ERROR";
@@ -915,7 +917,8 @@ export class ChatService {
       const status =
         failureCode === AiGenerationFailureCode.RATE_LIMITED
           ? 429
-          : failureCode === AiGenerationFailureCode.INVALID_PROVIDER_RESPONSE
+          : failureCode === AiGenerationFailureCode.INVALID_PROVIDER_RESPONSE ||
+              failureCode === AiGenerationFailureCode.UNSUPPORTED_GENERATED_CLAIM
             ? 502
             : 500;
 
@@ -956,7 +959,8 @@ export class ChatService {
       const status =
         outcome.failureCode === AiGenerationFailureCode.RATE_LIMITED
           ? 429
-          : outcome.failureCode === AiGenerationFailureCode.INVALID_PROVIDER_RESPONSE
+          : outcome.failureCode === AiGenerationFailureCode.INVALID_PROVIDER_RESPONSE ||
+              outcome.failureCode === AiGenerationFailureCode.UNSUPPORTED_GENERATED_CLAIM
             ? 502
             : 500;
 
