@@ -78,6 +78,21 @@ function fixtureChunk(resourceId: string, overrides: Partial<RetrievedChunk> = {
   });
 }
 
+async function validateSingleSegment(input: {
+  segment: string;
+  evidence: string;
+}) {
+  const citedEvidence = [{ sourceLabel: "SOURCE_1", excerpt: input.evidence }];
+  const validation = await validateGroundedAnswerSegments({
+    segments: [{ text: input.segment, sourceLabels: ["SOURCE_1"] }],
+    evidenceByLabel: new Map(
+      citedEvidence.map((item) => [item.sourceLabel, item])
+    ),
+    validator: new DeterministicGroundingValidator(),
+  });
+  return validation.results[0]!;
+}
+
 describe("Stage 4 grounding primitives", () => {
   it("keeps grounded chat disabled by default", () => {
     const previous = process.env.AI_GROUNDED_CHAT_ENABLED;
@@ -885,6 +900,131 @@ describe("Stage 4 grounding primitives", () => {
 
     expect(validation.supported).toBe(false);
     expect(validation.results[0].unsupportedTerms).toContain("circle");
+  });
+
+  it.each([
+    {
+      name: "supported subtract step",
+      segment:
+        "Subtract 5 from both sides to keep both sides balanced, resulting in x = 7.",
+    },
+    {
+      name: "supported resulting equation",
+      segment: "Subtract 5 from both sides to get x = 7.",
+    },
+    {
+      name: "supported synonym",
+      segment: "Taking 5 away from each side gives x = 7.",
+    },
+  ])("accepts supported algebraic transformation: $name", async ({ segment }) => {
+    const result = await validateSingleSegment({
+      segment,
+      evidence:
+        "A linear equation can be solved by keeping both sides balanced. For x + 5 = 12, subtract 5 from both sides to get x = 7. The same operation must be applied to both sides.",
+    });
+
+    expect(result.supported).toBe(true);
+    expect(result.reason).toBe("SUPPORTED_RELATION");
+  });
+
+  it.each([
+    {
+      name: "wrong operand",
+      segment: "Subtract 3 from both sides to get x = 7.",
+      rejected: ["subtract", "3"],
+    },
+    {
+      name: "unsupported intermediate step",
+      segment: "Divide both sides by 2 to get x = 5.",
+      rejected: ["divide", "2", "x=5"],
+    },
+    {
+      name: "wrong final value",
+      segment: "Subtract 5 from both sides; therefore x = 8.",
+      rejected: ["x=8"],
+    },
+    {
+      name: "connective wording cannot validate bad calculation",
+      segment:
+        "To solve the equation x + 5 = 12, subtract 5 from both sides, therefore x = 12.",
+      rejected: ["x=12"],
+    },
+  ])("rejects unsupported algebraic transformation: $name", async ({ segment, rejected }) => {
+    const result = await validateSingleSegment({
+      segment,
+      evidence:
+        "A linear equation can be solved by keeping both sides balanced. For x + 5 = 12, subtract 5 from both sides to get x = 7. The same operation must be applied to both sides.",
+    });
+
+    expect(result.supported).toBe(false);
+    expect(result.reason).toBe("UNSUPPORTED_RELATION");
+    expect(result.unsupportedTerms).toEqual(expect.arrayContaining(rejected));
+  });
+
+  it.each([
+    {
+      name: "filtration paraphrase",
+      segment: "Use filtration to remove an insoluble solid from the liquid.",
+    },
+    {
+      name: "filtration used-to wording",
+      segment:
+        "Filtration should be used to separate an insoluble solid from a liquid.",
+    },
+    {
+      name: "evaporation paraphrase",
+      segment:
+        "Evaporation can be used to recover a dissolved solid from a solution when the solvent is removed.",
+    },
+  ])("accepts supported separation-method paraphrase: $name", async ({ segment }) => {
+    const result = await validateSingleSegment({
+      segment,
+      evidence:
+        "Filtration separates an insoluble solid from a liquid. Evaporation can recover a dissolved solid from solution when the solvent is removed.",
+    });
+
+    expect(result.supported).toBe(true);
+    expect(result.reason).toBe("SUPPORTED_RELATION");
+  });
+
+  it("accepts stated separation caveats only when the evidence contains the caveat", async () => {
+    const result = await validateSingleSegment({
+      segment:
+        "Filtration cannot remove a dissolved solid from a liquid.",
+      evidence:
+        "Filtration cannot separate a dissolved solid from a liquid.",
+    });
+
+    expect(result.supported).toBe(true);
+    expect(result.reason).toBe("SUPPORTED_RELATION");
+  });
+
+  it.each([
+    {
+      name: "filtration for dissolved solids",
+      segment: "Filtration separates a dissolved solid from a liquid.",
+      rejected: ["dissolved", "solid"],
+    },
+    {
+      name: "evaporation for insoluble-solid removal",
+      segment: "Evaporation removes an insoluble solid from a liquid.",
+      rejected: ["insoluble", "solid"],
+    },
+    {
+      name: "unsupported process mechanism",
+      segment:
+        "Filtration separates an insoluble solid from a liquid because heavier particles settle.",
+      rejected: ["particles"],
+    },
+  ])("rejects unsupported separation-method relation: $name", async ({ segment, rejected }) => {
+    const result = await validateSingleSegment({
+      segment,
+      evidence:
+        "Filtration separates an insoluble solid from a liquid. Evaporation can recover a dissolved solid from solution when the solvent is removed.",
+    });
+
+    expect(result.supported).toBe(false);
+    expect(result.unsupportedTerms).toEqual(expect.arrayContaining(rejected));
   });
 
   it.each([
