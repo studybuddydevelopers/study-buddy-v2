@@ -236,17 +236,23 @@ export class DeterministicGroundingValidator implements GroundingValidator {
     if (!evidence) return result(false, "INSUFFICIENT_EVIDENCE", []);
 
     const terms = extractClaimTerms(input.segment);
-    const pedagogicalRelation = validatePedagogicalRelation(
+    const domainRelation = validateDomainSpecificRelation(
       input.segment,
       rawEvidence
     );
+    const pedagogicalRelation = domainRelation?.supported
+      ? null
+      : validatePedagogicalRelation(input.segment, rawEvidence);
+    const domainFailure =
+      domainRelation && !domainRelation.supported ? domainRelation : null;
     const pedagogicalFailure =
       pedagogicalRelation && !pedagogicalRelation.supported
         ? pedagogicalRelation
         : null;
-    const supportedRelationalTerms = pedagogicalRelation?.supported
-      ? pedagogicalRelation.glueTerms
-      : [];
+    const supportedRelationalTerms = [
+      ...(domainRelation?.supported ? domainRelation.glueTerms : []),
+      ...(pedagogicalRelation?.supported ? pedagogicalRelation.glueTerms : []),
+    ];
     const highSignalTerms = terms.filter(
       (term) =>
         !LOW_RISK_CONNECTIVE_TERMS.has(term) &&
@@ -259,13 +265,16 @@ export class DeterministicGroundingValidator implements GroundingValidator {
     const boundedUnsupportedTerms = unique([
       ...unsupportedTerms,
       ...(relationFailure?.unsupportedTerms ?? []),
+      ...(domainFailure?.unsupportedTerms ?? []),
       ...(pedagogicalFailure?.unsupportedTerms ?? []),
     ]);
 
     if (boundedUnsupportedTerms.length === 0) {
       return result(
         true,
-        pedagogicalRelation?.supported
+        domainRelation?.supported
+          ? "SUPPORTED_RELATION"
+          : pedagogicalRelation?.supported
           ? "LOW_RISK_RELATIONAL_GLUE"
           : terms.some((term) => LOW_RISK_CONNECTIVE_TERMS.has(term))
           ? "SUPPORTED_WITH_CONNECTIVE_LANGUAGE"
@@ -276,11 +285,14 @@ export class DeterministicGroundingValidator implements GroundingValidator {
 
     return result(
       false,
-      pedagogicalFailure?.reason ??
+      domainFailure?.reason ??
+        pedagogicalFailure?.reason ??
         relationFailure?.reason ??
         classifyUnsupportedTerms(boundedUnsupportedTerms, highSignalTerms),
       boundedUnsupportedTerms,
-      pedagogicalFailure?.unsupportedClaim ?? relationFailure?.unsupportedClaim
+      domainFailure?.unsupportedClaim ??
+        pedagogicalFailure?.unsupportedClaim ??
+        relationFailure?.unsupportedClaim
     );
   }
 }
@@ -617,6 +629,383 @@ function symbolDefinitionSupported(
   if (!hints?.has(definition.term)) return false;
 
   return true;
+}
+
+function validateDomainSpecificRelation(
+  segment: string,
+  rawEvidence: string
+): PedagogicalRelationAnalysis {
+  return (
+    validateEquationStepRelation(segment, rawEvidence) ??
+    validateSeparationMethodRelation(segment, rawEvidence)
+  );
+}
+
+function validateEquationStepRelation(
+  segment: string,
+  rawEvidence: string
+): PedagogicalRelationAnalysis {
+  const normalizedSegment = normalizeForMatching(segment);
+  const segmentMath = normalizeMathForMatching(segment);
+  const evidenceMath = normalizeMathForMatching(rawEvidence);
+  const operation = extractEquationOperation(segmentMath);
+  const hasAlgebraConnective = ALGEBRA_STEP_GLUE_TERMS.some((term) =>
+    hasTerm(normalizedSegment, term)
+  );
+  const segmentEquations = extractEquations(segmentMath);
+
+  if (!operation && (!hasAlgebraConnective || segmentEquations.length === 0)) {
+    return null;
+  }
+
+  const evidenceOperations = extractEquationOperations(evidenceMath);
+  const evidenceEquations = extractEquations(evidenceMath);
+  const priorEquation =
+    segmentEquations.length > 1 ? segmentEquations[0] : undefined;
+  const resultEquation = segmentEquations.at(-1);
+  const operationSupported =
+    !operation ||
+    evidenceOperations.some(
+      (item) =>
+        item.kind === operation.kind && operandsMatch(item.operand, operation.operand)
+    );
+  const priorSupported =
+    !priorEquation || evidenceEquations.includes(priorEquation);
+  const resultSupported =
+    !resultEquation || evidenceEquations.includes(resultEquation);
+
+  if (operationSupported && priorSupported && resultSupported) {
+    return {
+      supported: true,
+      glueTerms: relationGlueTerms(normalizedSegment, ALGEBRA_STEP_GLUE_TERMS),
+    };
+  }
+
+  return {
+    supported: false,
+    reason: "UNSUPPORTED_RELATION",
+    unsupportedTerms: unique([
+      ...(operationSupported || !operation
+        ? []
+        : [operation.kind, operation.operand]),
+      ...(priorSupported || !priorEquation ? [] : [priorEquation]),
+      ...(resultSupported || !resultEquation ? [] : [resultEquation]),
+    ]),
+    unsupportedClaim: [
+      operation ? `${operation.kind} ${operation.operand}` : null,
+      resultEquation ? `to get ${resultEquation}` : null,
+    ]
+      .filter(Boolean)
+      .join(" "),
+  };
+}
+
+const ALGEBRA_STEP_GLUE_TERMS = [
+  "away",
+  "equation",
+  "get",
+  "gets",
+  "give",
+  "gives",
+  "isolate",
+  "isolating",
+  "keep",
+  "keeps",
+  "result",
+  "resulting",
+  "solve",
+  "solved",
+  "solving",
+  "taking",
+  "therefore",
+];
+
+type EquationOperationKind = "add" | "subtract" | "multiply" | "divide";
+
+interface EquationOperation {
+  kind: EquationOperationKind;
+  operand: string;
+}
+
+function extractEquationOperation(value: string) {
+  return extractEquationOperations(value)[0] ?? null;
+}
+
+function extractEquationOperations(value: string) {
+  const patterns: Array<{
+    kind: EquationOperationKind;
+    pattern: RegExp;
+  }> = [
+    {
+      kind: "subtract",
+      pattern:
+        /\bsubtract\s+([a-z0-9/]+)\s+from\s+(?:both|each)\s+sides?\b/g,
+    },
+    {
+      kind: "subtract",
+      pattern:
+        /\b(?:take|taking)\s+([a-z0-9/]+)\s+away\s+from\s+(?:both|each)\s+sides?\b/g,
+    },
+    {
+      kind: "divide",
+      pattern: /\bdivide\s+(?:both|each)\s+sides?\s+by\s+([a-z0-9/]+)\b/g,
+    },
+    {
+      kind: "multiply",
+      pattern: /\bmultiply\s+(?:both|each)\s+sides?\s+by\s+([a-z0-9/]+)\b/g,
+    },
+    {
+      kind: "add",
+      pattern: /\badd\s+([a-z0-9/]+)\s+to\s+(?:both|each)\s+sides?\b/g,
+    },
+  ];
+  const operations: EquationOperation[] = [];
+
+  for (const item of patterns) {
+    for (const match of value.matchAll(item.pattern)) {
+      const operand = normalizeOperand(match[1] ?? "");
+      if (!operand) continue;
+      operations.push({ kind: item.kind, operand });
+    }
+  }
+
+  return operations;
+}
+
+function normalizeOperand(value: string) {
+  const normalized = normalizeForMatching(value);
+  for (const [number, word] of NUMBER_WORDS.entries()) {
+    if (normalized === word) return number;
+  }
+  return normalized;
+}
+
+function operandsMatch(left: string, right: string) {
+  return normalizeOperand(left) === normalizeOperand(right);
+}
+
+function extractEquations(mathText: string) {
+  const equations =
+    mathText.match(
+      /\b[a-z0-9]+(?:\s*(?:\+|-|\*|\/)\s*[a-z0-9]+)*\s*=\s*[a-z0-9]+(?:\s*(?:\+|-|\*|\/)\s*[a-z0-9]+)*/g
+    ) ?? [];
+
+  return unique(equations.map(canonicalEquation).filter(Boolean));
+}
+
+function canonicalEquation(value: string) {
+  return value.replace(/\s+/g, "");
+}
+
+function validateSeparationMethodRelation(
+  segment: string,
+  rawEvidence: string
+): PedagogicalRelationAnalysis {
+  const normalizedSegment = normalizeForMatching(segment);
+  const evidence = normalizeForMatching(rawEvidence);
+  const mentionsFiltration = hasTerm(normalizedSegment, "filtration");
+  const mentionsEvaporation = hasTerm(normalizedSegment, "evaporation");
+  if (!mentionsFiltration && !mentionsEvaporation) return null;
+
+  const mechanismTerms = ["boiling", "industrial", "particles", "safety"].filter(
+    (term) => hasTerm(normalizedSegment, term) && !termAppears(term, evidence)
+  );
+  if (mechanismTerms.length > 0) {
+    return {
+      supported: false,
+      reason: "UNSUPPORTED_MECHANISM",
+      unsupportedTerms: mechanismTerms,
+      unsupportedClaim: mechanismTerms.join(" "),
+    };
+  }
+
+  if (mentionsFiltration) {
+    const filtration = validateFiltrationRelation(normalizedSegment, evidence);
+    if (filtration) return filtration;
+  }
+
+  if (mentionsEvaporation) {
+    const evaporation = validateEvaporationRelation(normalizedSegment, evidence);
+    if (evaporation) return evaporation;
+  }
+
+  return null;
+}
+
+function validateFiltrationRelation(
+  segment: string,
+  evidence: string
+): PedagogicalRelationAnalysis {
+  const hasProcessVerb = PROCESS_RELATION_GLUE_TERMS.some((term) =>
+    hasTerm(segment, term)
+  );
+  const mentionsDissolvedSolid =
+    hasTerm(segment, "dissolved") && hasTerm(segment, "solid");
+  const mentionsInsolubleSolid =
+    hasTerm(segment, "insoluble") && hasTerm(segment, "solid");
+  const mentionsLiquid = hasTerm(segment, "liquid");
+  const hasNegation = hasNegationTerm(segment);
+
+  if (hasNegation && mentionsDissolvedSolid && mentionsLiquid) {
+    return evidenceSupportsFiltrationDissolvedCaveat(evidence)
+      ? {
+          supported: true,
+          glueTerms: relationGlueTerms(segment, PROCESS_RELATION_GLUE_TERMS),
+        }
+      : {
+          supported: false,
+          reason: "UNSUPPORTED_RELATION",
+          unsupportedTerms: ["dissolved", "solid"],
+          unsupportedClaim: "filtration cannot separate dissolved solid",
+        };
+  }
+
+  if (!hasProcessVerb && !mentionsDissolvedSolid) return null;
+
+  if (mentionsDissolvedSolid) {
+    return {
+      supported: false,
+      reason: "UNSUPPORTED_RELATION",
+      unsupportedTerms: ["dissolved", "solid"],
+      unsupportedClaim: "filtration separates dissolved solid",
+    };
+  }
+
+  if (
+    mentionsInsolubleSolid &&
+    mentionsLiquid &&
+    evidenceSupportsFiltrationInsolubleRelation(evidence)
+  ) {
+    return {
+      supported: true,
+      glueTerms: relationGlueTerms(segment, PROCESS_RELATION_GLUE_TERMS),
+    };
+  }
+
+  if (mentionsInsolubleSolid || mentionsLiquid) {
+    return {
+      supported: false,
+      reason: "UNSUPPORTED_RELATION",
+      unsupportedTerms: unique([
+        ...(mentionsInsolubleSolid ? [] : ["insoluble", "solid"]),
+        ...(mentionsLiquid ? [] : ["liquid"]),
+      ]),
+      unsupportedClaim: "filtration separation relation",
+    };
+  }
+
+  return null;
+}
+
+function validateEvaporationRelation(
+  segment: string,
+  evidence: string
+): PedagogicalRelationAnalysis {
+  const hasProcessVerb = PROCESS_RELATION_GLUE_TERMS.some((term) =>
+    hasTerm(segment, term)
+  );
+  const mentionsDissolvedSolid =
+    hasTerm(segment, "dissolved") && hasTerm(segment, "solid");
+  const mentionsSolution =
+    hasTerm(segment, "solution") ||
+    (hasTerm(segment, "solvent") && hasTerm(segment, "removed"));
+  const mentionsInsolubleSolid =
+    hasTerm(segment, "insoluble") && hasTerm(segment, "solid");
+
+  if (!hasProcessVerb && !mentionsInsolubleSolid) return null;
+
+  if (mentionsInsolubleSolid) {
+    return {
+      supported: false,
+      reason: "UNSUPPORTED_RELATION",
+      unsupportedTerms: ["insoluble", "solid"],
+      unsupportedClaim: "evaporation separates insoluble solid",
+    };
+  }
+
+  if (
+    mentionsDissolvedSolid &&
+    mentionsSolution &&
+    evidenceSupportsEvaporationDissolvedRelation(evidence)
+  ) {
+    return {
+      supported: true,
+      glueTerms: relationGlueTerms(segment, PROCESS_RELATION_GLUE_TERMS),
+    };
+  }
+
+  if (mentionsDissolvedSolid || mentionsSolution) {
+    return {
+      supported: false,
+      reason: "UNSUPPORTED_RELATION",
+      unsupportedTerms: unique([
+        ...(mentionsDissolvedSolid ? [] : ["dissolved", "solid"]),
+        ...(mentionsSolution ? [] : ["solution"]),
+      ]),
+      unsupportedClaim: "evaporation dissolved-solid relation",
+    };
+  }
+
+  return null;
+}
+
+const PROCESS_RELATION_GLUE_TERMS = [
+  "be",
+  "can",
+  "leaves",
+  "recover",
+  "recovers",
+  "remove",
+  "removes",
+  "separate",
+  "separates",
+  "should",
+  "suitable",
+  "use",
+  "used",
+];
+
+function evidenceSupportsFiltrationInsolubleRelation(evidence: string) {
+  return (
+    hasTerm(evidence, "filtration") &&
+    hasTerm(evidence, "insoluble") &&
+    hasTerm(evidence, "solid") &&
+    hasTerm(evidence, "liquid") &&
+    (termAppears("separate", evidence) || termAppears("remove", evidence))
+  );
+}
+
+function evidenceSupportsFiltrationDissolvedCaveat(evidence: string) {
+  return (
+    hasTerm(evidence, "filtration") &&
+    hasNegationTerm(evidence) &&
+    hasTerm(evidence, "dissolved") &&
+    hasTerm(evidence, "solid") &&
+    hasTerm(evidence, "liquid")
+  );
+}
+
+function evidenceSupportsEvaporationDissolvedRelation(evidence: string) {
+  return (
+    hasTerm(evidence, "evaporation") &&
+    hasTerm(evidence, "dissolved") &&
+    hasTerm(evidence, "solid") &&
+    (hasTerm(evidence, "solution") ||
+      (hasTerm(evidence, "solvent") && hasTerm(evidence, "removed"))) &&
+    (termAppears("recover", evidence) || termAppears("remove", evidence))
+  );
+}
+
+function hasNegationTerm(value: string) {
+  return (
+    hasTerm(value, "cannot") ||
+    hasPhrase(value, "can not") ||
+    hasTerm(value, "not")
+  );
+}
+
+function relationGlueTerms(text: string, terms: string[]) {
+  return terms.filter((term) => hasTerm(text, term));
 }
 
 function evidenceContainsFormula(mathEvidence: string) {
