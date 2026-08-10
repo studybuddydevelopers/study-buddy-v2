@@ -40,6 +40,7 @@ async function main() {
       allowConsumedHoldoutDiagnostic: args.allowConsumedHoldoutDiagnostic,
       confirmHoldoutFixtureHash: args.confirmHoldoutFixtureHash,
       maxCases: args.maxCases,
+      reportDir: args.reportDir,
     });
     console.log(JSON.stringify(report, null, 2));
     return;
@@ -52,6 +53,7 @@ async function main() {
       allowConsumedHoldoutDiagnostic: args.allowConsumedHoldoutDiagnostic,
       confirmHoldoutFixtureHash: args.confirmHoldoutFixtureHash,
       maxCases: args.maxCases,
+      reportDir: args.reportDir,
     });
     if (args.writeReport) {
       const written = await writeReviewArtifacts(report.review, {
