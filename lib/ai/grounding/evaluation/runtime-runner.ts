@@ -41,6 +41,19 @@ import {
   groundedEvaluationResources,
 } from "./fixtures";
 import {
+  HOLDOUT_V3_FROZEN_CONFIG,
+  HOLDOUT_V3_SPLIT,
+  assertHoldoutV3AcceptanceRunAllowed,
+  computeHoldoutV3SplitHash,
+  recordHoldoutV3AcceptanceRun,
+} from "./holdout-v3";
+import {
+  assertEvaluationResourceScope,
+  buildEvaluationResourceScope,
+  resolveEvaluationResourcesForSplit,
+  type EvaluationResourceScope,
+} from "./resource-scope";
+import {
   runGroundedEvaluation,
   type GroundedEvaluationAnswer,
 } from "./runner";
@@ -54,6 +67,7 @@ import type {
   GroundedEvaluationReportSourceState,
   GroundedEvaluationReviewCase,
   GroundedEvaluationReviewReport,
+  GroundedEvaluationResource,
   GroundedEvaluationSplit,
 } from "./types";
 
@@ -71,10 +85,20 @@ export interface RuntimeGroundedEvaluationOptions {
   maxCases?: number;
 }
 
+export interface RuntimeGroundedEvaluationPreflightReport {
+  dryRun: true;
+  fixtureHash: string;
+  splitHash: string | null;
+  frozenConfig: Record<string, unknown>;
+  resourceScope: EvaluationResourceScope;
+}
+
 export interface RuntimeGroundedEvaluationReport {
   runId: string;
   fixtureHash: string;
+  splitHash: string | null;
   frozenConfig: Record<string, unknown>;
+  resourceScope: EvaluationResourceScope;
   report: GroundedEvaluationReport & {
     supportedAnswerRate: number | null;
     firstPassStructuredSuccess: number;
@@ -108,37 +132,38 @@ interface SeedState {
 }
 
 const FIXTURE_PATH = "lib/ai/grounding/evaluation/fixtures.ts";
-const RUNTIME_PREFIX = "eval-";
 
 export async function runRuntimeGroundedEvaluation(
   options: RuntimeGroundedEvaluationOptions
 ): Promise<RuntimeGroundedEvaluationReport> {
-  if (process.env.NODE_ENV === "production") {
-    throw new Error("Runtime grounding evaluation is not available in production.");
-  }
-
-  const prisma = options.prisma ?? defaultPrisma;
-  const fixtureHash = await hashFixtureFile();
-  enforceHoldoutGuard(options, fixtureHash);
-
+  const preflight = await prepareRuntimeGroundedEvaluation(options);
+  const {
+    prisma,
+    fixtureHash,
+    splitHash,
+    cases,
+    resources,
+    resourceScope,
+    frozenConfig,
+  } = preflight;
   const runId = `grounded-runtime-${Date.now()}`;
   const runTimestamp = new Date().toISOString();
   const sourceState = await getSourceState();
   const provider = options.provider ?? getChatModelProvider();
   const embeddingProvider = options.embeddingProvider ?? getConfiguredEmbeddingProvider();
-  const cases = selectCases(options.split, options.caseIds).slice(
-    0,
-    options.maxCases ?? undefined
-  );
   const answers = new Map<string, GroundedEvaluationAnswer>();
   const diagnostics: RuntimeGroundedEvaluationReport["diagnostics"] = [];
   const reviewCases: GroundedEvaluationReviewCase[] = [];
   let seedState: SeedState | null = null;
   let cleanup: RuntimeGroundedEvaluationReport["cleanup"] | null = null;
+  const recordsHoldoutV3Acceptance = shouldRecordHoldoutV3Acceptance(
+    options,
+    cases
+  );
 
   try {
-    await cleanupRuntimeFixtures(prisma, null);
-    seedState = await seedRuntimeFixtures(prisma, embeddingProvider);
+    await cleanupRuntimeFixtures(prisma, null, resources);
+    seedState = await seedRuntimeFixtures(prisma, embeddingProvider, resources);
     const searchRepository = new PostgresResourceSearchRepository(prisma);
     const groundingService = new GroundedGenerationService({
       searchRepository,
@@ -166,28 +191,110 @@ export async function runRuntimeGroundedEvaluation(
       },
     });
 
-    cleanup = await cleanupRuntimeFixtures(prisma, seedState);
+    cleanup = await cleanupRuntimeFixtures(prisma, seedState, resources);
+    const review = buildReviewReport({
+      runId,
+      runTimestamp,
+      fixtureHash,
+      splitHash,
+      sourceState,
+      frozenConfig,
+      cases: reviewCases,
+    });
+    if (recordsHoldoutV3Acceptance && splitHash) {
+      await recordHoldoutV3AcceptanceRun({
+        splitHash,
+        runId,
+        runTimestamp,
+        reportHash: review.reportHash,
+        status: "SUCCEEDED",
+      });
+    }
     return {
       runId,
       fixtureHash,
-      frozenConfig: buildFrozenConfig(),
+      splitHash,
+      frozenConfig,
+      resourceScope,
       report: withRuntimeMetrics(report),
       diagnostics,
-      review: buildReviewReport({
-        runId,
-        runTimestamp,
-        fixtureHash,
-        sourceState,
-        frozenConfig: buildFrozenConfig(),
-        cases: reviewCases,
-      }),
+      review,
       cleanup,
     };
+  } catch (error) {
+    if (recordsHoldoutV3Acceptance && splitHash) {
+      await recordHoldoutV3AcceptanceRun({
+        splitHash,
+        runId,
+        runTimestamp,
+        status: "FAILED",
+        errorClass: safeErrorClass(error),
+      }).catch(() => undefined);
+    }
+    throw error;
   } finally {
     if (!cleanup) {
-      await cleanupRuntimeFixtures(prisma, seedState).catch(() => undefined);
+      await cleanupRuntimeFixtures(prisma, seedState, resources).catch(
+        () => undefined
+      );
     }
   }
+}
+
+export async function runRuntimeGroundedEvaluationPreflight(
+  options: RuntimeGroundedEvaluationOptions
+): Promise<RuntimeGroundedEvaluationPreflightReport> {
+  const preflight = await prepareRuntimeGroundedEvaluation(options);
+  return {
+    dryRun: true,
+    fixtureHash: preflight.fixtureHash,
+    splitHash: preflight.splitHash,
+    frozenConfig: preflight.frozenConfig,
+    resourceScope: preflight.resourceScope,
+  };
+}
+
+async function prepareRuntimeGroundedEvaluation(
+  options: RuntimeGroundedEvaluationOptions
+) {
+  if (process.env.NODE_ENV === "production") {
+    throw new Error("Runtime grounding evaluation is not available in production.");
+  }
+
+  const prisma = options.prisma ?? defaultPrisma;
+  const fixtureHash = await hashFixtureFile();
+  const cases = selectCases(options.split, options.caseIds).slice(
+    0,
+    options.maxCases ?? undefined
+  );
+  const splitHash = cases.some((item) => item.split === HOLDOUT_V3_SPLIT)
+    ? computeHoldoutV3SplitHash({
+        cases: groundedEvaluationCases,
+        resources: groundedEvaluationResources,
+      })
+    : null;
+  const resources = resolveEvaluationResourcesForSplit(
+    cases,
+    groundedEvaluationResources
+  );
+  const resourceScope = buildEvaluationResourceScope({
+    split: options.split,
+    cases,
+    allResources: groundedEvaluationResources,
+    resolvedResources: resources,
+  });
+  assertEvaluationResourceScope(resourceScope);
+  await enforceHoldoutGuard(options, fixtureHash, splitHash, cases);
+
+  return {
+    prisma,
+    fixtureHash,
+    splitHash,
+    cases,
+    resources,
+    resourceScope,
+    frozenConfig: buildFrozenConfig(),
+  };
 }
 
 function selectCases(split: GroundedEvaluationSplit | "all", caseIds?: string[]) {
@@ -210,8 +317,28 @@ function selectCases(split: GroundedEvaluationSplit | "all", caseIds?: string[])
 
 function enforceHoldoutGuard(
   options: RuntimeGroundedEvaluationOptions,
-  fixtureHash: string
+  fixtureHash: string,
+  splitHash: string | null,
+  cases: GroundedEvaluationCase[]
 ) {
+  const includesHoldoutV3 = cases.some((item) => item.split === HOLDOUT_V3_SPLIT);
+  if (includesHoldoutV3) {
+    if (!splitHash) {
+      throw new Error("holdout_v3 split hash could not be computed.");
+    }
+    assertHoldoutV3FrozenRuntimeConfig(buildFrozenConfig());
+    if (options.split !== HOLDOUT_V3_SPLIT && !options.allowConsumedHoldoutDiagnostic) {
+      throw new Error("holdout_v3 must be executed explicitly, not through a mixed split.");
+    }
+    return assertHoldoutV3AcceptanceRunAllowed({
+      confirmSplitHash: options.confirmHoldoutFixtureHash,
+      computedSplitHash: splitHash,
+      allowDiagnostic: options.allowConsumedHoldoutDiagnostic,
+      caseIds: options.caseIds,
+      maxCases: options.maxCases,
+    });
+  }
+
   if (options.split !== "holdout" && options.split !== "holdout_v2") return;
 
   if (options.confirmHoldoutFixtureHash !== fixtureHash) {
@@ -223,6 +350,66 @@ function enforceHoldoutGuard(
       "The original holdout split is consumed. Use diagnostic mode only, or run a newly approved holdout split."
     );
   }
+}
+
+function assertHoldoutV3FrozenRuntimeConfig(config: Record<string, unknown>) {
+  const expected = HOLDOUT_V3_FROZEN_CONFIG;
+  const checks: Array<[string, unknown]> = [
+    ["promptVersion", expected.prompt],
+    ["groundingVersion", expected.grounding],
+    ["sufficiencyPolicyVersion", expected.sufficiency],
+    ["groundingValidatorVersion", expected.validator],
+    ["featureFlagEnabledForOrdinaryUsers", expected.featureFlagDefault],
+    ["chatProvider", expected.chatProvider],
+    ["chatModel", expected.chatModel],
+    ["embeddingProvider", expected.embeddingProvider],
+    ["embeddingModel", expected.embeddingModel],
+    ["embeddingDimensions", expected.embeddingDimensions],
+    ["embeddingVersion", expected.embeddingVersion],
+    ["temperature", expected.temperature],
+    ["maxOutputTokens", expected.maxOutputTokens],
+    ["repairAttemptLimit", expected.repairLimit],
+    ["keywordCandidateCount", expected.keywordCandidateCount],
+    ["vectorCandidateCount", expected.vectorCandidateCount],
+    ["hybridRrfK", expected.rrfK],
+    ["retrievalLimit", expected.retrievalResultLimit],
+    ["selectedEvidenceLimit", expected.selectedEvidenceLimit],
+    ["evidenceTokenBudget", expected.evidenceTokenBudget],
+    ["recentMessageLimit", expected.recentMessageLimit],
+    ["queryContextTokenBudget", expected.queryContextTokenBudget],
+    ["retrievalQueryMaxChars", expected.queryMaxLength],
+    ["exactSignalConfiguration", expected.exactSignalConfiguration],
+    ["conceptCompatibilityConfiguration", expected.conceptCompatibilityConfiguration],
+    [
+      "externalInformationGuardConfiguration",
+      expected.externalInformationGuardConfiguration,
+    ],
+  ];
+  const mismatches = checks.filter(
+    ([key, expectedValue]) =>
+      JSON.stringify(config[key]) !== JSON.stringify(expectedValue)
+  );
+
+  if (mismatches.length > 0) {
+    throw new Error(
+      `holdout_v3 frozen config mismatch: ${mismatches
+        .map(([key]) => key)
+        .join(", ")}`
+    );
+  }
+}
+
+function shouldRecordHoldoutV3Acceptance(
+  options: RuntimeGroundedEvaluationOptions,
+  cases: GroundedEvaluationCase[]
+) {
+  return (
+    options.split === HOLDOUT_V3_SPLIT &&
+    !options.allowConsumedHoldoutDiagnostic &&
+    !options.caseIds?.length &&
+    !options.maxCases &&
+    cases.every((item) => item.split === HOLDOUT_V3_SPLIT)
+  );
 }
 
 async function answerRuntimeCase(input: {
@@ -457,9 +644,10 @@ async function buildCaseDiagnostic(evaluationCase: GroundedEvaluationCase) {
 
 async function seedRuntimeFixtures(
   prisma: PrismaClient,
-  embeddingProvider: EmbeddingProvider
+  embeddingProvider: EmbeddingProvider,
+  resources: GroundedEvaluationResource[]
 ): Promise<SeedState> {
-  for (const subjectId of unique(groundedEvaluationResources.map((item) => item.subjectId))) {
+  for (const subjectId of unique(resources.map((item) => item.subjectId))) {
     await prisma.subject.create({
       data: {
         id: subjectId,
@@ -469,7 +657,7 @@ async function seedRuntimeFixtures(
     });
   }
 
-  for (const resource of groundedEvaluationResources) {
+  for (const resource of resources) {
     if (!resource.topicId) continue;
     await prisma.topic.upsert({
       where: { id: resource.topicId },
@@ -482,7 +670,7 @@ async function seedRuntimeFixtures(
     });
   }
 
-  for (const resource of groundedEvaluationResources) {
+  for (const resource of resources) {
     const contentHash = hashText(resource.content);
     const searchText = [
       resource.title,
@@ -548,8 +736,8 @@ async function seedRuntimeFixtures(
         ...providerConfig,
         status: "ACTIVE",
         activatedAt: new Date(),
-        eligibleChunkCount: groundedEvaluationResources.length,
-        completedChunkCount: groundedEvaluationResources.length,
+        eligibleChunkCount: resources.length,
+        completedChunkCount: resources.length,
       },
     });
 
@@ -558,9 +746,9 @@ async function seedRuntimeFixtures(
   }
 
   const vectors = await embeddingProvider.embedDocuments(
-    groundedEvaluationResources.map((item) => item.content)
+    resources.map((item) => item.content)
   );
-  for (const [index, resource] of groundedEvaluationResources.entries()) {
+  for (const [index, resource] of resources.entries()) {
     const vector = vectors[index];
     if (!vector) throw new Error(`Missing embedding for ${resource.id}.`);
     await prisma.$executeRaw`
@@ -600,15 +788,22 @@ async function seedRuntimeFixtures(
 
 async function cleanupRuntimeFixtures(
   prisma: PrismaClient,
-  seedState: SeedState | null
+  seedState: SeedState | null,
+  resources: GroundedEvaluationResource[]
 ) {
+  const resourceIds = resources.map((item) => item.id);
+  const chunkIds = resources.map((item) => item.chunkId);
+  const topicIds = unique(
+    resources.flatMap((item) => (item.topicId ? [item.topicId] : []))
+  );
+  const subjectIds = unique(resources.map((item) => item.subjectId));
   const resourceDelete = await prisma.resource.deleteMany({
-    where: { id: { in: groundedEvaluationResources.map((item) => item.id) } },
+    where: { id: { in: resourceIds } },
   });
   const embeddingDelete = await prisma.resourceChunkEmbedding.deleteMany({
     where: {
       resourceChunkId: {
-        in: groundedEvaluationResources.map((item) => item.chunkId),
+        in: chunkIds,
       },
     },
   });
@@ -619,10 +814,10 @@ async function cleanupRuntimeFixtures(
         })
       : { count: 0 };
   const topicDelete = await prisma.topic.deleteMany({
-    where: { id: { startsWith: "eval-topic-" } },
+    where: { id: { in: topicIds } },
   });
   const subjectDelete = await prisma.subject.deleteMany({
-    where: { id: { startsWith: "eval-subject-" } },
+    where: { id: { in: subjectIds } },
   });
 
   return {
@@ -633,14 +828,14 @@ async function cleanupRuntimeFixtures(
     subjectDelete: subjectDelete.count,
     remaining: {
       resources: await prisma.resource.count({
-        where: { id: { startsWith: RUNTIME_PREFIX } },
+        where: { id: { in: resourceIds } },
       }),
       chunks: await prisma.resourceChunk.count({
-        where: { id: { startsWith: RUNTIME_PREFIX } },
+        where: { id: { in: chunkIds } },
       }),
       embeddings: await prisma.resourceChunkEmbedding.count({
         where: {
-          resourceChunkId: { startsWith: RUNTIME_PREFIX },
+          resourceChunkId: { in: chunkIds },
         },
       }),
       configs: seedState?.createdConfiguration
@@ -702,6 +897,11 @@ function buildFrozenConfig() {
     recentMessageLimit: QUERY_CONTEXT_MESSAGE_LIMIT,
     queryContextTokenBudget: QUERY_CONTEXT_TOKEN_LIMIT,
     retrievalQueryMaxChars: RETRIEVAL_QUERY_MAX_CHARS,
+    exactSignalConfiguration: HOLDOUT_V3_FROZEN_CONFIG.exactSignalConfiguration,
+    conceptCompatibilityConfiguration:
+      HOLDOUT_V3_FROZEN_CONFIG.conceptCompatibilityConfiguration,
+    externalInformationGuardConfiguration:
+      HOLDOUT_V3_FROZEN_CONFIG.externalInformationGuardConfiguration,
   };
 }
 
@@ -776,6 +976,11 @@ function unique<T>(items: T[]) {
 
 function hashText(value: string) {
   return createHash("sha256").update(value).digest("hex");
+}
+
+function safeErrorClass(error: unknown) {
+  if (error instanceof Error && error.name) return error.name;
+  return "UNKNOWN_ERROR";
 }
 
 function estimateTokens(value: string) {
