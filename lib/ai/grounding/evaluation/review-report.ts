@@ -39,6 +39,7 @@ export interface BuildReviewReportInput {
   runId: string;
   runTimestamp: string;
   fixtureHash: string;
+  splitHash?: string | null;
   sourceState: GroundedEvaluationReportSourceState;
   frozenConfig: Record<string, unknown>;
   cases: GroundedEvaluationReviewCase[];
@@ -109,6 +110,7 @@ export function buildReviewReport(input: BuildReviewReportInput) {
     runId: input.runId,
     runTimestamp: input.runTimestamp,
     fixtureHash: input.fixtureHash,
+    splitHash: input.splitHash ?? null,
     sourceState: input.sourceState,
     frozenConfig: input.frozenConfig,
     caseCount: input.cases.length,
@@ -175,6 +177,7 @@ export function toReviewMarkdown(report: GroundedEvaluationReviewReport) {
     `- Schema: \`${report.reportSchemaVersion}\``,
     `- Timestamp: \`${report.runTimestamp}\``,
     `- Fixture hash: \`${report.fixtureHash}\``,
+    `- Split hash: \`${report.splitHash ?? "not recorded"}\``,
     `- Report hash: \`${report.reportHash}\``,
     `- Commit: \`${report.sourceState.commit ?? "unknown"}\``,
     `- Diff hash: \`${report.sourceState.diffHash}\``,
