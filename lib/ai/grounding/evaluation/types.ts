@@ -3,7 +3,8 @@ export type GroundedEvaluationSplit =
   | "regression"
   | "holdout"
   | "holdout_v2"
-  | "manual_quality";
+  | "manual_quality"
+  | "holdout_v3";
 
 export interface GroundedEvaluationResource {
   id: string;
@@ -34,9 +35,17 @@ export interface GroundedEvaluationCase {
   shouldAnswer: boolean;
   expectedResourceIds?: string[];
   expectedChunkIds?: string[];
+  setupResourceIds?: string[];
   requiredFacts?: string[];
+  optionalFacts?: string[];
   forbiddenClaims?: string[];
   expectedInsufficientReason?: string;
+  manualReviewCriteria?: {
+    formulaAccuracy?: boolean;
+    unitAccuracy?: boolean;
+    arithmeticAccuracy?: boolean;
+    caveats?: string[];
+  };
   notes?: string;
 }
 
@@ -183,6 +192,7 @@ export interface GroundedEvaluationReviewReport {
   runId: string;
   runTimestamp: string;
   fixtureHash: string;
+  splitHash?: string | null;
   sourceState: GroundedEvaluationReportSourceState;
   frozenConfig: Record<string, unknown>;
   caseCount: number;
