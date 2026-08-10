@@ -115,7 +115,7 @@ Grounded Chat (Stage 4)
 - Stage 4 integrates retrieval into persistent `/chat` only when `AI_GROUNDED_CHAT_ENABLED=true`.
 - New persistence: `AiGroundingAttempt` and `AiMessageCitation`.
 - New user-facing API: `GET /ai/chats/:chatId/citations/:citationId`.
-- Feature flag remains disabled. The consumed v1.2 holdout failed. The consumed v1.3 `holdout_v2` passed automated gates but lacked retained answer text for mandatory manual review. The v1.3 `manual_quality` run retained answers and failed manual review; v1.4 remediation is still `DO_NOT_ENABLE` pending real-provider and repeated manual validation.
+- Feature flag remains disabled. The consumed v1.2 holdout failed. The consumed v1.3 `holdout_v2` passed automated gates but lacked retained answer text for mandatory manual review. The v1.3 `manual_quality` run retained answers and failed manual review. The v1.5 `manual_quality` run passed manual review, and fresh `holdout_v3` is prepared with split hash `11f51f4ac9459de796f28a76d79011f983fe929edcca17e006fbb045646ebcb1`, but it has not been executed.
 
 Notes
 -----
