@@ -46,7 +46,15 @@ import {
   assertHoldoutV3AcceptanceRunAllowed,
   computeHoldoutV3SplitHash,
   recordHoldoutV3AcceptanceRun,
+  updateHoldoutV3AcceptanceRun,
 } from "./holdout-v3";
+import {
+  assertEvaluationTopology,
+  buildEvaluationTopologyReport,
+  resolveEvaluationMetadataForCases,
+  type EvaluationMetadataScope,
+  type EvaluationTopologyReport,
+} from "./metadata-scope";
 import {
   assertEvaluationResourceScope,
   buildEvaluationResourceScope,
@@ -83,6 +91,7 @@ export interface RuntimeGroundedEvaluationOptions {
   allowConsumedHoldoutDiagnostic?: boolean;
   confirmHoldoutFixtureHash?: string;
   maxCases?: number;
+  reportDir?: string;
 }
 
 export interface RuntimeGroundedEvaluationPreflightReport {
@@ -91,6 +100,8 @@ export interface RuntimeGroundedEvaluationPreflightReport {
   splitHash: string | null;
   frozenConfig: Record<string, unknown>;
   resourceScope: EvaluationResourceScope;
+  metadataScope: EvaluationMetadataScope;
+  topology: EvaluationTopologyReport;
 }
 
 export interface RuntimeGroundedEvaluationReport {
@@ -99,6 +110,8 @@ export interface RuntimeGroundedEvaluationReport {
   splitHash: string | null;
   frozenConfig: Record<string, unknown>;
   resourceScope: EvaluationResourceScope;
+  metadataScope: EvaluationMetadataScope;
+  topology: EvaluationTopologyReport;
   report: GroundedEvaluationReport & {
     supportedAnswerRate: number | null;
     firstPassStructuredSuccess: number;
@@ -131,6 +144,15 @@ interface SeedState {
   createdConfiguration: boolean;
 }
 
+type HoldoutV3FailurePhase =
+  | "PREFLIGHT_FAILURE"
+  | "EVALUATOR_SETUP_FAILURE"
+  | "EMBEDDING_FAILURE"
+  | "RETRIEVAL_FAILURE"
+  | "GENERATION_FAILURE"
+  | "REPORTING_FAILURE"
+  | "COMPLETED";
+
 const FIXTURE_PATH = "lib/ai/grounding/evaluation/fixtures.ts";
 
 export async function runRuntimeGroundedEvaluation(
@@ -144,6 +166,8 @@ export async function runRuntimeGroundedEvaluation(
     cases,
     resources,
     resourceScope,
+    metadataScope,
+    topology,
     frozenConfig,
   } = preflight;
   const runId = `grounded-runtime-${Date.now()}`;
@@ -156,20 +180,40 @@ export async function runRuntimeGroundedEvaluation(
   const reviewCases: GroundedEvaluationReviewCase[] = [];
   let seedState: SeedState | null = null;
   let cleanup: RuntimeGroundedEvaluationReport["cleanup"] | null = null;
+  let failurePhase: HoldoutV3FailurePhase = "EVALUATOR_SETUP_FAILURE";
+  let acceptanceRecordStarted = false;
   const recordsHoldoutV3Acceptance = shouldRecordHoldoutV3Acceptance(
     options,
     cases
   );
 
   try {
-    await cleanupRuntimeFixtures(prisma, null, resources);
-    seedState = await seedRuntimeFixtures(prisma, embeddingProvider, resources);
+    if (recordsHoldoutV3Acceptance && splitHash) {
+      await recordHoldoutV3AcceptanceRun({
+        splitHash,
+        runId,
+        runTimestamp,
+        status: "STARTED",
+        reportDir: options.reportDir,
+      });
+      acceptanceRecordStarted = true;
+    }
+
+    await cleanupRuntimeFixtures(prisma, null, resources, metadataScope);
+    failurePhase = "EMBEDDING_FAILURE";
+    seedState = await seedRuntimeFixtures(
+      prisma,
+      embeddingProvider,
+      resources,
+      metadataScope
+    );
     const searchRepository = new PostgresResourceSearchRepository(prisma);
     const groundingService = new GroundedGenerationService({
       searchRepository,
       embeddingProvider,
     });
 
+    failurePhase = "RETRIEVAL_FAILURE";
     for (const evaluationCase of cases) {
       const answer = await answerRuntimeCase({
         evaluationCase,
@@ -181,6 +225,7 @@ export async function runRuntimeGroundedEvaluation(
       reviewCases.push(answer.review);
     }
 
+    failurePhase = "REPORTING_FAILURE";
     const report = await runGroundedEvaluation({
       cases,
       split: "all",
@@ -191,7 +236,12 @@ export async function runRuntimeGroundedEvaluation(
       },
     });
 
-    cleanup = await cleanupRuntimeFixtures(prisma, seedState, resources);
+    cleanup = await cleanupRuntimeFixtures(
+      prisma,
+      seedState,
+      resources,
+      metadataScope
+    );
     const review = buildReviewReport({
       runId,
       runTimestamp,
@@ -202,12 +252,17 @@ export async function runRuntimeGroundedEvaluation(
       cases: reviewCases,
     });
     if (recordsHoldoutV3Acceptance && splitHash) {
-      await recordHoldoutV3AcceptanceRun({
+      await updateHoldoutV3AcceptanceRun({
         splitHash,
         runId,
         runTimestamp,
         reportHash: review.reportHash,
         status: "SUCCEEDED",
+        failurePhase: "COMPLETED",
+        modelEvaluationReached: true,
+        chatGenerationReached: true,
+        metricsProduced: true,
+        reportDir: options.reportDir,
       });
     }
     return {
@@ -216,6 +271,8 @@ export async function runRuntimeGroundedEvaluation(
       splitHash,
       frozenConfig,
       resourceScope,
+      metadataScope,
+      topology,
       report: withRuntimeMetrics(report),
       diagnostics,
       review,
@@ -223,20 +280,31 @@ export async function runRuntimeGroundedEvaluation(
     };
   } catch (error) {
     if (recordsHoldoutV3Acceptance && splitHash) {
-      await recordHoldoutV3AcceptanceRun({
+      const writeRecord = acceptanceRecordStarted
+        ? updateHoldoutV3AcceptanceRun
+        : recordHoldoutV3AcceptanceRun;
+      await writeRecord({
         splitHash,
         runId,
         runTimestamp,
         status: "FAILED",
         errorClass: safeErrorClass(error),
+        failurePhase,
+        modelEvaluationReached: false,
+        chatGenerationReached: false,
+        metricsProduced: false,
+        reportDir: options.reportDir,
       }).catch(() => undefined);
     }
     throw error;
   } finally {
     if (!cleanup) {
-      await cleanupRuntimeFixtures(prisma, seedState, resources).catch(
-        () => undefined
-      );
+      await cleanupRuntimeFixtures(
+        prisma,
+        seedState,
+        resources,
+        metadataScope
+      ).catch(() => undefined);
     }
   }
 }
@@ -251,6 +319,8 @@ export async function runRuntimeGroundedEvaluationPreflight(
     splitHash: preflight.splitHash,
     frozenConfig: preflight.frozenConfig,
     resourceScope: preflight.resourceScope,
+    metadataScope: preflight.metadataScope,
+    topology: preflight.topology,
   };
 }
 
@@ -284,6 +354,9 @@ async function prepareRuntimeGroundedEvaluation(
     resolvedResources: resources,
   });
   assertEvaluationResourceScope(resourceScope);
+  const metadataScope = resolveEvaluationMetadataForCases(cases, resources);
+  const topology = buildEvaluationTopologyReport({ cases, metadataScope });
+  assertEvaluationTopology(topology);
   await enforceHoldoutGuard(options, fixtureHash, splitHash, cases);
 
   return {
@@ -293,6 +366,8 @@ async function prepareRuntimeGroundedEvaluation(
     cases,
     resources,
     resourceScope,
+    metadataScope,
+    topology,
     frozenConfig: buildFrozenConfig(),
   };
 }
@@ -336,6 +411,7 @@ function enforceHoldoutGuard(
       allowDiagnostic: options.allowConsumedHoldoutDiagnostic,
       caseIds: options.caseIds,
       maxCases: options.maxCases,
+      reportDir: options.reportDir,
     });
   }
 
@@ -645,9 +721,10 @@ async function buildCaseDiagnostic(evaluationCase: GroundedEvaluationCase) {
 async function seedRuntimeFixtures(
   prisma: PrismaClient,
   embeddingProvider: EmbeddingProvider,
-  resources: GroundedEvaluationResource[]
+  resources: GroundedEvaluationResource[],
+  metadataScope: EvaluationMetadataScope
 ): Promise<SeedState> {
-  for (const subjectId of unique(resources.map((item) => item.subjectId))) {
+  for (const subjectId of metadataScope.subjectIds) {
     await prisma.subject.create({
       data: {
         id: subjectId,
@@ -657,14 +734,13 @@ async function seedRuntimeFixtures(
     });
   }
 
-  for (const resource of resources) {
-    if (!resource.topicId) continue;
+  for (const topic of metadataScope.topics) {
     await prisma.topic.upsert({
-      where: { id: resource.topicId },
+      where: { id: topic.id },
       create: {
-        id: resource.topicId,
-        subjectId: resource.subjectId,
-        title: topicTitle(resource.topicId) ?? resource.topicId,
+        id: topic.id,
+        subjectId: topic.subjectId,
+        title: topicTitle(topic.id) ?? topic.id,
       },
       update: {},
     });
@@ -789,14 +865,16 @@ async function seedRuntimeFixtures(
 async function cleanupRuntimeFixtures(
   prisma: PrismaClient,
   seedState: SeedState | null,
-  resources: GroundedEvaluationResource[]
+  resources: GroundedEvaluationResource[],
+  metadataScope?: EvaluationMetadataScope
 ) {
   const resourceIds = resources.map((item) => item.id);
   const chunkIds = resources.map((item) => item.chunkId);
-  const topicIds = unique(
-    resources.flatMap((item) => (item.topicId ? [item.topicId] : []))
-  );
-  const subjectIds = unique(resources.map((item) => item.subjectId));
+  const topicIds =
+    metadataScope?.topics.map((item) => item.id) ??
+    unique(resources.flatMap((item) => (item.topicId ? [item.topicId] : [])));
+  const subjectIds =
+    metadataScope?.subjectIds ?? unique(resources.map((item) => item.subjectId));
   const resourceDelete = await prisma.resource.deleteMany({
     where: { id: { in: resourceIds } },
   });
