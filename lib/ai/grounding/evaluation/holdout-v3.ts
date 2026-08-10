@@ -156,8 +156,20 @@ export interface HoldoutV3RunRecordInput {
   runId: string;
   runTimestamp: string;
   reportHash?: string | null;
-  status: "SUCCEEDED" | "FAILED";
+  status: "STARTED" | "SUCCEEDED" | "FAILED";
   errorClass?: string;
+  failurePhase?:
+    | "PREFLIGHT_FAILURE"
+    | "EVALUATOR_SETUP_FAILURE"
+    | "EMBEDDING_FAILURE"
+    | "RETRIEVAL_FAILURE"
+    | "GENERATION_FAILURE"
+    | "REPORTING_FAILURE"
+    | "COMPLETED"
+    | null;
+  modelEvaluationReached?: boolean;
+  chatGenerationReached?: boolean;
+  metricsProduced?: boolean;
   reportDir?: string;
 }
 
@@ -414,6 +426,19 @@ export async function assertHoldoutV3AcceptanceRunAllowed(
 export async function recordHoldoutV3AcceptanceRun(
   input: HoldoutV3RunRecordInput
 ) {
+  return writeHoldoutV3AcceptanceRun(input, "wx");
+}
+
+export async function updateHoldoutV3AcceptanceRun(
+  input: HoldoutV3RunRecordInput
+) {
+  return writeHoldoutV3AcceptanceRun(input, "w");
+}
+
+async function writeHoldoutV3AcceptanceRun(
+  input: HoldoutV3RunRecordInput,
+  flag: "w" | "wx"
+) {
   const reportDir = path.resolve(
     process.cwd(),
     input.reportDir ?? ".grounded-evaluation-reports"
@@ -432,11 +457,15 @@ export async function recordHoldoutV3AcceptanceRun(
     reportHash: input.reportHash ?? null,
     status: input.status,
     errorClass: input.errorClass ?? null,
+    failurePhase: input.failurePhase ?? null,
+    modelEvaluationReached: input.modelEvaluationReached ?? false,
+    chatGenerationReached: input.chatGenerationReached ?? false,
+    metricsProduced: input.metricsProduced ?? false,
   };
 
   await fs.writeFile(recordPath, `${JSON.stringify(record, null, 2)}\n`, {
     encoding: "utf8",
-    flag: "wx",
+    flag,
   });
   return recordPath;
 }
