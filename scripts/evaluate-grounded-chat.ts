@@ -1,6 +1,9 @@
 import fs from "node:fs/promises";
 import { groundedEvaluationCases } from "@/lib/ai/grounding/evaluation/fixtures";
-import { runRuntimeGroundedEvaluation } from "@/lib/ai/grounding/evaluation/runtime-runner";
+import {
+  runRuntimeGroundedEvaluation,
+  runRuntimeGroundedEvaluationPreflight,
+} from "@/lib/ai/grounding/evaluation/runtime-runner";
 import { runGroundedEvaluation } from "@/lib/ai/grounding/evaluation/runner";
 import {
   DEFAULT_REVIEW_REPORT_DIR,
@@ -25,10 +28,23 @@ interface Args {
   writeReport: boolean;
   reportDir?: string;
   reportFormat: "json" | "markdown" | "both";
+  dryRun: boolean;
 }
 
 async function main() {
   const args = parseArgs(process.argv.slice(2));
+  if (args.dryRun) {
+    const report = await runRuntimeGroundedEvaluationPreflight({
+      split: args.split,
+      caseIds: args.caseIds,
+      allowConsumedHoldoutDiagnostic: args.allowConsumedHoldoutDiagnostic,
+      confirmHoldoutFixtureHash: args.confirmHoldoutFixtureHash,
+      maxCases: args.maxCases,
+    });
+    console.log(JSON.stringify(report, null, 2));
+    return;
+  }
+
   if (!args.answersFile && !args.fixtureBaseline) {
     const report = await runRuntimeGroundedEvaluation({
       split: args.split,
@@ -86,6 +102,7 @@ function parseArgs(values: string[]): Args {
     writeReport: values.includes("--write-report"),
     reportDir: readStringArg(values, "--report-dir"),
     reportFormat: readReportFormat(values),
+    dryRun: values.includes("--dry-run"),
   };
 }
 
@@ -114,7 +131,8 @@ function readSplit(values: string[]): GroundedEvaluationSplit | "all" {
     value === "regression" ||
     value === "holdout" ||
     value === "holdout_v2" ||
-    value === "manual_quality"
+    value === "manual_quality" ||
+    value === "holdout_v3"
   ) {
     return value;
   }
