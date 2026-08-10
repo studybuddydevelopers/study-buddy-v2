@@ -19,8 +19,14 @@ import {
   computeHoldoutV3SplitHash,
   recordHoldoutV3AcceptanceRun,
   summarizeHoldoutV3Split,
+  updateHoldoutV3AcceptanceRun,
   validateHoldoutV3FixtureReferences,
 } from "./holdout-v3";
+import {
+  assertEvaluationTopology,
+  buildEvaluationTopologyReport,
+  resolveEvaluationMetadataForCases,
+} from "./metadata-scope";
 import {
   groundedEvaluationCases,
   groundedEvaluationResources,
@@ -95,6 +101,149 @@ describe("Stage 4 holdout_v3 preparation", () => {
     expect(scope.unreferencedResourceCount).toBe(30);
     expect(scope.extraResourceCount).toBe(0);
     expect(resolved.every((item) => item.id.includes("holdout-v3"))).toBe(true);
+  });
+
+  it("resolves case-level metadata independently from selected resources", () => {
+    const holdoutCases = groundedEvaluationCases.filter(
+      (item) => item.split === HOLDOUT_V3_SPLIT
+    );
+    const resolved = resolveEvaluationResourcesForSplit(
+      holdoutCases,
+      groundedEvaluationResources
+    );
+    const metadata = resolveEvaluationMetadataForCases(holdoutCases, resolved);
+
+    expect(metadata.selectedCaseCount).toBe(28);
+    expect(metadata.metadataOnlySubjectIds).toEqual([]);
+    expect(metadata.metadataOnlyTopicIds).toEqual([
+      "eval-topic-cell-division",
+      "eval-topic-earth-waves",
+      "eval-topic-grammar",
+      "eval-topic-reading-practice",
+    ]);
+    expect(metadata.resourceTopicIds).not.toContain("eval-topic-earth-waves");
+  });
+
+  it("passes topology preflight for all consumed holdout_v3 cases", () => {
+    const holdoutCases = groundedEvaluationCases.filter(
+      (item) => item.split === HOLDOUT_V3_SPLIT
+    );
+    const resolved = resolveEvaluationResourcesForSplit(
+      holdoutCases,
+      groundedEvaluationResources
+    );
+    const metadata = resolveEvaluationMetadataForCases(holdoutCases, resolved);
+    const topology = buildEvaluationTopologyReport({
+      cases: holdoutCases,
+      metadataScope: metadata,
+    });
+
+    expect(topology.casesChecked).toBe(28);
+    expect(topology.validRetrievalFilters).toBe(28);
+    expect(topology.invalidRetrievalFilters).toBe(0);
+    expect(topology.metadataOnlyTopics).toBe(4);
+    expect(() => assertEvaluationTopology(topology)).not.toThrow();
+  });
+
+  it("keeps the four previous metadata-gap cases structurally executable", () => {
+    const previousFailures = new Set([
+      "holdout-v3-refusal-no-seismic-evidence",
+      "holdout-v3-refusal-wrong-subject-valency",
+      "holdout-v3-refusal-latest-waec-deadline",
+      "holdout-v3-refusal-user-bypass-no-evidence",
+    ]);
+    const holdoutCases = groundedEvaluationCases.filter(
+      (item) => item.split === HOLDOUT_V3_SPLIT
+    );
+    const resolved = resolveEvaluationResourcesForSplit(
+      holdoutCases,
+      groundedEvaluationResources
+    );
+    const metadata = resolveEvaluationMetadataForCases(holdoutCases, resolved);
+    const topology = buildEvaluationTopologyReport({
+      cases: holdoutCases,
+      metadataScope: metadata,
+    });
+
+    expect(
+      topology.cases
+        .filter((item) => previousFailures.has(item.caseId))
+        .map((item) => ({
+          caseId: item.caseId,
+          validRetrievalFilters: item.validRetrievalFilters,
+        }))
+    ).toEqual([
+      {
+        caseId: "holdout-v3-refusal-no-seismic-evidence",
+        validRetrievalFilters: true,
+      },
+      {
+        caseId: "holdout-v3-refusal-wrong-subject-valency",
+        validRetrievalFilters: true,
+      },
+      {
+        caseId: "holdout-v3-refusal-latest-waec-deadline",
+        validRetrievalFilters: true,
+      },
+      {
+        caseId: "holdout-v3-refusal-user-bypass-no-evidence",
+        validRetrievalFilters: true,
+      },
+    ]);
+  });
+
+  it("allows a valid metadata-only topic with no selected resources", () => {
+    const cases: GroundedEvaluationCase[] = [
+      {
+        id: "metadata-only-topic",
+        split: HOLDOUT_V3_SPLIT,
+        messages: [{ role: "USER", content: "Explain a missing topic." }],
+        subjectId: "eval-subject-physics",
+        topicId: "eval-topic-empty-corpus",
+        shouldAnswer: false,
+        forbiddenClaims: ["missing topic"],
+      },
+    ];
+    const metadata = resolveEvaluationMetadataForCases(cases, []);
+    const topology = buildEvaluationTopologyReport({ cases, metadataScope: metadata });
+
+    expect(metadata.subjectIds).toEqual(["eval-subject-physics"]);
+    expect(metadata.topics).toEqual([
+      { id: "eval-topic-empty-corpus", subjectId: "eval-subject-physics" },
+    ]);
+    expect(metadata.metadataOnlyTopicIds).toEqual(["eval-topic-empty-corpus"]);
+    expect(topology.validRetrievalFilters).toBe(1);
+    expect(topology.invalidRetrievalFilters).toBe(0);
+  });
+
+  it("keeps mismatched subject/topic metadata invalid", () => {
+    const cases: GroundedEvaluationCase[] = [
+      {
+        id: "declares-topic",
+        split: HOLDOUT_V3_SPLIT,
+        messages: [{ role: "USER", content: "Declare topic." }],
+        subjectId: "eval-subject-physics",
+        topicId: "eval-topic-shared",
+        shouldAnswer: false,
+        forbiddenClaims: ["shared"],
+      },
+    ];
+
+    expect(() =>
+      resolveEvaluationMetadataForCases(cases, [
+        {
+          id: "conflicting-resource-topic",
+          title: "Conflicting Topic",
+          subjectId: "eval-subject-chemistry",
+          topicId: "eval-topic-shared",
+          chunkId: "conflicting-resource-topic-chunk",
+          chunkType: "CONTENT_SECTION",
+          content: "Conflicting metadata.",
+          provenance: "Synthetic",
+          usageRights: "Synthetic",
+        },
+      ])
+    ).toThrow("declared under both");
   });
 
   it.each(["development", "regression", "manual_quality"] as const)(
@@ -190,6 +339,62 @@ describe("Stage 4 holdout_v3 preparation", () => {
       groundedEvaluationResources.length
     );
     expect(report.resourceScope.extraResourceCount).toBe(0);
+  });
+
+  it("dry-runs consumed holdout_v3 topology without expanding resource scope", async () => {
+    const splitHash = computeHoldoutV3SplitHash({
+      cases: groundedEvaluationCases,
+      resources: groundedEvaluationResources,
+    });
+    const reportDir = await mkdtemp(path.join(os.tmpdir(), "holdout-v3-dry-run-"));
+    await recordHoldoutV3AcceptanceRun({
+      splitHash,
+      reportDir,
+      runId: "consumed-marker",
+      runTimestamp: "2026-08-10T00:00:00.000Z",
+      status: "FAILED",
+      errorClass: "RetrievalError",
+      failurePhase: "EVALUATOR_SETUP_FAILURE",
+      modelEvaluationReached: false,
+      chatGenerationReached: false,
+      metricsProduced: false,
+    });
+
+    await expect(
+      runRuntimeGroundedEvaluationPreflight({
+        split: HOLDOUT_V3_SPLIT,
+        confirmHoldoutFixtureHash: splitHash,
+        reportDir,
+      })
+    ).rejects.toThrow("already has an acceptance-run record");
+
+    const report = await runRuntimeGroundedEvaluationPreflight({
+      split: HOLDOUT_V3_SPLIT,
+      confirmHoldoutFixtureHash: splitHash,
+      allowConsumedHoldoutDiagnostic: true,
+      reportDir,
+    });
+
+    expect(report.dryRun).toBe(true);
+    expect(report.resourceScope.selectedCaseCount).toBe(28);
+    expect(report.resourceScope.globalResourceCount).toBe(55);
+    expect(report.resourceScope.seededResourceCount).toBe(25);
+    expect(report.resourceScope.unreferencedResourceCount).toBe(30);
+    expect(report.resourceScope.extraResourceCount).toBe(0);
+    expect(report.resourceScope.referencedChunkCount).toBe(25);
+    expect(report.resourceScope.embeddedChunkCount).toBe(25);
+    expect(report.topology.casesChecked).toBe(28);
+    expect(report.topology.validRetrievalFilters).toBe(28);
+    expect(report.topology.invalidRetrievalFilters).toBe(0);
+    expect(report.topology.metadataOnlyTopics).toBe(4);
+    expect(report.metadataScope.metadataOnlyTopicIds).toEqual([
+      "eval-topic-cell-division",
+      "eval-topic-earth-waves",
+      "eval-topic-grammar",
+      "eval-topic-reading-practice",
+    ]);
+
+    await rm(reportDir, { recursive: true, force: true });
   });
 
   it("keeps supported required facts present in expected synthetic evidence", () => {
@@ -292,6 +497,10 @@ describe("Stage 4 holdout_v3 preparation", () => {
       runTimestamp: "2026-08-09T00:00:00.000Z",
       reportHash: "report-hash",
       status: "SUCCEEDED",
+      failurePhase: "COMPLETED",
+      modelEvaluationReached: true,
+      chatGenerationReached: true,
+      metricsProduced: true,
     });
     expect(await readFile(recordPath, "utf8")).toContain("report-hash");
 
@@ -312,6 +521,61 @@ describe("Stage 4 holdout_v3 preparation", () => {
         maxCases: 1,
       })
     ).resolves.toBeUndefined();
+
+    await rm(reportDir, { recursive: true, force: true });
+  });
+
+  it("records future holdout_v3 run phases without weakening one-shot blocking", async () => {
+    const splitHash = computeHoldoutV3SplitHash({
+      cases: groundedEvaluationCases,
+      resources: groundedEvaluationResources,
+    });
+    const reportDir = await mkdtemp(path.join(os.tmpdir(), "holdout-v3-phase-"));
+    const recordPath = await recordHoldoutV3AcceptanceRun({
+      splitHash,
+      reportDir,
+      runId: "phase-test-run",
+      runTimestamp: "2026-08-10T00:00:00.000Z",
+      status: "STARTED",
+    });
+
+    expect(JSON.parse(await readFile(recordPath, "utf8"))).toMatchObject({
+      status: "STARTED",
+      failurePhase: null,
+      modelEvaluationReached: false,
+      chatGenerationReached: false,
+      metricsProduced: false,
+    });
+
+    await updateHoldoutV3AcceptanceRun({
+      splitHash,
+      reportDir,
+      runId: "phase-test-run",
+      runTimestamp: "2026-08-10T00:00:00.000Z",
+      status: "FAILED",
+      errorClass: "RetrievalError",
+      failurePhase: "RETRIEVAL_FAILURE",
+      modelEvaluationReached: false,
+      chatGenerationReached: false,
+      metricsProduced: false,
+    });
+
+    expect(JSON.parse(await readFile(recordPath, "utf8"))).toMatchObject({
+      status: "FAILED",
+      errorClass: "RetrievalError",
+      failurePhase: "RETRIEVAL_FAILURE",
+      modelEvaluationReached: false,
+      chatGenerationReached: false,
+      metricsProduced: false,
+    });
+
+    await expect(
+      assertHoldoutV3AcceptanceRunAllowed({
+        confirmSplitHash: splitHash,
+        computedSplitHash: splitHash,
+        reportDir,
+      })
+    ).rejects.toThrow("already has an acceptance-run record");
 
     await rm(reportDir, { recursive: true, force: true });
   });
