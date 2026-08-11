@@ -10,6 +10,7 @@ import type {
   GroundedEvaluationReviewCitation,
   GroundedEvaluationReviewReport,
 } from "./types";
+import { findPresentEvaluationFacts } from "./fact-matching";
 
 export const REVIEW_REPORT_SCHEMA_VERSION = "grounded-runtime-review-report-v1.1";
 export const DEFAULT_REVIEW_REPORT_DIR = ".grounded-evaluation-reports";
@@ -89,7 +90,10 @@ export function buildReviewCase(input: BuildReviewCaseInput) {
       input.groundingValidatorResults?.find((item) => item.validatorVersion)
         ?.validatorVersion ?? null,
     requiredFacts,
-    detectedRequiredFacts: findPresentPhrases(generatedAnswerText.value, requiredFacts),
+    detectedRequiredFacts: findPresentEvaluationFacts(
+      generatedAnswerText.value,
+      requiredFacts
+    ),
     forbiddenClaims,
     detectedForbiddenClaims: findPresentPhrases(generatedAnswerText.value, forbiddenClaims),
     insufficiencyReason: input.insufficiencyReason ?? null,
