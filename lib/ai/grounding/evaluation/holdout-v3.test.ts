@@ -95,11 +95,11 @@ describe("Stage 4 holdout_v3 preparation", () => {
       resolvedResources: resolved,
     });
 
-    expect(historicalResources).toHaveLength(55);
+    expect(historicalResources).toHaveLength(73);
     expect(scope.selectedCaseCount).toBe(28);
     expect(scope.referencedResourceCount).toBe(25);
     expect(scope.seededResourceCount).toBe(25);
-    expect(scope.unreferencedResourceCount).toBe(30);
+    expect(scope.unreferencedResourceCount).toBe(48);
     expect(scope.extraResourceCount).toBe(0);
     expect(resolved.every((item) => item.id.includes("holdout-v3"))).toBe(true);
   });
@@ -378,9 +378,9 @@ describe("Stage 4 holdout_v3 preparation", () => {
 
     expect(report.dryRun).toBe(true);
     expect(report.resourceScope.selectedCaseCount).toBe(28);
-    expect(report.resourceScope.globalResourceCount).toBe(55);
+    expect(report.resourceScope.globalResourceCount).toBe(73);
     expect(report.resourceScope.seededResourceCount).toBe(25);
-    expect(report.resourceScope.unreferencedResourceCount).toBe(30);
+    expect(report.resourceScope.unreferencedResourceCount).toBe(48);
     expect(report.resourceScope.extraResourceCount).toBe(0);
     expect(report.resourceScope.referencedChunkCount).toBe(25);
     expect(report.resourceScope.embeddedChunkCount).toBe(25);
