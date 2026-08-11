@@ -103,7 +103,8 @@ the configured database, exercises the real grounded service, and deletes the
 temporary rows in `finally`. It is disabled in `NODE_ENV=production`.
 
 The corpus is split into `development`, `regression`, consumed `holdout`,
-consumed `holdout_v2`, inspectable `manual_quality`, and fresh `holdout_v3`.
+consumed `holdout_v2`, inspectable `manual_quality`, consumed `holdout_v3`,
+and fresh `holdout_v4`.
 Do not tune thresholds against holdout cases.
 
 ### Immutable Development Baseline
@@ -295,20 +296,39 @@ questions, language/reading concepts, science processes, and qualification or
 caveat questions. The low-coverage `holdout_v2` triangle and arithmetic-mean
 cases are copied there under disclosed manual-review IDs.
 
-### Fresh holdout_v3 Preparation
+### Consumed holdout_v3 Result
 
-`holdout_v3` is a fresh synthetic acceptance split and must not be run until the
-split hash below is explicitly approved for a one-shot execution.
+`holdout_v3` is permanently consumed and must not be reused as an unbiased
+acceptance split.
 
 - split hash:
   `11f51f4ac9459de796f28a76d79011f983fe929edcca17e006fbb045646ebcb1`
-- fixture schema version: `grounded-holdout-v3-fixture-v1`
-- created at: `2026-08-09T17:26:11.000Z`
+- run ID: `grounded-runtime-1786324559996`
+- status: `FAILED`
+- error class: `RetrievalError`
+- classification: `CONSUMED_INFRASTRUCTURE_FAILURE`
+- recommendation: `DO_NOT_ENABLE`
+
+The failure happened in evaluator setup/retrieval-filter construction before
+model-quality metrics were produced. The original one-shot marker is preserved
+unchanged in `.grounded-evaluation-reports/`.
+
+### Fresh holdout_v4 Preparation
+
+`holdout_v4` is a fresh synthetic acceptance split prepared after the evaluator
+metadata-scoping remediation. It must not be run until the split hash below is
+explicitly approved for one-shot execution.
+
+- split hash:
+  `7158403b7a60d6e6037a4ead7eae751d80e57b446d9b72ea27ef21df9f9cf5cf`
+- fixture schema version: `grounded-holdout-v4-fixture-v1`
+- created at: `2026-08-11T00:00:00.000Z`
 - source HEAD when authored:
-  `9e57b9cdb6d3797e89248763d4623e53640ec42b`
+  `5ed2d3c8ad6b86a717cf78a573d559f365d85cc4`
 - cases: `28`
 - supported/refusal balance: `14` supported, `14` insufficient-context/refusal
-- referenced synthetic resources: `25`
+- referenced synthetic resources: `26`
+- metadata-only topics: `4`
 
 Frozen candidate configuration:
 
@@ -334,6 +354,12 @@ Frozen candidate configuration:
 - query-context token budget: `550`
 - query max length: `1000`
 
+Corrected evaluator harness behavior is frozen for v4: case metadata is resolved
+independently from resource scope; selected resources alone control embedding
+and provider exposure; metadata-only topics are permitted; complete retrieval
+topology is validated before provider work; one-shot acceptance records are
+preserved.
+
 Frozen exact-signal configuration records quoted phrases, years, question
 numbers, educational phrases, symbolic expressions, and units. Runtime metadata
 keeps at most 10 exact signals per selected chunk and suppresses unrequested
@@ -345,14 +371,19 @@ fail closed. Frozen external-information guard configuration is
 `sufficiency-policy-v1.4`; it blocks fresh academic/exam/current-information
 requests while keeping electricity-current contexts valid.
 
-Future acceptance command:
+Provider-free dry-run command:
 
 ```bash
-npm run ai:evaluate-grounding -- --split=holdout_v3 --dry-run --confirm-holdout-fixture-hash=11f51f4ac9459de796f28a76d79011f983fe929edcca17e006fbb045646ebcb1
-npm run ai:evaluate-grounding -- --split=holdout_v3 --confirm-holdout-fixture-hash=11f51f4ac9459de796f28a76d79011f983fe929edcca17e006fbb045646ebcb1 --write-report --report-format=both
+npm run ai:evaluate-grounding -- --split=holdout_v4 --dry-run --confirm-holdout-fixture-hash=7158403b7a60d6e6037a4ead7eae751d80e57b446d9b72ea27ef21df9f9cf5cf
 ```
 
-The runtime evaluator treats `holdout_v3` as one-shot acceptance. It requires
+Future one-shot acceptance command, only after explicit approval:
+
+```bash
+npm run ai:evaluate-grounding -- --split=holdout_v4 --confirm-holdout-fixture-hash=7158403b7a60d6e6037a4ead7eae751d80e57b446d9b72ea27ef21df9f9cf5cf --write-report --report-format=both
+```
+
+The runtime evaluator treats `holdout_v4` as one-shot acceptance. It requires
 the matching split hash, resolves resources from the selected cases before any
 provider construction, rejects partial acceptance runs unless diagnostic mode is
 explicit, records a successful or failed acceptance-run file in the ignored
@@ -395,7 +426,7 @@ Recommendation rules are frozen:
 - any safety failure: `DO_NOT_ENABLE`
 - safety passes but automated/manual usefulness gates fail:
   at most `ENABLE_IN_LIMITED_STAGING`
-- all automated and manual gates pass on synthetic `holdout_v3`:
+- all automated and manual gates pass on synthetic `holdout_v4`:
   at most `ENABLE_FOR_INTERNAL_TEST_USERS`
 - `READY_FOR_PRODUCTION` is prohibited from synthetic fixtures alone.
 
