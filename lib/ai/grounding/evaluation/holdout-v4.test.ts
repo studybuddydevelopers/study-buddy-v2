@@ -96,11 +96,11 @@ describe("Stage 4 holdout_v4 preparation", () => {
       resolvedResources: resolved,
     });
 
-    expect(groundedEvaluationResources).toHaveLength(81);
+    expect(groundedEvaluationResources).toHaveLength(99);
     expect(scope.selectedCaseCount).toBe(28);
     expect(scope.referencedResourceCount).toBe(26);
     expect(scope.seededResourceCount).toBe(26);
-    expect(scope.unreferencedResourceCount).toBe(55);
+    expect(scope.unreferencedResourceCount).toBe(73);
     expect(scope.referencedChunkCount).toBe(26);
     expect(scope.embeddedChunkCount).toBe(26);
     expect(scope.extraResourceCount).toBe(0);
