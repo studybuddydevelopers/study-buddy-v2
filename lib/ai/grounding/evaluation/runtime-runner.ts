@@ -49,6 +49,14 @@ import {
   updateHoldoutV3AcceptanceRun,
 } from "./holdout-v3";
 import {
+  HOLDOUT_V4_FROZEN_CONFIG,
+  HOLDOUT_V4_SPLIT,
+  assertHoldoutV4AcceptanceRunAllowed,
+  computeHoldoutV4SplitHash,
+  recordHoldoutV4AcceptanceRun,
+  updateHoldoutV4AcceptanceRun,
+} from "./holdout-v4";
+import {
   assertEvaluationTopology,
   buildEvaluationTopologyReport,
   resolveEvaluationMetadataForCases,
@@ -96,6 +104,8 @@ export interface RuntimeGroundedEvaluationOptions {
 
 export interface RuntimeGroundedEvaluationPreflightReport {
   dryRun: true;
+  providerCalls: 0;
+  dbMutations: 0;
   fixtureHash: string;
   splitHash: string | null;
   frozenConfig: Record<string, unknown>;
@@ -186,10 +196,19 @@ export async function runRuntimeGroundedEvaluation(
     options,
     cases
   );
+  const recordsHoldoutV4Acceptance = shouldRecordHoldoutV4Acceptance(
+    options,
+    cases
+  );
+  const recordsHoldoutAcceptance =
+    recordsHoldoutV3Acceptance || recordsHoldoutV4Acceptance;
 
   try {
-    if (recordsHoldoutV3Acceptance && splitHash) {
-      await recordHoldoutV3AcceptanceRun({
+    if (recordsHoldoutAcceptance && splitHash) {
+      const recordAcceptanceRun = recordsHoldoutV4Acceptance
+        ? recordHoldoutV4AcceptanceRun
+        : recordHoldoutV3AcceptanceRun;
+      await recordAcceptanceRun({
         splitHash,
         runId,
         runTimestamp,
@@ -251,8 +270,11 @@ export async function runRuntimeGroundedEvaluation(
       frozenConfig,
       cases: reviewCases,
     });
-    if (recordsHoldoutV3Acceptance && splitHash) {
-      await updateHoldoutV3AcceptanceRun({
+    if (recordsHoldoutAcceptance && splitHash) {
+      const updateAcceptanceRun = recordsHoldoutV4Acceptance
+        ? updateHoldoutV4AcceptanceRun
+        : updateHoldoutV3AcceptanceRun;
+      await updateAcceptanceRun({
         splitHash,
         runId,
         runTimestamp,
@@ -279,10 +301,14 @@ export async function runRuntimeGroundedEvaluation(
       cleanup,
     };
   } catch (error) {
-    if (recordsHoldoutV3Acceptance && splitHash) {
+    if (recordsHoldoutAcceptance && splitHash) {
       const writeRecord = acceptanceRecordStarted
-        ? updateHoldoutV3AcceptanceRun
-        : recordHoldoutV3AcceptanceRun;
+        ? recordsHoldoutV4Acceptance
+          ? updateHoldoutV4AcceptanceRun
+          : updateHoldoutV3AcceptanceRun
+        : recordsHoldoutV4Acceptance
+          ? recordHoldoutV4AcceptanceRun
+          : recordHoldoutV3AcceptanceRun;
       await writeRecord({
         splitHash,
         runId,
@@ -315,6 +341,8 @@ export async function runRuntimeGroundedEvaluationPreflight(
   const preflight = await prepareRuntimeGroundedEvaluation(options);
   return {
     dryRun: true,
+    providerCalls: 0,
+    dbMutations: 0,
     fixtureHash: preflight.fixtureHash,
     splitHash: preflight.splitHash,
     frozenConfig: preflight.frozenConfig,
@@ -337,20 +365,20 @@ async function prepareRuntimeGroundedEvaluation(
     0,
     options.maxCases ?? undefined
   );
-  const splitHash = cases.some((item) => item.split === HOLDOUT_V3_SPLIT)
-    ? computeHoldoutV3SplitHash({
-        cases: groundedEvaluationCases,
-        resources: groundedEvaluationResources,
-      })
-    : null;
+  const splitHash = computeSelectedHoldoutSplitHash(cases);
+  const resourceUniverse = selectEvaluationResourceUniverseForCases(
+    cases,
+    groundedEvaluationCases,
+    groundedEvaluationResources
+  );
   const resources = resolveEvaluationResourcesForSplit(
     cases,
-    groundedEvaluationResources
+    resourceUniverse
   );
   const resourceScope = buildEvaluationResourceScope({
     split: options.split,
     cases,
-    allResources: groundedEvaluationResources,
+    allResources: resourceUniverse,
     resolvedResources: resources,
   });
   assertEvaluationResourceScope(resourceScope);
@@ -390,6 +418,66 @@ function selectCases(split: GroundedEvaluationSplit | "all", caseIds?: string[])
   return selected;
 }
 
+function selectEvaluationResourceUniverseForCases(
+  cases: GroundedEvaluationCase[],
+  allCases: GroundedEvaluationCase[],
+  allResources: GroundedEvaluationResource[]
+) {
+  const selectedSplits = new Set(cases.map((item) => item.split));
+  if (selectedSplits.has(HOLDOUT_V4_SPLIT)) return allResources;
+
+  if (selectedSplits.has(HOLDOUT_V3_SPLIT)) {
+    const futureResourceIds = collectReferencedResourceIdsForCases(
+      allCases.filter((item) => item.split === HOLDOUT_V4_SPLIT),
+      allResources
+    );
+    return allResources.filter((item) => !futureResourceIds.has(item.id));
+  }
+
+  return allResources;
+}
+
+function collectReferencedResourceIdsForCases(
+  cases: GroundedEvaluationCase[],
+  allResources: GroundedEvaluationResource[]
+) {
+  const resourcesByChunkId = new Map(
+    allResources.map((item) => [item.chunkId, item])
+  );
+  const resourceIds = new Set<string>();
+
+  for (const evaluationCase of cases) {
+    for (const resourceId of [
+      ...(evaluationCase.expectedResourceIds ?? []),
+      ...(evaluationCase.setupResourceIds ?? []),
+    ]) {
+      resourceIds.add(resourceId);
+    }
+    for (const chunkId of evaluationCase.expectedChunkIds ?? []) {
+      const resource = resourcesByChunkId.get(chunkId);
+      if (resource) resourceIds.add(resource.id);
+    }
+  }
+
+  return resourceIds;
+}
+
+function computeSelectedHoldoutSplitHash(cases: GroundedEvaluationCase[]) {
+  if (cases.some((item) => item.split === HOLDOUT_V3_SPLIT)) {
+    return computeHoldoutV3SplitHash({
+      cases: groundedEvaluationCases,
+      resources: groundedEvaluationResources,
+    });
+  }
+  if (cases.some((item) => item.split === HOLDOUT_V4_SPLIT)) {
+    return computeHoldoutV4SplitHash({
+      cases: groundedEvaluationCases,
+      resources: groundedEvaluationResources,
+    });
+  }
+  return null;
+}
+
 function enforceHoldoutGuard(
   options: RuntimeGroundedEvaluationOptions,
   fixtureHash: string,
@@ -397,6 +485,7 @@ function enforceHoldoutGuard(
   cases: GroundedEvaluationCase[]
 ) {
   const includesHoldoutV3 = cases.some((item) => item.split === HOLDOUT_V3_SPLIT);
+  const includesHoldoutV4 = cases.some((item) => item.split === HOLDOUT_V4_SPLIT);
   if (includesHoldoutV3) {
     if (!splitHash) {
       throw new Error("holdout_v3 split hash could not be computed.");
@@ -406,6 +495,23 @@ function enforceHoldoutGuard(
       throw new Error("holdout_v3 must be executed explicitly, not through a mixed split.");
     }
     return assertHoldoutV3AcceptanceRunAllowed({
+      confirmSplitHash: options.confirmHoldoutFixtureHash,
+      computedSplitHash: splitHash,
+      allowDiagnostic: options.allowConsumedHoldoutDiagnostic,
+      caseIds: options.caseIds,
+      maxCases: options.maxCases,
+      reportDir: options.reportDir,
+    });
+  }
+  if (includesHoldoutV4) {
+    if (!splitHash) {
+      throw new Error("holdout_v4 split hash could not be computed.");
+    }
+    assertHoldoutV4FrozenRuntimeConfig(buildFrozenConfig());
+    if (options.split !== HOLDOUT_V4_SPLIT && !options.allowConsumedHoldoutDiagnostic) {
+      throw new Error("holdout_v4 must be executed explicitly, not through a mixed split.");
+    }
+    return assertHoldoutV4AcceptanceRunAllowed({
       confirmSplitHash: options.confirmHoldoutFixtureHash,
       computedSplitHash: splitHash,
       allowDiagnostic: options.allowConsumedHoldoutDiagnostic,
@@ -475,6 +581,54 @@ function assertHoldoutV3FrozenRuntimeConfig(config: Record<string, unknown>) {
   }
 }
 
+function assertHoldoutV4FrozenRuntimeConfig(config: Record<string, unknown>) {
+  const expected = HOLDOUT_V4_FROZEN_CONFIG;
+  const checks: Array<[string, unknown]> = [
+    ["promptVersion", expected.prompt],
+    ["groundingVersion", expected.grounding],
+    ["sufficiencyPolicyVersion", expected.sufficiency],
+    ["groundingValidatorVersion", expected.validator],
+    ["featureFlagEnabledForOrdinaryUsers", expected.featureFlagDefault],
+    ["chatProvider", expected.chatProvider],
+    ["chatModel", expected.chatModel],
+    ["embeddingProvider", expected.embeddingProvider],
+    ["embeddingModel", expected.embeddingModel],
+    ["embeddingDimensions", expected.embeddingDimensions],
+    ["embeddingVersion", expected.embeddingVersion],
+    ["temperature", expected.temperature],
+    ["maxOutputTokens", expected.maxOutputTokens],
+    ["repairAttemptLimit", expected.repairLimit],
+    ["keywordCandidateCount", expected.keywordCandidateCount],
+    ["vectorCandidateCount", expected.vectorCandidateCount],
+    ["hybridRrfK", expected.rrfK],
+    ["retrievalLimit", expected.retrievalResultLimit],
+    ["selectedEvidenceLimit", expected.selectedEvidenceLimit],
+    ["evidenceTokenBudget", expected.evidenceTokenBudget],
+    ["recentMessageLimit", expected.recentMessageLimit],
+    ["queryContextTokenBudget", expected.queryContextTokenBudget],
+    ["retrievalQueryMaxChars", expected.queryMaxLength],
+    ["correctedHarness", expected.correctedHarness],
+    ["exactSignalConfiguration", expected.exactSignalConfiguration],
+    ["conceptCompatibilityConfiguration", expected.conceptCompatibilityConfiguration],
+    [
+      "externalInformationGuardConfiguration",
+      expected.externalInformationGuardConfiguration,
+    ],
+  ];
+  const mismatches = checks.filter(
+    ([key, expectedValue]) =>
+      JSON.stringify(config[key]) !== JSON.stringify(expectedValue)
+  );
+
+  if (mismatches.length > 0) {
+    throw new Error(
+      `holdout_v4 frozen config mismatch: ${mismatches
+        .map(([key]) => key)
+        .join(", ")}`
+    );
+  }
+}
+
 function shouldRecordHoldoutV3Acceptance(
   options: RuntimeGroundedEvaluationOptions,
   cases: GroundedEvaluationCase[]
@@ -485,6 +639,19 @@ function shouldRecordHoldoutV3Acceptance(
     !options.caseIds?.length &&
     !options.maxCases &&
     cases.every((item) => item.split === HOLDOUT_V3_SPLIT)
+  );
+}
+
+function shouldRecordHoldoutV4Acceptance(
+  options: RuntimeGroundedEvaluationOptions,
+  cases: GroundedEvaluationCase[]
+) {
+  return (
+    options.split === HOLDOUT_V4_SPLIT &&
+    !options.allowConsumedHoldoutDiagnostic &&
+    !options.caseIds?.length &&
+    !options.maxCases &&
+    cases.every((item) => item.split === HOLDOUT_V4_SPLIT)
   );
 }
 
@@ -975,6 +1142,7 @@ function buildFrozenConfig() {
     recentMessageLimit: QUERY_CONTEXT_MESSAGE_LIMIT,
     queryContextTokenBudget: QUERY_CONTEXT_TOKEN_LIMIT,
     retrievalQueryMaxChars: RETRIEVAL_QUERY_MAX_CHARS,
+    correctedHarness: HOLDOUT_V4_FROZEN_CONFIG.correctedHarness,
     exactSignalConfiguration: HOLDOUT_V3_FROZEN_CONFIG.exactSignalConfiguration,
     conceptCompatibilityConfiguration:
       HOLDOUT_V3_FROZEN_CONFIG.conceptCompatibilityConfiguration,
