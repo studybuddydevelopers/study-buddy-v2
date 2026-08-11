@@ -83,18 +83,19 @@ describe("Stage 4 holdout_v3 preparation", () => {
     const holdoutCases = groundedEvaluationCases.filter(
       (item) => item.split === HOLDOUT_V3_SPLIT
     );
+    const historicalResources = historicalResourcesThroughHoldoutV3();
     const resolved = resolveEvaluationResourcesForSplit(
       holdoutCases,
-      groundedEvaluationResources
+      historicalResources
     );
     const scope = buildEvaluationResourceScope({
       split: HOLDOUT_V3_SPLIT,
       cases: holdoutCases,
-      allResources: groundedEvaluationResources,
+      allResources: historicalResources,
       resolvedResources: resolved,
     });
 
-    expect(groundedEvaluationResources).toHaveLength(55);
+    expect(historicalResources).toHaveLength(55);
     expect(scope.selectedCaseCount).toBe(28);
     expect(scope.referencedResourceCount).toBe(25);
     expect(scope.seededResourceCount).toBe(25);
@@ -687,4 +688,19 @@ function readApplicationTestCorpus() {
   return files
     .map((filePath) => readFileSync(path.join(process.cwd(), filePath), "utf8"))
     .join("\n");
+}
+
+function historicalResourcesThroughHoldoutV3() {
+  const holdoutV4ResourceIds = new Set(
+    groundedEvaluationCases
+      .filter((item) => item.split === "holdout_v4")
+      .flatMap((item) => [
+        ...(item.expectedResourceIds ?? []),
+        ...(item.setupResourceIds ?? []),
+      ])
+  );
+
+  return groundedEvaluationResources.filter(
+    (item) => !holdoutV4ResourceIds.has(item.id)
+  );
 }
