@@ -96,6 +96,8 @@ const CLAIM_TERM_STOPWORDS = new Set([
   "that",
   "this",
   "through",
+  "value",
+  "values",
   "uses",
   "using",
   "when",
@@ -681,8 +683,120 @@ function validateDomainSpecificRelation(
   rawEvidence: string
 ): PedagogicalRelationAnalysis {
   return (
+    validateCircleFormulaExplanationRelation(segment, rawEvidence) ??
+    validateTwoSourceArithmeticRelation(segment, rawEvidence) ??
     validateEquationStepRelation(segment, rawEvidence) ??
     validateSeparationMethodRelation(segment, rawEvidence)
+  );
+}
+
+function validateCircleFormulaExplanationRelation(
+  segment: string,
+  rawEvidence: string
+): PedagogicalRelationAnalysis {
+  const normalizedSegment = normalizeForMatching(segment);
+  const evidence = normalizeForMatching(rawEvidence);
+  const mathEvidence = normalizeMathForMatching(rawEvidence);
+  const describesPiApproximation =
+    hasTerm(normalizedSegment, "pi") &&
+    hasTerm(normalizedSegment, "constant") &&
+    hasTerm(normalizedSegment, "approximately") &&
+    hasTerm(normalizedSegment, "3") &&
+    hasTerm(normalizedSegment, "14");
+
+  if (!describesPiApproximation) return null;
+
+  const supportsCircleAreaFormula =
+    hasTerm(evidence, "area") &&
+    hasTerm(evidence, "circle") &&
+    hasTerm(evidence, "pi") &&
+    hasTerm(evidence, "radius") &&
+    (mathEvidence.includes("a = pi r^2") ||
+      (hasPhrase(evidence, "pi times radius squared") &&
+        mathEvidence.includes("r^2")));
+
+  if (supportsCircleAreaFormula) {
+    return {
+      supported: true,
+      glueTerms: ["constant", "approximately", "equal", "3", "14"],
+    };
+  }
+
+  return {
+    supported: false,
+    reason: "UNSUPPORTED_RELATION",
+    unsupportedTerms: ["constant", "approximately", "3", "14"],
+    unsupportedClaim: "pi is approximately 3.14",
+  };
+}
+
+function validateTwoSourceArithmeticRelation(
+  segment: string,
+  rawEvidence: string
+): PedagogicalRelationAnalysis {
+  const evidence = normalizeForMatching(rawEvidence);
+  const powerCalculation = extractPowerMultiplication(segment);
+  if (!powerCalculation) return null;
+
+  const supportsPowerFormula =
+    hasPhrase(evidence, "power = voltage x current") ||
+    (hasTerm(evidence, "power") &&
+      hasTerm(evidence, "voltage") &&
+      hasTerm(evidence, "current") &&
+      (hasTerm(evidence, "multiplying") || hasTerm(evidence, "multiply")));
+  const supportsVoltage = hasUnitValue(evidence, powerCalculation.left, "v");
+  const supportsCurrent = hasUnitValue(evidence, powerCalculation.right, "a");
+  const arithmeticCorrect =
+    Number(powerCalculation.left) * Number(powerCalculation.right) ===
+    Number(powerCalculation.result);
+
+  if (supportsPowerFormula && supportsVoltage && supportsCurrent && arithmeticCorrect) {
+    return {
+      supported: true,
+      glueTerms: unique([
+        "using",
+        "values",
+        powerCalculation.left,
+        "v",
+        powerCalculation.right,
+        "a",
+        powerCalculation.result,
+        "w",
+      ]),
+    };
+  }
+
+  return {
+    supported: false,
+    reason: "UNSUPPORTED_RELATION",
+    unsupportedTerms: unique([
+      ...(supportsPowerFormula ? [] : ["power", "formula"]),
+      ...(supportsVoltage ? [] : [powerCalculation.left, "v"]),
+      ...(supportsCurrent ? [] : [powerCalculation.right, "a"]),
+      ...(arithmeticCorrect ? [] : [powerCalculation.result]),
+    ]),
+    unsupportedClaim: "power calculation",
+  };
+}
+
+function extractPowerMultiplication(segment: string) {
+  const math = normalizeMathForMatching(segment);
+  const match = math.match(
+    /\bpower\s*=\s*([0-9]+)\s*v\s*x\s*([0-9]+)\s*a\s*=\s*([0-9]+)\s*w?\b/i
+  );
+  if (!match) return null;
+  return {
+    left: match[1] ?? "",
+    right: match[2] ?? "",
+    result: match[3] ?? "",
+  };
+}
+
+function hasUnitValue(evidence: string, value: string, unit: string) {
+  const escapedValue = value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const escapedUnit = unit.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  return new RegExp(`(^|[^a-z0-9])${escapedValue}\\s*${escapedUnit}([^a-z0-9]|$)`, "i").test(
+    evidence
   );
 }
 
