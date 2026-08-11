@@ -478,7 +478,7 @@ function computeSelectedHoldoutSplitHash(cases: GroundedEvaluationCase[]) {
   return null;
 }
 
-function enforceHoldoutGuard(
+async function enforceHoldoutGuard(
   options: RuntimeGroundedEvaluationOptions,
   fixtureHash: string,
   splitHash: string | null,
@@ -490,11 +490,10 @@ function enforceHoldoutGuard(
     if (!splitHash) {
       throw new Error("holdout_v3 split hash could not be computed.");
     }
-    assertHoldoutV3FrozenRuntimeConfig(buildFrozenConfig());
     if (options.split !== HOLDOUT_V3_SPLIT && !options.allowConsumedHoldoutDiagnostic) {
       throw new Error("holdout_v3 must be executed explicitly, not through a mixed split.");
     }
-    return assertHoldoutV3AcceptanceRunAllowed({
+    await assertHoldoutV3AcceptanceRunAllowed({
       confirmSplitHash: options.confirmHoldoutFixtureHash,
       computedSplitHash: splitHash,
       allowDiagnostic: options.allowConsumedHoldoutDiagnostic,
@@ -502,16 +501,19 @@ function enforceHoldoutGuard(
       maxCases: options.maxCases,
       reportDir: options.reportDir,
     });
+    if (!options.allowConsumedHoldoutDiagnostic) {
+      assertHoldoutV3FrozenRuntimeConfig(buildFrozenConfig());
+    }
+    return;
   }
   if (includesHoldoutV4) {
     if (!splitHash) {
       throw new Error("holdout_v4 split hash could not be computed.");
     }
-    assertHoldoutV4FrozenRuntimeConfig(buildFrozenConfig());
     if (options.split !== HOLDOUT_V4_SPLIT && !options.allowConsumedHoldoutDiagnostic) {
       throw new Error("holdout_v4 must be executed explicitly, not through a mixed split.");
     }
-    return assertHoldoutV4AcceptanceRunAllowed({
+    await assertHoldoutV4AcceptanceRunAllowed({
       confirmSplitHash: options.confirmHoldoutFixtureHash,
       computedSplitHash: splitHash,
       allowDiagnostic: options.allowConsumedHoldoutDiagnostic,
@@ -519,6 +521,10 @@ function enforceHoldoutGuard(
       maxCases: options.maxCases,
       reportDir: options.reportDir,
     });
+    if (!options.allowConsumedHoldoutDiagnostic) {
+      assertHoldoutV4FrozenRuntimeConfig(buildFrozenConfig());
+    }
+    return;
   }
 
   if (options.split !== "holdout" && options.split !== "holdout_v2") return;
