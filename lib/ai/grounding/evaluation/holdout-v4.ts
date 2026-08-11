@@ -269,7 +269,10 @@ export function analyzeHoldoutV4Contamination(input: {
   testCorpus?: string;
 }) {
   const holdoutCases = selectHoldoutV4Cases(input.cases);
-  const otherCases = input.cases.filter((item) => item.split !== HOLDOUT_V4_SPLIT);
+  const otherCases = input.cases.filter(
+    (item) =>
+      item.split !== HOLDOUT_V4_SPLIT && item.split !== "adversarial_safety"
+  );
   const holdoutResourceIds = collectHoldoutV4ResourceIds(holdoutCases);
   const holdoutResources = input.resources.filter((item) =>
     holdoutResourceIds.has(item.id)
