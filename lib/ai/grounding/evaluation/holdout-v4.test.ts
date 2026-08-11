@@ -193,6 +193,7 @@ describe("Stage 4 holdout_v4 preparation", () => {
     const report = await runRuntimeGroundedEvaluationPreflight({
       split: HOLDOUT_V4_SPLIT,
       confirmHoldoutFixtureHash: HOLDOUT_V4_HASH,
+      allowConsumedHoldoutDiagnostic: true,
       reportDir,
     });
 
