@@ -239,7 +239,10 @@ export function analyzeHoldoutV3Contamination(input: {
 }) {
   const holdoutCases = selectHoldoutV3Cases(input.cases);
   const otherCases = input.cases.filter(
-    (item) => item.split !== HOLDOUT_V3_SPLIT && item.split !== "holdout_v4"
+    (item) =>
+      item.split !== HOLDOUT_V3_SPLIT &&
+      item.split !== "holdout_v4" &&
+      item.split !== "adversarial_safety"
   );
   const findings: HoldoutV3ContaminationFinding[] = [];
 
