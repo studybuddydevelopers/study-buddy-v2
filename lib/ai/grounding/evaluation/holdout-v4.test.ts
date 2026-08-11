@@ -85,18 +85,19 @@ describe("Stage 4 holdout_v4 preparation", () => {
 
   it("resolves exact holdout_v4 resource scope without extra resources", () => {
     const holdoutCases = holdoutV4Cases();
+    const holdoutV4ResourceUniverse = resourcesThroughHoldoutV4();
     const resolved = resolveEvaluationResourcesForSplit(
       holdoutCases,
-      groundedEvaluationResources
+      holdoutV4ResourceUniverse
     );
     const scope = buildEvaluationResourceScope({
       split: HOLDOUT_V4_SPLIT,
       cases: holdoutCases,
-      allResources: groundedEvaluationResources,
+      allResources: holdoutV4ResourceUniverse,
       resolvedResources: resolved,
     });
 
-    expect(groundedEvaluationResources).toHaveLength(99);
+    expect(holdoutV4ResourceUniverse).toHaveLength(99);
     expect(scope.selectedCaseCount).toBe(28);
     expect(scope.referencedResourceCount).toBe(26);
     expect(scope.seededResourceCount).toBe(26);
@@ -396,6 +397,21 @@ describe("Stage 4 holdout_v4 preparation", () => {
 
 function holdoutV4Cases() {
   return groundedEvaluationCases.filter((item) => item.split === HOLDOUT_V4_SPLIT);
+}
+
+function resourcesThroughHoldoutV4() {
+  const adversarialResourceIds = new Set(
+    groundedEvaluationCases
+      .filter((item) => item.split === "adversarial_safety")
+      .flatMap((item) => [
+        ...(item.expectedResourceIds ?? []),
+        ...(item.setupResourceIds ?? []),
+      ])
+  );
+
+  return groundedEvaluationResources.filter(
+    (item) => !adversarialResourceIds.has(item.id)
+  );
 }
 
 async function fileExists(filePath: string) {
