@@ -235,7 +235,7 @@ Implemented behind `AI_GROUNDED_CHAT_ENABLED=false` by default:
 
 Stage 4 still does not add HINT, SOLVE, MARK, public web search, external browsing, unrestricted fallback, or official WAEC marking claims.
 
-Current Stage 4 validation status: `DO_NOT_ENABLE`. The immutable v1.1 development baseline had 20 cases, structured-output success `0.75`, answerability accuracy `0.40`, correct refusal rate `1.00`, unsupported no-evidence answers `0`, and invalid citation rate `0`. The consumed v1.2 holdout failed with fixture hash `61c3388984531ecddbe10d30a4c6926250b971f1061736f2fe31882c9d6d22fc` and remains permanently `DO_NOT_ENABLE`. The consumed v1.3 `holdout_v2` run with fixture hash `1e792aa96ab304f0495120d4b7ead4ff71d059592f2322e52c4e8216037de768` passed automated gates, but manual answer review was not possible because the old report did not retain answer text. The v1.3 `manual_quality` run with fixture hash `ef220918c1688d741378774176255d3f8ffe7093b8c809c0d65cc56f255a296d` and report hash `d915160f1adea981122ffc1323f1b7ab4cbefe936c78ba5835eeff0a69bf5811` failed manual review because of unsupported elaboration and false short-definition refusals. The v1.5 manual-quality run passed manual review (`20 PASS`, `1 PASS_WITH_MINOR_OMISSION`, `0 FAIL`). Fresh `holdout_v3` is prepared but not executed; its split hash is `11f51f4ac9459de796f28a76d79011f983fe929edcca17e006fbb045646ebcb1` and it must be run only once with explicit hash confirmation.
+Current Stage 4 validation status: `DO_NOT_ENABLE`. The immutable v1.1 development baseline had 20 cases, structured-output success `0.75`, answerability accuracy `0.40`, correct refusal rate `1.00`, unsupported no-evidence answers `0`, and invalid citation rate `0`. The consumed v1.2 holdout failed with fixture hash `61c3388984531ecddbe10d30a4c6926250b971f1061736f2fe31882c9d6d22fc` and remains permanently `DO_NOT_ENABLE`. The consumed v1.3 `holdout_v2` run with fixture hash `1e792aa96ab304f0495120d4b7ead4ff71d059592f2322e52c4e8216037de768` passed automated gates, but manual answer review was not possible because the old report did not retain answer text. The v1.3 `manual_quality` run with fixture hash `ef220918c1688d741378774176255d3f8ffe7093b8c809c0d65cc56f255a296d` and report hash `d915160f1adea981122ffc1323f1b7ab4cbefe936c78ba5835eeff0a69bf5811` failed manual review because of unsupported elaboration and false short-definition refusals. The v1.5 manual-quality run passed manual review (`20 PASS`, `1 PASS_WITH_MINOR_OMISSION`, `0 FAIL`). `holdout_v3` is consumed by a preserved acceptance-harness failure (`RetrievalError: Topic must belong to the selected subject`, split hash `11f51f4ac9459de796f28a76d79011f983fe929edcca17e006fbb045646ebcb1`) and must never be reused as an unbiased acceptance split. Fresh `holdout_v4` is prepared but not executed; its split hash is `7158403b7a60d6e6037a4ead7eae751d80e57b446d9b72ea27ef21df9f9cf5cf`, with 28 cases, 14 supported cases, 14 insufficient-context cases, 26 scoped resources, and 4 metadata-only topics.
 
 Do not enable `AI_GROUNDED_CHAT_ENABLED=true` in production until the development and holdout grounding evaluations pass. Details and rollback: [`docs/GROUNDED_CHAT_STAGE_4.md`](/Users/efeon/study-buddy-v2/docs/GROUNDED_CHAT_STAGE_4.md).
 
@@ -245,9 +245,10 @@ Grounding evaluation command:
 npm run ai:evaluate-grounding -- --split=development
 npm run ai:evaluate-grounding -- --split=regression
 npm run ai:evaluate-grounding -- --split=manual_quality --write-report --report-format=both
-# Do not run until explicitly approved:
-npm run ai:evaluate-grounding -- --split=holdout_v3 --dry-run --confirm-holdout-fixture-hash=11f51f4ac9459de796f28a76d79011f983fe929edcca17e006fbb045646ebcb1
-npm run ai:evaluate-grounding -- --split=holdout_v3 --confirm-holdout-fixture-hash=11f51f4ac9459de796f28a76d79011f983fe929edcca17e006fbb045646ebcb1 --write-report --report-format=both
+# Provider-free v4 topology check; it must not call OpenAI:
+npm run ai:evaluate-grounding -- --split=holdout_v4 --dry-run --confirm-holdout-fixture-hash=7158403b7a60d6e6037a4ead7eae751d80e57b446d9b72ea27ef21df9f9cf5cf
+# Do not run until explicitly approved for the one allowed v4 acceptance attempt:
+npm run ai:evaluate-grounding -- --split=holdout_v4 --confirm-holdout-fixture-hash=7158403b7a60d6e6037a4ead7eae751d80e57b446d9b72ea27ef21df9f9cf5cf --write-report --report-format=both
 ```
 
 Review reports are written to ignored local `.grounded-evaluation-reports/`
