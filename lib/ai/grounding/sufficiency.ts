@@ -12,6 +12,7 @@ export type SufficiencyReason =
   | "RESOURCE_CONFLICT"
   | "USER_INSTRUCTION_CONFLICT"
   | "REQUIRED_INPUT_MISSING"
+  | "REQUIRED_SYMBOL_DEFINITION_MISSING"
   | "REQUIRED_CONCEPT_MISSING"
   | "CONCEPT_MISMATCH";
 
@@ -165,7 +166,7 @@ export function evaluateRetrievalSufficiency(
   }
 
   if (hasMissingRequestedSymbolDefinition(input.query, selected)) {
-    return insufficient("LOW_RELEVANCE", "LOW", selected);
+    return insufficient("REQUIRED_SYMBOL_DEFINITION_MISSING", "LOW", selected);
   }
 
   if (hasStructuredConflict(input.query, selected)) {
@@ -721,6 +722,9 @@ function hasRequiredFormulaInputGap(query: string, chunks: RetrievedChunk[]) {
   return FORMULA_INPUT_RULES.some((rule) => {
     if (!rule.queryPatterns.some((pattern) => pattern.test(query))) return false;
     if (rule.requiresFormulaWhen && !rule.requiresFormulaWhen.test(query)) return false;
+    if (rule.id === "simple_interest") {
+      return !simpleInterestRequirementsSupported(query, chunks);
+    }
     return rule.requirements.some(
       (requirement) => !requirementSupported(requirement, evidence)
     );
@@ -732,10 +736,164 @@ function hasCompleteFormulaSupport(query: string, chunks: RetrievedChunk[]) {
   return FORMULA_INPUT_RULES.some((rule) => {
     if (!rule.queryPatterns.some((pattern) => pattern.test(query))) return false;
     if (rule.requiresFormulaWhen && !rule.requiresFormulaWhen.test(query)) return false;
+    if (rule.id === "simple_interest") {
+      return simpleInterestRequirementsSupported(query, chunks);
+    }
     return rule.requirements.every((requirement) =>
       requirementSupported(requirement, evidence)
     );
   });
+}
+
+function simpleInterestRequirementsSupported(
+  query: string,
+  chunks: RetrievedChunk[]
+) {
+  const scopedChunks = scopeSimpleInterestEvidence(query, chunks);
+  const support = scopedChunks.reduce(
+    (current, chunk) => mergeSimpleInterestSupport(current, extractSimpleInterestSupport(chunk.content)),
+    emptySimpleInterestSupport()
+  );
+  const requiresCalculation = /\b(?:calculate|calculation|work out|find)\b/i.test(query);
+  const principal = requiresCalculation ? support.principalValue : support.principal;
+  const rate = requiresCalculation ? support.rateValue : support.rate;
+  const time = requiresCalculation ? support.timeValue : support.time;
+
+  return support.formula && principal && rate && time;
+}
+
+function scopeSimpleInterestEvidence(query: string, chunks: RetrievedChunk[]) {
+  const topChunk = chunks[0];
+  if (
+    topChunk &&
+    /\bthis\s+(?:card|source|note|resource)\b/i.test(query) &&
+    hasSimpleInterestInputOmission(topChunk.content)
+  ) {
+    return [topChunk];
+  }
+
+  return chunks;
+}
+
+function hasSimpleInterestInputOmission(evidence: string) {
+  return [
+    /\bomits?\s+(?:the\s+)?time\b/i,
+    /\bwithout\s+(?:the\s+)?time\b/i,
+    /\bdoes\s+not\s+state\s+(?:the\s+)?(?:full|complete)?\s*calculation\s+formula\b/i,
+    /\bomits?\s+(?:the\s+)?(?:full|complete)?\s*formula\b/i,
+    /\bprincipal\s+and\s+rate\s+only\b/i,
+  ].some((pattern) => pattern.test(evidence));
+}
+
+interface SimpleInterestSupport {
+  formula: boolean;
+  principal: boolean;
+  principalValue: boolean;
+  rate: boolean;
+  rateValue: boolean;
+  time: boolean;
+  timeValue: boolean;
+}
+
+function emptySimpleInterestSupport(): SimpleInterestSupport {
+  return {
+    formula: false,
+    principal: false,
+    principalValue: false,
+    rate: false,
+    rateValue: false,
+    time: false,
+    timeValue: false,
+  };
+}
+
+function mergeSimpleInterestSupport(
+  left: SimpleInterestSupport,
+  right: SimpleInterestSupport
+): SimpleInterestSupport {
+  return {
+    formula: left.formula || right.formula,
+    principal: left.principal || right.principal,
+    principalValue: left.principalValue || right.principalValue,
+    rate: left.rate || right.rate,
+    rateValue: left.rateValue || right.rateValue,
+    time: left.time || right.time,
+    timeValue: left.timeValue || right.timeValue,
+  };
+}
+
+function extractSimpleInterestSupport(evidence: string): SimpleInterestSupport {
+  const text = normalizeForConceptMatching(evidence);
+  const mathText = normalizeMathClaim(evidence);
+  const principalValue = hasPrincipalValue(text, mathText);
+  const rateValue = hasRateValue(text, mathText);
+  const timeValue = hasTimeValue(text, mathText);
+
+  return {
+    formula: hasSimpleInterestFormula(mathText, text),
+    principal: principalValue || hasPrincipalVariableDefinition(text, mathText),
+    principalValue,
+    rate: rateValue || hasRateVariableDefinition(text, mathText),
+    rateValue,
+    time: timeValue || hasTimeVariableDefinition(text, mathText),
+    timeValue,
+  };
+}
+
+const NUMBER_VALUE = String.raw`(?:\d+(?:\.\d+)?|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve)`;
+
+function hasSimpleInterestFormula(mathText: string, text: string) {
+  return (
+    /\bi\s*=\s*p\s*x\s*r\s*x\s*t\s*\/\s*100\b/i.test(mathText) ||
+    /\binterest\s+principal\s+x\s+rate\s+x\s+time\s+\/\s+100\b/i.test(mathText) ||
+    (/\bsimple interest formula\b/i.test(text) &&
+      /\bi\s*=\s*p\s*x\s*r\s*x\s*t\b/i.test(mathText) &&
+      /\/\s*100\b/.test(mathText))
+  );
+}
+
+function hasPrincipalVariableDefinition(text: string, mathText: string) {
+  return (
+    /\bp\s+(?:is|means|represents|denotes)\s+(?:the\s+)?principal\b/i.test(text) ||
+    /\bp\s*=\s*principal\b/i.test(mathText)
+  );
+}
+
+function hasRateVariableDefinition(text: string, mathText: string) {
+  return (
+    /\br\s+(?:is|means|represents|denotes)\s+(?:the\s+)?rate\b/i.test(text) ||
+    /\br\s*=\s*rate\b/i.test(mathText)
+  );
+}
+
+function hasTimeVariableDefinition(text: string, mathText: string) {
+  return (
+    /\bt\s+(?:is|means|represents|denotes)\s+(?:the\s+)?time\b/i.test(text) ||
+    /\bt\s*=\s*time\b/i.test(mathText)
+  );
+}
+
+function hasPrincipalValue(text: string, mathText: string) {
+  return (
+    new RegExp(String.raw`\bp\s*(?:=|is)\s*${NUMBER_VALUE}\b`, "i").test(mathText) ||
+    new RegExp(String.raw`\bprincipal(?:\s+amount)?\s+(?:is|of|=)\s*${NUMBER_VALUE}\b`, "i").test(text)
+  );
+}
+
+function hasRateValue(text: string, mathText: string) {
+  return (
+    new RegExp(String.raw`\br\s*(?:=|is)\s*${NUMBER_VALUE}\s*(?:%|percent|percentage)?\b`, "i").test(mathText) ||
+    new RegExp(String.raw`\brate\s+(?:is|of|=)\s*${NUMBER_VALUE}\s*(?:%|percent|percentage)\b`, "i").test(text)
+  );
+}
+
+function hasTimeValue(text: string, mathText: string) {
+  return (
+    new RegExp(String.raw`\bt\s*(?:=|is)\s*${NUMBER_VALUE}\s*(?:years?|months?)\b`, "i").test(mathText) ||
+    new RegExp(String.raw`\btime\s+(?:is|of|=)\s*${NUMBER_VALUE}\s*(?:years?|months?)\b`, "i").test(text) ||
+    new RegExp(String.raw`\bfor\s+${NUMBER_VALUE}\s*(?:years?|months?)\b`, "i").test(text) ||
+    new RegExp(String.raw`\b${NUMBER_VALUE}\s*(?:years?|months?)\b`, "i").test(text)
+  );
 }
 
 function hasMissingRequestedSymbolDefinition(
@@ -745,18 +903,15 @@ function hasMissingRequestedSymbolDefinition(
   const requestedSymbol = extractRequestedSymbolDefinition(query);
   if (!requestedSymbol) return false;
 
-  const evidence = chunks.map((chunk) => chunk.content).join(" ");
-  const normalizedEvidence = normalizeForConceptMatching(evidence);
+  const evidenceText = chunks.map((chunk) => chunk.content).join(" ");
+  const normalizedEvidence = normalizeForConceptMatching(evidenceText);
   if (!phraseAppears(requestedSymbol, normalizedEvidence)) return true;
 
-  const escaped = requestedSymbol.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-  const definitionPatterns = [
-    new RegExp(`\\b${escaped}\\s+(?:means|represents|stands\\s+for|is)\\s+(?:the\\s+)?[a-z][a-z -]{2,60}\\b`, "i"),
-    new RegExp(`\\bwhere\\s+${escaped}\\s+(?:means|represents|stands\\s+for|is)\\s+(?:the\\s+)?[a-z][a-z -]{2,60}\\b`, "i"),
-    new RegExp(`\\b${escaped}\\s*=\\s*[a-z][a-z -]{2,60}\\b`, "i"),
-  ];
-
-  return !definitionPatterns.some((pattern) => pattern.test(normalizedEvidence));
+  return !chunks.some((chunk) =>
+    splitEvidenceSentences(chunk.content).some((sentence) =>
+      hasPositiveSymbolDefinition(sentence, requestedSymbol)
+    )
+  );
 }
 
 function extractRequestedSymbolDefinition(query: string) {
@@ -776,6 +931,52 @@ function extractRequestedSymbolDefinition(query: string) {
   }
 
   return null;
+}
+
+function splitEvidenceSentences(value: string) {
+  return value
+    .split(/(?<=[.!?])\s+|\n+/)
+    .map((item) => item.trim())
+    .filter(Boolean);
+}
+
+function hasPositiveSymbolDefinition(sentence: string, symbol: string) {
+  const normalized = normalizeSymbolSentence(sentence);
+  if (hasNegatedSymbolDefinition(sentence, symbol)) return false;
+
+  const escaped = symbol.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const term = String.raw`(?!not\b|undefined\b|unexplained\b|missing\b|given\b)[a-z][a-z0-9 /]{1,60}`;
+  const positivePatterns = [
+    new RegExp(String.raw`\b${escaped}\s+(?:means|represents|stands\s+for|denotes|is)\s+(?:the\s+)?${term}\b`, "i"),
+    new RegExp(String.raw`\bwhere\s+${escaped}\s+(?:means|represents|stands\s+for|denotes|is)\s+(?:the\s+)?${term}\b`, "i"),
+    new RegExp(String.raw`\b${escaped}\s*=\s*${term}\b`, "i"),
+  ];
+
+  return positivePatterns.some((pattern) => pattern.test(normalized));
+}
+
+function hasNegatedSymbolDefinition(sentence: string, symbol: string) {
+  const normalized = normalizeSymbolSentence(sentence);
+  const escaped = symbol.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const patterns = [
+    new RegExp(String.raw`\b${escaped}\s+does\s+not\s+(?:mean|represent|stand\s+for|denote)\b`, "i"),
+    new RegExp(String.raw`\b${escaped}\s+(?:is|means|represents|denotes)\s+not\b`, "i"),
+    new RegExp(String.raw`\b${escaped}\s+is\s+not\s+(?:defined|explained|given)\b`, "i"),
+    new RegExp(String.raw`\b(?:does\s+not|doesn't|not)\s+(?:explain|define|give|state)\s+(?:what\s+)?${escaped}\b`, "i"),
+    new RegExp(String.raw`\bmeaning\s+of\s+${escaped}\s+is\s+not\s+(?:given|defined|explained)\b`, "i"),
+  ];
+
+  return patterns.some((pattern) => pattern.test(normalized));
+}
+
+function normalizeSymbolSentence(value: string) {
+  return value
+    .toLowerCase()
+    .normalize("NFKD")
+    .replace(/[×*]/g, "x")
+    .replace(/[^a-z0-9=/%]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
 }
 
 function requirementSupported(
