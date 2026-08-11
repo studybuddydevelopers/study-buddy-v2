@@ -41,14 +41,19 @@ const HIGH_SIGNAL_STOPWORDS = new Set([
   "also",
   "answer",
   "could",
+  "adding",
+  "card",
   "does",
   "explain",
+  "examples",
   "find",
   "from",
   "give",
+  "gives",
   "have",
   "help",
   "ignore",
+  "label",
   "many",
   "mean",
   "memory",
@@ -60,6 +65,7 @@ const HIGH_SIGNAL_STOPWORDS = new Set([
   "relevant",
   "resource",
   "rules",
+  "server",
   "show",
   "simple",
   "source",
@@ -72,12 +78,14 @@ const HIGH_SIGNAL_STOPWORDS = new Set([
   "today",
   "topic",
   "teach",
+  "unrelated",
   "using",
   "used",
   "what",
   "when",
   "where",
   "which",
+  "without",
   "with",
   "year",
 ]);
@@ -154,6 +162,10 @@ export function evaluateRetrievalSufficiency(
 
   if (hasRequiredFormulaInputGap(input.query, selected)) {
     return insufficient("REQUIRED_INPUT_MISSING", "LOW", selected);
+  }
+
+  if (hasMissingRequestedSymbolDefinition(input.query, selected)) {
+    return insufficient("LOW_RELEVANCE", "LOW", selected);
   }
 
   if (hasStructuredConflict(input.query, selected)) {
@@ -344,6 +356,10 @@ function hasDecisiveExactEvidence(chunk: RetrievedChunk) {
   if (chunk.exactSignals.length === 0 || chunk.bestBranchRank > 10) return false;
 
   const signalText = chunk.exactSignals.join(" ");
+  if (/\b(?:expression|unit|phrase):/.test(signalText)) {
+    return true;
+  }
+
   if (
     chunk.chunkType === "FORMULA_REFERENCE" &&
     /\b(?:expression|unit|phrase):/.test(signalText)
@@ -625,11 +641,11 @@ const FORMULA_INPUT_RULES: FormulaInputRule[] = [
     queryPatterns: [/\bsimple interest\b/i, /\binterest formula\b/i],
     requiresFormulaWhen: /\b(?:complete|formula|variables?|calculation|calculate|work out|find)\b/i,
     requirements: [
-      { name: "principal", patterns: [/\bprincipal\b/i] },
-      { name: "rate", patterns: [/\brate\b/i, /\bpercent(?:age)?\b/i] },
+      { name: "principal", patterns: [/\bprincipal\b/i, /\bp\s+is\s+[0-9]/i] },
+      { name: "rate", patterns: [/\brate\b/i, /\br\s+is\s+[0-9]/i, /\bpercent(?:age)?\b/i] },
       {
         name: "time",
-        patterns: [/\btime\b/i, /\bperiod\b/i],
+        patterns: [/\btime\b/i, /\bperiod\b/i, /\bt\s+is\s+[0-9]/i, /\b[0-9]+\s+years?\b/i],
         negationPatterns: [/\bomits?\s+(?:the\s+)?time\b/i, /\bwithout\s+(?:the\s+)?time\b/i],
       },
       {
@@ -720,6 +736,46 @@ function hasCompleteFormulaSupport(query: string, chunks: RetrievedChunk[]) {
       requirementSupported(requirement, evidence)
     );
   });
+}
+
+function hasMissingRequestedSymbolDefinition(
+  query: string,
+  chunks: RetrievedChunk[]
+) {
+  const requestedSymbol = extractRequestedSymbolDefinition(query);
+  if (!requestedSymbol) return false;
+
+  const evidence = chunks.map((chunk) => chunk.content).join(" ");
+  const normalizedEvidence = normalizeForConceptMatching(evidence);
+  if (!phraseAppears(requestedSymbol, normalizedEvidence)) return true;
+
+  const escaped = requestedSymbol.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const definitionPatterns = [
+    new RegExp(`\\b${escaped}\\s+(?:means|represents|stands\\s+for|is)\\s+(?:the\\s+)?[a-z][a-z -]{2,60}\\b`, "i"),
+    new RegExp(`\\bwhere\\s+${escaped}\\s+(?:means|represents|stands\\s+for|is)\\s+(?:the\\s+)?[a-z][a-z -]{2,60}\\b`, "i"),
+    new RegExp(`\\b${escaped}\\s*=\\s*[a-z][a-z -]{2,60}\\b`, "i"),
+  ];
+
+  return !definitionPatterns.some((pattern) => pattern.test(normalizedEvidence));
+}
+
+function extractRequestedSymbolDefinition(query: string) {
+  const normalized = normalizeForConceptMatching(
+    normalizeQueryForTermCoverage(query)
+  );
+  const patterns = [
+    /\bwhat\s+does\s+([a-z])\s+(?:mean|represent|stand\s+for)\b/i,
+    /\bdefine\s+([a-z])\b/i,
+    /\b([a-z])\s+(?:mean|represent|stand\s+for)\b/i,
+  ];
+
+  for (const pattern of patterns) {
+    const match = normalized.match(pattern);
+    const symbol = match?.[1];
+    if (symbol && !HIGH_SIGNAL_STOPWORDS.has(symbol)) return symbol;
+  }
+
+  return null;
 }
 
 function requirementSupported(
