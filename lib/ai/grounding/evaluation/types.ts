@@ -5,7 +5,8 @@ export type GroundedEvaluationSplit =
   | "holdout_v2"
   | "manual_quality"
   | "holdout_v3"
-  | "holdout_v4";
+  | "holdout_v4"
+  | "adversarial_safety";
 
 export interface GroundedEvaluationResource {
   id: string;
