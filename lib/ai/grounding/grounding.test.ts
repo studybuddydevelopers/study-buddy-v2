@@ -540,6 +540,131 @@ describe("Stage 4 grounding primitives", () => {
     expect(result.reason).toBe("SUPPORTED");
   });
 
+  it("does not let a partial simple-interest decoy poison complete P/R/T evidence", () => {
+    const partial = chunk({
+      content:
+        "Simple interest reminder card: the principal is 600 and the rate is 5 percent. This card names principal and rate only; it omits the time period and does not state the complete calculation formula.",
+      chunkType: ResourceChunkType.FORMULA_REFERENCE,
+      keywordScore: 0.2,
+      vectorDistance: 0.3,
+      fusionScore: 0.03,
+      bestBranchRank: 2,
+    });
+    const complete = chunk({
+      content:
+        "Simple interest formula: I = P x R x T / 100. For the loan example, P is 600, R is 5 percent, and T is 2 years, so I = 600 x 5 x 2 / 100 = 60.",
+      chunkType: ResourceChunkType.WORKED_SOLUTION,
+      keywordScore: 0.4,
+      vectorDistance: 0.2,
+      fusionScore: 0.05,
+      bestBranchRank: 1,
+    });
+
+    const result = evaluateRetrievalSufficiency({
+      query: "Use the loan card to calculate the simple interest and name the variables.",
+      candidates: [complete, partial],
+      selectedChunks: [complete, partial],
+    });
+
+    expect(result.sufficient).toBe(true);
+    expect(result.reason).toBe("SUPPORTED");
+  });
+
+  it("does not borrow a lower-ranked complete card for a top-ranked incomplete 'this card' request", () => {
+    const partial = chunk({
+      content:
+        "Simple interest reminder card: the principal is 600 and the rate is 5 percent. This card names principal and rate only; it omits the time period and does not state the complete calculation formula.",
+      chunkType: ResourceChunkType.FORMULA_REFERENCE,
+      keywordScore: 0.4,
+      vectorDistance: 0.2,
+      fusionScore: 0.05,
+      bestBranchRank: 1,
+    });
+    const complete = chunk({
+      content:
+        "Simple interest formula: I = P x R x T / 100. For the loan example, P is 600, R is 5 percent, and T is 2 years, so I = 600 x 5 x 2 / 100 = 60.",
+      chunkType: ResourceChunkType.WORKED_SOLUTION,
+      keywordScore: 0.2,
+      vectorDistance: 0.3,
+      fusionScore: 0.03,
+      bestBranchRank: 2,
+    });
+
+    const result = evaluateRetrievalSufficiency({
+      query: "State the simple interest formula using principal, rate, and time for this card.",
+      candidates: [partial, complete],
+      selectedChunks: [partial, complete],
+    });
+
+    expect(result.sufficient).toBe(false);
+    expect(result.reason).toBe("REQUIRED_INPUT_MISSING");
+  });
+
+  it.each([
+    {
+      name: "all inputs present",
+      content:
+        "Simple interest formula: I = P x R x T / 100. The principal is 600, the rate is 5 percent, and the time is 2 years.",
+      sufficient: true,
+    },
+    {
+      name: "principal missing",
+      content:
+        "Simple interest formula: I = P x R x T / 100. The rate is 5 percent and the time is 2 years.",
+      sufficient: false,
+    },
+    {
+      name: "rate missing",
+      content:
+        "Simple interest formula: I = P x R x T / 100. The principal is 600 and the time is 2 years.",
+      sufficient: false,
+    },
+    {
+      name: "time missing",
+      content:
+        "Simple interest formula: I = P x R x T / 100. The principal is 600 and the rate is 5 percent.",
+      sufficient: false,
+    },
+    {
+      name: "symbolic assignments",
+      content:
+        "Simple interest formula: I = P x R x T / 100. P = 600, R = 4%, and T = 3 years.",
+      sufficient: true,
+    },
+    {
+      name: "prose assignments",
+      content:
+        "Simple interest formula: I = P x R x T / 100. The principal is 600, the rate is 5 percent, and the time is three years.",
+      sufficient: true,
+    },
+    {
+      name: "for year notation",
+      content:
+        "Simple interest formula: I = P x R x T / 100. Principal is 600, rate is 5 percent, for 3 years.",
+      sufficient: true,
+    },
+  ])("handles simple-interest required inputs: $name", ({ content, sufficient }) => {
+    const evidence = [
+      chunk({
+        content,
+        chunkType: ResourceChunkType.WORKED_SOLUTION,
+        keywordScore: 0.4,
+        vectorDistance: 0.2,
+        fusionScore: 0.05,
+        bestBranchRank: 1,
+      }),
+    ];
+
+    const result = evaluateRetrievalSufficiency({
+      query: "Calculate the simple interest using the card.",
+      candidates: evidence,
+      selectedChunks: evidence,
+    });
+
+    expect(result.sufficient).toBe(sufficient);
+    expect(result.reason).toBe(sufficient ? "SUPPORTED" : "REQUIRED_INPUT_MISSING");
+  });
+
   it("treats resource-side hostile instructions as inert and insufficient", () => {
     const hostile = [
       chunk({
@@ -604,7 +729,98 @@ describe("Stage 4 grounding primitives", () => {
     });
 
     expect(result.sufficient).toBe(false);
-    expect(result.reason).toBe("LOW_RELEVANCE");
+    expect(result.reason).toBe("REQUIRED_SYMBOL_DEFINITION_MISSING");
+  });
+
+  it.each([
+    {
+      name: "represents",
+      content: "In the circle boundary shortcut C = pi x q, q represents charge.",
+      sufficient: true,
+    },
+    {
+      name: "denotes",
+      content: "In the circle boundary shortcut C = pi x q, q denotes charge.",
+      sufficient: true,
+    },
+    {
+      name: "equals",
+      content: "In the circle boundary shortcut C = pi x q, q = charge.",
+      sufficient: true,
+    },
+    {
+      name: "not defined",
+      content: "The circle boundary shortcut is C = pi x q. Here q is not defined.",
+      sufficient: false,
+    },
+    {
+      name: "does not explain",
+      content: "The circle boundary shortcut is C = pi x q. This source does not explain q.",
+      sufficient: false,
+    },
+    {
+      name: "negated definition",
+      content: "The circle boundary shortcut is C = pi x q. q does not represent current.",
+      sufficient: false,
+    },
+    {
+      name: "adjacent unrelated q mention",
+      content:
+        "The circle boundary shortcut is C = pi x q. Question q appears in a separate note about letters.",
+      sufficient: false,
+    },
+  ])("handles symbol definition support: $name", ({ content, sufficient }) => {
+    const evidence = [
+      chunk({
+        content,
+        chunkType: ResourceChunkType.FORMULA_REFERENCE,
+        keywordScore: 0.4,
+        vectorDistance: 0.2,
+        fusionScore: 0.05,
+        bestBranchRank: 1,
+      }),
+    ];
+
+    const result = evaluateRetrievalSufficiency({
+      query: "What does q mean in the circle boundary shortcut?",
+      candidates: evidence,
+      selectedChunks: evidence,
+    });
+
+    expect(result.sufficient).toBe(sufficient);
+    expect(result.reason).toBe(
+      sufficient ? "SUPPORTED" : "REQUIRED_SYMBOL_DEFINITION_MISSING"
+    );
+  });
+
+  it("does not create symbol-definition support across chunk boundaries", () => {
+    const undefinedSymbol = chunk({
+      content:
+        "A circle boundary shortcut may be written as C = pi x q. This card does not explain what q represents.",
+      chunkType: ResourceChunkType.FORMULA_REFERENCE,
+      keywordScore: 0.4,
+      vectorDistance: 0.2,
+      fusionScore: 0.05,
+      bestBranchRank: 1,
+    });
+    const adjacentCircleFact = chunk({
+      content:
+        "The area of a circle is pi times radius squared: A = pi r^2. The radius is the distance from the centre to the edge.",
+      chunkType: ResourceChunkType.FORMULA_REFERENCE,
+      keywordScore: 0.2,
+      vectorDistance: 0.3,
+      fusionScore: 0.03,
+      bestBranchRank: 2,
+    });
+
+    const result = evaluateRetrievalSufficiency({
+      query: "What does q mean in the circle boundary shortcut?",
+      candidates: [undefinedSymbol, adjacentCircleFact],
+      selectedChunks: [undefinedSymbol, adjacentCircleFact],
+    });
+
+    expect(result.sufficient).toBe(false);
+    expect(result.reason).toBe("REQUIRED_SYMBOL_DEFINITION_MISSING");
   });
 
   it("does not refuse exact ratio simplification evidence because of instruction wording", () => {
@@ -1691,6 +1907,53 @@ describe("Stage 4 grounding primitives", () => {
     });
 
     expect(report.forbiddenClaimRate).toBe(0);
+  });
+
+  it("normalizes circle exponent notation for evaluator-only required fact matching", async () => {
+    const report = await runGroundedEvaluation({
+      cases: [
+        {
+          id: "circle-fact-coverage",
+          split: "regression",
+          messages: [{ role: "USER", content: "Explain circle area." }],
+          shouldAnswer: true,
+          requiredFacts: ["pi", "radius", "squared"],
+        },
+      ],
+      answerCase: async () => ({
+        answer: "The area formula is A = pi r^2, where r is the radius. [SOURCE_1]",
+        insufficientContext: false,
+        citations: [{ sourceLabel: "SOURCE_1" }],
+      }),
+    });
+
+    expect(report.requiredFactCoverage).toBe(1);
+
+    const reviewCase = buildReviewCase({
+      evaluationCase: {
+        id: "circle-review",
+        split: "regression",
+        messages: [{ role: "USER", content: "Explain circle area." }],
+        shouldAnswer: true,
+        requiredFacts: ["pi", "radius", "squared"],
+      },
+      actualClassification: "SUPPORTED",
+      generatedAnswerText:
+        "The area formula is A = pi r^2, where r is the radius. [SOURCE_1]",
+      citations: [{ sourceLabel: "SOURCE_1" }],
+      citedExcerpts: [],
+      versions: {
+        prompt: "grounded-teach-prompt-v1.6",
+        grounding: "stage4-grounded-teach-v1",
+        sufficiency: "sufficiency-policy-v1.7",
+      },
+    });
+
+    expect(reviewCase.detectedRequiredFacts).toEqual([
+      "pi",
+      "radius",
+      "squared",
+    ]);
   });
 
   it("builds review reports with retained answers, bounded excerpts, and tamper hashes", () => {
