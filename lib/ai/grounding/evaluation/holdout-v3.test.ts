@@ -375,12 +375,17 @@ describe("Stage 4 holdout_v3 preparation", () => {
       allowConsumedHoldoutDiagnostic: true,
       reportDir,
     });
+    const diagnosticResourceUniverse = resourcesExcludingSplit("holdout_v4");
 
     expect(report.dryRun).toBe(true);
     expect(report.resourceScope.selectedCaseCount).toBe(28);
-    expect(report.resourceScope.globalResourceCount).toBe(73);
+    expect(report.resourceScope.globalResourceCount).toBe(
+      diagnosticResourceUniverse.length
+    );
     expect(report.resourceScope.seededResourceCount).toBe(25);
-    expect(report.resourceScope.unreferencedResourceCount).toBe(48);
+    expect(report.resourceScope.unreferencedResourceCount).toBe(
+      diagnosticResourceUniverse.length - 25
+    );
     expect(report.resourceScope.extraResourceCount).toBe(0);
     expect(report.resourceScope.referencedChunkCount).toBe(25);
     expect(report.resourceScope.embeddedChunkCount).toBe(25);
@@ -693,7 +698,10 @@ function readApplicationTestCorpus() {
 function historicalResourcesThroughHoldoutV3() {
   const holdoutV4ResourceIds = new Set(
     groundedEvaluationCases
-      .filter((item) => item.split === "holdout_v4")
+      .filter(
+        (item) =>
+          item.split === "holdout_v4" || item.split === "adversarial_safety"
+      )
       .flatMap((item) => [
         ...(item.expectedResourceIds ?? []),
         ...(item.setupResourceIds ?? []),
@@ -703,4 +711,17 @@ function historicalResourcesThroughHoldoutV3() {
   return groundedEvaluationResources.filter(
     (item) => !holdoutV4ResourceIds.has(item.id)
   );
+}
+
+function resourcesExcludingSplit(split: GroundedEvaluationCase["split"]) {
+  const resourceIds = new Set(
+    groundedEvaluationCases
+      .filter((item) => item.split === split)
+      .flatMap((item) => [
+        ...(item.expectedResourceIds ?? []),
+        ...(item.setupResourceIds ?? []),
+      ])
+  );
+
+  return groundedEvaluationResources.filter((item) => !resourceIds.has(item.id));
 }
