@@ -1194,6 +1194,43 @@ describe("ChatService Stage 1 lifecycle", () => {
     expect(repairMessage).not.toContain("api key");
   });
 
+  it("keeps malformed structured repair as provider failure instead of insufficiency", async () => {
+    const db = new InMemoryChatDb();
+    const provider = new StructuredSequenceProvider([], [
+      {
+        value: { answer: "not the required shape" },
+        provider: "fake",
+        model: "fake-structured",
+      },
+      {
+        value: { answer: "still not the required shape" },
+        provider: "fake",
+        model: "fake-structured",
+      },
+    ]);
+    const service = new ChatService(db as never, provider, {
+      groundedChatEnabled: true,
+      groundingService: new GroundedGenerationService({
+        searchRepository: new FakeSearchRepository([retrievedChunk()]),
+      }),
+    });
+    db.seedChat({ id: "chat-1", userId: "user-a" });
+
+    const result = await service.sendMessage("user-a", "chat-1", {
+      message: "Explain ratios",
+      clientRequestId: "request-malformed-structured-repair",
+    });
+
+    expect(provider.structuredInvocations).toBe(2);
+    expect(result.request.status).toBe(AiGenerationRequestStatus.FAILED);
+    expect(result.request.failureCode).toBe(
+      AiGenerationFailureCode.INVALID_PROVIDER_RESPONSE
+    );
+    expect(result.assistantMessage.status).toBe(AiChatMessageStatus.FAILED);
+    expect(result.assistantMessage.content).toBe("");
+    expect(result.assistantMessage.grounding).toBeNull();
+  });
+
   it("repairs unsupported grounded segments without persisting the unsupported text", async () => {
     const db = new InMemoryChatDb();
     const provider = new StructuredSequenceProvider([], [
