@@ -11,6 +11,7 @@ export type SufficiencyReason =
   | "MISSING_REQUIRED_SOURCE_TYPE"
   | "RESOURCE_CONFLICT"
   | "USER_INSTRUCTION_CONFLICT"
+  | "REQUIRED_INPUT_MISSING"
   | "REQUIRED_CONCEPT_MISSING"
   | "CONCEPT_MISMATCH";
 
@@ -147,8 +148,26 @@ export function evaluateRetrievalSufficiency(
     return insufficient(compatibility.reason, "LOW", selected);
   }
 
+  if (hasResourceInstructionConflict(input.query, selected)) {
+    return insufficient("USER_INSTRUCTION_CONFLICT", "LOW", selected);
+  }
+
+  if (hasRequiredFormulaInputGap(input.query, selected)) {
+    return insufficient("REQUIRED_INPUT_MISSING", "LOW", selected);
+  }
+
   if (hasStructuredConflict(input.query, selected)) {
     return insufficient("RESOURCE_CONFLICT", "LOW", selected);
+  }
+
+  if (hasCompleteFormulaSupport(input.query, selected)) {
+    return {
+      sufficient: true,
+      confidence: "HIGH",
+      reason: "SUPPORTED",
+      selectedChunks: selected,
+      policyVersion: SUFFICIENCY_POLICY_VERSION,
+    };
   }
 
   if (hasDirectShortDefinitionSupport(input.query, selected)) {
@@ -447,6 +466,13 @@ function matchesFilters(
 }
 
 function hasStructuredConflict(query: string, chunks: RetrievedChunk[]) {
+  if (hasAnswerKeyConflict(query, chunks)) return true;
+  if (hasDefinitionConflict(query, chunks)) return true;
+  if (hasFormulaConflict(query, chunks)) return true;
+  return false;
+}
+
+function hasAnswerKeyConflict(query: string, chunks: RetrievedChunk[]) {
   const requestedQuestionNumbers = extractRequestedQuestionNumbers(query);
   if (requestedQuestionNumbers.size === 0) return false;
 
@@ -462,6 +488,290 @@ function hasStructuredConflict(query: string, chunks: RetrievedChunk[]) {
     answerByQuestion.set(key, answer);
   }
   return false;
+}
+
+function hasDefinitionConflict(query: string, chunks: RetrievedChunk[]) {
+  if (!/\b(?:define|definition|meaning|mean|means|refers to)\b/i.test(query)) {
+    return false;
+  }
+
+  const claims = chunks.flatMap((chunk) => extractDefinitionClaims(chunk.content));
+  return hasConflictingClaims(claims);
+}
+
+function hasFormulaConflict(query: string, chunks: RetrievedChunk[]) {
+  if (!/\b(?:formula|calculate|calculated|calculation|work out|find)\b/i.test(query)) {
+    return false;
+  }
+
+  const claims = chunks.flatMap((chunk) => extractFormulaClaims(chunk.content));
+  return hasConflictingClaims(claims);
+}
+
+function hasConflictingClaims(claims: Array<{ subject: string; object: string }>) {
+  for (let firstIndex = 0; firstIndex < claims.length; firstIndex += 1) {
+    for (let secondIndex = firstIndex + 1; secondIndex < claims.length; secondIndex += 1) {
+      const first = claims[firstIndex]!;
+      const second = claims[secondIndex]!;
+      if (first.subject !== second.subject) continue;
+      if (!claimObjectsConflict(first.object, second.object)) continue;
+      return true;
+    }
+  }
+
+  return false;
+}
+
+function claimObjectsConflict(first: string, second: string) {
+  if (hasMathOperator(first) || hasMathOperator(second)) {
+    return normalizeMathClaim(first) !== normalizeMathClaim(second);
+  }
+
+  const firstTokens = tokenSet(first);
+  const secondTokens = tokenSet(second);
+  if (firstTokens.size === 0 || secondTokens.size === 0) return false;
+  const overlap = Array.from(firstTokens).filter((item) => secondTokens.has(item));
+  const union = new Set([...firstTokens, ...secondTokens]);
+  if (overlap.length / union.size >= 0.65) return false;
+  if (overlap.length >= Math.min(firstTokens.size, secondTokens.size) - 1) return false;
+  return true;
+}
+
+function hasMathOperator(value: string) {
+  return /[=+*/×]/.test(value) || /\b(?:[a-z0-9π]\s*x\s*[a-z0-9π]|times|divided by)\b/i.test(value);
+}
+
+function extractDefinitionClaims(content: string) {
+  const claims: Array<{ subject: string; object: string }> = [];
+  const normalized = content.replace(/\s+/g, " ");
+  const patterns = [
+    /\b([a-z][a-z -]{1,40}?)\s+means\s+([^.!?]{8,180})/gi,
+    /\b([a-z][a-z -]{1,40}?)\s+refers\s+to\s+([^.!?]{8,180})/gi,
+    /\b([a-z][a-z -]{1,40}?)\s+is\s+defined\s+as\s+([^.!?]{8,180})/gi,
+  ];
+
+  for (const pattern of patterns) {
+    for (const match of normalized.matchAll(pattern)) {
+      const subject = normalizeClaimPart(match[1] ?? "");
+      const object = normalizeClaimPart(match[2] ?? "");
+      if (!subject || !object) continue;
+      claims.push({ subject, object });
+    }
+  }
+
+  return claims;
+}
+
+function extractFormulaClaims(content: string) {
+  const claims: Array<{ subject: string; object: string }> = [];
+  const normalized = content.replace(/\s+/g, " ");
+  const patterns = [
+    /\b([a-z][a-z -]{1,40}?)\s+is\s+calculated\s+by\s+([^.!?]{3,160})/gi,
+    /\b([a-z][a-z -]{1,40}?)\s+formula\s+(?:is|:)\s+([^.!?]{3,160})/gi,
+    /\b([a-z][a-z -]{1,40}?)\s*=\s*([^.!?]{1,80})/gi,
+  ];
+
+  for (const pattern of patterns) {
+    for (const match of normalized.matchAll(pattern)) {
+      const subject = normalizeClaimPart(match[1] ?? "");
+      const object = normalizeMathClaim(match[2] ?? "");
+      if (!subject || !object) continue;
+      claims.push({ subject, object });
+    }
+  }
+
+  return claims;
+}
+
+function normalizeClaimPart(value: string) {
+  return normalizeForConceptMatching(value)
+    .replace(/\b(?:card|note|reading strategy|formula|the|a|an)\b/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function normalizeMathClaim(value: string) {
+  return value
+    .toLowerCase()
+    .normalize("NFKC")
+    .replace(/[×*]/g, "x")
+    .replace(/\s+/g, " ")
+    .replace(/[^a-z0-9π/%+=(). -]/g, "")
+    .trim();
+}
+
+function tokenSet(value: string) {
+  return new Set(
+    normalizeClaimPart(value)
+      .split(/\s+/)
+      .filter((term) => term.length > 2 && !HIGH_SIGNAL_STOPWORDS.has(term))
+  );
+}
+
+interface FormulaInputRule {
+  id: string;
+  queryPatterns: RegExp[];
+  requiresFormulaWhen?: RegExp;
+  requirements: Array<{
+    name: string;
+    patterns: RegExp[];
+    negationPatterns?: RegExp[];
+  }>;
+}
+
+const FORMULA_INPUT_RULES: FormulaInputRule[] = [
+  {
+    id: "simple_interest",
+    queryPatterns: [/\bsimple interest\b/i, /\binterest formula\b/i],
+    requiresFormulaWhen: /\b(?:complete|formula|variables?|calculation|calculate|work out|find)\b/i,
+    requirements: [
+      { name: "principal", patterns: [/\bprincipal\b/i] },
+      { name: "rate", patterns: [/\brate\b/i, /\bpercent(?:age)?\b/i] },
+      {
+        name: "time",
+        patterns: [/\btime\b/i, /\bperiod\b/i],
+        negationPatterns: [/\bomits?\s+(?:the\s+)?time\b/i, /\bwithout\s+(?:the\s+)?time\b/i],
+      },
+      {
+        name: "formula",
+        patterns: [
+          /\bi\s*=\s*p\s*x?\s*r\s*x?\s*t\b/i,
+          /\binterest\s*=\s*principal\s*x\s*rate\s*x\s*time/i,
+          /\bdivid(?:e|ed|ing)?\s+by\s+100\b/i,
+        ],
+        negationPatterns: [
+          /\bdoes\s+not\s+state\s+(?:the\s+)?(?:full|complete)?\s*calculation\s+formula\b/i,
+          /\bomits?\s+(?:the\s+)?(?:full|complete)?\s*formula\b/i,
+        ],
+      },
+    ],
+  },
+  {
+    id: "speed",
+    queryPatterns: [/\bspeed\b/i],
+    requiresFormulaWhen: /\b(?:calculate|formula|find|work out)\b/i,
+    requirements: [
+      { name: "distance", patterns: [/\bdistance\b/i, /\bmet(?:re|er)s?\b/i] },
+      { name: "time", patterns: [/\btime\b/i, /\bseconds?\b/i] },
+    ],
+  },
+  {
+    id: "density",
+    queryPatterns: [/\bdensity\b/i],
+    requiresFormulaWhen: /\b(?:calculate|formula|find|work out)\b/i,
+    requirements: [
+      { name: "mass", patterns: [/\bmass\b/i] },
+      { name: "volume", patterns: [/\bvolume\b/i] },
+    ],
+  },
+  {
+    id: "electric_power",
+    queryPatterns: [/\bpower\b/i],
+    requiresFormulaWhen: /\b(?:calculate|formula|find|work out)\b/i,
+    requirements: [
+      { name: "voltage", patterns: [/\bvoltage\b/i, /\bpotential difference\b/i, /\b\d+\s*v\b/i] },
+      { name: "current", patterns: [/\bcurrent\b/i, /\b\d+\s*a\b/i, /\bamperes?\b/i] },
+      {
+        name: "formula",
+        patterns: [/\bpower\s*=\s*voltage\s*x\s*current\b/i, /\bp\s*=\s*v\s*x\s*i\b/i],
+      },
+    ],
+  },
+  {
+    id: "work_done",
+    queryPatterns: [/\bwork done\b/i, /\bwork\s+formula\b/i],
+    requiresFormulaWhen: /\b(?:formula|explain|variables?|symbols?|calculate|find)\b/i,
+    requirements: [
+      { name: "force", patterns: [/\bforce\b/i, /\bf\b/i] },
+      { name: "distance", patterns: [/\bdistance\b/i, /\bd\b/i] },
+      { name: "formula", patterns: [/\bw\s*=\s*f\s*x\s*d\b/i, /\bwork done\s+is\s+calculated\b/i] },
+    ],
+  },
+  {
+    id: "concentration_by_mass",
+    queryPatterns: [/\bconcentration\b/i],
+    requiresFormulaWhen: /\b(?:formula|units?|calculate|find)\b/i,
+    requirements: [
+      { name: "mass", patterns: [/\bmass\b/i, /\bsolute\b/i] },
+      { name: "volume", patterns: [/\bvolume\b/i, /\bsolution\b/i] },
+      { name: "formula", patterns: [/\bconcentration\s*=\s*mass\b/i] },
+    ],
+  },
+];
+
+function hasRequiredFormulaInputGap(query: string, chunks: RetrievedChunk[]) {
+  const evidence = chunks.map((chunk) => chunk.content).join(" ");
+
+  return FORMULA_INPUT_RULES.some((rule) => {
+    if (!rule.queryPatterns.some((pattern) => pattern.test(query))) return false;
+    if (rule.requiresFormulaWhen && !rule.requiresFormulaWhen.test(query)) return false;
+    return rule.requirements.some(
+      (requirement) => !requirementSupported(requirement, evidence)
+    );
+  });
+}
+
+function hasCompleteFormulaSupport(query: string, chunks: RetrievedChunk[]) {
+  const evidence = chunks.map((chunk) => chunk.content).join(" ");
+  return FORMULA_INPUT_RULES.some((rule) => {
+    if (!rule.queryPatterns.some((pattern) => pattern.test(query))) return false;
+    if (rule.requiresFormulaWhen && !rule.requiresFormulaWhen.test(query)) return false;
+    return rule.requirements.every((requirement) =>
+      requirementSupported(requirement, evidence)
+    );
+  });
+}
+
+function requirementSupported(
+  requirement: FormulaInputRule["requirements"][number],
+  evidence: string
+) {
+  if (requirement.negationPatterns?.some((pattern) => pattern.test(evidence))) {
+    return false;
+  }
+  return requirement.patterns.some((pattern) => pattern.test(evidence));
+}
+
+function hasResourceInstructionConflict(query: string, chunks: RetrievedChunk[]) {
+  if (chunks.every((chunk) => !hasInstructionLikeResourceText(chunk.content))) {
+    return false;
+  }
+
+  const normalizedQuery = normalizeForConceptMatching(query);
+  if (/\b(?:hidden|developer|system|prompt|source_[0-9]+|override|safety|instruction)\b/.test(
+    normalizedQuery
+  )) {
+    return true;
+  }
+
+  const asksForBenignLiteralText =
+    /\b(?:quote|literal|exact text|wording)\b/.test(normalizedQuery) &&
+    !/\b(?:hidden|developer|system|prompt|source|override|safety|instruction)\b/.test(
+      normalizedQuery
+    );
+  if (asksForBenignLiteralText) return false;
+
+  const sanitizedEvidence = chunks
+    .map((chunk) => stripInstructionLikeSentences(chunk.content))
+    .join(" ");
+  const terms = extractHighSignalTerms(query);
+  const coveredTerms = terms.filter((term) =>
+    termAppearsInText(term, sanitizedEvidence.toLowerCase())
+  );
+  return sanitizedEvidence.trim().length < 24 || coveredTerms.length === 0;
+}
+
+function hasInstructionLikeResourceText(content: string) {
+  return /\b(?:ignore\s+(?:previous|all|system|developer)?\s*instructions?|reveal\s+(?:the\s+)?(?:system\s+prompt|prompt|hidden|developer)|hidden\s+(?:developer|system)\s+instructions?|cite\s+source_[0-9]+|override\s+(?:all\s+)?(?:safety|rules|system|instructions?)|developer\s+message|system\s+prompt|answer\s+with)\b/i.test(
+    content
+  );
+}
+
+function stripInstructionLikeSentences(content: string) {
+  return content
+    .split(/(?<=[.!?])\s+/)
+    .filter((sentence) => !hasInstructionLikeResourceText(sentence))
+    .join(" ");
 }
 
 function extractRequestedQuestionNumbers(query: string) {
