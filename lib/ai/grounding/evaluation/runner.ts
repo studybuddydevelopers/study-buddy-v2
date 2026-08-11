@@ -7,6 +7,7 @@ import type {
   GroundedEvaluationReport,
   GroundedEvaluationSplit,
 } from "./types";
+import { findPresentEvaluationFacts } from "./fact-matching";
 
 export interface GroundedEvaluationAnswer {
   answer: string;
@@ -88,9 +89,8 @@ export function evaluateGroundedCase(
   const requiredFactCoverage =
     requiredFacts.length === 0
       ? null
-      : requiredFacts.filter((fact) =>
-          answer.answer.toLowerCase().includes(fact.toLowerCase())
-        ).length / requiredFacts.length;
+      : findPresentEvaluationFacts(answer.answer, requiredFacts).length /
+        requiredFacts.length;
   const crossSubjectLeakage =
     Boolean(evaluationCase.subjectId) &&
     answer.citations.some(
