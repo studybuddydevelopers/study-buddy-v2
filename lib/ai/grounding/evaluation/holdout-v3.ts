@@ -2,12 +2,6 @@ import { createHash } from "node:crypto";
 import fs from "node:fs/promises";
 import path from "node:path";
 import {
-  GROUNDED_PROMPT_VERSION,
-  GROUNDING_VALIDATOR_VERSION,
-  GROUNDING_VERSION,
-  SUFFICIENCY_POLICY_VERSION,
-} from "@/lib/ai/grounding/config";
-import {
   DEFAULT_EVIDENCE_TOKEN_BUDGET,
   DEFAULT_MAX_EVIDENCE_CHUNKS,
 } from "@/lib/ai/grounding/evidence";
@@ -32,11 +26,16 @@ export const HOLDOUT_V3_RUN_RECORD_SCHEMA_VERSION =
   "grounded-holdout-v3-run-record-v1";
 export const HOLDOUT_V3_RUN_RECORD_PREFIX = "holdout-v3-acceptance";
 
+const HOLDOUT_V3_PROMPT_VERSION = "grounded-teach-prompt-v1.5";
+const HOLDOUT_V3_GROUNDING_VERSION = "stage4-grounded-teach-v1";
+const HOLDOUT_V3_SUFFICIENCY_POLICY_VERSION = "sufficiency-policy-v1.4";
+const HOLDOUT_V3_VALIDATOR_VERSION = "grounding-validator-v1.3";
+
 export const HOLDOUT_V3_FROZEN_CONFIG = {
-  prompt: GROUNDED_PROMPT_VERSION,
-  grounding: GROUNDING_VERSION,
-  sufficiency: SUFFICIENCY_POLICY_VERSION,
-  validator: GROUNDING_VALIDATOR_VERSION,
+  prompt: HOLDOUT_V3_PROMPT_VERSION,
+  grounding: HOLDOUT_V3_GROUNDING_VERSION,
+  sufficiency: HOLDOUT_V3_SUFFICIENCY_POLICY_VERSION,
+  validator: HOLDOUT_V3_VALIDATOR_VERSION,
   chatProvider: "openai",
   chatModel: "gpt-4o-mini",
   embeddingProvider: "openai",
@@ -69,12 +68,12 @@ export const HOLDOUT_V3_FROZEN_CONFIG = {
     suppressUnrequestedAnswerKeyChunks: true,
   },
   conceptCompatibilityConfiguration: {
-    version: SUFFICIENCY_POLICY_VERSION,
+    version: HOLDOUT_V3_SUFFICIENCY_POLICY_VERSION,
     enforcedBeforeSupported: true,
     siblingConceptsFailClosed: true,
   },
   externalInformationGuardConfiguration: {
-    version: SUFFICIENCY_POLICY_VERSION,
+    version: HOLDOUT_V3_SUFFICIENCY_POLICY_VERSION,
     blocksFreshAcademicOrExamRequests: true,
     keepsElectricityCurrentContextValid: true,
   },
