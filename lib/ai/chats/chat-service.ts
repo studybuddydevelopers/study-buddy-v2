@@ -1435,6 +1435,7 @@ function toSufficiencyReason(value: GroundingAttemptDraft["sufficiencyReason"]) 
     case "REQUIRED_INPUT_MISSING":
       return AiGroundingSufficiencyReason.MISSING_REQUIRED_SOURCE_TYPE;
     case "REQUIRED_CONCEPT_MISSING":
+    case "REQUIRED_SYMBOL_DEFINITION_MISSING":
     case "CONCEPT_MISMATCH":
       return AiGroundingSufficiencyReason.LOW_RELEVANCE;
   }
