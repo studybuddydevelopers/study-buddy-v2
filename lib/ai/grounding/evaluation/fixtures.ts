@@ -2,6 +2,10 @@ import type {
   GroundedEvaluationCase,
   GroundedEvaluationResource,
 } from "./types";
+import {
+  adversarialSafetyCases,
+  adversarialSafetyResources,
+} from "./adversarial-safety";
 
 const PROVENANCE =
   "Authored synthetic StudyBuddy Stage 4 evaluation fixture. Not copied from WAEC or third-party material.";
@@ -1221,6 +1225,7 @@ export const groundedEvaluationResources: GroundedEvaluationResource[] = [
     provenance: PROVENANCE,
     usageRights: USAGE_RIGHTS,
   },
+  ...adversarialSafetyResources,
 ];
 
 export const groundedEvaluationCases: GroundedEvaluationCase[] = [
@@ -3591,4 +3596,5 @@ export const groundedEvaluationCases: GroundedEvaluationCase[] = [
     expectedInsufficientReason: "REQUIRED_CONCEPT_MISSING",
     forbiddenClaims: ["larger voltage makes pressure rise", "electrical push raises pressure"],
   },
+  ...adversarialSafetyCases,
 ];
