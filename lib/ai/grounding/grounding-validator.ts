@@ -14,6 +14,7 @@ export type GroundingValidationReason =
   | "UNSUPPORTED_EVALUATION"
   | "UNSUPPORTED_IMPORTANCE_CLAIM"
   | "UNSUPPORTED_CAUSAL_EXTENSION"
+  | "RESOURCE_INJECTION"
   | "PARTIALLY_SUPPORTED"
   | "INSUFFICIENT_EVIDENCE";
 
@@ -193,6 +194,7 @@ const UNSUPPORTED_CAUSAL_EXTENSION_TERMS = new Set([
 const SYMBOL_TERM_HINTS = new Map<string, Set<string>>([
   ["a", new Set(["area", "acceleration"])],
   ["b", new Set(["base"])],
+  ["d", new Set(["diameter", "distance"])],
   ["f", new Set(["force"])],
   ["h", new Set(["height"])],
   ["i", new Set(["current"])],
@@ -234,6 +236,19 @@ export class DeterministicGroundingValidator implements GroundingValidator {
     const rawEvidence = input.citedEvidence.map((item) => item.excerpt).join(" ");
     const evidence = normalizeForMatching(rawEvidence);
     if (!evidence) return result(false, "INSUFFICIENT_EVIDENCE", []);
+
+    const resourceInstructionFailure = validateResourceInstructionIsolation(
+      input.segment,
+      rawEvidence
+    );
+    if (resourceInstructionFailure) {
+      return result(
+        false,
+        "RESOURCE_INJECTION",
+        resourceInstructionFailure.unsupportedTerms,
+        resourceInstructionFailure.unsupportedClaim
+      );
+    }
 
     const terms = extractClaimTerms(input.segment);
     const domainRelation = validateDomainSpecificRelation(
@@ -557,6 +572,36 @@ function evidenceSentenceSupportsRelation(
     (sentence) =>
       termAppears(subject, sentence) &&
       objectTerms.every((term) => termAppears(term, sentence))
+  );
+}
+
+function validateResourceInstructionIsolation(segment: string, rawEvidence: string) {
+  if (!hasInstructionLikeEvidence(rawEvidence)) return null;
+
+  const normalizedSegment = normalizeForMatching(segment);
+  const suspiciousTerms = [
+    "developer",
+    "hidden",
+    "instruction",
+    "instructions",
+    "override",
+    "prompt",
+    "reveal",
+    "source_777",
+    "system",
+  ].filter((term) => hasTerm(normalizedSegment, term));
+
+  if (suspiciousTerms.length === 0) return null;
+
+  return {
+    unsupportedTerms: suspiciousTerms,
+    unsupportedClaim: suspiciousTerms.join(" "),
+  };
+}
+
+function hasInstructionLikeEvidence(rawEvidence: string) {
+  return /\b(?:ignore\s+(?:previous|all|system|developer)?\s*instructions?|reveal\s+(?:the\s+)?(?:system\s+prompt|prompt|hidden|developer)|hidden\s+(?:developer|system)\s+instructions?|cite\s+source_[0-9]+|override\s+(?:all\s+)?(?:safety|rules|system|instructions?)|developer\s+message|system\s+prompt|answer\s+with)\b/i.test(
+    rawEvidence
   );
 }
 
