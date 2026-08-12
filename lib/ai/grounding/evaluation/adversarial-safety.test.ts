@@ -14,9 +14,12 @@ import {
   resolveEvaluationMetadataForCases,
 } from "./metadata-scope";
 import {
+  assertEvaluationResourceScope,
+  buildEvaluationCaseCorpusScopes,
   buildEvaluationResourceScope,
   resolveEvaluationResourcesForSplit,
 } from "./resource-scope";
+import { runRuntimeGroundedEvaluationPreflight } from "./runtime-runner";
 import { evaluateRetrievalSufficiency } from "../sufficiency";
 import type { GroundedEvaluationResource } from "./types";
 import type { RetrievedChunk } from "@/lib/resources/retrieval/types";
@@ -26,9 +29,12 @@ describe("disclosed adversarial safety split", () => {
     const caseIds = adversarialSafetyCases.map((item) => item.id);
     const resourceIds = adversarialSafetyResources.map((item) => item.id);
 
-    expect(adversarialSafetyCases).toHaveLength(40);
+    expect(adversarialSafetyCases).toHaveLength(44);
     expect(new Set(caseIds).size).toBe(caseIds.length);
     expect(new Set(resourceIds).size).toBe(resourceIds.length);
+    expect(adversarialSafetyCases.every((item) => item.corpusResourceIds)).toBe(
+      true
+    );
     expect(caseIds.every((id) => id.startsWith("adv-"))).toBe(true);
     expect(resourceIds.every((id) => id.startsWith("adv-"))).toBe(true);
     expect(
@@ -52,8 +58,8 @@ describe("disclosed adversarial safety split", () => {
     expect(counts.get("user_bypass")).toBeGreaterThanOrEqual(2);
     expect(counts.get("evidence_conflict")).toBeGreaterThanOrEqual(3);
     expect(counts.get("evidence_conflict_control")).toBeGreaterThanOrEqual(2);
-    expect(counts.get("missing_required_input")).toBeGreaterThanOrEqual(4);
-    expect(counts.get("missing_required_input_control")).toBeGreaterThanOrEqual(4);
+    expect(counts.get("missing_required_input")).toBeGreaterThanOrEqual(6);
+    expect(counts.get("missing_required_input_control")).toBeGreaterThanOrEqual(6);
     expect(counts.get("undefined_symbol")).toBeGreaterThanOrEqual(4);
     expect(counts.get("sibling_concept")).toBeGreaterThanOrEqual(4);
     expect(counts.get("current_external_information")).toBeGreaterThanOrEqual(3);
@@ -74,13 +80,74 @@ describe("disclosed adversarial safety split", () => {
       resolvedResources: resolved,
     });
 
-    expect(scope.selectedCaseCount).toBe(40);
+    expect(scope.selectedCaseCount).toBe(44);
     expect(scope.referencedResourceCount).toBe(adversarialSafetyResources.length);
     expect(scope.seededResourceCount).toBe(adversarialSafetyResources.length);
     expect(scope.referencedChunkCount).toBe(adversarialSafetyResources.length);
     expect(scope.embeddedChunkCount).toBe(adversarialSafetyResources.length);
     expect(scope.extraResourceCount).toBe(0);
+    expect(scope.corpusSummary.casesChecked).toBe(44);
+    expect(scope.corpusSummary.corpusValidCases).toBe(44);
+    expect(scope.corpusSummary.contaminatedCases).toBe(0);
     expect(resolved.every((item) => item.id.startsWith("adv-"))).toBe(true);
+  });
+
+  it("isolates each adversarial case to its declared corpus", () => {
+    const scopes = caseCorpusScopes();
+
+    expect(scopes.get("adv-input-density-missing-volume")?.corpusResourceIds).toEqual([
+      "adv-density-partial",
+    ]);
+    expect(scopes.get("adv-input-density-complete")?.corpusResourceIds).toEqual([
+      "adv-density-complete",
+    ]);
+    expect(scopes.get("adv-sibling-circumference-from-area")?.corpusResourceIds).toEqual([
+      "adv-circle-area-only",
+    ]);
+    expect(scopes.get("adv-wrong-subject-geometry-as-biology")?.corpusResourceIds).toEqual([
+      "adv-circle-area-only",
+    ]);
+    expect(scopes.get("adv-conflict-profit-formula")?.corpusResourceIds).toEqual([
+      "adv-conflict-profit-a",
+      "adv-conflict-profit-b",
+    ]);
+    expect(scopes.get("adv-complement-water-processes")?.corpusResourceIds).toEqual([
+      "adv-complement-evaporation",
+      "adv-complement-condensation",
+    ]);
+    expect(scopes.get("adv-input-force-missing-acceleration")?.corpusResourceIds).toEqual([
+      "adv-force-partial",
+    ]);
+    expect(scopes.get("adv-input-percent-complete")?.corpusResourceIds).toEqual([
+      "adv-percent-complete",
+    ]);
+  });
+
+  it("rejects accidental direct-answer evidence in missing-input and sibling corpora", () => {
+    const densityCase = adversarialSafetyCases.find(
+      (item) => item.id === "adv-input-density-missing-volume"
+    );
+    const circumferenceCase = adversarialSafetyCases.find(
+      (item) => item.id === "adv-sibling-circumference-from-area"
+    );
+    if (!densityCase || !circumferenceCase) {
+      throw new Error("Missing adversarial fixture cases.");
+    }
+
+    const contaminatedDensity = {
+      ...densityCase,
+      corpusResourceIds: ["adv-density-partial", "adv-density-complete"],
+    };
+    const contaminatedSibling = {
+      ...circumferenceCase,
+      corpusResourceIds: ["adv-circle-area-only", "adv-symbol-nearby-d"],
+    };
+
+    expect(() =>
+      assertEvaluationResourceScope(
+        buildScope([contaminatedDensity, contaminatedSibling])
+      )
+    ).toThrow("Evaluation case corpus contamination");
   });
 
   it("validates adversarial topology including metadata-only current-info topics", () => {
@@ -97,8 +164,8 @@ describe("disclosed adversarial safety split", () => {
       metadataScope: metadata,
     });
 
-    expect(topology.casesChecked).toBe(40);
-    expect(topology.validRetrievalFilters).toBe(40);
+    expect(topology.casesChecked).toBe(44);
+    expect(topology.validRetrievalFilters).toBe(44);
     expect(topology.invalidRetrievalFilters).toBe(0);
     expect(metadata.metadataOnlyTopicIds).toEqual(
       expect.arrayContaining([
@@ -128,6 +195,20 @@ describe("disclosed adversarial safety split", () => {
       "CONCEPT_MISMATCH"
     );
   });
+
+  it("dry-runs adversarial safety without provider calls or DB mutations", async () => {
+    const report = await runRuntimeGroundedEvaluationPreflight({
+      split: ADVERSARIAL_SAFETY_SPLIT,
+    });
+
+    expect(report.providerCalls).toBe(0);
+    expect(report.dbMutations).toBe(0);
+    expect(report.resourceScope.selectedCaseCount).toBe(44);
+    expect(report.resourceScope.corpusSummary.contaminatedCases).toBe(0);
+    expect(report.resourceScope.corpusSummary.corpusValidCases).toBe(44);
+    expect(report.resourceScope.extraResourceCount).toBe(0);
+    expect(report.topology.invalidRetrievalFilters).toBe(0);
+  });
 });
 
 function sufficiencyFor(caseId: string) {
@@ -145,6 +226,28 @@ function sufficiencyFor(caseId: string) {
     selectedChunks: chunks,
     subjectId: evaluationCase.subjectId,
     topicId: evaluationCase.topicId,
+  });
+}
+
+function caseCorpusScopes() {
+  return new Map(
+    buildEvaluationCaseCorpusScopes({
+      cases: adversarialSafetyCases,
+      allResources: groundedEvaluationResources,
+    }).map((item) => [item.caseId, item])
+  );
+}
+
+function buildScope(cases: typeof adversarialSafetyCases) {
+  const resolved = resolveEvaluationResourcesForSplit(
+    cases,
+    groundedEvaluationResources
+  );
+  return buildEvaluationResourceScope({
+    split: ADVERSARIAL_SAFETY_SPLIT,
+    cases,
+    allResources: groundedEvaluationResources,
+    resolvedResources: resolved,
   });
 }
 
