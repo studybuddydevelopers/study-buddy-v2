@@ -256,6 +256,9 @@ function filterSql(filters: RetrievalFilters | undefined) {
   if (filters.topicId) {
     clauses.push(Prisma.sql`c."topicId" = ${filters.topicId}`);
   }
+  if (filters.resourceIds?.length) {
+    clauses.push(Prisma.sql`r."id" IN (${Prisma.join(filters.resourceIds)})`);
+  }
   if (filters.chunkTypes?.length) {
     clauses.push(
       Prisma.sql`c."chunkType" IN (${Prisma.join(
