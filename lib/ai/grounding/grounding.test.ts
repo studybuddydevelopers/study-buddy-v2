@@ -665,6 +665,167 @@ describe("Stage 4 grounding primitives", () => {
     expect(result.reason).toBe(sufficient ? "SUPPORTED" : "REQUIRED_INPUT_MISSING");
   });
 
+  it.each([
+    {
+      name: "speed missing time",
+      query: "Calculate the speed from the journey card.",
+      content:
+        "Speed is distance divided by time. The journey distance is 120 metres, but this card does not give the time.",
+      sufficient: false,
+    },
+    {
+      name: "speed complete",
+      query: "Calculate the runner's speed from the complete card.",
+      content:
+        "Speed is distance divided by time. A runner covers 120 metres in 10 seconds, so speed = 120 / 10 = 12 m/s.",
+      sufficient: true,
+    },
+    {
+      name: "density missing volume",
+      query: "Calculate density from the sample card.",
+      content:
+        "Density is mass divided by volume. The sample mass is 90 g, but this card does not give the volume.",
+      sufficient: false,
+    },
+    {
+      name: "density complete",
+      query: "Calculate density from the complete sample card.",
+      content:
+        "Density is mass divided by volume. A sample with mass 90 g and volume 30 cm3 has density 3 g/cm3.",
+      sufficient: true,
+    },
+    {
+      name: "power missing current",
+      query: "Calculate the lamp's electrical power.",
+      content:
+        "Electrical power is found by multiplying voltage by current: power = voltage x current. The lamp voltage is 12 V, but this card does not give the current.",
+      sufficient: false,
+    },
+    {
+      name: "power complete",
+      query: "Calculate the motor's electrical power.",
+      content:
+        "Electrical power is found by multiplying voltage by current: power = voltage x current. The motor has voltage 12 V and current 3 A, so power = 12 V x 3 A = 36 W.",
+      sufficient: true,
+    },
+    {
+      name: "force missing acceleration",
+      query: "Calculate resultant force from the force card.",
+      content:
+        "Resultant force uses F = m x a. The mass is 5 kg, but this card does not give the acceleration.",
+      sufficient: false,
+    },
+    {
+      name: "force complete",
+      query: "Calculate resultant force from the complete force card.",
+      content:
+        "Resultant force uses F = m x a. If mass is 5 kg and acceleration is 2 m/s2, then force = 10 N.",
+      sufficient: true,
+    },
+    {
+      name: "percentage change missing original",
+      query: "Calculate the percentage change from the card.",
+      content:
+        "Percentage change compares a change with the original value. The change is 15, but this card does not give the original value.",
+      sufficient: false,
+    },
+    {
+      name: "percentage change complete",
+      query: "Calculate the percentage change from the complete card.",
+      content:
+        "Percentage change = change / original value x 100. A change of 15 from an original value of 60 gives 15 / 60 x 100 = 25 percent.",
+      sufficient: true,
+    },
+  ])("handles required calculation inputs: $name", ({ query, content, sufficient }) => {
+    const selected = [
+      chunk({
+        content,
+        chunkType: ResourceChunkType.WORKED_SOLUTION,
+        keywordScore: 0.4,
+        vectorDistance: 0.2,
+        fusionScore: 0.05,
+        bestBranchRank: 1,
+      }),
+    ];
+
+    const result = evaluateRetrievalSufficiency({
+      query,
+      candidates: selected,
+      selectedChunks: selected,
+    });
+
+    expect(result.sufficient).toBe(sufficient);
+    expect(result.reason).toBe(sufficient ? "SUPPORTED" : "REQUIRED_INPUT_MISSING");
+  });
+
+  it("does not require numeric inputs for formula-only requests", () => {
+    const selected = [
+      chunk({
+        content: "Speed is distance divided by time.",
+        chunkType: ResourceChunkType.FORMULA_REFERENCE,
+        keywordScore: 0.4,
+        vectorDistance: 0.2,
+        fusionScore: 0.05,
+        bestBranchRank: 1,
+      }),
+    ];
+
+    const result = evaluateRetrievalSufficiency({
+      query: "Give the speed formula.",
+      candidates: selected,
+      selectedChunks: selected,
+    });
+
+    expect(result.sufficient).toBe(true);
+    expect(result.reason).toBe("SUPPORTED");
+  });
+
+  it("cleanly refuses circumference requests when only circle area evidence exists", () => {
+    const selected = [
+      chunk({
+        content:
+          "The area of a circle is pi times radius squared: A = pi r^2. The radius is the distance from the centre to the edge.",
+        chunkType: ResourceChunkType.FORMULA_REFERENCE,
+        keywordScore: 0.4,
+        vectorDistance: 0.2,
+        fusionScore: 0.05,
+        bestBranchRank: 1,
+      }),
+    ];
+
+    const result = evaluateRetrievalSufficiency({
+      query: "Use the circle card to explain circumference.",
+      candidates: selected,
+      selectedChunks: selected,
+    });
+
+    expect(result.sufficient).toBe(false);
+    expect(result.reason).toBe("REQUIRED_CONCEPT_MISSING");
+  });
+
+  it("cleanly refuses unsupported food-chain population consequence requests", () => {
+    const selected = [
+      chunk({
+        content:
+          "A food chain shows how energy passes from one organism to another in a feeding relationship.",
+        keywordScore: 0.4,
+        vectorDistance: 0.2,
+        fusionScore: 0.05,
+        bestBranchRank: 1,
+      }),
+    ];
+
+    const result = evaluateRetrievalSufficiency({
+      query:
+        "What population consequence follows if a consumer disappears from the food chain?",
+      candidates: selected,
+      selectedChunks: selected,
+    });
+
+    expect(result.sufficient).toBe(false);
+    expect(result.reason).toBe("LOW_RELEVANCE");
+  });
+
   it("treats resource-side hostile instructions as inert and insufficient", () => {
     const hostile = [
       chunk({
@@ -949,6 +1110,49 @@ describe("Stage 4 grounding primitives", () => {
         query: "Give the speed formula.",
         candidates: scoped,
         selectedChunks: scoped.slice(0, 1),
+      }).reason
+    ).toBe("SUPPORTED");
+  });
+
+  it("refuses contradictory profit formula order while allowing equivalent rearrangements", () => {
+    const contradictory = [
+      chunk({
+        id: "profit-a",
+        chunkType: ResourceChunkType.FORMULA_REFERENCE,
+        content: "Profit formula is selling price - cost price.",
+      }),
+      chunk({
+        id: "profit-b",
+        chunkType: ResourceChunkType.FORMULA_REFERENCE,
+        content: "Profit formula is cost price - selling price.",
+      }),
+    ];
+    const equivalent = [
+      chunk({
+        id: "profit-c",
+        chunkType: ResourceChunkType.FORMULA_REFERENCE,
+        content: "Profit formula is selling price - cost price.",
+      }),
+      chunk({
+        id: "profit-d",
+        chunkType: ResourceChunkType.FORMULA_REFERENCE,
+        content: "Selling price equals cost price plus profit.",
+      }),
+    ];
+
+    expect(
+      evaluateRetrievalSufficiency({
+        query: "Give the profit formula from the two cards.",
+        candidates: contradictory,
+        selectedChunks: contradictory,
+      }).reason
+    ).toBe("RESOURCE_CONFLICT");
+
+    expect(
+      evaluateRetrievalSufficiency({
+        query: "Give the profit formula from the two cards.",
+        candidates: equivalent,
+        selectedChunks: equivalent,
       }).reason
     ).toBe("SUPPORTED");
   });
@@ -1415,6 +1619,29 @@ describe("Stage 4 grounding primitives", () => {
       reason: "MISSING_SYMBOL_DEFINITION",
       unsupportedClaim: "a represents area",
     });
+  });
+
+  it("accepts a case-safe positive Y percentage-yield definition", async () => {
+    const evidence = [
+      {
+        sourceLabel: "SOURCE_1",
+        excerpt:
+          "In the reaction yield shortcut Y = product mass / expected mass x 100. Y represents percentage yield.",
+      },
+    ];
+
+    const validation = await validateGroundedAnswerSegments({
+      segments: [
+        {
+          text: "Y represents percentage yield.",
+          sourceLabels: ["SOURCE_1"],
+        },
+      ],
+      evidenceByLabel: new Map(evidence.map((item) => [item.sourceLabel, item])),
+      validator: new DeterministicGroundingValidator(),
+    });
+
+    expect(validation.supported).toBe(true);
   });
 
   it("accepts circumference symbol d only when the cited formula defines diameter", async () => {
@@ -1945,7 +2172,7 @@ describe("Stage 4 grounding primitives", () => {
       versions: {
         prompt: "grounded-teach-prompt-v1.6",
         grounding: "stage4-grounded-teach-v1",
-        sufficiency: "sufficiency-policy-v1.7",
+        sufficiency: "sufficiency-policy-v1.8",
       },
     });
 
