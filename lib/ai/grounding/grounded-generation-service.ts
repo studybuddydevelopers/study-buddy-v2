@@ -54,6 +54,7 @@ export interface GroundedChatContext {
   topicId?: string | null;
   topicTitle?: string | null;
   recentMessages: Array<{ role: "USER" | "ASSISTANT"; content: string }>;
+  retrievalResourceIds?: string[];
 }
 
 export interface GroundingAttemptDraft {
@@ -192,6 +193,9 @@ export class GroundedGenerationService {
         filters: {
           ...(context.subjectId ? { subjectId: context.subjectId } : {}),
           ...(context.topicId ? { topicId: context.topicId } : {}),
+          ...(context.retrievalResourceIds?.length
+            ? { resourceIds: context.retrievalResourceIds }
+            : {}),
         },
         keywordLimit: BRANCH_CANDIDATE_LIMIT,
         vectorLimit: BRANCH_CANDIDATE_LIMIT,
