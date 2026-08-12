@@ -35,6 +35,7 @@ export interface GroundedEvaluationCase {
   subjectId?: string;
   topicId?: string;
   shouldAnswer: boolean;
+  corpusResourceIds?: string[];
   expectedResourceIds?: string[];
   expectedChunkIds?: string[];
   setupResourceIds?: string[];
