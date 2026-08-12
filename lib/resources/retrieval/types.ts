@@ -7,6 +7,7 @@ import {
 export interface RetrievalFilters {
   subjectId?: string;
   topicId?: string;
+  resourceIds?: string[];
   chunkTypes?: ResourceChunkType[];
   sourceKinds?: ResourceSourceKind[];
 }
