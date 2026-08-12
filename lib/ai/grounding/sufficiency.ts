@@ -103,6 +103,7 @@ const CONCEPT_DEFINITIONS: ConceptDefinition[] = [
   concept("rectangle", "shape", ["rectangle", "rectangular"]),
   concept("area", "measurement", ["area"]),
   concept("perimeter", "measurement", ["perimeter"]),
+  concept("circumference", "circle_boundary_measurement", ["circumference"]),
   concept("speed", "motion_quantity", ["speed"]),
   concept("acceleration", "motion_quantity", ["acceleration", "accelerate"]),
   concept("velocity", "motion_quantity", ["velocity"]),
@@ -159,6 +160,10 @@ export function evaluateRetrievalSufficiency(
 
   if (hasResourceInstructionConflict(input.query, selected)) {
     return insufficient("USER_INSTRUCTION_CONFLICT", "LOW", selected);
+  }
+
+  if (hasUnsupportedElaborationGap(input.query, selected)) {
+    return insufficient("LOW_RELEVANCE", "LOW", selected);
   }
 
   if (hasRequiredFormulaInputGap(input.query, selected)) {
@@ -555,7 +560,7 @@ function claimObjectsConflict(first: string, second: string) {
 }
 
 function hasMathOperator(value: string) {
-  return /[=+*/×]/.test(value) || /\b(?:[a-z0-9π]\s*x\s*[a-z0-9π]|times|divided by)\b/i.test(value);
+  return /[=+\-*/×]/.test(value) || /\b(?:[a-z0-9π]\s*x\s*[a-z0-9π]|times|divided by|minus|subtract(?:ed)? from)\b/i.test(value);
 }
 
 function extractDefinitionClaims(content: string) {
@@ -629,12 +634,25 @@ interface FormulaInputRule {
   id: string;
   queryPatterns: RegExp[];
   requiresFormulaWhen?: RegExp;
+  calculationRequestPattern?: RegExp;
+  formulaRequirements?: Array<{
+    name: string;
+    patterns: RegExp[];
+    negationPatterns?: RegExp[];
+  }>;
+  valueRequirements?: Array<{
+    name: string;
+    patterns: RegExp[];
+    negationPatterns?: RegExp[];
+  }>;
   requirements: Array<{
     name: string;
     patterns: RegExp[];
     negationPatterns?: RegExp[];
   }>;
 }
+
+const NUMBER_VALUE = String.raw`(?:\d+(?:\.\d+)?|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve)`;
 
 const FORMULA_INPUT_RULES: FormulaInputRule[] = [
   {
@@ -666,33 +684,168 @@ const FORMULA_INPUT_RULES: FormulaInputRule[] = [
   {
     id: "speed",
     queryPatterns: [/\bspeed\b/i],
-    requiresFormulaWhen: /\b(?:calculate|formula|find|work out)\b/i,
-    requirements: [
-      { name: "distance", patterns: [/\bdistance\b/i, /\bmet(?:re|er)s?\b/i] },
-      { name: "time", patterns: [/\btime\b/i, /\bseconds?\b/i] },
+    requiresFormulaWhen: /\b(?:calculate|calculation|formula|find|work out|solve|determine)\b/i,
+    formulaRequirements: [
+      {
+        name: "formula",
+        patterns: [
+          /\bspeed\s+is\s+distance\s+divided\s+by\s+time\b/i,
+          /\bspeed\s+is\s+calculated\s+by\s+distance\s+divided\s+by\s+time\b/i,
+          /\bspeed\s*=\s*distance\s*\/\s*time\b/i,
+          /\bv\s*=\s*d\s*\/\s*t\b/i,
+        ],
+      },
     ],
+    valueRequirements: [
+      {
+        name: "distance",
+        patterns: [
+          new RegExp(String.raw`\bdistance\s+(?:is|of|=)\s*${NUMBER_VALUE}\s*(?:m|met(?:re|er)s?)\b`, "i"),
+          new RegExp(String.raw`\bcovers?\s+${NUMBER_VALUE}\s*(?:m|met(?:re|er)s?)\b`, "i"),
+        ],
+      },
+      {
+        name: "time",
+        patterns: [
+          new RegExp(String.raw`\btime\s+(?:is|of|=)\s*${NUMBER_VALUE}\s*(?:s|sec|secs|seconds?)\b`, "i"),
+          new RegExp(String.raw`\bin\s+${NUMBER_VALUE}\s*(?:s|sec|secs|seconds?)\b`, "i"),
+          new RegExp(String.raw`\bt\s*(?:=|is)\s*${NUMBER_VALUE}\s*(?:s|sec|secs|seconds?)\b`, "i"),
+        ],
+        negationPatterns: [/\bdoes\s+not\s+give\s+(?:the\s+)?time\b/i, /\bomits?\s+(?:the\s+)?time\b/i],
+      },
+    ],
+    requirements: [],
   },
   {
     id: "density",
     queryPatterns: [/\bdensity\b/i],
-    requiresFormulaWhen: /\b(?:calculate|formula|find|work out)\b/i,
-    requirements: [
-      { name: "mass", patterns: [/\bmass\b/i] },
-      { name: "volume", patterns: [/\bvolume\b/i] },
+    requiresFormulaWhen: /\b(?:calculate|calculation|formula|find|work out|solve|determine)\b/i,
+    formulaRequirements: [
+      {
+        name: "formula",
+        patterns: [
+          /\bdensity\s+is\s+mass\s+divided\s+by\s+volume\b/i,
+          /\bdensity\s*=\s*mass\s*\/\s*volume\b/i,
+          /\bρ\s*=\s*m\s*\/\s*v\b/i,
+          /\brho\s*=\s*m\s*\/\s*v\b/i,
+        ],
+      },
     ],
+    valueRequirements: [
+      {
+        name: "mass",
+        patterns: [
+          new RegExp(String.raw`\bmass\s+(?:is|of|=)\s*${NUMBER_VALUE}\s*(?:g|kg|grams?|kilograms?)\b`, "i"),
+          new RegExp(String.raw`\bwith\s+mass\s+${NUMBER_VALUE}\s*(?:g|kg|grams?|kilograms?)\b`, "i"),
+        ],
+      },
+      {
+        name: "volume",
+        patterns: [
+          new RegExp(String.raw`\bvolume\s+(?:is|of|=)?\s*${NUMBER_VALUE}\s*(?:cm3|cm\^3|m3|m\^3|litres?|liters?)\b`, "i"),
+          new RegExp(String.raw`\bwith\s+volume\s+${NUMBER_VALUE}\s*(?:cm3|cm\^3|m3|m\^3|litres?|liters?)\b`, "i"),
+        ],
+        negationPatterns: [/\bdoes\s+not\s+give\s+(?:the\s+)?volume\b/i, /\bomits?\s+(?:the\s+)?volume\b/i],
+      },
+    ],
+    requirements: [],
   },
   {
     id: "electric_power",
     queryPatterns: [/\bpower\b/i],
-    requiresFormulaWhen: /\b(?:calculate|formula|find|work out)\b/i,
-    requirements: [
-      { name: "voltage", patterns: [/\bvoltage\b/i, /\bpotential difference\b/i, /\b\d+\s*v\b/i] },
-      { name: "current", patterns: [/\bcurrent\b/i, /\b\d+\s*a\b/i, /\bamperes?\b/i] },
+    requiresFormulaWhen: /\b(?:calculate|calculation|formula|find|work out|solve|determine)\b/i,
+    formulaRequirements: [
       {
         name: "formula",
         patterns: [/\bpower\s*=\s*voltage\s*x\s*current\b/i, /\bp\s*=\s*v\s*x\s*i\b/i],
       },
     ],
+    valueRequirements: [
+      {
+        name: "voltage",
+        patterns: [
+          new RegExp(String.raw`\bvoltage\s+(?:is|of|=)?\s*${NUMBER_VALUE}\s*v\b`, "i"),
+          new RegExp(String.raw`\bpotential difference\s+(?:is|of|=)?\s*${NUMBER_VALUE}\s*v\b`, "i"),
+          new RegExp(String.raw`\bpotential difference\b.{0,40}\bis\s+${NUMBER_VALUE}\s*v\b`, "i"),
+          new RegExp(String.raw`\bhas\s+voltage\s+${NUMBER_VALUE}\s*v\b`, "i"),
+        ],
+      },
+      {
+        name: "current",
+        patterns: [
+          new RegExp(String.raw`\bcurrent\s+(?:is|of|=)?\s*${NUMBER_VALUE}\s*(?:a|ampere|amperes|amps?)\b`, "i"),
+          new RegExp(String.raw`\bcurrent\b.{0,30}\bis\s+${NUMBER_VALUE}\s*(?:a|ampere|amperes|amps?)\b`, "i"),
+          new RegExp(String.raw`\bhas\s+current\s+${NUMBER_VALUE}\s*(?:a|ampere|amperes|amps?)\b`, "i"),
+        ],
+        negationPatterns: [/\bdoes\s+not\s+give\s+(?:the\s+)?current\b/i, /\bomits?\s+(?:the\s+)?current\b/i],
+      },
+    ],
+    requirements: [],
+  },
+  {
+    id: "force",
+    queryPatterns: [/\bforce\b/i, /\bresultant force\b/i],
+    requiresFormulaWhen: /\b(?:calculate|calculation|formula|find|work out|solve|determine)\b/i,
+    formulaRequirements: [
+      {
+        name: "formula",
+        patterns: [
+          /\bf\s*=\s*m\s*x\s*a\b/i,
+          /\bforce\s+(?:equals|is)\s+mass\s+(?:times|multiplied\s+by|x)\s+acceleration\b/i,
+        ],
+      },
+    ],
+    valueRequirements: [
+      {
+        name: "mass",
+        patterns: [
+          new RegExp(String.raw`\bmass\s+(?:is|of|=)\s*${NUMBER_VALUE}\s*(?:kg|kilograms?)\b`, "i"),
+          new RegExp(String.raw`\bm\s*(?:=|is)\s*${NUMBER_VALUE}\s*(?:kg|kilograms?)\b`, "i"),
+        ],
+      },
+      {
+        name: "acceleration",
+        patterns: [
+          new RegExp(String.raw`\bacceleration\s+(?:is|of|=)\s*${NUMBER_VALUE}\s*(?:m/s2|m/s\^2|met(?:re|er)s?\s+per\s+second\s+squared)\b`, "i"),
+          new RegExp(String.raw`\ba\s*(?:=|is)\s*${NUMBER_VALUE}\s*(?:m/s2|m/s\^2|met(?:re|er)s?\s+per\s+second\s+squared)\b`, "i"),
+        ],
+        negationPatterns: [/\bdoes\s+not\s+give\s+(?:the\s+)?acceleration\b/i, /\bomits?\s+(?:the\s+)?acceleration\b/i],
+      },
+    ],
+    requirements: [],
+  },
+  {
+    id: "percentage_change",
+    queryPatterns: [/\bpercentage change\b/i, /\bpercent(?:age)?\s+change\b/i],
+    requiresFormulaWhen: /\b(?:calculate|calculation|formula|find|work out|solve|determine)\b/i,
+    formulaRequirements: [
+      {
+        name: "formula",
+        patterns: [
+          /\bpercentage change\s*=\s*change\s*\/\s*original value\s*x\s*100\b/i,
+          /\bpercent(?:age)? change\s*=\s*\(\s*new\s*-\s*original\s*\)\s*\/\s*original\s*x\s*100\b/i,
+          /\bcompares\s+a\s+change\s+with\s+the\s+original value\b/i,
+        ],
+      },
+    ],
+    valueRequirements: [
+      {
+        name: "change_or_new_value",
+        patterns: [
+          new RegExp(String.raw`\bchange\s+(?:is|of|=)\s*${NUMBER_VALUE}\b`, "i"),
+          new RegExp(String.raw`\bnew\s+value\s+(?:is|of|=)\s*${NUMBER_VALUE}\b`, "i"),
+        ],
+      },
+      {
+        name: "original",
+        patterns: [
+          new RegExp(String.raw`\boriginal value\s+(?:is|of|=)\s*${NUMBER_VALUE}\b`, "i"),
+          new RegExp(String.raw`\bfrom\s+an?\s+original value\s+of\s+${NUMBER_VALUE}\b`, "i"),
+        ],
+        negationPatterns: [/\bdoes\s+not\s+give\s+(?:the\s+)?original value\b/i, /\bomits?\s+(?:the\s+)?original value\b/i],
+      },
+    ],
+    requirements: [],
   },
   {
     id: "work_done",
@@ -725,7 +878,7 @@ function hasRequiredFormulaInputGap(query: string, chunks: RetrievedChunk[]) {
     if (rule.id === "simple_interest") {
       return !simpleInterestRequirementsSupported(query, chunks);
     }
-    return rule.requirements.some(
+    return requiredFormulaRuleRequirements(rule, query).some(
       (requirement) => !requirementSupported(requirement, evidence)
     );
   });
@@ -739,10 +892,23 @@ function hasCompleteFormulaSupport(query: string, chunks: RetrievedChunk[]) {
     if (rule.id === "simple_interest") {
       return simpleInterestRequirementsSupported(query, chunks);
     }
-    return rule.requirements.every((requirement) =>
+    return requiredFormulaRuleRequirements(rule, query).every((requirement) =>
       requirementSupported(requirement, evidence)
     );
   });
+}
+
+function requiredFormulaRuleRequirements(rule: FormulaInputRule, query: string) {
+  const calculationRequest =
+    rule.calculationRequestPattern?.test(query) ?? isCalculationRequest(query);
+  return [
+    ...(rule.formulaRequirements ?? rule.requirements),
+    ...(calculationRequest ? rule.valueRequirements ?? [] : []),
+  ];
+}
+
+function isCalculationRequest(query: string) {
+  return /\b(?:calculate|calculation|solve|work out|determine)\b/i.test(query);
 }
 
 function simpleInterestRequirementsSupported(
@@ -839,8 +1005,6 @@ function extractSimpleInterestSupport(evidence: string): SimpleInterestSupport {
     timeValue,
   };
 }
-
-const NUMBER_VALUE = String.raw`(?:\d+(?:\.\d+)?|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve)`;
 
 function hasSimpleInterestFormula(mathText: string, text: string) {
   return (
@@ -983,10 +1147,32 @@ function requirementSupported(
   requirement: FormulaInputRule["requirements"][number],
   evidence: string
 ) {
-  if (requirement.negationPatterns?.some((pattern) => pattern.test(evidence))) {
-    return false;
-  }
-  return requirement.patterns.some((pattern) => pattern.test(evidence));
+  const positive = requirement.patterns.some((pattern) => pattern.test(evidence));
+  if (!positive) return false;
+  return !requirement.negationPatterns?.some((pattern) => {
+    if (!pattern.test(evidence)) return false;
+    return requirement.patterns.every((positivePattern) => !positivePattern.test(
+      evidence.replace(pattern, " ")
+    ));
+  });
+}
+
+function hasUnsupportedElaborationGap(query: string, chunks: RetrievedChunk[]) {
+  const queryText = normalizeForConceptMatching(query);
+  const evidenceText = normalizeForConceptMatching(
+    chunks.map((chunk) => chunk.content).join(" ")
+  );
+
+  const asksFoodChainConsequence =
+    phraseAppears("food chain", queryText) &&
+    /\b(?:consequence|follows|if|disappears|population|increase|decrease|consumer)\b/.test(
+      queryText
+    );
+  if (!asksFoodChainConsequence) return false;
+
+  return !/\b(?:population|increase|decrease|disappear|disappears|removed|consumer disappears|predator|prey|consequence)\b/.test(
+    evidenceText
+  );
 }
 
 function hasResourceInstructionConflict(query: string, chunks: RetrievedChunk[]) {
