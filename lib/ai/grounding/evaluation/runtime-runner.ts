@@ -66,6 +66,7 @@ import {
 import {
   assertEvaluationResourceScope,
   buildEvaluationResourceScope,
+  corpusResourceIdsForCase,
   resolveEvaluationResourcesForSplit,
   type EvaluationResourceScope,
 } from "./resource-scope";
@@ -132,6 +133,8 @@ export interface RuntimeGroundedEvaluationReport {
     caseId: string;
     shouldAnswer: boolean;
     providerCalled: boolean;
+    corpusResourceIds: string[];
+    corpusChunkIds: string[];
     sufficiencyReason: string;
     sufficiencyStatus: "SUFFICIENT" | "INSUFFICIENT";
     selectedEvidence: Array<{
@@ -234,10 +237,15 @@ export async function runRuntimeGroundedEvaluation(
 
     failurePhase = "RETRIEVAL_FAILURE";
     for (const evaluationCase of cases) {
+      const caseCorpusResourceIds = corpusResourceIdsForCase(
+        evaluationCase,
+        resources
+      );
       const answer = await answerRuntimeCase({
         evaluationCase,
         provider,
         groundingService,
+        caseCorpusResourceIds,
       });
       answers.set(evaluationCase.id, answer.answer);
       diagnostics.push(answer.diagnostic);
@@ -665,6 +673,7 @@ async function answerRuntimeCase(input: {
   evaluationCase: GroundedEvaluationCase;
   provider: ChatModelProvider;
   groundingService: GroundedGenerationService;
+  caseCorpusResourceIds: string[];
 }) {
   const lastMessage = input.evaluationCase.messages.at(-1);
   if (!lastMessage) throw new Error(`Case ${input.evaluationCase.id} has no message.`);
@@ -681,13 +690,17 @@ async function answerRuntimeCase(input: {
     topicId: input.evaluationCase.topicId,
     topicTitle: topicTitle(input.evaluationCase.topicId),
     recentMessages: input.evaluationCase.messages.slice(0, -1),
+    retrievalResourceIds: input.caseCorpusResourceIds,
   };
 
   const outcome = await input.groundingService.generate({
     context,
     provider: input.provider,
   });
-  const diagnostic = await buildCaseDiagnostic(input.evaluationCase);
+  const diagnostic = await buildCaseDiagnostic(
+    input.evaluationCase,
+    input.caseCorpusResourceIds
+  );
 
   if (outcome.kind === "COMPLETED") {
     const citations = outcome.citations.map((citation) => ({
@@ -839,7 +852,10 @@ async function answerRuntimeCase(input: {
   };
 }
 
-async function buildCaseDiagnostic(evaluationCase: GroundedEvaluationCase) {
+async function buildCaseDiagnostic(
+  evaluationCase: GroundedEvaluationCase,
+  caseCorpusResourceIds: string[]
+) {
   const searchRepository = new PostgresResourceSearchRepository();
   const embeddingProvider = getConfiguredEmbeddingProvider();
   const lastMessage = evaluationCase.messages.at(-1);
@@ -856,6 +872,9 @@ async function buildCaseDiagnostic(evaluationCase: GroundedEvaluationCase) {
     filters: {
       ...(evaluationCase.subjectId ? { subjectId: evaluationCase.subjectId } : {}),
       ...(evaluationCase.topicId ? { topicId: evaluationCase.topicId } : {}),
+      ...(caseCorpusResourceIds.length
+        ? { resourceIds: caseCorpusResourceIds }
+        : {}),
     },
     keywordLimit: 40,
     vectorLimit: 40,
@@ -874,6 +893,8 @@ async function buildCaseDiagnostic(evaluationCase: GroundedEvaluationCase) {
     caseId: evaluationCase.id,
     shouldAnswer: evaluationCase.shouldAnswer,
     providerCalled: false,
+    corpusResourceIds: caseCorpusResourceIds,
+    corpusChunkIds: candidates.map((item) => item.id),
     sufficiencyReason: sufficiency.reason,
     sufficiencyStatus: sufficiency.sufficient
       ? ("SUFFICIENT" as const)
