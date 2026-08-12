@@ -204,6 +204,7 @@ const SYMBOL_TERM_HINTS = new Map<string, Set<string>>([
   ["r", new Set(["radius", "resistance"])],
   ["v", new Set(["velocity", "voltage", "volume"])],
   ["x", new Set(["unknown", "value", "variable"])],
+  ["y", new Set(["percentage", "percentage yield", "yield"])],
 ]);
 
 const NUMBER_WORDS = new Map([
@@ -647,10 +648,11 @@ function extractSymbolDefinitions(segment: string) {
   const normalized = segment
     .normalize("NFKC")
     .replace(/[’']/g, "'")
-    .replace(/[;:,().]/g, " ");
+    .replace(/[,.]/g, " $& ")
+    .replace(/[;:()]/g, " ");
   const definitions: Array<{ symbol: string; term: string }> = [];
   const pattern =
-    /\b([A-Za-z])\s+(?:represents|represent|represented|representing|stands\s+for|means|is)\s+(?:the\s+)?([A-Za-z][A-Za-z-]*)/gi;
+    /\b([A-Za-z])\s+(?:represents|represent|represented|representing|stands\s+for|means|is)\s+(?:the\s+)?([A-Za-z][A-Za-z-]*(?:\s+(?!and\b|or\b|but\b|where\b|when\b|with\b|of\b|in\b|for\b|from\b|to\b|[A-Za-z]\b)[A-Za-z][A-Za-z-]*)?)/gi;
 
   for (const match of normalized.matchAll(pattern)) {
     const symbol = normalizeForMatching(match[1] ?? "");
