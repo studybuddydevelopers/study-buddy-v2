@@ -304,6 +304,113 @@ describe("Stage 4 grounding primitives", () => {
     expect(nounResult.evidenceShape).toBe("DIRECT_SHORT_DEFINITION_SUPPORT");
   });
 
+  it("answers direct ratio definitions from explicit definition evidence", () => {
+    const ratio = fixtureChunk("eval-math-ratio-lesson", {
+      keywordScore: 0.2,
+      vectorDistance: 0.3,
+      fusionScore: 0.03,
+      bestBranchRank: 1,
+    });
+
+    const result = evaluateRetrievalSufficiency({
+      query:
+        "Subject: Mathematics. Topic: Ratio. Define a ratio for me in simple terms.",
+      candidates: [ratio],
+      selectedChunks: [ratio],
+      subjectId: "eval-subject-mathematics",
+      topicId: "eval-topic-ratio",
+    });
+
+    expect(result.sufficient).toBe(true);
+    expect(result.reason).toBe("SUPPORTED");
+    expect(result.evidenceShape).toBe("DIRECT_SHORT_DEFINITION_SUPPORT");
+  });
+
+  it.each([
+    {
+      name: "equivalent-ratio-only evidence",
+      evidence:
+        "Equivalent ratios are made by multiplying or dividing both terms by the same non-zero number.",
+      expectedReason: "REQUIRED_CONCEPT_MISSING",
+    },
+    {
+      name: "proportion-only evidence",
+      evidence:
+        "A proportion is a statement that two ratios are equal in value.",
+      expectedReason: "REQUIRED_CONCEPT_MISSING",
+    },
+    {
+      name: "fraction-only evidence",
+      evidence:
+        "A fraction shows part of a whole using a numerator and a denominator.",
+      expectedReason: "REQUIRED_CONCEPT_MISSING",
+    },
+  ])(
+    "does not treat adjacent concepts as ratio definition support: $name",
+    ({ evidence, expectedReason }) => {
+      const selected = [
+        chunk({
+          resourceTitle: "Adjacent Maths Note",
+          title: "Adjacent concept",
+          content: evidence,
+          subjectId: "eval-subject-mathematics",
+          topicId: "eval-topic-ratio",
+          keywordScore: 0.4,
+          vectorDistance: 0.2,
+          fusionScore: 0.05,
+          bestBranchRank: 1,
+        }),
+      ];
+
+      const result = evaluateRetrievalSufficiency({
+        query: "Subject: Mathematics. Topic: Ratio. Define ratio.",
+        candidates: selected,
+        selectedChunks: selected,
+        subjectId: "eval-subject-mathematics",
+        topicId: "eval-topic-ratio",
+      });
+
+      expect(result.sufficient).toBe(false);
+      expect(result.reason).toBe(expectedReason);
+    }
+  );
+
+  it("keeps noun and mean direct definitions supported", () => {
+    const noun = fixtureChunk("eval-english-grammar-noun", {
+      keywordScore: 0.2,
+      vectorDistance: 0.3,
+      fusionScore: 0.03,
+      bestBranchRank: 1,
+    });
+    const mean = fixtureChunk("eval-math-mean-statistics", {
+      keywordScore: 0.2,
+      vectorDistance: 0.3,
+      fusionScore: 0.03,
+      bestBranchRank: 1,
+    });
+
+    expect(
+      evaluateRetrievalSufficiency({
+        query: "Subject: English. Topic: Grammar. What is a noun?",
+        candidates: [noun],
+        selectedChunks: [noun],
+        subjectId: "eval-subject-english",
+        topicId: "eval-topic-grammar",
+      }).reason
+    ).toBe("SUPPORTED");
+
+    expect(
+      evaluateRetrievalSufficiency({
+        query:
+          "Subject: Mathematics. Topic: Statistics. What is the arithmetic mean?",
+        candidates: [mean],
+        selectedChunks: [mean],
+        subjectId: "eval-subject-mathematics",
+        topicId: "eval-topic-statistics",
+      }).reason
+    ).toBe("SUPPORTED");
+  });
+
   it("accepts selected evidence for the previously failed supported development cases", () => {
     const cases = [
       "dev-direct-supported-formula",
@@ -2519,7 +2626,7 @@ describe("Stage 4 grounding primitives", () => {
       versions: {
         prompt: "grounded-teach-prompt-v1.6",
         grounding: "stage4-grounded-teach-v1",
-        sufficiency: "sufficiency-policy-v1.9",
+        sufficiency: "sufficiency-policy-v1.10",
       },
     });
 
