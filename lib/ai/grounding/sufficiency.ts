@@ -188,6 +188,13 @@ export function evaluateRetrievalSufficiency(
     };
   }
 
+  if (
+    isDirectDefinitionRequest(input.query) &&
+    !hasDirectShortDefinitionSupport(input.query, selected)
+  ) {
+    return insufficient("REQUIRED_CONCEPT_MISSING", "LOW", selected);
+  }
+
   if (hasDirectShortDefinitionSupport(input.query, selected)) {
     return {
       sufficient: true,
@@ -387,18 +394,18 @@ function hasDirectShortDefinitionSupport(query: string, chunks: RetrievedChunk[]
   const requestedConcepts = conceptsInText(queryText);
   if (requestedConcepts.length === 0) return false;
 
-  const evidenceText = normalizeForConceptMatching(
-    chunks
-      .map((chunk) =>
-        [
-          chunk.resourceTitle,
-          chunk.title,
-          chunk.questionNumber ? `question ${chunk.questionNumber}` : "",
-          chunk.content,
-        ].join(" ")
-      )
-      .join(" ")
-  );
+  const evidenceText = chunks
+    .map((chunk) =>
+      [
+        chunk.resourceTitle,
+        chunk.title,
+        chunk.questionNumber ? `question ${chunk.questionNumber}` : "",
+        chunk.content,
+      ]
+        .filter(Boolean)
+        .join(". ")
+    )
+    .join(". ");
 
   return requestedConcepts.every((concept) =>
     concept.aliases.some((alias) =>
@@ -407,12 +414,56 @@ function hasDirectShortDefinitionSupport(query: string, chunks: RetrievedChunk[]
   );
 }
 
+function isDirectDefinitionRequest(query: string) {
+  const queryText = currentDefinitionIntentText(query);
+  const requestedConcepts = conceptsInText(queryText);
+  if (requestedConcepts.length === 0) return false;
+
+  if (/\b(?:define|definition|meaning)\b/.test(queryText)) return true;
+
+  return requestedConcepts.some((concept) =>
+    concept.aliases.some((alias) => {
+      const escaped = normalizeForConceptMatching(alias).replace(
+        /[.*+?^${}()|[\]\\]/g,
+        "\\$&"
+      );
+      return (
+        new RegExp(
+          `\\bwhat\\s+(?:is|are)\\s+(?:a\\s+|an\\s+|the\\s+)?${escaped}\\b`,
+          "i"
+        ).test(queryText) ||
+        new RegExp(`\\bwhat\\s+does\\s+${escaped}\\s+mean\\b`, "i").test(
+          queryText
+        )
+      );
+    })
+  );
+}
+
+function currentDefinitionIntentText(query: string) {
+  const withoutMetadata = query
+    .replace(/\bSubject:\s*[^.]+\.?/gi, " ")
+    .replace(/\bTopic:\s*[^.]+\.?/gi, " ");
+  const segments = withoutMetadata
+    .split(/(?<=[.!?])\s+/)
+    .map((item) => item.trim())
+    .filter(Boolean);
+  const currentSegment = segments.at(-1) ?? withoutMetadata;
+  return normalizeForConceptMatching(currentSegment);
+}
+
 function hasDirectDefinitionPattern(alias: string, evidenceText: string) {
   const escaped = alias.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const normalizedEvidence = evidenceText
+    .toLowerCase()
+    .normalize("NFKD")
+    .replace(/[^\p{L}\p{N}.!?;]+/gu, " ")
+    .replace(/\s+/g, " ")
+    .trim();
   return new RegExp(
-    `(^|[^a-z0-9])(?:a |an |the )?${escaped}([^a-z0-9].{0,120})?\\b(?:is|are|means|refers to|found by|called|names|can be|produces|shows)\\b`,
+    `(^|[.!?;]\\s+)(?:a |an |the )?${escaped}\\b\\s+(?:is|are|means|refers to|is found by|are found by|found by|called|is called|are called|can be|names|produces|shows|compares)\\b`,
     "i"
-  ).test(evidenceText);
+  ).test(normalizedEvidence);
 }
 
 function hasLowHighSignalTermCoverage(query: string, chunks: RetrievedChunk[]) {
@@ -1101,7 +1152,7 @@ function extractRequestedSymbolDefinition(query: string) {
   );
   const patterns = [
     /\bwhat\s+does\s+([a-z])\s+(?:mean|represent|stand\s+for)\b/i,
-    /\bdefine\s+([a-z])\b/i,
+    /\bdefine\s+([a-z])(?:\s+(?:in|for|from|as|symbol|variable)\b|$)/i,
     /\b([a-z])\s+(?:mean|represent|stand\s+for)\b/i,
   ];
 
