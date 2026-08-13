@@ -136,6 +136,7 @@ function readSplit(values: string[]): GroundedEvaluationSplit | "all" {
     value === "manual_quality" ||
     value === "holdout_v3" ||
     value === "holdout_v4" ||
+    value === "holdout_v5" ||
     value === "adversarial_safety"
   ) {
     return value;
