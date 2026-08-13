@@ -22,7 +22,10 @@ import {
 import { runGroundedEvaluation } from "./evaluation/runner";
 import { buildGroundedTeachPrompt, groundedTeachOutputSchema } from "./prompt";
 import { buildStandaloneRetrievalQuery } from "./query-builder";
-import { evaluateRetrievalSufficiency } from "./sufficiency";
+import {
+  classifyGroundingRequestIntent,
+  evaluateRetrievalSufficiency,
+} from "./sufficiency";
 import {
   validateGroundedTeachOutput,
   GroundedOutputValidationError,
@@ -409,6 +412,122 @@ describe("Stage 4 grounding primitives", () => {
         topicId: "eval-topic-statistics",
       }).reason
     ).toBe("SUPPORTED");
+  });
+
+  it("classifies definition, symbol, and formula-symbol requests by precedence", () => {
+    expect(classifyGroundingRequestIntent("Define a ratio.")).toBe(
+      "CONCEPT_DEFINITION"
+    );
+    expect(classifyGroundingRequestIntent("What is a triangle?")).toBe(
+      "CONCEPT_DEFINITION"
+    );
+    expect(classifyGroundingRequestIntent("Define d in C = pi x d.")).toBe(
+      "SYMBOL_DEFINITION"
+    );
+    expect(
+      classifyGroundingRequestIntent("What does d represent in C = pi x d?")
+    ).toBe("SYMBOL_DEFINITION");
+    expect(
+      classifyGroundingRequestIntent("Give C = pi x d and define d.")
+    ).toBe("FORMULA_WITH_SYMBOL_DEFINITIONS");
+    expect(
+      classifyGroundingRequestIntent(
+        "State the triangle area formula and define the variables."
+      )
+    ).toBe("FORMULA_WITH_SYMBOL_DEFINITIONS");
+  });
+
+  it("keeps formula requests with variable definitions out of the concept-definition guard", () => {
+    const triangleFormula = fixtureChunk("eval-math-geometry-formula", {
+      keywordScore: 0.4,
+      vectorDistance: 0.2,
+      fusionScore: 0.05,
+      bestBranchRank: 1,
+    });
+
+    const result = evaluateRetrievalSufficiency({
+      query:
+        "Subject: Mathematics. Topic: Geometry. State the triangle area formula and define the variables.",
+      candidates: [triangleFormula],
+      selectedChunks: [triangleFormula],
+      subjectId: "eval-subject-mathematics",
+      topicId: "eval-topic-geometry",
+    });
+
+    expect(result.sufficient).toBe(true);
+    expect(result.reason).toBe("SUPPORTED");
+  });
+
+  it("supports formula notation requests when the requested symbol is defined", () => {
+    const circleDiameter = fixtureChunk("eval-reg-v4-circle-diameter", {
+      keywordScore: 0.4,
+      vectorDistance: 0.2,
+      fusionScore: 0.05,
+      bestBranchRank: 1,
+    });
+
+    const result = evaluateRetrievalSufficiency({
+      query:
+        "Subject: Mathematics. Topic: Geometry. State the circle boundary formula that uses d and define d.",
+      candidates: [circleDiameter],
+      selectedChunks: [circleDiameter],
+      subjectId: "eval-subject-mathematics",
+      topicId: "eval-topic-geometry",
+    });
+
+    expect(result.sufficient).toBe(true);
+    expect(result.reason).toBe("SUPPORTED");
+  });
+
+  it("refuses formula symbol requests when the symbol is only mentioned or explicitly undefined", () => {
+    const mentionedOnly = chunk({
+      content:
+        "A circle boundary shortcut may be written as C = pi x d. The card mentions d in the expression only.",
+      chunkType: ResourceChunkType.FORMULA_REFERENCE,
+      keywordScore: 0.4,
+      vectorDistance: 0.2,
+      fusionScore: 0.05,
+      bestBranchRank: 1,
+    });
+    const explicitlyUndefined = chunk({
+      content:
+        "A circle boundary shortcut may be written as C = pi x d. Here d is not defined.",
+      chunkType: ResourceChunkType.FORMULA_REFERENCE,
+      keywordScore: 0.4,
+      vectorDistance: 0.2,
+      fusionScore: 0.05,
+      bestBranchRank: 1,
+    });
+
+    for (const evidence of [mentionedOnly, explicitlyUndefined]) {
+      const result = evaluateRetrievalSufficiency({
+        query: "Define d in the circle boundary formula.",
+        candidates: [evidence],
+        selectedChunks: [evidence],
+      });
+
+      expect(result.sufficient).toBe(false);
+      expect(result.reason).toBe("REQUIRED_SYMBOL_DEFINITION_MISSING");
+    }
+  });
+
+  it("does not treat an unrelated triangle definition as triangle formula support", () => {
+    const triangleDefinition = chunk({
+      content: "A triangle is a plane shape with three straight sides.",
+      keywordScore: 0.4,
+      vectorDistance: 0.2,
+      fusionScore: 0.05,
+      bestBranchRank: 1,
+    });
+
+    const result = evaluateRetrievalSufficiency({
+      query: "State the triangle area formula and define the variables.",
+      candidates: [triangleDefinition],
+      selectedChunks: [triangleDefinition],
+    });
+
+    expect(result.sufficient).toBe(false);
+    expect(result.reason).toBe("LOW_RELEVANCE");
   });
 
   it("accepts selected evidence for the previously failed supported development cases", () => {
@@ -2626,7 +2745,7 @@ describe("Stage 4 grounding primitives", () => {
       versions: {
         prompt: "grounded-teach-prompt-v1.6",
         grounding: "stage4-grounded-teach-v1",
-        sufficiency: "sufficiency-policy-v1.10",
+        sufficiency: "sufficiency-policy-v1.11",
       },
     });
 
