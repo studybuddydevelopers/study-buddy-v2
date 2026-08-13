@@ -806,19 +806,33 @@ function extractPowerCalculation(segment: string, rawEvidence: string) {
   if (explicitMultiplication) return explicitMultiplication;
 
   const math = normalizeMathForMatching(segment);
-  const viResult = math.match(/\bp\s*=\s*(?:v\s*x\s*i|v\s*i|vi)\s*=\s*([0-9]+)\s*w?\b/i);
+  const viResult = math.match(
+    /\bp\s*=\s*(?:v\s*(?:x|\*)?\s*i|vi)\s*=\s*(?:(\d+)\s*(?:v)?\s*(?:x|\*)\s*(\d+)\s*(?:a)?\s*=\s*)?([0-9]+)\s*w\b/i
+  );
   if (viResult) {
     const values = powerUnitValues(segment, rawEvidence);
-    const resultValue = viResult[1] ?? "";
+    const expressionValues =
+      viResult[1] && viResult[2]
+        ? [{ voltage: viResult[1], current: viResult[2] }]
+        : [];
+    const resultValue = viResult[3] ?? "";
     const matching = values.find(
       (item) => Number(item.voltage) * Number(item.current) === Number(resultValue)
     );
+    const expressionMatching = expressionValues.find(
+      (item) => Number(item.voltage) * Number(item.current) === Number(resultValue)
+    );
     return {
-      voltage: matching?.voltage ?? values[0]?.voltage ?? "",
-      current: matching?.current ?? values[0]?.current ?? "",
+      voltage:
+        expressionMatching?.voltage ?? matching?.voltage ?? values[0]?.voltage ?? "",
+      current:
+        expressionMatching?.current ?? matching?.current ?? values[0]?.current ?? "",
       result: resultValue,
     };
   }
+
+  const multiplication = extractStandalonePowerMultiplication(segment);
+  if (multiplication) return multiplication;
 
   const resultOnly = math.match(/\b(?:power|p)\s*=\s*([0-9]+)\s*w?\b/i);
   if (!resultOnly) return null;
@@ -839,7 +853,20 @@ function extractPowerCalculation(segment: string, rawEvidence: string) {
 function extractPowerMultiplication(segment: string) {
   const math = normalizeMathForMatching(segment);
   const match = math.match(
-    /\b(?:power|p)\s*=\s*([0-9]+)\s*v\s*x\s*([0-9]+)\s*a\s*=\s*([0-9]+)\s*w?\b/i
+    /\b(?:power|p)\s*=\s*([0-9]+)\s*(?:v)?\s*(?:x|\*)\s*([0-9]+)\s*(?:a)?\s*=\s*([0-9]+)\s*w\b/i
+  );
+  if (!match) return null;
+  return {
+    voltage: match[1] ?? "",
+    current: match[2] ?? "",
+    result: match[3] ?? "",
+  };
+}
+
+function extractStandalonePowerMultiplication(segment: string) {
+  const math = normalizeMathForMatching(segment);
+  const match = math.match(
+    /\b([0-9]+)\s*(?:v)?\s*(?:x|\*)\s*([0-9]+)\s*(?:a)?\s*=\s*([0-9]+)\s*w\b/i
   );
   if (!match) return null;
   return {
