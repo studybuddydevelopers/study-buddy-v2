@@ -6,6 +6,7 @@ export type GroundedEvaluationSplit =
   | "manual_quality"
   | "holdout_v3"
   | "holdout_v4"
+  | "holdout_v5"
   | "adversarial_safety";
 
 export interface GroundedEvaluationResource {
@@ -192,6 +193,7 @@ export interface GroundedEvaluationReportSourceState {
 
 export interface GroundedEvaluationReviewReport {
   reportSchemaVersion: string;
+  split: GroundedEvaluationSplit | "all" | "mixed" | null;
   runId: string;
   runTimestamp: string;
   fixtureHash: string;
