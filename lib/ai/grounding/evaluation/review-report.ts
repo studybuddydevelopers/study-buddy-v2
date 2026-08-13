@@ -9,6 +9,7 @@ import type {
   GroundedEvaluationReviewCase,
   GroundedEvaluationReviewCitation,
   GroundedEvaluationReviewReport,
+  GroundedEvaluationSplit,
 } from "./types";
 import { findPresentEvaluationFacts } from "./fact-matching";
 
@@ -37,6 +38,7 @@ export interface BuildReviewCaseInput {
 }
 
 export interface BuildReviewReportInput {
+  split?: GroundedEvaluationSplit | "all";
   runId: string;
   runTimestamp: string;
   fixtureHash: string;
@@ -111,6 +113,7 @@ export function buildReviewCase(input: BuildReviewCaseInput) {
 export function buildReviewReport(input: BuildReviewReportInput) {
   const reportWithoutHash = {
     reportSchemaVersion: REVIEW_REPORT_SCHEMA_VERSION,
+    split: input.split ?? inferReportSplit(input.cases),
     runId: input.runId,
     runTimestamp: input.runTimestamp,
     fixtureHash: input.fixtureHash,
@@ -126,6 +129,26 @@ export function buildReviewReport(input: BuildReviewReportInput) {
     ...reportWithoutHash,
     reportHash: hashReviewReport(reportWithoutHash),
   } satisfies GroundedEvaluationReviewReport;
+}
+
+function inferReportSplit(cases: GroundedEvaluationReviewCase[]) {
+  const splits = Array.from(
+    new Set(
+      cases.map((item) =>
+        item.caseId.startsWith("holdout-v5-")
+          ? "holdout_v5"
+          : item.caseId.startsWith("holdout-v4-")
+            ? "holdout_v4"
+            : item.caseId.startsWith("holdout-v3-")
+              ? "holdout_v3"
+              : null
+      )
+    )
+  ).filter((item): item is NonNullable<typeof item> => item !== null);
+
+  if (splits.length === 0) return null;
+  if (splits.length === 1) return splits[0];
+  return "mixed";
 }
 
 export function verifyReviewReportIntegrity(
