@@ -209,6 +209,25 @@ describe("Stage 4 holdout_v4 preparation", () => {
     await rm(reportDir, { recursive: true, force: true });
   });
 
+  it("records a deterministic split hash for manual_quality reports", async () => {
+    const reportDir = await mkdtemp(path.join(os.tmpdir(), "manual-quality-dry-run-"));
+    const first = await runRuntimeGroundedEvaluationPreflight({
+      split: "manual_quality",
+      reportDir,
+    });
+    const second = await runRuntimeGroundedEvaluationPreflight({
+      split: "manual_quality",
+      reportDir,
+    });
+
+    expect(first.splitHash).toMatch(/^[a-f0-9]{64}$/);
+    expect(first.splitHash).toBe(second.splitHash);
+    expect(first.providerCalls).toBe(0);
+    expect(first.dbMutations).toBe(0);
+
+    await rm(reportDir, { recursive: true, force: true });
+  });
+
   it("keeps v4 one-shot guard isolated from consumed v3 markers", async () => {
     const reportDir = await mkdtemp(path.join(os.tmpdir(), "holdout-v4-guard-"));
     const v3Hash = computeHoldoutV3SplitHash({
