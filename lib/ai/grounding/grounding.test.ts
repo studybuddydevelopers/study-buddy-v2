@@ -1848,6 +1848,22 @@ describe("Stage 4 grounding primitives", () => {
       name: "substituting explicit multiplication",
       text: "Substituting the values, power = 10 V x 4 A = 40 W.",
     },
+    {
+      name: "unlabeled calculation with units",
+      text: "Using the values, 10 V x 4 A = 40 W.",
+    },
+    {
+      name: "bare supported heater-power expression with units",
+      text: "10 V x 4 A = 40 W.",
+    },
+    {
+      name: "symbolic output assignment to multiplication",
+      text: "P = 10 V x 4 A = 40 W.",
+    },
+    {
+      name: "symbolic formula assignment to unlabeled multiplication",
+      text: "P = VI = 10 x 4 = 40 W.",
+    },
   ])("accepts calculation connective language after the calculation is supported: $name", async ({ text }) => {
     const evidence = [
       {
@@ -1869,6 +1885,54 @@ describe("Stage 4 grounding primitives", () => {
     });
 
     expect(validation.supported).toBe(true);
+  });
+
+  it.each([
+    {
+      name: "wrong result",
+      text: "Using the values, 10 V x 4 A = 14 W.",
+    },
+    {
+      name: "wrong operand",
+      text: "Using the values, 10 V x 5 A = 50 W.",
+    },
+    {
+      name: "wrong operation",
+      text: "Using the values, 10 V + 4 A = 14 W.",
+    },
+    {
+      name: "wrong unit",
+      text: "Using the values, 10 x 4 = 40 J.",
+    },
+    {
+      name: "unrelated unlabeled arithmetic",
+      text: "Using the values, 10 x 4 = 40.",
+    },
+    {
+      name: "unsupported consequence after supported calculation",
+      text: "Using the values, 10 V x 4 A = 40 W; therefore the heater becomes hotter.",
+    },
+  ])("rejects unsupported standalone calculation expression: $name", async ({ text }) => {
+    const evidence = [
+      {
+        sourceLabel: "SOURCE_1",
+        excerpt:
+          "Electrical power can be found by multiplying voltage by current: power = voltage x current.",
+      },
+      {
+        sourceLabel: "SOURCE_2",
+        excerpt:
+          "Circuit reading for heater H: the voltage across the heater is 10 V and the current through it is 4 A.",
+      },
+    ];
+
+    const validation = await validateGroundedAnswerSegments({
+      segments: [{ text, sourceLabels: ["SOURCE_1", "SOURCE_2"] }],
+      evidenceByLabel: new Map(evidence.map((item) => [item.sourceLabel, item])),
+      validator: new DeterministicGroundingValidator(),
+    });
+
+    expect(validation.supported).toBe(false);
   });
 
   it.each([
