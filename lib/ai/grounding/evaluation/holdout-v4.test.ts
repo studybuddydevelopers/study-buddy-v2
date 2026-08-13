@@ -419,17 +419,21 @@ function holdoutV4Cases() {
 }
 
 function resourcesThroughHoldoutV4() {
-  const adversarialResourceIds = new Set(
+  const futureResourceIds = new Set(
     groundedEvaluationCases
-      .filter((item) => item.split === "adversarial_safety")
+      .filter(
+        (item) =>
+          item.split === "holdout_v5" || item.split === "adversarial_safety"
+      )
       .flatMap((item) => [
+        ...(item.corpusResourceIds ?? []),
         ...(item.expectedResourceIds ?? []),
         ...(item.setupResourceIds ?? []),
       ])
   );
 
   return groundedEvaluationResources.filter(
-    (item) => !adversarialResourceIds.has(item.id)
+    (item) => !futureResourceIds.has(item.id)
   );
 }
 
