@@ -1192,6 +1192,137 @@ describe("Stage 4 grounding primitives", () => {
 
   it.each([
     {
+      name: "adjacent voltage",
+      content:
+        "Electrical power is found by multiplying voltage by current: power = voltage x current. The voltage is 10 V and the current is 2 A.",
+      sufficient: true,
+    },
+    {
+      name: "subject-qualified voltage and current",
+      content:
+        "Electrical power is found by multiplying voltage by current: power = voltage x current. The voltage across the heater is 10 V and the current through the heater is 2 A.",
+      sufficient: true,
+    },
+    {
+      name: "missing current",
+      content:
+        "Electrical power is found by multiplying voltage by current: power = voltage x current. The voltage across the heater is 10 V.",
+      sufficient: false,
+    },
+    {
+      name: "missing voltage",
+      content:
+        "Electrical power is found by multiplying voltage by current: power = voltage x current. The current through the heater is 2 A.",
+      sufficient: false,
+    },
+    {
+      name: "unrelated voltage number",
+      content:
+        "Electrical power is found by multiplying voltage by current: power = voltage x current. Voltage is measured in volts. The heater label shows 10 V, and the current through it is 2 A.",
+      sufficient: false,
+    },
+  ])("handles local electrical-power quantity extraction: $name", ({ content, sufficient }) => {
+    const selected = [
+      chunk({
+        id: "power-local",
+        content,
+        chunkType: ResourceChunkType.WORKED_SOLUTION,
+        keywordScore: 0.4,
+        vectorDistance: 0.2,
+        fusionScore: 0.05,
+        bestBranchRank: 1,
+      }),
+    ];
+
+    const result = evaluateRetrievalSufficiency({
+      query: "Calculate electrical power from the heater card.",
+      candidates: selected,
+      selectedChunks: selected,
+    });
+
+    expect(result.sufficient).toBe(sufficient);
+    expect(result.reason).toBe(sufficient ? "SUPPORTED" : "REQUIRED_INPUT_MISSING");
+  });
+
+  it("supports electrical-power values spread across data and formula chunks", () => {
+    const selected = [
+      chunk({
+        id: "heater-data",
+        content:
+          "Circuit reading for heater H: the voltage across the heater is 10 V and the current through it is 4 A.",
+        keywordScore: 0.4,
+        vectorDistance: 0.2,
+        fusionScore: 0.05,
+        bestBranchRank: 1,
+      }),
+      chunk({
+        id: "heater-formula",
+        content:
+          "Electrical power can be found by multiplying voltage by current: power = voltage x current. Use volts and amperes to obtain power in watts.",
+        chunkType: ResourceChunkType.FORMULA_REFERENCE,
+        keywordScore: 0.35,
+        vectorDistance: 0.22,
+        fusionScore: 0.045,
+        bestBranchRank: 2,
+      }),
+    ];
+
+    const result = evaluateRetrievalSufficiency({
+      query: "Use the heater cards to calculate heater H's electrical power.",
+      candidates: selected,
+      selectedChunks: selected,
+    });
+
+    expect(result.sufficient).toBe(true);
+    expect(result.reason).toBe("SUPPORTED");
+  });
+
+  it.each([
+    {
+      name: "mass of block",
+      query: "Calculate resultant force from the force card.",
+      content:
+        "Resultant force uses F = m x a. The mass of the block is 5 kg and the acceleration of the block is 2 m/s2.",
+      sufficient: true,
+    },
+    {
+      name: "volume of liquid",
+      query: "Calculate density from the sample card.",
+      content:
+        "Density is mass divided by volume. The mass of the liquid is 4 kg and the volume of the liquid is 2 m3.",
+      sufficient: true,
+    },
+    {
+      name: "distance travelled and time taken",
+      query: "Calculate the speed from the journey card.",
+      content:
+        "Speed is distance divided by time. The distance travelled is 100 m and the time taken is 20 s.",
+      sufficient: true,
+    },
+  ])("handles local subject-qualified calculation quantities: $name", ({ query, content, sufficient }) => {
+    const selected = [
+      chunk({
+        content,
+        chunkType: ResourceChunkType.WORKED_SOLUTION,
+        keywordScore: 0.4,
+        vectorDistance: 0.2,
+        fusionScore: 0.05,
+        bestBranchRank: 1,
+      }),
+    ];
+
+    const result = evaluateRetrievalSufficiency({
+      query,
+      candidates: selected,
+      selectedChunks: selected,
+    });
+
+    expect(result.sufficient).toBe(sufficient);
+    expect(result.reason).toBe("SUPPORTED");
+  });
+
+  it.each([
+    {
       name: "area vs perimeter",
       query: "Explain perimeter using the area formula.",
       evidence: "The area of a circle is pi times radius squared.",
@@ -1723,6 +1854,62 @@ describe("Stage 4 grounding primitives", () => {
     );
   });
 
+  it.each([
+    {
+      name: "separate particles by size using mesh",
+      text: "Sieving can be used to separate solid particles by size using a mesh.",
+      supported: true,
+      reason: "SUPPORTED_RELATION",
+    },
+    {
+      name: "harmless should be used paraphrase",
+      text: "Sieving should be used to separate solid particles by size using a mesh.",
+      supported: true,
+      reason: "SUPPORTED_RELATION",
+    },
+    {
+      name: "wrong separation property",
+      text: "Sieving separates solid particles by density using a mesh.",
+      supported: false,
+      reason: "UNSUPPORTED_MECHANISM",
+    },
+    {
+      name: "dissolved solid claim",
+      text: "Sieving separates dissolved solids from a solution.",
+      supported: false,
+      reason: "UNSUPPORTED_RELATION",
+    },
+    {
+      name: "unsupported mesh mechanism",
+      text: "Sieving works because the mesh chemically reacts with particles.",
+      supported: false,
+      reason: "UNSUPPORTED_MECHANISM",
+    },
+    {
+      name: "unsupported evaporation mechanism",
+      text: "Sieving works because smaller particles evaporate through the mesh.",
+      supported: false,
+      reason: "UNSUPPORTED_MECHANISM",
+    },
+  ])("validates sieving process relation: $name", async ({ text, supported, reason }) => {
+    const evidence = [
+      {
+        sourceLabel: "SOURCE_1",
+        excerpt:
+          "Sieving separates solid particles by size using a mesh. Its limitation is that it cannot separate a dissolved substance from a solution.",
+      },
+    ];
+
+    const validation = await validateGroundedAnswerSegments({
+      segments: [{ text, sourceLabels: ["SOURCE_1"] }],
+      evidenceByLabel: new Map(evidence.map((item) => [item.sourceLabel, item])),
+      validator: new DeterministicGroundingValidator(),
+    });
+
+    expect(validation.supported).toBe(supported);
+    expect(validation.results[0].reason).toBe(reason);
+  });
+
   it("rejects hostile resource instructions even when the same words appear in evidence", async () => {
     const evidence = [
       {
@@ -2172,7 +2359,7 @@ describe("Stage 4 grounding primitives", () => {
       versions: {
         prompt: "grounded-teach-prompt-v1.6",
         grounding: "stage4-grounded-teach-v1",
-        sufficiency: "sufficiency-policy-v1.8",
+        sufficiency: "sufficiency-policy-v1.9",
       },
     });
 
