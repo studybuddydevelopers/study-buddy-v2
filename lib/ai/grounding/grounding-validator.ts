@@ -966,9 +966,10 @@ function validateSeparationMethodRelation(
   const evidence = normalizeForMatching(rawEvidence);
   const mentionsFiltration = hasTerm(normalizedSegment, "filtration");
   const mentionsEvaporation = hasTerm(normalizedSegment, "evaporation");
-  if (!mentionsFiltration && !mentionsEvaporation) return null;
+  const mentionsSieving = hasTerm(normalizedSegment, "sieving");
+  if (!mentionsFiltration && !mentionsEvaporation && !mentionsSieving) return null;
 
-  const mechanismTerms = ["boiling", "industrial", "particles", "safety"].filter(
+  const mechanismTerms = ["boiling", "chemical", "chemically", "density", "industrial", "safety"].filter(
     (term) => hasTerm(normalizedSegment, term) && !termAppears(term, evidence)
   );
   if (mechanismTerms.length > 0) {
@@ -980,6 +981,11 @@ function validateSeparationMethodRelation(
     };
   }
 
+  if (mentionsSieving) {
+    const sieving = validateSievingRelation(normalizedSegment, evidence);
+    if (sieving) return sieving;
+  }
+
   if (mentionsFiltration) {
     const filtration = validateFiltrationRelation(normalizedSegment, evidence);
     if (filtration) return filtration;
@@ -988,6 +994,85 @@ function validateSeparationMethodRelation(
   if (mentionsEvaporation) {
     const evaporation = validateEvaporationRelation(normalizedSegment, evidence);
     if (evaporation) return evaporation;
+  }
+
+  return null;
+}
+
+function validateSievingRelation(
+  segment: string,
+  evidence: string
+): PedagogicalRelationAnalysis {
+  const hasProcessVerb = PROCESS_RELATION_GLUE_TERMS.some((term) =>
+    hasTerm(segment, term)
+  );
+  const mentionsSolidParticles =
+    hasTerm(segment, "solid") && hasTerm(segment, "particles");
+  const mentionsSize = hasTerm(segment, "size") || hasTerm(segment, "sizes");
+  const mentionsMesh = hasTerm(segment, "mesh");
+  const hasNegation = hasNegationTerm(segment);
+  const mentionsDissolved =
+    hasTerm(segment, "dissolved") ||
+    (hasTerm(segment, "dissolve") || hasTerm(segment, "dissolves"));
+  const mentionsSolution = hasTerm(segment, "solution");
+
+  if (hasUnsupportedSievingMechanism(segment)) {
+    return {
+      supported: false,
+      reason: "UNSUPPORTED_MECHANISM",
+      unsupportedTerms: unsupportedSievingMechanismTerms(segment),
+      unsupportedClaim: "unsupported sieving mechanism",
+    };
+  }
+
+  if (hasNegation && mentionsDissolved && mentionsSolution) {
+    return evidenceSupportsSievingDissolvedCaveat(evidence)
+      ? {
+          supported: true,
+          glueTerms: relationGlueTerms(segment, PROCESS_RELATION_GLUE_TERMS),
+        }
+      : {
+          supported: false,
+          reason: "UNSUPPORTED_RELATION",
+          unsupportedTerms: ["dissolved", "solution"],
+          unsupportedClaim: "sieving dissolved-substance caveat",
+        };
+  }
+
+  if (mentionsDissolved) {
+    return {
+      supported: false,
+      reason: "UNSUPPORTED_RELATION",
+      unsupportedTerms: ["dissolved"],
+      unsupportedClaim: "sieving separates dissolved substances",
+    };
+  }
+
+  if (!hasProcessVerb) return null;
+
+  if (
+    mentionsSolidParticles &&
+    mentionsSize &&
+    mentionsMesh &&
+    evidenceSupportsSievingSizeMeshRelation(evidence)
+  ) {
+    return {
+      supported: true,
+      glueTerms: relationGlueTerms(segment, PROCESS_RELATION_GLUE_TERMS),
+    };
+  }
+
+  if (mentionsSolidParticles || mentionsSize || mentionsMesh) {
+    return {
+      supported: false,
+      reason: "UNSUPPORTED_RELATION",
+      unsupportedTerms: unique([
+        ...(mentionsSolidParticles ? [] : ["solid", "particles"]),
+        ...(mentionsSize ? [] : ["size"]),
+        ...(mentionsMesh ? [] : ["mesh"]),
+      ]),
+      unsupportedClaim: "sieving solid-particle size relation",
+    };
   }
 
   return null;
@@ -1155,6 +1240,49 @@ function evidenceSupportsEvaporationDissolvedRelation(evidence: string) {
       (hasTerm(evidence, "solvent") && hasTerm(evidence, "removed"))) &&
     (termAppears("recover", evidence) || termAppears("remove", evidence))
   );
+}
+
+function evidenceSupportsSievingSizeMeshRelation(evidence: string) {
+  return (
+    hasTerm(evidence, "sieving") &&
+    hasTerm(evidence, "solid") &&
+    hasTerm(evidence, "particles") &&
+    hasTerm(evidence, "size") &&
+    hasTerm(evidence, "mesh") &&
+    termAppears("separate", evidence)
+  );
+}
+
+function evidenceSupportsSievingDissolvedCaveat(evidence: string) {
+  return (
+    hasTerm(evidence, "sieving") &&
+    hasNegationTerm(evidence) &&
+    hasTerm(evidence, "dissolved") &&
+    hasTerm(evidence, "solution") &&
+    termAppears("separate", evidence)
+  );
+}
+
+function hasUnsupportedSievingMechanism(segment: string) {
+  return unsupportedSievingMechanismTerms(segment).length > 0;
+}
+
+function unsupportedSievingMechanismTerms(segment: string) {
+  return unique([
+    ...(hasTerm(segment, "density") ? ["density"] : []),
+    ...(hasTerm(segment, "chemical") || hasTerm(segment, "chemically")
+      ? ["chemical"]
+      : []),
+    ...(hasTerm(segment, "react") || hasTerm(segment, "reacts")
+      ? ["reacts"]
+      : []),
+    ...(hasTerm(segment, "evaporate") || hasTerm(segment, "evaporates")
+      ? ["evaporates"]
+      : []),
+    ...(hasTerm(segment, "dissolve") || hasTerm(segment, "dissolves")
+      ? ["dissolves"]
+      : []),
+  ]);
 }
 
 function hasNegationTerm(value: string) {
