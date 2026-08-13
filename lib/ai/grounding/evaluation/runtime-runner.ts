@@ -483,7 +483,53 @@ function computeSelectedHoldoutSplitHash(cases: GroundedEvaluationCase[]) {
       resources: groundedEvaluationResources,
     });
   }
-  return null;
+  const resourceIds = collectReferencedResourceIdsForCases(
+    cases,
+    groundedEvaluationResources
+  );
+
+  const selectedResources = groundedEvaluationResources
+    .filter((resource) => resourceIds.has(resource.id))
+    .sort((left, right) => left.id.localeCompare(right.id));
+  const selectedCases = [...cases].sort((left, right) =>
+    left.id.localeCompare(right.id)
+  );
+
+  return hashText(
+    JSON.stringify({
+      schemaVersion: "grounded-selected-split-hash-v1",
+      splits: unique(selectedCases.map((item) => item.split)).sort(),
+      cases: selectedCases.map((item) => ({
+        id: item.id,
+        split: item.split,
+        messages: item.messages,
+        subjectId: item.subjectId ?? null,
+        topicId: item.topicId ?? null,
+        shouldAnswer: item.shouldAnswer,
+        corpusResourceIds: item.corpusResourceIds ?? [],
+        expectedResourceIds: item.expectedResourceIds ?? [],
+        expectedChunkIds: item.expectedChunkIds ?? [],
+        setupResourceIds: item.setupResourceIds ?? [],
+        requiredFacts: item.requiredFacts ?? [],
+        optionalFacts: item.optionalFacts ?? [],
+        forbiddenClaims: item.forbiddenClaims ?? [],
+        expectedInsufficientReason: item.expectedInsufficientReason ?? null,
+        manualReviewCriteria: item.manualReviewCriteria ?? null,
+      })),
+      resources: selectedResources.map((resource) => ({
+        id: resource.id,
+        title: resource.title,
+        subjectId: resource.subjectId,
+        topicId: resource.topicId ?? null,
+        chunkId: resource.chunkId,
+        chunkType: resource.chunkType,
+        content: resource.content,
+        questionNumber: resource.questionNumber ?? null,
+        provenance: resource.provenance,
+        usageRights: resource.usageRights,
+      })),
+    })
+  );
 }
 
 async function enforceHoldoutGuard(
