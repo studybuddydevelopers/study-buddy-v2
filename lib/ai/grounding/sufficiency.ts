@@ -33,6 +33,14 @@ export interface EvaluateRetrievalSufficiencyInput {
   selectedChunks: RetrievedChunk[];
 }
 
+export type GroundingRequestIntent =
+  | "CALCULATION"
+  | "FORMULA_WITH_SYMBOL_DEFINITIONS"
+  | "SYMBOL_DEFINITION"
+  | "FORMULA_REQUEST"
+  | "CONCEPT_DEFINITION"
+  | "GENERAL";
+
 const MAX_LOW_VECTOR_DISTANCE = 0.88;
 const MIN_KEYWORD_SCORE = 0.01;
 const MIN_HIGH_SIGNAL_TERM_COVERAGE = 0.5;
@@ -136,6 +144,8 @@ const CONCEPT_DEFINITIONS: ConceptDefinition[] = [
 export function evaluateRetrievalSufficiency(
   input: EvaluateRetrievalSufficiencyInput
 ): RetrievalSufficiency {
+  const requestIntent = classifyGroundingRequestIntent(input.query);
+
   if (input.candidates.length === 0) {
     return insufficient("NO_RESULTS", "LOW", []);
   }
@@ -189,7 +199,7 @@ export function evaluateRetrievalSufficiency(
   }
 
   if (
-    isDirectDefinitionRequest(input.query) &&
+    requestIntent === "CONCEPT_DEFINITION" &&
     !hasDirectShortDefinitionSupport(input.query, selected)
   ) {
     return insufficient("REQUIRED_CONCEPT_MISSING", "LOW", selected);
@@ -250,6 +260,19 @@ export function evaluateRetrievalSufficiency(
     selectedChunks: confidence === "LOW" ? [] : selected,
     policyVersion: SUFFICIENCY_POLICY_VERSION,
   };
+}
+
+export function classifyGroundingRequestIntent(
+  query: string
+): GroundingRequestIntent {
+  if (isCalculationRequest(query)) return "CALCULATION";
+  if (requestsFormulaWithSymbolDefinitions(query)) {
+    return "FORMULA_WITH_SYMBOL_DEFINITIONS";
+  }
+  if (extractRequestedSymbolDefinition(query)) return "SYMBOL_DEFINITION";
+  if (isFormulaRequest(query)) return "FORMULA_REQUEST";
+  if (isDirectConceptDefinitionRequest(query)) return "CONCEPT_DEFINITION";
+  return "GENERAL";
 }
 
 function concept(id: string, group: string, aliases: string[]): ConceptDefinition {
@@ -414,7 +437,7 @@ function hasDirectShortDefinitionSupport(query: string, chunks: RetrievedChunk[]
   );
 }
 
-function isDirectDefinitionRequest(query: string) {
+function isDirectConceptDefinitionRequest(query: string) {
   const queryText = currentDefinitionIntentText(query);
   const requestedConcepts = conceptsInText(queryText);
   if (requestedConcepts.length === 0) return false;
@@ -438,6 +461,36 @@ function isDirectDefinitionRequest(query: string) {
       );
     })
   );
+}
+
+function requestsFormulaWithSymbolDefinitions(query: string) {
+  const queryText = currentDefinitionIntentText(query);
+  const asksForFormulaOutput =
+    /\b(?:give|state|write|teach|explain|show|provide)\b.*\b(?:formula|equation)\b/i.test(
+      queryText
+    ) ||
+    /\b(?:formula|equation)\b.*\b(?:define|variables?|symbols?)\b/i.test(
+      queryText
+    ) ||
+    /\b(?:give|state|write|show|provide)\b[^.?!]*[a-z]\s*=\s*[^.?!]+/i.test(
+      query
+    );
+  if (!asksForFormulaOutput) return false;
+
+  return (
+    /\b(?:define|name|state|explain|give)\s+(?:the\s+)?(?:variables?|symbols?)\b/i.test(
+      queryText
+    ) ||
+    /\b(?:where|with)\s+[a-z]\s+(?:means|represents|stands\s+for|denotes|is)\b/i.test(
+      queryText
+    ) ||
+    extractRequestedSymbolDefinition(queryText) !== null
+  );
+}
+
+function isFormulaRequest(query: string) {
+  const queryText = normalizeForConceptMatching(normalizeQueryForTermCoverage(query));
+  return /\b(?:formula|equation)\b/.test(queryText) || /[a-z]\s*=\s*[^.?!]+/i.test(query);
 }
 
 function currentDefinitionIntentText(query: string) {
