@@ -193,6 +193,19 @@ const UNSUPPORTED_CAUSAL_EXTENSION_TERMS = new Set([
   "prevents",
 ]);
 
+const CALCULATION_CONNECTIVE_TERMS = [
+  "given",
+  "hence",
+  "so",
+  "substituting",
+  "therefore",
+  "using",
+  "values",
+  "we",
+  "have",
+  "gives",
+];
+
 const SYMBOL_TERM_HINTS = new Map<string, Set<string>>([
   ["a", new Set(["area", "acceleration"])],
   ["b", new Set(["base"])],
@@ -737,7 +750,7 @@ function validateTwoSourceArithmeticRelation(
   rawEvidence: string
 ): PedagogicalRelationAnalysis {
   const evidence = normalizeForMatching(rawEvidence);
-  const powerCalculation = extractPowerMultiplication(segment);
+  const powerCalculation = extractPowerCalculation(segment, rawEvidence);
   if (!powerCalculation) return null;
 
   const supportsPowerFormula =
@@ -746,21 +759,28 @@ function validateTwoSourceArithmeticRelation(
       hasTerm(evidence, "voltage") &&
       hasTerm(evidence, "current") &&
       (hasTerm(evidence, "multiplying") || hasTerm(evidence, "multiply")));
-  const supportsVoltage = hasUnitValue(evidence, powerCalculation.left, "v");
-  const supportsCurrent = hasUnitValue(evidence, powerCalculation.right, "a");
+  const supportsVoltage = hasUnitValue(evidence, powerCalculation.voltage, "v");
+  const supportsCurrent = hasUnitValue(evidence, powerCalculation.current, "a");
   const arithmeticCorrect =
-    Number(powerCalculation.left) * Number(powerCalculation.right) ===
+    Number(powerCalculation.voltage) * Number(powerCalculation.current) ===
     Number(powerCalculation.result);
 
   if (supportsPowerFormula && supportsVoltage && supportsCurrent && arithmeticCorrect) {
     return {
       supported: true,
       glueTerms: unique([
-        "using",
-        "values",
-        powerCalculation.left,
+        ...CALCULATION_CONNECTIVE_TERMS.filter((term) =>
+          hasTerm(normalizeForMatching(segment), term)
+        ),
+        "p",
+        "i",
+        "vi",
+        "power",
+        "calculated",
+        "calculation",
+        powerCalculation.voltage,
         "v",
-        powerCalculation.right,
+        powerCalculation.current,
         "a",
         powerCalculation.result,
         "w",
@@ -773,25 +793,86 @@ function validateTwoSourceArithmeticRelation(
     reason: "UNSUPPORTED_RELATION",
     unsupportedTerms: unique([
       ...(supportsPowerFormula ? [] : ["power", "formula"]),
-      ...(supportsVoltage ? [] : [powerCalculation.left, "v"]),
-      ...(supportsCurrent ? [] : [powerCalculation.right, "a"]),
+      ...(supportsVoltage ? [] : [powerCalculation.voltage, "v"]),
+      ...(supportsCurrent ? [] : [powerCalculation.current, "a"]),
       ...(arithmeticCorrect ? [] : [powerCalculation.result]),
     ]),
     unsupportedClaim: "power calculation",
   };
 }
 
+function extractPowerCalculation(segment: string, rawEvidence: string) {
+  const explicitMultiplication = extractPowerMultiplication(segment);
+  if (explicitMultiplication) return explicitMultiplication;
+
+  const math = normalizeMathForMatching(segment);
+  const viResult = math.match(/\bp\s*=\s*(?:v\s*x\s*i|v\s*i|vi)\s*=\s*([0-9]+)\s*w?\b/i);
+  if (viResult) {
+    const values = powerUnitValues(segment, rawEvidence);
+    const resultValue = viResult[1] ?? "";
+    const matching = values.find(
+      (item) => Number(item.voltage) * Number(item.current) === Number(resultValue)
+    );
+    return {
+      voltage: matching?.voltage ?? values[0]?.voltage ?? "",
+      current: matching?.current ?? values[0]?.current ?? "",
+      result: resultValue,
+    };
+  }
+
+  const resultOnly = math.match(/\b(?:power|p)\s*=\s*([0-9]+)\s*w?\b/i);
+  if (!resultOnly) return null;
+  const values = powerUnitValues("", rawEvidence);
+  if (values.length === 0) return null;
+  const resultValue = resultOnly[1] ?? "";
+  const matching = values.find(
+    (item) => Number(item.voltage) * Number(item.current) === Number(resultValue)
+  );
+
+  return {
+    voltage: matching?.voltage ?? values[0]?.voltage ?? "",
+    current: matching?.current ?? values[0]?.current ?? "",
+    result: resultValue,
+  };
+}
+
 function extractPowerMultiplication(segment: string) {
   const math = normalizeMathForMatching(segment);
   const match = math.match(
-    /\bpower\s*=\s*([0-9]+)\s*v\s*x\s*([0-9]+)\s*a\s*=\s*([0-9]+)\s*w?\b/i
+    /\b(?:power|p)\s*=\s*([0-9]+)\s*v\s*x\s*([0-9]+)\s*a\s*=\s*([0-9]+)\s*w?\b/i
   );
   if (!match) return null;
   return {
-    left: match[1] ?? "",
-    right: match[2] ?? "",
+    voltage: match[1] ?? "",
+    current: match[2] ?? "",
     result: match[3] ?? "",
   };
+}
+
+function powerUnitValues(primaryText: string, fallbackText: string) {
+  const primaryValues = pairUnitValues(primaryText);
+  return primaryValues.length > 0 ? primaryValues : pairUnitValues(fallbackText);
+}
+
+function pairUnitValues(text: string) {
+  const voltages = extractUnitValues(text, "v");
+  const currents = extractUnitValues(text, "a");
+  const values: Array<{ voltage: string; current: string }> = [];
+  for (const voltage of voltages) {
+    for (const current of currents) {
+      values.push({ voltage, current });
+    }
+  }
+  return values;
+}
+
+function extractUnitValues(text: string, unit: string) {
+  const math = normalizeMathForMatching(text);
+  const escapedUnit = unit.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  return Array.from(
+    math.matchAll(new RegExp(`\\b([0-9]+)\\s*${escapedUnit}\\b`, "gi")),
+    (match) => match[1] ?? ""
+  ).filter(Boolean);
 }
 
 function hasUnitValue(evidence: string, value: string, unit: string) {
