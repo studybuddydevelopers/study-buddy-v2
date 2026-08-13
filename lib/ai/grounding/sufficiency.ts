@@ -653,6 +653,14 @@ interface FormulaInputRule {
 }
 
 const NUMBER_VALUE = String.raw`(?:\d+(?:\.\d+)?|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve)`;
+const LOCAL_QUANTITY_PHRASE = String.raw`(?:\s+(?!is\b|=)[a-z0-9/]+){0,8}`;
+
+function quantityValuePattern(quantity: string, unit: string) {
+  return new RegExp(
+    String.raw`\b${quantity}\b${LOCAL_QUANTITY_PHRASE}\s+(?:is|=)\s*${NUMBER_VALUE}\s*(?:${unit})\b`,
+    "i"
+  );
+}
 
 const FORMULA_INPUT_RULES: FormulaInputRule[] = [
   {
@@ -700,6 +708,7 @@ const FORMULA_INPUT_RULES: FormulaInputRule[] = [
       {
         name: "distance",
         patterns: [
+          quantityValuePattern("distance", String.raw`m|met(?:re|er)s?`),
           new RegExp(String.raw`\bdistance\s+(?:is|of|=)\s*${NUMBER_VALUE}\s*(?:m|met(?:re|er)s?)\b`, "i"),
           new RegExp(String.raw`\bcovers?\s+${NUMBER_VALUE}\s*(?:m|met(?:re|er)s?)\b`, "i"),
         ],
@@ -707,6 +716,7 @@ const FORMULA_INPUT_RULES: FormulaInputRule[] = [
       {
         name: "time",
         patterns: [
+          quantityValuePattern("time", String.raw`s|sec|secs|seconds?`),
           new RegExp(String.raw`\btime\s+(?:is|of|=)\s*${NUMBER_VALUE}\s*(?:s|sec|secs|seconds?)\b`, "i"),
           new RegExp(String.raw`\bin\s+${NUMBER_VALUE}\s*(?:s|sec|secs|seconds?)\b`, "i"),
           new RegExp(String.raw`\bt\s*(?:=|is)\s*${NUMBER_VALUE}\s*(?:s|sec|secs|seconds?)\b`, "i"),
@@ -735,6 +745,7 @@ const FORMULA_INPUT_RULES: FormulaInputRule[] = [
       {
         name: "mass",
         patterns: [
+          quantityValuePattern("mass", String.raw`g|kg|grams?|kilograms?`),
           new RegExp(String.raw`\bmass\s+(?:is|of|=)\s*${NUMBER_VALUE}\s*(?:g|kg|grams?|kilograms?)\b`, "i"),
           new RegExp(String.raw`\bwith\s+mass\s+${NUMBER_VALUE}\s*(?:g|kg|grams?|kilograms?)\b`, "i"),
         ],
@@ -742,6 +753,7 @@ const FORMULA_INPUT_RULES: FormulaInputRule[] = [
       {
         name: "volume",
         patterns: [
+          quantityValuePattern("volume", String.raw`cm3|cm\^3|m3|m\^3|litres?|liters?`),
           new RegExp(String.raw`\bvolume\s+(?:is|of|=)?\s*${NUMBER_VALUE}\s*(?:cm3|cm\^3|m3|m\^3|litres?|liters?)\b`, "i"),
           new RegExp(String.raw`\bwith\s+volume\s+${NUMBER_VALUE}\s*(?:cm3|cm\^3|m3|m\^3|litres?|liters?)\b`, "i"),
         ],
@@ -764,6 +776,8 @@ const FORMULA_INPUT_RULES: FormulaInputRule[] = [
       {
         name: "voltage",
         patterns: [
+          quantityValuePattern("voltage", String.raw`v|volts?`),
+          quantityValuePattern("potential difference", String.raw`v|volts?`),
           new RegExp(String.raw`\bvoltage\s+(?:is|of|=)?\s*${NUMBER_VALUE}\s*v\b`, "i"),
           new RegExp(String.raw`\bpotential difference\s+(?:is|of|=)?\s*${NUMBER_VALUE}\s*v\b`, "i"),
           new RegExp(String.raw`\bpotential difference\b.{0,40}\bis\s+${NUMBER_VALUE}\s*v\b`, "i"),
@@ -773,6 +787,7 @@ const FORMULA_INPUT_RULES: FormulaInputRule[] = [
       {
         name: "current",
         patterns: [
+          quantityValuePattern("current", String.raw`a|ampere|amperes|amps?`),
           new RegExp(String.raw`\bcurrent\s+(?:is|of|=)?\s*${NUMBER_VALUE}\s*(?:a|ampere|amperes|amps?)\b`, "i"),
           new RegExp(String.raw`\bcurrent\b.{0,30}\bis\s+${NUMBER_VALUE}\s*(?:a|ampere|amperes|amps?)\b`, "i"),
           new RegExp(String.raw`\bhas\s+current\s+${NUMBER_VALUE}\s*(?:a|ampere|amperes|amps?)\b`, "i"),
@@ -799,6 +814,7 @@ const FORMULA_INPUT_RULES: FormulaInputRule[] = [
       {
         name: "mass",
         patterns: [
+          quantityValuePattern("mass", String.raw`kg|kilograms?`),
           new RegExp(String.raw`\bmass\s+(?:is|of|=)\s*${NUMBER_VALUE}\s*(?:kg|kilograms?)\b`, "i"),
           new RegExp(String.raw`\bm\s*(?:=|is)\s*${NUMBER_VALUE}\s*(?:kg|kilograms?)\b`, "i"),
         ],
@@ -806,6 +822,7 @@ const FORMULA_INPUT_RULES: FormulaInputRule[] = [
       {
         name: "acceleration",
         patterns: [
+          quantityValuePattern("acceleration", String.raw`m/s2|m/s\^2|met(?:re|er)s?\s+per\s+second\s+squared`),
           new RegExp(String.raw`\bacceleration\s+(?:is|of|=)\s*${NUMBER_VALUE}\s*(?:m/s2|m/s\^2|met(?:re|er)s?\s+per\s+second\s+squared)\b`, "i"),
           new RegExp(String.raw`\ba\s*(?:=|is)\s*${NUMBER_VALUE}\s*(?:m/s2|m/s\^2|met(?:re|er)s?\s+per\s+second\s+squared)\b`, "i"),
         ],
