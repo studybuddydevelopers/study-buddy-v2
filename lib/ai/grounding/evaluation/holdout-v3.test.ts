@@ -700,9 +700,12 @@ function historicalResourcesThroughHoldoutV3() {
     groundedEvaluationCases
       .filter(
         (item) =>
-          item.split === "holdout_v4" || item.split === "adversarial_safety"
+          item.split === "holdout_v4" ||
+          item.split === "holdout_v5" ||
+          item.split === "adversarial_safety"
       )
       .flatMap((item) => [
+        ...(item.corpusResourceIds ?? []),
         ...(item.expectedResourceIds ?? []),
         ...(item.setupResourceIds ?? []),
       ])
@@ -714,10 +717,13 @@ function historicalResourcesThroughHoldoutV3() {
 }
 
 function resourcesExcludingSplit(split: GroundedEvaluationCase["split"]) {
+  const excludedSplits =
+    split === "holdout_v4" ? new Set([split, "holdout_v5"]) : new Set([split]);
   const resourceIds = new Set(
     groundedEvaluationCases
-      .filter((item) => item.split === split)
+      .filter((item) => excludedSplits.has(item.split))
       .flatMap((item) => [
+        ...(item.corpusResourceIds ?? []),
         ...(item.expectedResourceIds ?? []),
         ...(item.setupResourceIds ?? []),
       ])
