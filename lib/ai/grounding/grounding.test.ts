@@ -1827,6 +1827,102 @@ describe("Stage 4 grounding primitives", () => {
     expect(validation.supported).toBe(true);
   });
 
+  it.each([
+    {
+      name: "given symbolic calculation",
+      text: "Given V=10V and I=4A, P=VI=40W.",
+    },
+    {
+      name: "symbolic calculation without connective",
+      text: "V=10V and I=4A, P=VI=40W.",
+    },
+    {
+      name: "using symbolic calculation",
+      text: "Using V=10V and I=4A, P=VI=40W.",
+    },
+    {
+      name: "therefore result-only calculation",
+      text: "Therefore P=40W.",
+    },
+    {
+      name: "substituting explicit multiplication",
+      text: "Substituting the values, power = 10 V x 4 A = 40 W.",
+    },
+  ])("accepts calculation connective language after the calculation is supported: $name", async ({ text }) => {
+    const evidence = [
+      {
+        sourceLabel: "SOURCE_1",
+        excerpt:
+          "Electrical power can be found by multiplying voltage by current: power = voltage x current.",
+      },
+      {
+        sourceLabel: "SOURCE_2",
+        excerpt:
+          "Circuit reading for heater H: the voltage across the heater is 10 V and the current through it is 4 A.",
+      },
+    ];
+
+    const validation = await validateGroundedAnswerSegments({
+      segments: [{ text, sourceLabels: ["SOURCE_1", "SOURCE_2"] }],
+      evidenceByLabel: new Map(evidence.map((item) => [item.sourceLabel, item])),
+      validator: new DeterministicGroundingValidator(),
+    });
+
+    expect(validation.supported).toBe(true);
+  });
+
+  it.each([
+    {
+      name: "wrong operand",
+      text: "Given V=12V and I=4A, P=VI=48W.",
+      unsupportedTerms: ["12", "v"],
+    },
+    {
+      name: "wrong arithmetic",
+      text: "Given V=10V and I=4A, P=VI=50W.",
+      unsupportedTerms: ["50"],
+    },
+    {
+      name: "unsupported result",
+      text: "Therefore P=50W.",
+      unsupportedTerms: ["50"],
+    },
+    {
+      name: "unsupported factual clause after given",
+      text: "Given the heater is efficient, power = 10 V x 4 A = 40 W.",
+      unsupportedTerms: ["efficient"],
+    },
+    {
+      name: "unsupported consequence after therefore",
+      text: "Therefore the heater becomes hotter, and power = 10 V x 4 A = 40 W.",
+      unsupportedTerms: ["hotter"],
+    },
+  ])("rejects unsupported calculation additions: $name", async ({ text, unsupportedTerms }) => {
+    const evidence = [
+      {
+        sourceLabel: "SOURCE_1",
+        excerpt:
+          "Electrical power can be found by multiplying voltage by current: power = voltage x current.",
+      },
+      {
+        sourceLabel: "SOURCE_2",
+        excerpt:
+          "Circuit reading for heater H: the voltage across the heater is 10 V and the current through it is 4 A.",
+      },
+    ];
+
+    const validation = await validateGroundedAnswerSegments({
+      segments: [{ text, sourceLabels: ["SOURCE_1", "SOURCE_2"] }],
+      evidenceByLabel: new Map(evidence.map((item) => [item.sourceLabel, item])),
+      validator: new DeterministicGroundingValidator(),
+    });
+
+    expect(validation.supported).toBe(false);
+    expect(validation.results[0].unsupportedTerms).toEqual(
+      expect.arrayContaining(unsupportedTerms)
+    );
+  });
+
   it("rejects a two-chunk calculation when an operand source is missing", async () => {
     const evidence = [
       {
