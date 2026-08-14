@@ -702,6 +702,7 @@ function historicalResourcesThroughHoldoutV3() {
         (item) =>
           item.split === "holdout_v4" ||
           item.split === "holdout_v5" ||
+          item.split === "post_v5_regression" ||
           item.split === "adversarial_safety"
       )
       .flatMap((item) => [
