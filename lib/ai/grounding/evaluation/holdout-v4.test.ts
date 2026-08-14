@@ -423,7 +423,9 @@ function resourcesThroughHoldoutV4() {
     groundedEvaluationCases
       .filter(
         (item) =>
-          item.split === "holdout_v5" || item.split === "adversarial_safety"
+          item.split === "holdout_v5" ||
+          item.split === "post_v5_regression" ||
+          item.split === "adversarial_safety"
       )
       .flatMap((item) => [
         ...(item.corpusResourceIds ?? []),
