@@ -312,6 +312,157 @@ describe("Stage 4 grounding primitives", () => {
     expect(sufficiency.reason).toBe("REQUIRED_COMPARISON_SIDE_MISSING");
   });
 
+  it("extracts symbol-definition intent and requires positive local symbol support", () => {
+    const qDefinition = [
+      chunk({
+        content:
+          "Charge relation is E = p x q. In this relation, q means charge and p means power.",
+      }),
+    ];
+    const qOccurrenceOnly = [
+      chunk({ content: "Charge relation is E = p x q." }),
+    ];
+    const nearbyOnly = [
+      chunk({
+        content:
+          "Force relation is F = p x q. The card defines p as push factor but gives no meaning for q.",
+      }),
+    ];
+    const qUndefined = [
+      chunk({
+        content:
+          "Energy transfer relation is E = p x q. The card explains p as power but does not define q.",
+      }),
+    ];
+    const dUndefined = [
+      chunk({
+        content:
+          "Work done formula is W = F x d. In this formula, F means force, but the card does not define d.",
+      }),
+    ];
+
+    expect(classifyGroundingRequestIntent("Can you identify the q factor?")).toBe(
+      "SYMBOL_DEFINITION"
+    );
+    expect(classifyGroundingRequestIntent("What is d in the formula?")).toBe(
+      "SYMBOL_DEFINITION"
+    );
+    expect(
+      buildRequestRequirements("State what q stands for.")[0]
+    ).toMatchObject({ kind: "FORMULA_WITH_SYMBOLS", symbols: ["q"] });
+
+    expect(
+      evaluateRetrievalSufficiency({
+        query: "Can you identify q?",
+        candidates: qDefinition,
+        selectedChunks: qDefinition,
+      }).reason
+    ).toBe("SUPPORTED");
+    expect(
+      evaluateRetrievalSufficiency({
+        query: "What does q mean?",
+        candidates: qDefinition,
+        selectedChunks: qDefinition,
+      }).reason
+    ).toBe("SUPPORTED");
+    expect(
+      evaluateRetrievalSufficiency({
+        query: "What does q mean?",
+        candidates: qOccurrenceOnly,
+        selectedChunks: qOccurrenceOnly,
+      }).reason
+    ).toBe("REQUIRED_SYMBOL_DEFINITION_MISSING");
+    expect(
+      evaluateRetrievalSufficiency({
+        query: "For F = p x q, can you identify q?",
+        candidates: nearbyOnly,
+        selectedChunks: nearbyOnly,
+      }).reason
+    ).toBe("REQUIRED_SYMBOL_DEFINITION_MISSING");
+    expect(
+      evaluateRetrievalSufficiency({
+        query: "The card shows E = p x q. Can you identify the q factor?",
+        candidates: qUndefined,
+        selectedChunks: qUndefined,
+      }).reason
+    ).toBe("REQUIRED_SYMBOL_DEFINITION_MISSING");
+    expect(
+      evaluateRetrievalSufficiency({
+        query: "The work card leaves d unexplained in W = F x d. Can you identify d?",
+        candidates: dUndefined,
+        selectedChunks: dUndefined,
+      }).reason
+    ).toBe("REQUIRED_SYMBOL_DEFINITION_MISSING");
+  });
+
+  it("treats negated concept definitions as insufficient after context resolution", () => {
+    const medianDefinition = [chunk({ content: "Median means the middle value in an ordered list." })];
+    const meanOnly = [
+      chunk({
+        content:
+          "The mean is found by adding all values and dividing by the number of values. This note does not define median.",
+      }),
+    ];
+    const siblingMean = [
+      chunk({
+        content:
+          "The mean is found by adding all values and dividing by the number of values.",
+      }),
+    ];
+
+    expect(
+      evaluateRetrievalSufficiency({
+        query: "Does that also tell me the median?",
+        candidates: meanOnly,
+        selectedChunks: meanOnly,
+      }).reason
+    ).toBe("REQUIRED_CONCEPT_MISSING");
+    expect(
+      evaluateRetrievalSufficiency({
+        query: "What is median?",
+        candidates: medianDefinition,
+        selectedChunks: medianDefinition,
+      }).reason
+    ).toBe("SUPPORTED");
+    expect(
+      evaluateRetrievalSufficiency({
+        query: "What is median?",
+        candidates: siblingMean,
+        selectedChunks: siblingMean,
+      }).reason
+    ).toBe("REQUIRED_CONCEPT_MISSING");
+  });
+
+  it("applies ordinary positive support checks to contextual formula follow-ups", () => {
+    const density = [
+      chunk({
+        content:
+          "Density relation is rho = m / V. In this relation, m means mass and V means volume.",
+      }),
+    ];
+    const workWithoutD = [
+      chunk({
+        content:
+          "Work done formula is W = F x d. In this formula, F means force, but the card does not define d.",
+      }),
+    ];
+
+    expect(
+      evaluateRetrievalSufficiency({
+        query: "What is its formula and what does V mean?",
+        candidates: density,
+        selectedChunks: density,
+      }).reason
+    ).toBe("SUPPORTED");
+    expect(
+      evaluateRetrievalSufficiency({
+        query: "What is its formula and what does d mean?",
+        candidates: workWithoutD,
+        selectedChunks: workWithoutD,
+      }).reason
+    ).toBe("REQUIRED_SYMBOL_DEFINITION_MISSING");
+  });
+
   it("does not let subject metadata alone make concise exact evidence look irrelevant", () => {
     const selected = [
       chunk({
@@ -3034,6 +3185,9 @@ describe("Stage 4 grounding primitives", () => {
   });
 
   it("validates multi-option unit-rate arithmetic structurally", async () => {
+    const crateEvidence =
+      "Cost per bottle is total cost divided by bottles. Crate A costs 720 naira for 12 bottles. Crate B costs 500 naira for 5 bottles.";
+
     await expect(
       validateSingleSegment({
         segment:
@@ -3046,9 +3200,48 @@ describe("Stage 4 grounding primitives", () => {
     await expect(
       validateSingleSegment({
         segment:
+          "Crate A costs 720 naira for 12 bottles, which gives a cost per bottle of 60 naira.",
+        evidence: crateEvidence,
+      })
+    ).resolves.toMatchObject({ supported: true });
+
+    await expect(
+      validateSingleSegment({
+        segment: "Crate A is cheaper per bottle than Crate B.",
+        evidence: crateEvidence,
+      })
+    ).resolves.toMatchObject({ supported: true });
+
+    const missingInput = [
+      chunk({
+        content:
+          "Printing cost per page is total cost divided by pages. Shop One charges 500 naira for 25 pages. Shop Two states 360 naira but omits the number of pages.",
+      }),
+    ];
+    expect(
+      evaluateRetrievalSufficiency({
+        query: "Which print shop costs less per page?",
+        candidates: missingInput,
+        selectedChunks: missingInput,
+      }).reason
+    ).toBe("REQUIRED_INPUT_MISSING");
+
+    await expect(
+      validateSingleSegment({
+        segment:
           "Crate B is cheaper because 500 naira for 5 bottles gives 50 naira per bottle.",
         evidence:
           "Cost per bottle is total cost divided by bottles. Crate A costs 720 naira for 12 bottles. Crate B costs 500 naira for 5 bottles.",
+      })
+    ).resolves.toMatchObject({
+      supported: false,
+      reason: "UNSUPPORTED_RELATION",
+    });
+
+    await expect(
+      validateSingleSegment({
+        segment: "Crate B is cheaper per bottle than Crate A.",
+        evidence: crateEvidence,
       })
     ).resolves.toMatchObject({
       supported: false,
