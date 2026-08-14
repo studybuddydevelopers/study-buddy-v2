@@ -686,11 +686,49 @@ function symbolDefinitionSupported(
   if (!hasTerm(evidence, definition.term)) return false;
   if (!formulaContainsSymbol(mathEvidence, definition.symbol)) return false;
   if (!evidenceContainsFormula(mathEvidence)) return false;
+  if (evidenceExplicitlyDefinesSymbol(definition, evidence)) return true;
 
   const hints = SYMBOL_TERM_HINTS.get(definition.symbol);
-  if (!hints?.has(definition.term)) return false;
+  if (!hints || !Array.from(hints).some((hint) => termCompatible(definition.term, hint))) {
+    return false;
+  }
 
   return true;
+}
+
+function evidenceExplicitlyDefinesSymbol(
+  definition: { symbol: string; term: string },
+  evidence: string
+) {
+  const termPattern = definition.term
+    .split(/\s+/)
+    .filter((term) => term.length > 1 && !CLAIM_TERM_STOPWORDS.has(term))
+    .map((term) => term.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"))
+    .join(String.raw`\s+`);
+  if (!termPattern) return false;
+
+  const symbol = definition.symbol.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const directDefinition = new RegExp(
+    String.raw`\b${symbol}\b\s+(?:means|represents?|stands\s+for|denotes|is)\s+(?:the\s+)?${termPattern}\b`,
+    "i"
+  );
+  const reverseDefinition = new RegExp(
+    String.raw`\b${termPattern}\b\s+(?:is|means)?\s*(?:represented\s+by|denoted\s+by|shown\s+by|symboli[sz]ed\s+by)\s+\b${symbol}\b`,
+    "i"
+  );
+  const sentences = evidence
+    .split(/[.!?;]+/)
+    .map((sentence) => sentence.trim())
+    .filter(Boolean);
+
+  return sentences.some(
+    (sentence) =>
+      directDefinition.test(sentence) || reverseDefinition.test(sentence)
+  );
+}
+
+function termCompatible(term: string, hint: string) {
+  return term === hint || term.includes(hint) || hint.includes(term);
 }
 
 function validateDomainSpecificRelation(
@@ -699,10 +737,144 @@ function validateDomainSpecificRelation(
 ): PedagogicalRelationAnalysis {
   return (
     validateCircleFormulaExplanationRelation(segment, rawEvidence) ??
+    validateGenericUnitComparisonRelation(segment, rawEvidence) ??
     validateTwoSourceArithmeticRelation(segment, rawEvidence) ??
     validateEquationStepRelation(segment, rawEvidence) ??
     validateSeparationMethodRelation(segment, rawEvidence)
   );
+}
+
+function validateGenericUnitComparisonRelation(
+  segment: string,
+  rawEvidence: string
+): PedagogicalRelationAnalysis {
+  const normalizedSegment = normalizeForMatching(segment);
+  const evidence = normalizeForMatching(rawEvidence);
+  const calculations = extractUnitMetricCalculations(segment);
+  if (calculations.length === 0 && !mentionsUnitMetricComparison(normalizedSegment)) {
+    return null;
+  }
+
+  const hasRule =
+    hasPhrase(evidence, "unit price") ||
+    hasPhrase(evidence, "unit cost") ||
+    hasPhrase(evidence, "cost per") ||
+    hasPhrase(evidence, "price per") ||
+    (hasTerm(evidence, "divide") && hasTerm(evidence, "cost")) ||
+    (hasTerm(evidence, "divided") && hasTerm(evidence, "number"));
+  const supportedCalculations = calculations.filter((calculation) =>
+    unitMetricCalculationSupported(calculation, evidence)
+  );
+  const hasComparison =
+    /\b(?:lower|cheaper|less|better|best|lowest|least)\b/.test(
+      normalizedSegment
+    );
+
+  if (
+    hasRule &&
+    calculations.length >= 2 &&
+    supportedCalculations.length === calculations.length &&
+    (!hasComparison || comparisonConclusionSupported(calculations, normalizedSegment))
+  ) {
+    return {
+      supported: true,
+      glueTerms: unique([
+        "unit",
+        "price",
+        "cost",
+        "per",
+        "giving",
+        "gives",
+        "a",
+        "lower",
+        "cheaper",
+        "better",
+        "compared",
+        ...calculations.flatMap((item) => [
+          item.option.toLowerCase(),
+          item.cost,
+          item.count,
+          item.metric,
+        ]),
+      ]),
+    };
+  }
+
+  return {
+    supported: false,
+    reason: "UNSUPPORTED_RELATION",
+    unsupportedTerms: unique([
+      ...(hasRule ? [] : ["unit", "price"]),
+      ...calculations
+        .filter((item) => !supportedCalculations.includes(item))
+        .flatMap((item) => [item.option.toLowerCase(), item.metric]),
+      ...(hasComparison && !comparisonConclusionSupported(calculations, normalizedSegment)
+        ? ["comparison"]
+        : []),
+    ]),
+    unsupportedClaim: "unit metric comparison",
+  };
+}
+
+function mentionsUnitMetricComparison(segment: string) {
+  return /\b(?:unit price|unit cost|per item|per pen|per page|per gb|per litre|per liter|better value|cheaper per|lower unit)\b/.test(
+    segment
+  );
+}
+
+function extractUnitMetricCalculations(segment: string) {
+  const normalized = normalizeForMatching(segment);
+  const results: Array<{
+    option: string;
+    cost: string;
+    count: string;
+    metric: string;
+  }> = [];
+  const patterns = [
+    /\b(?:option|pack|plan|crate|bundle|tin|box)\s+([a-z0-9]+)[^.?!;]*?\b(?:costs?|is)\s+([0-9]+)[^.?!;]*?\b(?:for|contains?|has)\s+([0-9]+)[^.?!;]*?\b(?:unit\s+(?:price|cost)|cost\s+per|price\s+per|giving|gives)\s+(?:(?:is|of)\s+)?([0-9]+)\b/gi,
+    /\b(?:option|pack|plan|crate|bundle|tin|box)\s+([a-z0-9]+)[^.?!;]*?\b([0-9]+)\s*(?:naira|₦|pounds?|dollars?)\b[^.?!;]*?\b([0-9]+)\s+(?:items?|pens?|pages?|gb|litres?|liters?|bottles?)\b[^.?!;]*?\b([0-9]+)\s*(?:naira|₦|pounds?|dollars?)?\s+per\b/gi,
+  ];
+
+  for (const pattern of patterns) {
+    for (const match of normalized.matchAll(pattern)) {
+      const option = match[1] ?? "";
+      const cost = match[2] ?? "";
+      const count = match[3] ?? "";
+      const metric = match[4] ?? "";
+      if (!option || !cost || !count || !metric) continue;
+      results.push({ option, cost, count, metric });
+    }
+  }
+
+  return uniqueBy(results, (item) => `${item.option}:${item.cost}:${item.count}:${item.metric}`);
+}
+
+function unitMetricCalculationSupported(
+  calculation: { option: string; cost: string; count: string; metric: string },
+  evidence: string
+) {
+  const arithmeticCorrect =
+    Number(calculation.count) > 0 &&
+    Number(calculation.cost) / Number(calculation.count) ===
+      Number(calculation.metric);
+  if (!arithmeticCorrect) return false;
+  const optionAppears = hasTerm(evidence, calculation.option);
+  const costAppears = hasTerm(evidence, calculation.cost);
+  const countAppears = hasTerm(evidence, calculation.count);
+  return optionAppears && costAppears && countAppears;
+}
+
+function comparisonConclusionSupported(
+  calculations: Array<{ option: string; metric: string }>,
+  segment: string
+) {
+  if (calculations.length < 2) return false;
+  const sorted = [...calculations].sort(
+    (left, right) => Number(left.metric) - Number(right.metric)
+  );
+  const winner = sorted[0];
+  if (!winner) return false;
+  return hasTerm(segment, winner.option.toLowerCase());
 }
 
 function validateCircleFormulaExplanationRelation(
@@ -1489,4 +1661,16 @@ function normalizeMathForMatching(value: string) {
 
 function unique(values: string[]) {
   return Array.from(new Set(values.filter(Boolean))).slice(0, 40);
+}
+
+function uniqueBy<T>(values: T[], key: (value: T) => string) {
+  const seen = new Set<string>();
+  const result: T[] = [];
+  for (const value of values) {
+    const itemKey = key(value);
+    if (seen.has(itemKey)) continue;
+    seen.add(itemKey);
+    result.push(value);
+  }
+  return result;
 }
