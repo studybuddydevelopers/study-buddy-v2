@@ -86,14 +86,15 @@ describe("Stage 4 holdout_v5 preparation", () => {
 
   it("resolves exact holdout_v5 resource scope without extra resources", () => {
     const holdoutCases = holdoutV5Cases();
+    const historicalResources = resourcesThroughHoldoutV5();
     const resolved = resolveEvaluationResourcesForSplit(
       holdoutCases,
-      groundedEvaluationResources
+      historicalResources
     );
     const scope = buildEvaluationResourceScope({
       split: HOLDOUT_V5_SPLIT,
       cases: holdoutCases,
-      allResources: groundedEvaluationResources,
+      allResources: historicalResources,
       resolvedResources: resolved,
     });
 
@@ -442,4 +443,20 @@ function readApplicationTestCorpus() {
   return files
     .map((filePath) => readFileSync(path.join(process.cwd(), filePath), "utf8"))
     .join("\n");
+}
+
+function resourcesThroughHoldoutV5() {
+  const postV5ResourceIds = new Set(
+    groundedEvaluationCases
+      .filter((item) => item.split === "post_v5_regression")
+      .flatMap((item) => [
+        ...(item.corpusResourceIds ?? []),
+        ...(item.expectedResourceIds ?? []),
+        ...(item.setupResourceIds ?? []),
+      ])
+  );
+
+  return groundedEvaluationResources.filter(
+    (item) => !postV5ResourceIds.has(item.id)
+  );
 }
