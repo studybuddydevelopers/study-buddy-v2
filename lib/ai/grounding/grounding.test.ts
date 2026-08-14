@@ -23,6 +23,7 @@ import { runGroundedEvaluation } from "./evaluation/runner";
 import { buildGroundedTeachPrompt, groundedTeachOutputSchema } from "./prompt";
 import { buildStandaloneRetrievalQuery } from "./query-builder";
 import {
+  buildRequestRequirements,
   classifyGroundingRequestIntent,
   evaluateRetrievalSufficiency,
 } from "./sufficiency";
@@ -245,6 +246,70 @@ describe("Stage 4 grounding primitives", () => {
         topicId: "topic-1",
       }).reason
     ).toBe("REQUIRED_CONCEPT_MISSING");
+  });
+
+  it("models explicit request requirements without treating ratio wording as comparison", () => {
+    expect(
+      buildRequestRequirements("Compare conductors and insulators.")[0]
+    ).toMatchObject({ kind: "COMPARISON", sides: ["conductors", "insulators"] });
+    expect(
+      buildRequestRequirements("What is the difference between evaporation and boiling?")[0]
+    ).toMatchObject({ kind: "COMPARISON", sides: ["evaporation", "boiling"] });
+    expect(
+      buildRequestRequirements("How do I compare 2 amounts using 2 to 3?")
+    ).toEqual([]);
+    expect(classifyGroundingRequestIntent("Compare conductors and insulators.")).toBe(
+      "COMPARISON"
+    );
+  });
+
+  it("requires every requested comparison side before generation", () => {
+    const conductorOnly = [
+      chunk({
+        content:
+          "A conductor allows electric charge to pass through it easily. This card does not describe insulators.",
+      }),
+    ];
+    const bothSides = [
+      chunk({
+        content:
+          "A conductor allows electric charge to pass through it easily. An insulator does not allow electric charge to pass through it easily.",
+      }),
+    ];
+
+    expect(
+      evaluateRetrievalSufficiency({
+        query: "Compare conductors and insulators.",
+        candidates: conductorOnly,
+        selectedChunks: conductorOnly,
+      }).reason
+    ).toBe("REQUIRED_COMPARISON_SIDE_MISSING");
+
+    expect(
+      evaluateRetrievalSufficiency({
+        query: "Compare conductors and insulators.",
+        candidates: bothSides,
+        selectedChunks: bothSides,
+      }).reason
+    ).toBe("SUPPORTED");
+  });
+
+  it("keeps request-level incompleteness dominant over segment-level support", async () => {
+    const evidence =
+      "A conductor allows electric charge to pass through it easily. This card does not describe insulators.";
+    const selected = [chunk({ content: evidence })];
+    const sufficiency = evaluateRetrievalSufficiency({
+      query: "Compare conductors and insulators.",
+      candidates: selected,
+      selectedChunks: selected,
+    });
+    const segmentValidation = await validateSingleSegment({
+      segment: "A conductor allows electric charge to pass through it easily.",
+      evidence,
+    });
+
+    expect(segmentValidation.supported).toBe(true);
+    expect(sufficiency.reason).toBe("REQUIRED_COMPARISON_SIDE_MISSING");
   });
 
   it("does not let subject metadata alone make concise exact evidence look irrelevant", () => {
@@ -2936,6 +3001,80 @@ describe("Stage 4 grounding primitives", () => {
     ).toContain(DEFAULT_REVIEW_REPORT_DIR);
 
     await rm(reportDir, { recursive: true, force: true });
+  });
+
+  it("validates explicit formula symbol definitions structurally", async () => {
+    await expect(
+      validateSingleSegment({
+        segment:
+          "For kinetic energy, KE = 1/2 x m x v^2, where m means mass and v means velocity.",
+        evidence:
+          "Kinetic energy formula is KE = 1/2 x m x v^2. In the formula, m means mass and v means velocity.",
+      })
+    ).resolves.toMatchObject({ supported: true });
+
+    await expect(
+      validateSingleSegment({
+        segment: "In rho = m / V, V represents volume.",
+        evidence:
+          "Density relation is rho = m / V. In this relation, m means mass and V means volume.",
+      })
+    ).resolves.toMatchObject({ supported: true });
+
+    await expect(
+      validateSingleSegment({
+        segment: "In F = p x q, q represents pressure.",
+        evidence:
+          "Force relation is F = p x q. The card defines p as pressure but gives no meaning for q.",
+      })
+    ).resolves.toMatchObject({
+      supported: false,
+      reason: "MISSING_SYMBOL_DEFINITION",
+    });
+  });
+
+  it("validates multi-option unit-rate arithmetic structurally", async () => {
+    await expect(
+      validateSingleSegment({
+        segment:
+          "Pack R costs 600 naira for 12 pens, giving a unit price of 50 naira per pen. Pack S costs 450 naira for 9 pens, giving a unit price of 50 naira per pen.",
+        evidence:
+          "Unit cost is found by dividing total cost by number of items. Pack R costs 600 naira for 12 pens. Pack S costs 450 naira for 9 pens.",
+      })
+    ).resolves.toMatchObject({ supported: true });
+
+    await expect(
+      validateSingleSegment({
+        segment:
+          "Crate B is cheaper because 500 naira for 5 bottles gives 50 naira per bottle.",
+        evidence:
+          "Cost per bottle is total cost divided by bottles. Crate A costs 720 naira for 12 bottles. Crate B costs 500 naira for 5 bottles.",
+      })
+    ).resolves.toMatchObject({
+      supported: false,
+      reason: "UNSUPPORTED_RELATION",
+    });
+  });
+
+  it("defines a fresh disclosed post-v5 regression split", () => {
+    const postV5Cases = groundedEvaluationCases.filter(
+      (item) => item.split === "post_v5_regression"
+    );
+    const ids = new Set(postV5Cases.map((item) => item.id));
+    const supported = postV5Cases.filter((item) => item.shouldAnswer);
+    const refusals = postV5Cases.filter((item) => !item.shouldAnswer);
+
+    expect(postV5Cases).toHaveLength(24);
+    expect(ids.size).toBe(24);
+    expect(supported.length).toBe(12);
+    expect(refusals.length).toBe(12);
+    expect(postV5Cases.every((item) => item.id.startsWith("post-v5-"))).toBe(true);
+    expect(
+      postV5Cases.some((item) => item.id === "holdout-v5-refusal-artery-vein-comparison-half")
+    ).toBe(false);
+    expect(
+      postV5Cases.some((item) => item.id.includes("trapezium") || item.id.includes("notebook"))
+    ).toBe(false);
   });
 
   it("defines a separate supported manual-quality review set with disclosed copied cases", () => {
