@@ -53,6 +53,11 @@ export type RequestRequirement =
   | { kind: "MULTI_OPTION_COMPARISON"; options: string[] }
   | { kind: "RELATION"; relation: string };
 
+type DefinitionSupportState =
+  | "POSITIVE_SUPPORT"
+  | "NEGATED_SUPPORT"
+  | "ABSENT_SUPPORT";
+
 const MAX_LOW_VECTOR_DISTANCE = 0.88;
 const MIN_KEYWORD_SCORE = 0.01;
 const MIN_HIGH_SIGNAL_TERM_COVERAGE = 0.5;
@@ -620,8 +625,10 @@ function hasDirectShortDefinitionSupport(query: string, chunks: RetrievedChunk[]
     .join(". ");
 
   return requestedConcepts.every((concept) =>
-    concept.aliases.some((alias) =>
-      hasDirectDefinitionPattern(normalizeForConceptMatching(alias), evidenceText)
+    concept.aliases.some(
+      (alias) =>
+        definitionSupportState(normalizeForConceptMatching(alias), evidenceText) ===
+        "POSITIVE_SUPPORT"
     )
   );
 }
@@ -646,7 +653,15 @@ function isDirectConceptDefinitionRequest(query: string) {
         ).test(queryText) ||
         new RegExp(`\\bwhat\\s+does\\s+${escaped}\\s+mean\\b`, "i").test(
           queryText
-        )
+        ) ||
+        new RegExp(
+          `\\b(?:tell|show)\\s+me\\s+(?:about\\s+)?(?:a\\s+|an\\s+|the\\s+)?${escaped}\\b`,
+          "i"
+        ).test(queryText) ||
+        new RegExp(
+          `\\bdoes\\s+that\\s+(?:also\\s+)?(?:tell|show)\\s+me\\s+(?:about\\s+)?(?:a\\s+|an\\s+|the\\s+)?${escaped}\\b`,
+          "i"
+        ).test(queryText)
       );
     })
   );
@@ -694,6 +709,28 @@ function currentDefinitionIntentText(query: string) {
   return normalizeForConceptMatching(currentSegment);
 }
 
+function definitionSupportState(
+  alias: string,
+  evidenceText: string
+): DefinitionSupportState {
+  const sentences = evidenceText
+    .split(/[.!?;]+/)
+    .map((sentence) => sentence.trim())
+    .filter(Boolean);
+  let sawNegated = false;
+
+  for (const sentence of sentences) {
+    if (!phraseAppears(alias, normalizeForConceptMatching(sentence))) continue;
+    if (hasNegatedDefinitionPattern(alias, sentence)) {
+      sawNegated = true;
+      continue;
+    }
+    if (hasDirectDefinitionPattern(alias, sentence)) return "POSITIVE_SUPPORT";
+  }
+
+  return sawNegated ? "NEGATED_SUPPORT" : "ABSENT_SUPPORT";
+}
+
 function hasDirectDefinitionPattern(alias: string, evidenceText: string) {
   const escaped = alias.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
   const normalizedEvidence = evidenceText
@@ -705,7 +742,25 @@ function hasDirectDefinitionPattern(alias: string, evidenceText: string) {
   return new RegExp(
     `(^|[.!?;]\\s+)(?:a |an |the )?${escaped}\\b\\s+(?:is|are|means|refers to|is found by|are found by|found by|called|is called|are called|can be|names|produces|shows|compares)\\b`,
     "i"
-  ).test(normalizedEvidence);
+  ).test(`. ${normalizedEvidence}`);
+}
+
+function hasNegatedDefinitionPattern(alias: string, evidenceText: string) {
+  const escaped = alias.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const normalizedEvidence = evidenceText
+    .toLowerCase()
+    .normalize("NFKD")
+    .replace(/[^\p{L}\p{N}.!?;]+/gu, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+  const patterns = [
+    new RegExp(String.raw`\b(?:does\s+not|doesn t|do\s+not|not)\s+(?:define|explain|state|give|provide|tell)\s+(?:the\s+)?${escaped}\b`, "i"),
+    new RegExp(String.raw`\b${escaped}\s+is\s+not\s+(?:defined|explained|given|provided|stated)\b`, "i"),
+    new RegExp(String.raw`\b${escaped}\s+(?:meaning|definition)\s+is\s+not\s+(?:given|defined|explained|provided|stated)\b`, "i"),
+    new RegExp(String.raw`\b(?:meaning|definition)\s+of\s+${escaped}\s+is\s+not\s+(?:given|defined|explained|provided|stated)\b`, "i"),
+    new RegExp(String.raw`\b(?:no|not)\s+(?:meaning|definition|explanation)\s+(?:for|of)\s+(?:the\s+)?${escaped}\b`, "i"),
+  ];
+  return patterns.some((pattern) => pattern.test(normalizedEvidence));
 }
 
 function hasLowHighSignalTermCoverage(query: string, chunks: RetrievedChunk[]) {
@@ -1435,15 +1490,8 @@ function hasMissingRequestedSymbolDefinition(
   const requestedSymbol = extractRequestedSymbolDefinition(query);
   if (!requestedSymbol) return false;
 
-  const evidenceText = chunks.map((chunk) => chunk.content).join(" ");
-  const normalizedEvidence = normalizeForConceptMatching(evidenceText);
-  if (!phraseAppears(requestedSymbol, normalizedEvidence)) return true;
-
-  return !chunks.some((chunk) =>
-    splitEvidenceSentences(chunk.content).some((sentence) =>
-      hasPositiveSymbolDefinition(sentence, requestedSymbol)
-    )
-  );
+  return symbolDefinitionSupportState(requestedSymbol, chunks) !==
+    "POSITIVE_SUPPORT";
 }
 
 function extractRequestedSymbolDefinition(query: string) {
@@ -1452,7 +1500,12 @@ function extractRequestedSymbolDefinition(query: string) {
   );
   const patterns = [
     /\bwhat\s+does\s+([a-z])\s+(?:mean|represent|stand\s+for)\b/i,
+    /\bwhat\s+is\s+([a-z])\s+(?:in|for|from)\s+(?:the\s+)?(?:formula|equation|relation)\b/i,
+    /\bidentify\s+(?:the\s+)?([a-z])(?:\s+(?:factor|variable|symbol))?\b/i,
+    /\bidentify\s+(?:the\s+)?(?:factor|variable|symbol)\s+([a-z])\b/i,
+    /\bstate\s+what\s+([a-z])\s+stands\s+for\b/i,
     /\bdefine\s+([a-z])(?:\s+(?:in|for|from|as|symbol|variable)\b|$)/i,
+    /\b(?:variable|symbol|factor)\s+([a-z])\s+(?:mean|represent|stand\s+for|is)\b/i,
     /\b([a-z])\s+(?:mean|represent|stand\s+for)\b/i,
   ];
 
@@ -1463,6 +1516,31 @@ function extractRequestedSymbolDefinition(query: string) {
   }
 
   return null;
+}
+
+function symbolDefinitionSupportState(
+  symbol: string,
+  chunks: RetrievedChunk[]
+): DefinitionSupportState {
+  let sawNegated = false;
+  let sawSymbol = false;
+  for (const chunk of chunks) {
+    for (const sentence of splitEvidenceSentences(chunk.content)) {
+      const normalized = normalizeSymbolSentence(sentence);
+      if (!phraseAppears(symbol, normalized)) continue;
+      sawSymbol = true;
+      if (hasNegatedSymbolDefinition(sentence, symbol)) {
+        sawNegated = true;
+        continue;
+      }
+      if (hasPositiveSymbolDefinition(sentence, symbol)) {
+        return "POSITIVE_SUPPORT";
+      }
+    }
+  }
+
+  if (sawNegated) return "NEGATED_SUPPORT";
+  return sawSymbol ? "ABSENT_SUPPORT" : "ABSENT_SUPPORT";
 }
 
 function splitEvidenceSentences(value: string) {
@@ -1496,6 +1574,8 @@ function hasNegatedSymbolDefinition(sentence: string, symbol: string) {
     new RegExp(String.raw`\b${escaped}\s+is\s+not\s+(?:defined|explained|given)\b`, "i"),
     new RegExp(String.raw`\b(?:does\s+not|doesn't|not)\s+(?:explain|define|give|state)\s+(?:what\s+)?${escaped}\b`, "i"),
     new RegExp(String.raw`\bmeaning\s+of\s+${escaped}\s+is\s+not\s+(?:given|defined|explained)\b`, "i"),
+    new RegExp(String.raw`\b(?:no|not)\s+(?:meaning|definition|explanation)\s+(?:for|of)\s+${escaped}\b`, "i"),
+    new RegExp(String.raw`\bgives?\s+no\s+(?:meaning|definition|explanation)\s+(?:for|of)\s+${escaped}\b`, "i"),
   ];
 
   return patterns.some((pattern) => pattern.test(normalized));
