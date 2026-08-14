@@ -1136,7 +1136,58 @@ async function buildCaseDiagnostic(
       vectorDistance: item.chunk.vectorDistance,
       fusionScore: item.chunk.fusionScore,
     })),
+    retrievalDiagnostics: {
+      fusedTopN: rankedDiagnosticRows(candidates),
+      keywordTopN: rankedDiagnosticRows(
+        candidates
+          .filter((item) => item.keywordRank !== null)
+          .sort((left, right) => (left.keywordRank ?? 9999) - (right.keywordRank ?? 9999))
+      ),
+      vectorTopN: rankedDiagnosticRows(
+        candidates
+          .filter((item) => item.vectorRank !== null)
+          .sort((left, right) => (left.vectorRank ?? 9999) - (right.vectorRank ?? 9999))
+      ),
+      selectedButNotCited: [],
+      expectedSourceRank: expectedSourceRank(evaluationCase, candidates),
+    },
   };
+}
+
+function rankedDiagnosticRows(chunks: Awaited<ReturnType<PostgresResourceSearchRepository["hybridSearch"]>>) {
+  return chunks.slice(0, 20).map((chunk, index) => ({
+    rank: index + 1,
+    resourceId: chunk.resourceId,
+    chunkId: chunk.id,
+    keywordRank: chunk.keywordRank,
+    vectorRank: chunk.vectorRank,
+    keywordScore: chunk.keywordScore,
+    vectorDistance: chunk.vectorDistance,
+    fusionScore: chunk.fusionScore,
+    exactSignals: chunk.exactSignals.slice(0, 10),
+  }));
+}
+
+function expectedSourceRank(
+  evaluationCase: GroundedEvaluationCase,
+  chunks: Awaited<ReturnType<PostgresResourceSearchRepository["hybridSearch"]>>
+) {
+  const expectedChunkIds = new Set(evaluationCase.expectedChunkIds ?? []);
+  const expectedResourceIds = new Set(evaluationCase.expectedResourceIds ?? []);
+  return chunks
+    .map((chunk, index) => ({ chunk, index }))
+    .filter(
+      ({ chunk }) =>
+        expectedChunkIds.has(chunk.id) || expectedResourceIds.has(chunk.resourceId)
+    )
+    .map(({ chunk, index }) => ({
+      rank: index + 1,
+      resourceId: chunk.resourceId,
+      chunkId: chunk.id,
+      keywordRank: chunk.keywordRank,
+      vectorRank: chunk.vectorRank,
+      fusionScore: chunk.fusionScore,
+    }));
 }
 
 async function seedRuntimeFixtures(
