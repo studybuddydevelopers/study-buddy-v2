@@ -13,6 +13,7 @@ export type SufficiencyReason =
   | "USER_INSTRUCTION_CONFLICT"
   | "REQUIRED_INPUT_MISSING"
   | "REQUIRED_SYMBOL_DEFINITION_MISSING"
+  | "REQUIRED_COMPARISON_SIDE_MISSING"
   | "REQUIRED_CONCEPT_MISSING"
   | "CONCEPT_MISMATCH";
 
@@ -35,11 +36,22 @@ export interface EvaluateRetrievalSufficiencyInput {
 
 export type GroundingRequestIntent =
   | "CALCULATION"
+  | "COMPARISON"
+  | "MULTI_OPTION_COMPARISON"
   | "FORMULA_WITH_SYMBOL_DEFINITIONS"
   | "SYMBOL_DEFINITION"
   | "FORMULA_REQUEST"
   | "CONCEPT_DEFINITION"
   | "GENERAL";
+
+export type RequestRequirement =
+  | { kind: "SINGLE_CONCEPT"; concept: string }
+  | { kind: "COMPARISON"; sides: string[] }
+  | { kind: "FORMULA"; quantity: string | null }
+  | { kind: "FORMULA_WITH_SYMBOLS"; quantity: string | null; symbols: string[] }
+  | { kind: "CALCULATION"; quantity: string | null; requiredInputs: string[] }
+  | { kind: "MULTI_OPTION_COMPARISON"; options: string[] }
+  | { kind: "RELATION"; relation: string };
 
 const MAX_LOW_VECTOR_DISTANCE = 0.88;
 const MIN_KEYWORD_SCORE = 0.01;
@@ -115,6 +127,7 @@ const CONCEPT_DEFINITIONS: ConceptDefinition[] = [
   concept("speed", "motion_quantity", ["speed"]),
   concept("acceleration", "motion_quantity", ["acceleration", "accelerate"]),
   concept("velocity", "motion_quantity", ["velocity"]),
+  concept("pressure", "mechanics_quantity", ["pressure"]),
   concept("mass", "mechanics_quantity", ["mass"]),
   concept("weight", "mechanics_quantity", ["weight"]),
   concept("force", "mechanics_quantity", ["force", "newton", "newtons"]),
@@ -144,6 +157,7 @@ const CONCEPT_DEFINITIONS: ConceptDefinition[] = [
 export function evaluateRetrievalSufficiency(
   input: EvaluateRetrievalSufficiencyInput
 ): RetrievalSufficiency {
+  const requestRequirements = buildRequestRequirements(input.query);
   const requestIntent = classifyGroundingRequestIntent(input.query);
 
   if (input.candidates.length === 0) {
@@ -174,6 +188,14 @@ export function evaluateRetrievalSufficiency(
 
   if (hasUnsupportedElaborationGap(input.query, selected)) {
     return insufficient("LOW_RELEVANCE", "LOW", selected);
+  }
+
+  if (hasMissingRequestRequirementSupport(requestRequirements, selected)) {
+    return insufficient("REQUIRED_COMPARISON_SIDE_MISSING", "LOW", selected);
+  }
+
+  if (hasMissingMultiOptionComparisonInput(input.query, selected)) {
+    return insufficient("REQUIRED_INPUT_MISSING", "LOW", selected);
   }
 
   if (hasRequiredFormulaInputGap(input.query, selected)) {
@@ -265,6 +287,16 @@ export function evaluateRetrievalSufficiency(
 export function classifyGroundingRequestIntent(
   query: string
 ): GroundingRequestIntent {
+  const requirements = buildRequestRequirements(query);
+  if (
+    requirements.some((requirement) => requirement.kind === "MULTI_OPTION_COMPARISON") ||
+    isMultiOptionComparisonRequest(query)
+  ) {
+    return "MULTI_OPTION_COMPARISON";
+  }
+  if (requirements.some((requirement) => requirement.kind === "COMPARISON")) {
+    return "COMPARISON";
+  }
   if (isCalculationRequest(query)) return "CALCULATION";
   if (requestsFormulaWithSymbolDefinitions(query)) {
     return "FORMULA_WITH_SYMBOL_DEFINITIONS";
@@ -273,6 +305,41 @@ export function classifyGroundingRequestIntent(
   if (isFormulaRequest(query)) return "FORMULA_REQUEST";
   if (isDirectConceptDefinitionRequest(query)) return "CONCEPT_DEFINITION";
   return "GENERAL";
+}
+
+export function buildRequestRequirements(query: string): RequestRequirement[] {
+  const currentText = currentDefinitionIntentText(query);
+  const requirements: RequestRequirement[] = [];
+  const comparison = extractComparisonSides(currentText);
+  if (comparison.length >= 2) {
+    requirements.push({ kind: "COMPARISON", sides: comparison.slice(0, 2) });
+  }
+
+  const options = extractMultiOptionComparisonOptions(currentText);
+  if (options.length >= 2) {
+    requirements.push({ kind: "MULTI_OPTION_COMPARISON", options });
+  }
+
+  const symbol = extractRequestedSymbolDefinition(currentText);
+  if (requestsFormulaWithSymbolDefinitions(query) || symbol) {
+    requirements.push({
+      kind: "FORMULA_WITH_SYMBOLS",
+      quantity: extractFormulaQuantity(query),
+      symbols: symbol ? [symbol] : [],
+    });
+  } else if (isFormulaRequest(query)) {
+    requirements.push({ kind: "FORMULA", quantity: extractFormulaQuantity(query) });
+  }
+
+  if (isCalculationRequest(currentText)) {
+    requirements.push({
+      kind: "CALCULATION",
+      quantity: extractFormulaQuantity(query),
+      requiredInputs: [],
+    });
+  }
+
+  return requirements;
 }
 
 function concept(id: string, group: string, aliases: string[]): ConceptDefinition {
@@ -367,6 +434,128 @@ function conceptsInText(text: string) {
   return CONCEPT_DEFINITIONS.filter((definition) =>
     conceptAppears(definition, text)
   );
+}
+
+function hasMissingRequestRequirementSupport(
+  requirements: RequestRequirement[],
+  chunks: RetrievedChunk[]
+) {
+  return requirements.some((requirement) => {
+    if (requirement.kind !== "COMPARISON") return false;
+    return !comparisonSidesSupported(requirement.sides, chunks);
+  });
+}
+
+function comparisonSidesSupported(sides: string[], chunks: RetrievedChunk[]) {
+  const evidenceSentences = chunks
+    .flatMap((chunk) => chunk.content.split(/[.!?;]+/))
+    .map(normalizeForConceptMatching)
+    .filter(Boolean);
+  return sides.every((side) => sideSupportedByEvidence(side, evidenceSentences));
+}
+
+function sideSupportedByEvidence(side: string, evidenceSentences: string[]) {
+  const variants = sideVariants(side);
+  return evidenceSentences.some(
+    (sentence) =>
+      variants.some((variant) => phraseAppears(variant, sentence)) &&
+      !sentenceOnlyReportsMissingSideSupport(sentence)
+  );
+}
+
+function sentenceOnlyReportsMissingSideSupport(sentence: string) {
+  return /\b(?:does not|doesn t|do not|not|no)\s+(?:describe|define|explain|state|states|mention|include|cover|contain|give|provide)\b/.test(
+    sentence
+  ) || /\b(?:omits?|missing|undefined|not defined)\b/.test(sentence);
+}
+
+function sideVariants(side: string) {
+  const normalized = normalizeForConceptMatching(side);
+  const variants = new Set([normalized]);
+  if (normalized.endsWith("ies") && normalized.length > 3) {
+    variants.add(`${normalized.slice(0, -3)}y`);
+  }
+  if (normalized.endsWith("es") && normalized.length > 2) {
+    variants.add(normalized.slice(0, -2));
+  }
+  if (normalized.endsWith("s") && normalized.length > 1) {
+    variants.add(normalized.slice(0, -1));
+  } else if (normalized) {
+    variants.add(`${normalized}s`);
+  }
+  return Array.from(variants).filter(Boolean);
+}
+
+function extractComparisonSides(text: string) {
+  const normalized = normalizeForConceptMatching(text);
+  if (/\bcompare\b.+\busing\b.+\bto\b/.test(normalized)) return [];
+  const patterns = [
+    /\bcompare\s+(.+?)\s+(?:and|with|to)\s+(.+?)(?:\s+using\b|\s+from\b|\s+in\b|\s+on\b|$)/i,
+    /\bdifference\s+between\s+(.+?)\s+and\s+(.+?)(?:\s+using\b|\s+from\b|\s+in\b|\s+on\b|$)/i,
+    /\bcontrast\s+(.+?)\s+(?:and|with)\s+(.+?)(?:\s+using\b|\s+from\b|\s+in\b|\s+on\b|$)/i,
+    /\b(.+?)\s+versus\s+(.+?)(?:\s+using\b|\s+from\b|\s+in\b|\s+on\b|$)/i,
+    /\bhow\s+is\s+(.+?)\s+different\s+from\s+(.+?)(?:\s+using\b|\s+from\b|\s+in\b|\s+on\b|$)/i,
+  ];
+
+  for (const pattern of patterns) {
+    const match = normalized.match(pattern);
+    const left = cleanComparisonSide(match?.[1] ?? "");
+    const right = cleanComparisonSide(match?.[2] ?? "");
+    if (left && right && left !== right) return [left, right];
+  }
+
+  return [];
+}
+
+function cleanComparisonSide(value: string) {
+  return normalizeForConceptMatching(value)
+    .replace(
+      /\b(?:the|a|an|these|those|two|main|note|card|source|resource|blood vessel|blood vessels)\b/g,
+      " "
+    )
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function extractMultiOptionComparisonOptions(text: string) {
+  const normalized = normalizeForConceptMatching(text);
+  if (!isMultiOptionComparisonRequest(normalized)) {
+    return [];
+  }
+
+  const options = Array.from(
+    normalized.matchAll(/\b(?:option|pack|plan|crate|bundle|tin|box)\s+([a-z0-9]+)\b/g),
+    (match) => match[1] ?? ""
+  ).filter(Boolean);
+  return Array.from(new Set(options));
+}
+
+function isMultiOptionComparisonRequest(text: string) {
+  const normalized = normalizeForConceptMatching(text);
+  return /\b(?:better value|best value|cheaper per|lower unit|less per|costs less per|costs? less per|lower cost per|lowest cost per|cheaper|better per)\b/.test(
+    normalized
+  );
+}
+
+function hasMissingMultiOptionComparisonInput(
+  query: string,
+  chunks: RetrievedChunk[]
+) {
+  if (!isMultiOptionComparisonRequest(query)) return false;
+  const evidence = normalizeForConceptMatching(
+    chunks.map((chunk) => chunk.content).join(" ")
+  );
+  return /\b(?:does not|doesn t|do not|not|no)\s+(?:state|states|give|provide|list|include)\b.{0,80}\b(?:amount|count|gb|items?|number|pages?|pens?|bottles?|litres?|liters?|quantity)\b/.test(
+    evidence
+  ) || /\b(?:omits?|missing)\b.{0,80}\b(?:amount|count|gb|items?|number|pages?|pens?|bottles?|litres?|liters?|quantity)\b/.test(
+    evidence
+  );
+}
+
+function extractFormulaQuantity(query: string) {
+  const normalized = currentDefinitionIntentText(query);
+  const match = normalized.match(/\b([a-z][a-z ]{1,40})\s+(?:formula|equation)\b/i);
+  return match?.[1]?.trim() ?? null;
 }
 
 function conceptAppears(definition: ConceptDefinition, text: string) {
@@ -936,6 +1125,46 @@ const FORMULA_INPUT_RULES: FormulaInputRule[] = [
     requirements: [],
   },
   {
+    id: "pressure",
+    queryPatterns: [/\bpressure\b/i],
+    requiresFormulaWhen: /\b(?:formula|equation|units?|calculate|calculation|find|work out|solve|determine)\b/i,
+    formulaRequirements: [
+      {
+        name: "formula",
+        patterns: [
+          /\bp\s*=\s*f\s*\/\s*a\b/i,
+          /\bpressure\s*=\s*force\s*\/\s*area\b/i,
+          /\bpressure\s+is\s+force\s+divided\s+by\s+area\b/i,
+        ],
+      },
+      {
+        name: "force_unit",
+        patterns: [/\bnewtons?\b/i, /\bn\b/i],
+      },
+      {
+        name: "area_unit",
+        patterns: [/\bsquare\s+met(?:re|er)s?\b/i, /\bm\^?2\b/i],
+      },
+    ],
+    valueRequirements: [
+      {
+        name: "force",
+        patterns: [
+          quantityValuePattern("force", String.raw`n|newtons?`),
+          new RegExp(String.raw`\bf\s*(?:=|is)\s*${NUMBER_VALUE}\s*(?:n|newtons?)\b`, "i"),
+        ],
+      },
+      {
+        name: "area",
+        patterns: [
+          quantityValuePattern("area", String.raw`m2|m\^2|square\s+met(?:re|er)s?`),
+          new RegExp(String.raw`\ba\s*(?:=|is)\s*${NUMBER_VALUE}\s*(?:m2|m\^2|square\s+met(?:re|er)s?)\b`, "i"),
+        ],
+      },
+    ],
+    requirements: [],
+  },
+  {
     id: "percentage_change",
     queryPatterns: [/\bpercentage change\b/i, /\bpercent(?:age)?\s+change\b/i],
     requiresFormulaWhen: /\b(?:calculate|calculation|formula|find|work out|solve|determine)\b/i,
@@ -992,10 +1221,13 @@ const FORMULA_INPUT_RULES: FormulaInputRule[] = [
 
 function hasRequiredFormulaInputGap(query: string, chunks: RetrievedChunk[]) {
   const evidence = chunks.map((chunk) => chunk.content).join(" ");
+  const matchingRules = formulaRulesMatchingQuery(query);
+  if (matchingRules.length === 0) return false;
+  if (matchingRules.some((rule) => formulaRuleRequirementsSupported(rule, query, chunks, evidence))) {
+    return false;
+  }
 
-  return FORMULA_INPUT_RULES.some((rule) => {
-    if (!rule.queryPatterns.some((pattern) => pattern.test(query))) return false;
-    if (rule.requiresFormulaWhen && !rule.requiresFormulaWhen.test(query)) return false;
+  return matchingRules.some((rule) => {
     if (rule.id === "simple_interest") {
       return !simpleInterestRequirementsSupported(query, chunks);
     }
@@ -1007,16 +1239,31 @@ function hasRequiredFormulaInputGap(query: string, chunks: RetrievedChunk[]) {
 
 function hasCompleteFormulaSupport(query: string, chunks: RetrievedChunk[]) {
   const evidence = chunks.map((chunk) => chunk.content).join(" ");
-  return FORMULA_INPUT_RULES.some((rule) => {
+  return formulaRulesMatchingQuery(query).some((rule) =>
+    formulaRuleRequirementsSupported(rule, query, chunks, evidence)
+  );
+}
+
+function formulaRulesMatchingQuery(query: string) {
+  return FORMULA_INPUT_RULES.filter((rule) => {
     if (!rule.queryPatterns.some((pattern) => pattern.test(query))) return false;
     if (rule.requiresFormulaWhen && !rule.requiresFormulaWhen.test(query)) return false;
-    if (rule.id === "simple_interest") {
-      return simpleInterestRequirementsSupported(query, chunks);
-    }
-    return requiredFormulaRuleRequirements(rule, query).every((requirement) =>
-      requirementSupported(requirement, evidence)
-    );
+    return true;
   });
+}
+
+function formulaRuleRequirementsSupported(
+  rule: FormulaInputRule,
+  query: string,
+  chunks: RetrievedChunk[],
+  evidence: string
+) {
+  if (rule.id === "simple_interest") {
+    return simpleInterestRequirementsSupported(query, chunks);
+  }
+  return requiredFormulaRuleRequirements(rule, query).every((requirement) =>
+    requirementSupported(requirement, evidence)
+  );
 }
 
 function requiredFormulaRuleRequirements(rule: FormulaInputRule, query: string) {
