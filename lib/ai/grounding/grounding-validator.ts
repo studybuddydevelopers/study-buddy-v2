@@ -672,6 +672,9 @@ function extractSymbolDefinitions(segment: string) {
     const term = normalizeForMatching(match[2] ?? "");
     if (!symbol || !term) continue;
     if (LOW_RISK_CONNECTIVE_TERMS.has(term)) continue;
+    if (/\b(?:cheaper|lower|less|better|best|cost|price|unit|per)\b/.test(term)) {
+      continue;
+    }
     definitions.push({ symbol, term });
   }
 
@@ -772,6 +775,53 @@ function validateGenericUnitComparisonRelation(
 
   if (
     hasRule &&
+    calculations.length === 0 &&
+    hasComparison &&
+    comparisonConclusionSupportedFromEvidence(normalizedSegment, evidence)
+  ) {
+    return {
+      supported: true,
+      glueTerms: unique([
+        "unit",
+        "cost",
+        "price",
+        "per",
+        "cheaper",
+        "lower",
+        "better",
+        "than",
+      ]),
+    };
+  }
+
+  if (
+    hasRule &&
+    calculations.length >= 1 &&
+    supportedCalculations.length === calculations.length &&
+    !hasComparison
+  ) {
+    return {
+      supported: true,
+      glueTerms: unique([
+        "unit",
+        "price",
+        "cost",
+        "per",
+        "giving",
+        "gives",
+        "a",
+        ...calculations.flatMap((item) => [
+          item.option.toLowerCase(),
+          item.cost,
+          item.count,
+          item.metric,
+        ]),
+      ]),
+    };
+  }
+
+  if (
+    hasRule &&
     calculations.length >= 2 &&
     supportedCalculations.length === calculations.length &&
     (!hasComparison || comparisonConclusionSupported(calculations, normalizedSegment))
@@ -832,6 +882,7 @@ function extractUnitMetricCalculations(segment: string) {
   }> = [];
   const patterns = [
     /\b(?:option|pack|plan|crate|bundle|tin|box)\s+([a-z0-9]+)[^.?!;]*?\b(?:costs?|is)\s+([0-9]+)[^.?!;]*?\b(?:for|contains?|has)\s+([0-9]+)[^.?!;]*?\b(?:unit\s+(?:price|cost)|cost\s+per|price\s+per|giving|gives)\s+(?:(?:is|of)\s+)?([0-9]+)\b/gi,
+    /\b(?:option|pack|plan|crate|bundle|tin|box)\s+([a-z0-9]+)[^.?!;]*?\b(?:costs?|is)\s+([0-9]+)[^.?!;]*?\b(?:for|contains?|has)\s+([0-9]+)[^.?!;]*?\b(?:giving|gives)\s+(?:a\s+)?(?:unit\s+(?:price|cost)|cost\s+per\s+[a-z]+|price\s+per\s+[a-z]+)\s+(?:(?:is|of)\s+)?([0-9]+)\b/gi,
     /\b(?:option|pack|plan|crate|bundle|tin|box)\s+([a-z0-9]+)[^.?!;]*?\b([0-9]+)\s*(?:naira|₦|pounds?|dollars?)\b[^.?!;]*?\b([0-9]+)\s+(?:items?|pens?|pages?|gb|litres?|liters?|bottles?)\b[^.?!;]*?\b([0-9]+)\s*(?:naira|₦|pounds?|dollars?)?\s+per\b/gi,
   ];
 
@@ -875,6 +926,61 @@ function comparisonConclusionSupported(
   const winner = sorted[0];
   if (!winner) return false;
   return hasTerm(segment, winner.option.toLowerCase());
+}
+
+function comparisonConclusionSupportedFromEvidence(segment: string, evidence: string) {
+  const inputs = extractUnitMetricInputs(evidence);
+  if (inputs.length < 2) return false;
+  const ranked = inputs
+    .map((input) => ({
+      ...input,
+      metric: Number(input.cost) / Number(input.count),
+    }))
+    .filter((input) => Number.isFinite(input.metric));
+  if (ranked.length < 2) return false;
+
+  const winner = [...ranked].sort((left, right) => left.metric - right.metric)[0];
+  const loser = [...ranked].sort((left, right) => right.metric - left.metric)[0];
+  if (!winner || !loser || winner.option === loser.option) return false;
+
+  const statedWinner = extractStatedUnitComparisonWinner(segment);
+  if (!statedWinner) return false;
+  if (statedWinner.winner !== winner.option) return false;
+  if (statedWinner.loser && statedWinner.loser !== loser.option) return false;
+  return true;
+}
+
+function extractUnitMetricInputs(text: string) {
+  const normalized = normalizeForMatching(text);
+  const results: Array<{ option: string; cost: string; count: string }> = [];
+  const pattern =
+    /\b(?:option|pack|plan|crate|bundle|tin|box)\s+([a-z0-9]+)[^.?!;]*?\b(?:costs?|is)\s+([0-9]+)[^.?!;]*?\b(?:for|contains?|has)\s+([0-9]+)\b/gi;
+
+  for (const match of normalized.matchAll(pattern)) {
+    const option = match[1] ?? "";
+    const cost = match[2] ?? "";
+    const count = match[3] ?? "";
+    if (!option || !cost || !count || Number(count) <= 0) continue;
+    results.push({ option, cost, count });
+  }
+
+  return uniqueBy(results, (item) => `${item.option}:${item.cost}:${item.count}`);
+}
+
+function extractStatedUnitComparisonWinner(segment: string) {
+  const patterns = [
+    /\b(?:option|pack|plan|crate|bundle|tin|box)\s+([a-z0-9]+)\s+is\s+(?:the\s+)?(?:cheaper|lower|less|better|best|lowest|least)\b(?:[^.?!;]*?\bthan\s+(?:option|pack|plan|crate|bundle|tin|box)\s+([a-z0-9]+)\b)?/i,
+    /\b(?:the\s+)?(?:cheaper|lower|better|best|lowest|least)\s+(?:option|pack|plan|crate|bundle|tin|box)\s+is\s+([a-z0-9]+)\b/i,
+  ];
+
+  for (const pattern of patterns) {
+    const match = normalizeForMatching(segment).match(pattern);
+    const winner = match?.[1] ?? "";
+    const loser = match?.[2] ?? "";
+    if (winner) return { winner, loser: loser || null };
+  }
+
+  return null;
 }
 
 function validateCircleFormulaExplanationRelation(
