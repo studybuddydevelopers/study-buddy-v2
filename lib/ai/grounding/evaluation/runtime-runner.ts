@@ -65,6 +65,15 @@ import {
   updateHoldoutV5AcceptanceRun,
 } from "./holdout-v5";
 import {
+  HOLDOUT_V6_BEHAVIOR_FILE_PATHS,
+  HOLDOUT_V6_FROZEN_CONFIG,
+  HOLDOUT_V6_SPLIT,
+  assertHoldoutV6AcceptanceRunAllowed,
+  computeHoldoutV6SplitHash,
+  recordHoldoutV6AcceptanceRun,
+  updateHoldoutV6AcceptanceRun,
+} from "./holdout-v6";
+import {
   assertEvaluationTopology,
   buildEvaluationTopologyReport,
   resolveEvaluationMetadataForCases,
@@ -215,14 +224,33 @@ export async function runRuntimeGroundedEvaluation(
     options,
     cases
   );
+  const recordsHoldoutV6Acceptance = shouldRecordHoldoutV6Acceptance(
+    options,
+    cases
+  );
   const recordsHoldoutAcceptance =
     recordsHoldoutV3Acceptance ||
     recordsHoldoutV4Acceptance ||
-    recordsHoldoutV5Acceptance;
+    recordsHoldoutV5Acceptance ||
+    recordsHoldoutV6Acceptance;
 
   try {
     if (recordsHoldoutAcceptance && splitHash) {
-      if (recordsHoldoutV5Acceptance) {
+      if (recordsHoldoutV6Acceptance) {
+        await recordHoldoutV6AcceptanceRun({
+          splitHash,
+          fixtureHash,
+          candidateHead: sourceState.commit,
+          candidateDiffHash: sourceState.diffHash,
+          candidateTreeHash: sourceState.treeHash,
+          candidateBehaviorHash: sourceState.behaviorHash,
+          behaviorFilePaths: sourceState.behaviorFilePaths,
+          runId,
+          runTimestamp,
+          status: "STARTED",
+          reportDir: options.reportDir,
+        });
+      } else if (recordsHoldoutV5Acceptance) {
         await recordHoldoutV5AcceptanceRun({
           splitHash,
           fixtureHash,
@@ -312,7 +340,26 @@ export async function runRuntimeGroundedEvaluation(
       cases: reviewCases,
     });
     if (recordsHoldoutAcceptance && splitHash) {
-      if (recordsHoldoutV5Acceptance) {
+      if (recordsHoldoutV6Acceptance) {
+        await updateHoldoutV6AcceptanceRun({
+          splitHash,
+          fixtureHash,
+          candidateHead: sourceState.commit,
+          candidateDiffHash: sourceState.diffHash,
+          candidateTreeHash: sourceState.treeHash,
+          candidateBehaviorHash: sourceState.behaviorHash,
+          behaviorFilePaths: sourceState.behaviorFilePaths,
+          runId,
+          runTimestamp,
+          reportHash: review.reportHash,
+          status: "SUCCEEDED",
+          failurePhase: "COMPLETED",
+          modelEvaluationReached: true,
+          chatGenerationReached: true,
+          metricsProduced: true,
+          reportDir: options.reportDir,
+        });
+      } else if (recordsHoldoutV5Acceptance) {
         await updateHoldoutV5AcceptanceRun({
           splitHash,
           fixtureHash,
@@ -371,7 +418,29 @@ export async function runRuntimeGroundedEvaluation(
     };
   } catch (error) {
     if (recordsHoldoutAcceptance && splitHash) {
-      if (recordsHoldoutV5Acceptance) {
+      if (recordsHoldoutV6Acceptance) {
+        const writeRecord = acceptanceRecordStarted
+          ? updateHoldoutV6AcceptanceRun
+          : recordHoldoutV6AcceptanceRun;
+        await writeRecord({
+          splitHash,
+          fixtureHash,
+          candidateHead: sourceState.commit,
+          candidateDiffHash: sourceState.diffHash,
+          candidateTreeHash: sourceState.treeHash,
+          candidateBehaviorHash: sourceState.behaviorHash,
+          behaviorFilePaths: sourceState.behaviorFilePaths,
+          runId,
+          runTimestamp,
+          status: "FAILED",
+          errorClass: safeErrorClass(error),
+          failurePhase,
+          modelEvaluationReached: false,
+          chatGenerationReached: false,
+          metricsProduced: false,
+          reportDir: options.reportDir,
+        }).catch(() => undefined);
+      } else if (recordsHoldoutV5Acceptance) {
         const writeRecord = acceptanceRecordStarted
           ? updateHoldoutV5AcceptanceRun
           : recordHoldoutV5AcceptanceRun;
@@ -514,10 +583,19 @@ function selectEvaluationResourceUniverseForCases(
   allResources: GroundedEvaluationResource[]
 ) {
   const selectedSplits = new Set(cases.map((item) => item.split));
-  if (selectedSplits.has(HOLDOUT_V5_SPLIT)) return allResources;
+  if (selectedSplits.has(HOLDOUT_V6_SPLIT)) return allResources;
+  if (selectedSplits.has(HOLDOUT_V5_SPLIT)) {
+    const futureResourceIds = collectReferencedResourceIdsForCases(
+      allCases.filter((item) => item.split === HOLDOUT_V6_SPLIT),
+      allResources
+    );
+    return allResources.filter((item) => !futureResourceIds.has(item.id));
+  }
   if (selectedSplits.has(HOLDOUT_V4_SPLIT)) {
     const futureResourceIds = collectReferencedResourceIdsForCases(
-      allCases.filter((item) => item.split === HOLDOUT_V5_SPLIT),
+      allCases.filter(
+        (item) => item.split === HOLDOUT_V5_SPLIT || item.split === HOLDOUT_V6_SPLIT
+      ),
       allResources
     );
     return allResources.filter((item) => !futureResourceIds.has(item.id));
@@ -527,7 +605,9 @@ function selectEvaluationResourceUniverseForCases(
     const futureResourceIds = collectReferencedResourceIdsForCases(
       allCases.filter(
         (item) =>
-          item.split === HOLDOUT_V4_SPLIT || item.split === HOLDOUT_V5_SPLIT
+          item.split === HOLDOUT_V4_SPLIT ||
+          item.split === HOLDOUT_V5_SPLIT ||
+          item.split === HOLDOUT_V6_SPLIT
       ),
       allResources
     );
@@ -578,6 +658,12 @@ function computeSelectedHoldoutSplitHash(cases: GroundedEvaluationCase[]) {
   }
   if (cases.some((item) => item.split === HOLDOUT_V5_SPLIT)) {
     return computeHoldoutV5SplitHash({
+      cases: groundedEvaluationCases,
+      resources: groundedEvaluationResources,
+    });
+  }
+  if (cases.some((item) => item.split === HOLDOUT_V6_SPLIT)) {
+    return computeHoldoutV6SplitHash({
       cases: groundedEvaluationCases,
       resources: groundedEvaluationResources,
     });
@@ -640,6 +726,7 @@ async function enforceHoldoutGuard(
   const includesHoldoutV3 = cases.some((item) => item.split === HOLDOUT_V3_SPLIT);
   const includesHoldoutV4 = cases.some((item) => item.split === HOLDOUT_V4_SPLIT);
   const includesHoldoutV5 = cases.some((item) => item.split === HOLDOUT_V5_SPLIT);
+  const includesHoldoutV6 = cases.some((item) => item.split === HOLDOUT_V6_SPLIT);
   if (includesHoldoutV3) {
     if (!splitHash) {
       throw new Error("holdout_v3 split hash could not be computed.");
@@ -697,6 +784,26 @@ async function enforceHoldoutGuard(
     });
     if (!options.allowConsumedHoldoutDiagnostic) {
       assertHoldoutV5FrozenRuntimeConfig(buildFrozenConfig());
+    }
+    return;
+  }
+  if (includesHoldoutV6) {
+    if (!splitHash) {
+      throw new Error("holdout_v6 split hash could not be computed.");
+    }
+    if (options.split !== HOLDOUT_V6_SPLIT && !options.allowConsumedHoldoutDiagnostic) {
+      throw new Error("holdout_v6 must be executed explicitly, not through a mixed split.");
+    }
+    await assertHoldoutV6AcceptanceRunAllowed({
+      confirmSplitHash: options.confirmHoldoutFixtureHash,
+      computedSplitHash: splitHash,
+      allowDiagnostic: options.allowConsumedHoldoutDiagnostic,
+      caseIds: options.caseIds,
+      maxCases: options.maxCases,
+      reportDir: options.reportDir,
+    });
+    if (!options.allowConsumedHoldoutDiagnostic) {
+      assertHoldoutV6FrozenRuntimeConfig(buildFrozenConfig());
     }
     return;
   }
@@ -857,6 +964,54 @@ function assertHoldoutV5FrozenRuntimeConfig(config: Record<string, unknown>) {
   }
 }
 
+function assertHoldoutV6FrozenRuntimeConfig(config: Record<string, unknown>) {
+  const expected = HOLDOUT_V6_FROZEN_CONFIG;
+  const checks: Array<[string, unknown]> = [
+    ["promptVersion", expected.prompt],
+    ["groundingVersion", expected.grounding],
+    ["sufficiencyPolicyVersion", expected.sufficiency],
+    ["groundingValidatorVersion", expected.validator],
+    ["featureFlagEnabledForOrdinaryUsers", expected.featureFlagDefault],
+    ["chatProvider", expected.chatProvider],
+    ["chatModel", expected.chatModel],
+    ["embeddingProvider", expected.embeddingProvider],
+    ["embeddingModel", expected.embeddingModel],
+    ["embeddingDimensions", expected.embeddingDimensions],
+    ["embeddingVersion", expected.embeddingVersion],
+    ["temperature", expected.temperature],
+    ["maxOutputTokens", expected.maxOutputTokens],
+    ["repairAttemptLimit", expected.repairLimit],
+    ["keywordCandidateCount", expected.keywordCandidateCount],
+    ["vectorCandidateCount", expected.vectorCandidateCount],
+    ["hybridRrfK", expected.rrfK],
+    ["retrievalLimit", expected.retrievalResultLimit],
+    ["selectedEvidenceLimit", expected.selectedEvidenceLimit],
+    ["evidenceTokenBudget", expected.evidenceTokenBudget],
+    ["recentMessageLimit", expected.recentMessageLimit],
+    ["queryContextTokenBudget", expected.queryContextTokenBudget],
+    ["retrievalQueryMaxChars", expected.queryMaxLength],
+    ["correctedHarness", expected.correctedHarness],
+    ["exactSignalConfiguration", expected.exactSignalConfiguration],
+    ["conceptCompatibilityConfiguration", expected.conceptCompatibilityConfiguration],
+    [
+      "externalInformationGuardConfiguration",
+      expected.externalInformationGuardConfiguration,
+    ],
+  ];
+  const mismatches = checks.filter(
+    ([key, expectedValue]) =>
+      JSON.stringify(config[key]) !== JSON.stringify(expectedValue)
+  );
+
+  if (mismatches.length > 0) {
+    throw new Error(
+      `holdout_v6 frozen config mismatch: ${mismatches
+        .map(([key]) => key)
+        .join(", ")}`
+    );
+  }
+}
+
 function shouldRecordHoldoutV3Acceptance(
   options: RuntimeGroundedEvaluationOptions,
   cases: GroundedEvaluationCase[]
@@ -893,6 +1048,19 @@ function shouldRecordHoldoutV5Acceptance(
     !options.caseIds?.length &&
     !options.maxCases &&
     cases.every((item) => item.split === HOLDOUT_V5_SPLIT)
+  );
+}
+
+function shouldRecordHoldoutV6Acceptance(
+  options: RuntimeGroundedEvaluationOptions,
+  cases: GroundedEvaluationCase[]
+) {
+  return (
+    options.split === HOLDOUT_V6_SPLIT &&
+    !options.allowConsumedHoldoutDiagnostic &&
+    !options.caseIds?.length &&
+    !options.maxCases &&
+    cases.every((item) => item.split === HOLDOUT_V6_SPLIT)
   );
 }
 
@@ -1480,11 +1648,17 @@ function configuredChatModelName() {
 
 async function getSourceState(): Promise<GroundedEvaluationReportSourceState> {
   const commit = await readGitOutput(["rev-parse", "HEAD"]);
+  const treeHash = await readGitOutput(["rev-parse", "HEAD^{tree}"]);
   const diff = await readGitOutput(["diff", "--binary", "HEAD", "--"]);
+  const untrackedFiles = await readUntrackedFiles();
+  const behaviorHash = await hashBehaviorFiles();
   return {
     commit,
-    diffHash: hashText(diff ?? ""),
-    dirty: Boolean(diff),
+    diffHash: await hashWorkingTreeDiff(diff ?? "", untrackedFiles),
+    treeHash,
+    behaviorHash,
+    behaviorFilePaths: HOLDOUT_V6_BEHAVIOR_FILE_PATHS,
+    dirty: Boolean(diff) || untrackedFiles.length > 0,
   };
 }
 
@@ -1500,9 +1674,46 @@ async function readGitOutput(args: string[]) {
   }
 }
 
+async function readUntrackedFiles() {
+  const output = await readGitOutput(["ls-files", "--others", "--exclude-standard"]);
+  return (output ?? "")
+    .split("\n")
+    .map((item) => item.trim())
+    .filter(Boolean)
+    .sort((a, b) => a.localeCompare(b));
+}
+
+async function hashWorkingTreeDiff(diff: string, untrackedFiles: string[]) {
+  const hash = createHash("sha256");
+  hash.update("git diff --binary HEAD --");
+  hash.update("\0");
+  hash.update(diff);
+  hash.update("\0");
+  hash.update("untracked files");
+  hash.update("\0");
+  for (const filePath of untrackedFiles) {
+    hash.update(filePath);
+    hash.update("\0");
+    hash.update(await fs.readFile(path.join(process.cwd(), filePath)));
+    hash.update("\0");
+  }
+  return hash.digest("hex");
+}
+
 async function hashFixtureFile() {
   const fixturePath = path.join(process.cwd(), FIXTURE_PATH);
   return hashText(await fs.readFile(fixturePath, "utf8"));
+}
+
+async function hashBehaviorFiles() {
+  const hash = createHash("sha256");
+  for (const filePath of HOLDOUT_V6_BEHAVIOR_FILE_PATHS) {
+    hash.update(filePath);
+    hash.update("\0");
+    hash.update(await fs.readFile(path.join(process.cwd(), filePath), "utf8"));
+    hash.update("\0");
+  }
+  return hash.digest("hex");
 }
 
 function subjectName(subjectId: string | undefined | null) {
