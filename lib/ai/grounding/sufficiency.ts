@@ -191,6 +191,10 @@ export function evaluateRetrievalSufficiency(
     return insufficient(compatibility.reason, "LOW", selected);
   }
 
+  if (hasUnsupportedContextualRelationGap(input.query, selected)) {
+    return insufficient("REQUIRED_CONCEPT_MISSING", "LOW", selected);
+  }
+
   if (hasResourceInstructionConflict(input.query, selected)) {
     return insufficient("USER_INSTRUCTION_CONFLICT", "LOW", selected);
   }
@@ -470,6 +474,50 @@ function evaluateConceptCompatibility(query: string, chunks: RetrievedChunk[]) {
   return { compatible: true as const };
 }
 
+function hasUnsupportedContextualRelationGap(
+  query: string,
+  chunks: RetrievedChunk[]
+) {
+  const requestText = currentDefinitionIntentText(query);
+  if (!/\b(?:that|it|this|those|these)\b/.test(requestText)) return false;
+
+  const relationTerms = contextualRelationTerms(requestText);
+  if (relationTerms.length === 0) return false;
+
+  const requestedConcepts = conceptsInText(requestText);
+  if (requestedConcepts.length === 0) return false;
+
+  const evidenceSentences = evidenceSentencesWithMetadata(chunks);
+  return !evidenceSentences.some((sentence) => {
+    if (sentenceOnlyReportsMissingSideSupport(sentence)) return false;
+    const supportsRequestedConcept = requestedConcepts.some((concept) =>
+      conceptAppears(concept, sentence)
+    );
+    if (!supportsRequestedConcept) return false;
+    return relationTerms.some((term) => phraseAppears(term, sentence));
+  });
+}
+
+function contextualRelationTerms(requestText: string) {
+  const terms = new Set<string>();
+  if (/\b(?:increase|increases|increasing|raise|raises|rise|rises|rising)\b/.test(requestText)) {
+    ["increase", "increases", "increasing", "raise", "raises", "rise", "rises", "rising"].forEach((term) =>
+      terms.add(term)
+    );
+  }
+  if (/\b(?:decrease|decreases|decreasing|reduce|reduces|fall|falls|falling)\b/.test(requestText)) {
+    ["decrease", "decreases", "decreasing", "reduce", "reduces", "fall", "falls", "falling"].forEach((term) =>
+      terms.add(term)
+    );
+  }
+  if (/\b(?:affect|affects|change|changes|cause|causes|lead|leads|make|makes)\b/.test(requestText)) {
+    ["affect", "affects", "change", "changes", "cause", "causes", "lead", "leads", "make", "makes"].forEach((term) =>
+      terms.add(term)
+    );
+  }
+  return Array.from(terms);
+}
+
 function conceptsInText(text: string) {
   return CONCEPT_DEFINITIONS.filter((definition) =>
     conceptAppears(definition, text)
@@ -735,7 +783,7 @@ function hasMissingMultiOptionComparisonInput(
   query: string,
   chunks: RetrievedChunk[]
 ) {
-  if (!isMultiOptionComparisonRequest(query)) return false;
+  if (!isMultiOptionComparisonRequest(currentDefinitionIntentText(query))) return false;
   const evidence = normalizeForConceptMatching(
     chunks.map((chunk) => chunk.content).join(" ")
   );
@@ -858,6 +906,7 @@ function isDirectConceptDefinitionRequest(query: string) {
 
 function requestsFormulaWithSymbolDefinitions(query: string) {
   const queryText = currentDefinitionIntentText(query);
+  const rawRequestText = activeUserRequestRawText(query);
   const asksForFormulaOutput =
     /\b(?:give|state|write|teach|explain|show|provide)\b.*\b(?:formula|equation)\b/i.test(
       queryText
@@ -866,7 +915,7 @@ function requestsFormulaWithSymbolDefinitions(query: string) {
       queryText
     ) ||
     /\b(?:give|state|write|show|provide)\b[^.?!]*[a-z]\s*=\s*[^.?!]+/i.test(
-      query
+      rawRequestText
     );
   if (!asksForFormulaOutput) return false;
 
@@ -882,20 +931,45 @@ function requestsFormulaWithSymbolDefinitions(query: string) {
 }
 
 function isFormulaRequest(query: string) {
-  const queryText = normalizeForConceptMatching(normalizeQueryForTermCoverage(query));
-  return /\b(?:formula|equation)\b/.test(queryText) || /[a-z]\s*=\s*[^.?!]+/i.test(query);
+  const queryText = currentDefinitionIntentText(query);
+  const rawRequestText = activeUserRequestRawText(query);
+  return (
+    /\b(?:formula|equation)\b/.test(queryText) ||
+    /[a-z]\s*=\s*[^.?!]+/i.test(rawRequestText)
+  );
 }
 
 function currentDefinitionIntentText(query: string) {
+  return normalizeForConceptMatching(activeUserRequestRawText(query));
+}
+
+function activeUserRequestRawText(query: string) {
   const withoutMetadata = query
     .replace(/\bSubject:\s*[^.]+\.?/gi, " ")
     .replace(/\bTopic:\s*[^.]+\.?/gi, " ");
-  const segments = withoutMetadata
+  const requestText = explicitlyDesignatesQuotedTask(withoutMetadata)
+    ? withoutMetadata
+    : stripInertQuotedText(withoutMetadata);
+  const segments = requestText
     .split(/(?<=[.!?])\s+/)
     .map((item) => item.trim())
     .filter(Boolean);
-  const currentSegment = segments.at(-1) ?? withoutMetadata;
-  return normalizeForConceptMatching(currentSegment);
+  return (segments.at(-1) ?? requestText).trim();
+}
+
+function explicitlyDesignatesQuotedTask(value: string) {
+  return /\b(?:answer|calculate|determine|solve|use|work out)\b[^.?!]{0,100}\b(?:quoted|quote|question|problem|task|prompt)\b/i.test(
+    value
+  );
+}
+
+function stripInertQuotedText(value: string) {
+  return value
+    .replace(/"[^"]{0,600}"/g, " ")
+    .replace(/'[^']{3,600}'/g, " ")
+    .replace(/`[^`]{0,600}`/g, " ")
+    .replace(/“[^”]{0,600}”/g, " ")
+    .replace(/‘[^’]{3,600}’/g, " ");
 }
 
 function definitionSupportState(
@@ -1050,7 +1124,11 @@ function hasAnswerKeyConflict(query: string, chunks: RetrievedChunk[]) {
 }
 
 function hasDefinitionConflict(query: string, chunks: RetrievedChunk[]) {
-  if (!/\b(?:define|definition|meaning|mean|means|refers to)\b/i.test(query)) {
+  if (
+    !/\b(?:define|definition|meaning|mean|means|refers to)\b/i.test(
+      currentDefinitionIntentText(query)
+    )
+  ) {
     return false;
   }
 
@@ -1059,7 +1137,11 @@ function hasDefinitionConflict(query: string, chunks: RetrievedChunk[]) {
 }
 
 function hasFormulaConflict(query: string, chunks: RetrievedChunk[]) {
-  if (!/\b(?:formula|calculate|calculated|calculation|work out|find)\b/i.test(query)) {
+  if (
+    !/\b(?:formula|calculate|calculated|calculation|work out|find)\b/i.test(
+      currentDefinitionIntentText(query)
+    )
+  ) {
     return false;
   }
 
@@ -1173,6 +1255,11 @@ interface FormulaInputRule {
   requiresFormulaWhen?: RegExp;
   calculationRequestPattern?: RegExp;
   formulaRequirements?: Array<{
+    name: string;
+    patterns: RegExp[];
+    negationPatterns?: RegExp[];
+  }>;
+  unitRequirements?: Array<{
     name: string;
     patterns: RegExp[];
     negationPatterns?: RegExp[];
@@ -1381,6 +1468,8 @@ const FORMULA_INPUT_RULES: FormulaInputRule[] = [
           /\bpressure\s+is\s+force\s+divided\s+by\s+area\b/i,
         ],
       },
+    ],
+    unitRequirements: [
       {
         name: "force_unit",
         patterns: [/\bnewtons?\b/i, /\bn\b/i],
@@ -1489,9 +1578,12 @@ function hasCompleteFormulaSupport(query: string, chunks: RetrievedChunk[]) {
 }
 
 function formulaRulesMatchingQuery(query: string) {
+  const requestText = currentDefinitionIntentText(query);
   return FORMULA_INPUT_RULES.filter((rule) => {
-    if (!rule.queryPatterns.some((pattern) => pattern.test(query))) return false;
-    if (rule.requiresFormulaWhen && !rule.requiresFormulaWhen.test(query)) return false;
+    if (!rule.queryPatterns.some((pattern) => pattern.test(requestText))) return false;
+    if (rule.requiresFormulaWhen && !rule.requiresFormulaWhen.test(requestText)) {
+      return false;
+    }
     return true;
   });
 }
@@ -1511,16 +1603,21 @@ function formulaRuleRequirementsSupported(
 }
 
 function requiredFormulaRuleRequirements(rule: FormulaInputRule, query: string) {
+  const requestText = currentDefinitionIntentText(query);
   const calculationRequest =
-    rule.calculationRequestPattern?.test(query) ?? isCalculationRequest(query);
+    rule.calculationRequestPattern?.test(requestText) ?? isCalculationRequest(query);
+  const unitRequest = /\bunits?\b/i.test(requestText);
   return [
     ...(rule.formulaRequirements ?? rule.requirements),
+    ...(unitRequest ? rule.unitRequirements ?? [] : []),
     ...(calculationRequest ? rule.valueRequirements ?? [] : []),
   ];
 }
 
 function isCalculationRequest(query: string) {
-  return /\b(?:calculate|calculation|solve|work out|determine)\b/i.test(query);
+  return /\b(?:calculate|calculation|solve|work out|determine)\b/i.test(
+    currentDefinitionIntentText(query)
+  );
 }
 
 function simpleInterestRequirementsSupported(
@@ -1532,7 +1629,9 @@ function simpleInterestRequirementsSupported(
     (current, chunk) => mergeSimpleInterestSupport(current, extractSimpleInterestSupport(chunk.content)),
     emptySimpleInterestSupport()
   );
-  const requiresCalculation = /\b(?:calculate|calculation|work out|find)\b/i.test(query);
+  const requiresCalculation = /\b(?:calculate|calculation|work out|find)\b/i.test(
+    currentDefinitionIntentText(query)
+  );
   const principal = requiresCalculation ? support.principalValue : support.principal;
   const rate = requiresCalculation ? support.rateValue : support.rate;
   const time = requiresCalculation ? support.timeValue : support.time;
@@ -1544,7 +1643,9 @@ function scopeSimpleInterestEvidence(query: string, chunks: RetrievedChunk[]) {
   const topChunk = chunks[0];
   if (
     topChunk &&
-    /\bthis\s+(?:card|source|note|resource)\b/i.test(query) &&
+    /\bthis\s+(?:card|source|note|resource)\b/i.test(
+      currentDefinitionIntentText(query)
+    ) &&
     hasSimpleInterestInputOmission(topChunk.content)
   ) {
     return [topChunk];
@@ -1684,9 +1785,7 @@ function hasMissingRequestedSymbolDefinition(
 }
 
 function extractRequestedSymbolDefinition(query: string) {
-  const normalized = normalizeForConceptMatching(
-    normalizeQueryForTermCoverage(query)
-  );
+  const normalized = currentDefinitionIntentText(query);
   const patterns = [
     /\bwhat\s+does\s+([a-z])\s+(?:mean|represent|stand\s+for)\b/i,
     /\bwhat\s+is\s+([a-z])\s+(?:in|for|from)\s+(?:the\s+)?(?:formula|equation|relation)\b/i,
