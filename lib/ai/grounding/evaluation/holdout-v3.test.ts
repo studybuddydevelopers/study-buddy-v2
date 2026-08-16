@@ -702,6 +702,7 @@ function historicalResourcesThroughHoldoutV3() {
         (item) =>
           item.split === "holdout_v4" ||
           item.split === "holdout_v5" ||
+          item.split === "holdout_v6" ||
           item.split === "post_v5_regression" ||
           item.split === "adversarial_safety"
       )
@@ -719,7 +720,9 @@ function historicalResourcesThroughHoldoutV3() {
 
 function resourcesExcludingSplit(split: GroundedEvaluationCase["split"]) {
   const excludedSplits =
-    split === "holdout_v4" ? new Set([split, "holdout_v5"]) : new Set([split]);
+    split === "holdout_v4"
+      ? new Set([split, "holdout_v5", "holdout_v6"])
+      : new Set([split]);
   const resourceIds = new Set(
     groundedEvaluationCases
       .filter((item) => excludedSplits.has(item.split))
