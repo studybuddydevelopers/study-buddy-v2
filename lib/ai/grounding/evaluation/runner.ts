@@ -7,7 +7,10 @@ import type {
   GroundedEvaluationReport,
   GroundedEvaluationSplit,
 } from "./types";
-import { findPresentEvaluationFacts } from "./fact-matching";
+import {
+  evaluationPhraseAppears,
+  findPresentEvaluationFacts,
+} from "./fact-matching";
 
 export interface GroundedEvaluationAnswer {
   answer: string;
@@ -303,12 +306,5 @@ function validNonNegative(value: number | undefined) {
 }
 
 function containsForbiddenClaim(answer: string, claim: string) {
-  const normalizedAnswer = answer.toLowerCase();
-  const normalizedClaim = claim.toLowerCase().trim();
-  if (!normalizedClaim) return false;
-
-  const escaped = normalizedClaim.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-  return new RegExp(`(^|[^a-z0-9])${escaped}([^a-z0-9]|$)`, "i").test(
-    normalizedAnswer
-  );
+  return evaluationPhraseAppears(answer, claim);
 }
