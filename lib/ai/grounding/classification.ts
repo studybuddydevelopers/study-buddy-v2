@@ -55,7 +55,7 @@ export function classifyGroundedMessage(
 }
 
 export function containsEducationalSignal(value: string) {
-  return /\b(waec|math|mathematics|english|biology|chemistry|physics|question|answer|formula|equation|ratio|fraction|algebra|geometry|number|acceleration|force|topic|subject)\b/i.test(
+  return /\b(waec|math|mathematics|english|biology|chemistry|physics|question|answer|formula|equation|ratio|fraction|algebra|geometry|number|acceleration|area|current|density|force|pressure|resistance|speed|topic|subject|velocity|voltage)\b/i.test(
     value
   );
 }
