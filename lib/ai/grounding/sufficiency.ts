@@ -37,6 +37,8 @@ export interface EvaluateRetrievalSufficiencyInput {
 export type GroundingRequestIntent =
   | "CALCULATION"
   | "COMPARISON"
+  | "MULTI_PART_REQUEST"
+  | "SCOPED_RULE_REQUEST"
   | "MULTI_OPTION_COMPARISON"
   | "FORMULA_WITH_SYMBOL_DEFINITIONS"
   | "SYMBOL_DEFINITION"
@@ -47,6 +49,8 @@ export type GroundingRequestIntent =
 export type RequestRequirement =
   | { kind: "SINGLE_CONCEPT"; concept: string }
   | { kind: "COMPARISON"; sides: string[] }
+  | { kind: "MULTI_PART_REQUEST"; parts: string[] }
+  | { kind: "SCOPED_RULE_REQUEST"; scopes: string[]; topic: string | null }
   | { kind: "FORMULA"; quantity: string | null }
   | { kind: "FORMULA_WITH_SYMBOLS"; quantity: string | null; symbols: string[] }
   | { kind: "CALCULATION"; quantity: string | null; requiredInputs: string[] }
@@ -309,15 +313,46 @@ export function classifyGroundingRequestIntent(
   if (extractRequestedSymbolDefinition(query)) return "SYMBOL_DEFINITION";
   if (isFormulaRequest(query)) return "FORMULA_REQUEST";
   if (isDirectConceptDefinitionRequest(query)) return "CONCEPT_DEFINITION";
+  if (
+    requirements.some((requirement) => requirement.kind === "SCOPED_RULE_REQUEST")
+  ) {
+    return "SCOPED_RULE_REQUEST";
+  }
+  if (
+    requirements.some((requirement) => requirement.kind === "MULTI_PART_REQUEST")
+  ) {
+    return "MULTI_PART_REQUEST";
+  }
   return "GENERAL";
 }
 
 export function buildRequestRequirements(query: string): RequestRequirement[] {
   const currentText = currentDefinitionIntentText(query);
   const requirements: RequestRequirement[] = [];
-  const comparison = extractComparisonSides(currentText);
-  if (comparison.length >= 2) {
-    requirements.push({ kind: "COMPARISON", sides: comparison.slice(0, 2) });
+  const scopedRule = extractScopedRuleRequest(currentText);
+  if (scopedRule) {
+    requirements.push(scopedRule);
+  } else {
+    const comparison = extractComparisonSides(currentText);
+    if (comparison.length >= 2) {
+      requirements.push({ kind: "COMPARISON", sides: comparison.slice(0, 2) });
+    }
+  }
+
+  const multiPart = extractMultiPartRequest(currentText);
+  if (
+    multiPart &&
+    !isFormulaRequest(query) &&
+    !requestsFormulaWithSymbolDefinitions(query) &&
+    !extractRequestedSymbolDefinition(query) &&
+    !isCalculationRequest(query) &&
+    !requirements.some(
+      (requirement) =>
+        requirement.kind === "COMPARISON" ||
+        requirement.kind === "SCOPED_RULE_REQUEST"
+    )
+  ) {
+    requirements.push(multiPart);
   }
 
   const options = extractMultiOptionComparisonOptions(currentText);
@@ -446,8 +481,16 @@ function hasMissingRequestRequirementSupport(
   chunks: RetrievedChunk[]
 ) {
   return requirements.some((requirement) => {
-    if (requirement.kind !== "COMPARISON") return false;
-    return !comparisonSidesSupported(requirement.sides, chunks);
+    if (requirement.kind === "COMPARISON") {
+      return !comparisonSidesSupported(requirement.sides, chunks);
+    }
+    if (requirement.kind === "SCOPED_RULE_REQUEST") {
+      return !scopedRuleRequestSupported(requirement, chunks);
+    }
+    if (requirement.kind === "MULTI_PART_REQUEST") {
+      return !multiPartRequestSupported(requirement.parts, chunks);
+    }
+    return false;
   });
 }
 
@@ -468,6 +511,62 @@ function sideSupportedByEvidence(side: string, evidenceSentences: string[]) {
   );
 }
 
+function scopedRuleRequestSupported(
+  requirement: Extract<RequestRequirement, { kind: "SCOPED_RULE_REQUEST" }>,
+  chunks: RetrievedChunk[]
+) {
+  const evidenceSentences = evidenceSentencesWithMetadata(chunks);
+  return requirement.scopes.every((scope) =>
+    scopedPartSupportedByEvidence(scope, requirement.topic, evidenceSentences)
+  );
+}
+
+function multiPartRequestSupported(parts: string[], chunks: RetrievedChunk[]) {
+  const evidenceSentences = evidenceSentencesWithMetadata(chunks);
+  return parts.every((part) =>
+    scopedPartSupportedByEvidence(part, null, evidenceSentences)
+  );
+}
+
+function scopedPartSupportedByEvidence(
+  part: string,
+  topic: string | null,
+  evidenceSentences: string[]
+) {
+  const partTerms = highSignalPartTerms(part);
+  const topicTerms = topic ? highSignalPartTerms(topic) : [];
+  if (partTerms.length === 0) return false;
+
+  return evidenceSentences.some((sentence) => {
+    if (sentenceOnlyReportsMissingSideSupport(sentence)) return false;
+    const hasPart = partTerms.every((term) =>
+      sideVariants(term).some((variant) => phraseAppears(variant, sentence))
+    );
+    if (!hasPart) return false;
+    if (topicTerms.length === 0) return true;
+    return topicTerms.some((term) =>
+      sideVariants(term).some((variant) => phraseAppears(variant, sentence))
+    );
+  });
+}
+
+function evidenceSentencesWithMetadata(chunks: RetrievedChunk[]) {
+  return chunks
+    .flatMap((chunk) =>
+      chunk.content.split(/[.!?;]+/).map((sentence) =>
+        normalizeForConceptMatching(
+          [
+            chunk.resourceTitle,
+            chunk.title,
+            chunk.questionNumber ? `question ${chunk.questionNumber}` : "",
+            sentence,
+          ].join(" ")
+        )
+      )
+    )
+    .filter(Boolean);
+}
+
 function sentenceOnlyReportsMissingSideSupport(sentence: string) {
   return /\b(?:does not|doesn t|do not|not|no)\s+(?:describe|define|explain|state|states|mention|include|cover|contain|give|provide)\b/.test(
     sentence
@@ -479,6 +578,11 @@ function sideVariants(side: string) {
   const variants = new Set([normalized]);
   if (normalized.endsWith("ies") && normalized.length > 3) {
     variants.add(`${normalized.slice(0, -3)}y`);
+  }
+  if (normalized === "resistance") {
+    variants.add("resistor");
+    variants.add("resistors");
+    variants.add("resistances");
   }
   if (normalized.endsWith("es") && normalized.length > 2) {
     variants.add(normalized.slice(0, -2));
@@ -510,6 +614,91 @@ function extractComparisonSides(text: string) {
   }
 
   return [];
+}
+
+function extractScopedRuleRequest(
+  text: string
+): Extract<RequestRequirement, { kind: "SCOPED_RULE_REQUEST" }> | null {
+  const normalized = normalizeForConceptMatching(text);
+  const scopedRuleMatch = normalized.match(
+    /\b(?:state|describe|explain|give|compare)\s+(?:the\s+)?([a-z][a-z0-9 -]*?)\s+and\s+([a-z][a-z0-9 -]*?)\s+(?:(?:circuit|circuits?)\s+)?([a-z][a-z0-9 -]*?)\s+rules?\b/i
+  );
+  if (scopedRuleMatch?.[1] && scopedRuleMatch[2]) {
+    const scopes = [
+      cleanMultiPartValue(scopedRuleMatch[1]),
+      cleanMultiPartValue(scopedRuleMatch[2]),
+    ].filter(Boolean);
+    if (scopes.length >= 2) {
+      return {
+        kind: "SCOPED_RULE_REQUEST",
+        scopes,
+        topic: cleanMultiPartValue(
+          [scopedRuleMatch[3], "rule"].filter(Boolean).join(" ")
+        ),
+      };
+    }
+  }
+
+  const scopedConditionMatch = normalized.match(
+    /\bwhat\s+happens\s+to\s+(.+?)\s+when\s+(.+?)\s+and\s+when\s+(.+?)(?:$|\s+from\b|\s+using\b)/i
+  );
+  if (scopedConditionMatch?.[1] && scopedConditionMatch[2] && scopedConditionMatch[3]) {
+    const scopes = [
+      cleanMultiPartValue(scopedConditionMatch[2]),
+      cleanMultiPartValue(scopedConditionMatch[3]),
+    ].filter(Boolean);
+    if (scopes.length >= 2) {
+      return {
+        kind: "SCOPED_RULE_REQUEST",
+        scopes,
+        topic: cleanMultiPartValue(scopedConditionMatch[1]),
+      };
+    }
+  }
+
+  return null;
+}
+
+function extractMultiPartRequest(
+  text: string
+): Extract<RequestRequirement, { kind: "MULTI_PART_REQUEST" }> | null {
+  const normalized = normalizeForConceptMatching(text);
+  if (
+    extractComparisonSides(normalized).length >= 2 ||
+    extractScopedRuleRequest(normalized) ||
+    isFormulaRequest(normalized) ||
+    requestsFormulaWithSymbolDefinitions(normalized) ||
+    isCalculationRequest(normalized)
+  ) {
+    return null;
+  }
+
+  const match = normalized.match(
+    /\b(?:state|list|give)\s+(?:the\s+)?([a-z][a-z0-9 -]{1,60}?)\s+and\s+([a-z][a-z0-9 -]{1,60}?)(?:$|\s+from\b|\s+using\b|\s+in\b|\s+on\b)/i
+  );
+  if (!match?.[1] || !match[2]) return null;
+
+  const parts = [cleanMultiPartValue(match[1]), cleanMultiPartValue(match[2])]
+    .filter(Boolean);
+  return parts.length >= 2 ? { kind: "MULTI_PART_REQUEST", parts } : null;
+}
+
+function cleanMultiPartValue(value: string) {
+  return normalizeForConceptMatching(value)
+    .replace(/\b(?:the|a|an|these|those|both|two|cards?|sources?)\b/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function highSignalPartTerms(value: string) {
+  return normalizeForConceptMatching(value)
+    .split(" ")
+    .filter(
+      (term) =>
+        term.length > 1 &&
+        !HIGH_SIGNAL_STOPWORDS.has(term) &&
+        !["rule", "rules", "fact", "facts", "happens", "happen"].includes(term)
+    );
 }
 
 function cleanComparisonSide(value: string) {
