@@ -261,6 +261,37 @@ describe("Stage 4 grounding primitives", () => {
     expect(classifyGroundingRequestIntent("Compare conductors and insulators.")).toBe(
       "COMPARISON"
     );
+    expect(
+      buildRequestRequirements("State conductors and insulators.")[0]
+    ).toMatchObject({
+      kind: "MULTI_PART_REQUEST",
+      parts: ["conductors", "insulators"],
+    });
+    expect(classifyGroundingRequestIntent("State conductors and insulators.")).toBe(
+      "MULTI_PART_REQUEST"
+    );
+    expect(
+      buildRequestRequirements("Compare series and parallel circuit resistance rules.")[0]
+    ).toMatchObject({
+      kind: "SCOPED_RULE_REQUEST",
+      scopes: ["series", "parallel"],
+      topic: "resistance rule",
+    });
+    expect(
+      classifyGroundingRequestIntent(
+        "Compare series and parallel circuit resistance rules."
+      )
+    ).toBe("SCOPED_RULE_REQUEST");
+    expect(
+      buildRequestRequirements("Give the formula with m and v defined.").some(
+        (item) => item.kind === "COMPARISON"
+      )
+    ).toBe(false);
+    expect(
+      buildRequestRequirements("Calculate speed using distance and time.").some(
+        (item) => item.kind === "COMPARISON"
+      )
+    ).toBe(false);
   });
 
   it("requires every requested comparison side before generation", () => {
@@ -292,6 +323,67 @@ describe("Stage 4 grounding primitives", () => {
         selectedChunks: bothSides,
       }).reason
     ).toBe("SUPPORTED");
+  });
+
+  it("separates scoped rule requests from explicit comparison requirements", () => {
+    const seriesOnly = [
+      chunk({
+        resourceTitle: "Series Resistance Card",
+        title: "Series Resistance Card",
+        content:
+          "For resistors in series, total resistance is found by adding the resistances: R_total = R1 + R2.",
+      }),
+    ];
+    const bothResistanceRules = [
+      ...seriesOnly,
+      chunk({
+        id: "chunk-2",
+        resourceTitle: "Parallel Resistance Card",
+        title: "Parallel Resistance Card",
+        content:
+          "For resistors in parallel, the reciprocal rule is used: 1 / R_total = 1 / R1 + 1 / R2.",
+      }),
+    ];
+    const lengthAreaRules = [
+      chunk({
+        content:
+          "When length increases, resistance increases. When cross-sectional area increases, resistance decreases.",
+      }),
+    ];
+
+    expect(
+      evaluateRetrievalSufficiency({
+        query: "Compare series and parallel circuit resistance rules.",
+        candidates: bothResistanceRules,
+        selectedChunks: bothResistanceRules,
+      }).reason
+    ).toBe("SUPPORTED");
+
+    expect(
+      evaluateRetrievalSufficiency({
+        query: "Compare series and parallel circuit resistance rules.",
+        candidates: seriesOnly,
+        selectedChunks: seriesOnly,
+      }).reason
+    ).toBe("REQUIRED_COMPARISON_SIDE_MISSING");
+
+    expect(
+      evaluateRetrievalSufficiency({
+        query:
+          "State what happens to resistance when length increases and when cross-sectional area increases.",
+        candidates: lengthAreaRules,
+        selectedChunks: lengthAreaRules,
+      }).reason
+    ).toBe("SUPPORTED");
+
+    expect(
+      evaluateRetrievalSufficiency({
+        query:
+          "State what happens to resistance when length increases and when cross-sectional area increases.",
+        candidates: [chunk({ content: "When length increases, resistance increases." })],
+        selectedChunks: [chunk({ content: "When length increases, resistance increases." })],
+      }).reason
+    ).toBe("REQUIRED_COMPARISON_SIDE_MISSING");
   });
 
   it("keeps request-level incompleteness dominant over segment-level support", async () => {
@@ -2923,6 +3015,49 @@ describe("Stage 4 grounding primitives", () => {
     });
 
     expect(report.forbiddenClaimRate).toBe(0);
+
+    const reviewCase = buildReviewCase({
+      evaluationCase: {
+        id: "substring-forbidden-review",
+        split: "regression",
+        messages: [{ role: "USER", content: "trap" }],
+        shouldAnswer: false,
+        forbiddenClaims: ["pi"],
+      },
+      actualClassification: "INSUFFICIENT_CONTEXT",
+      generatedAnswerText:
+        "I do not have enough approved StudyBuddy material. Try asking a more specific question.",
+      citations: [],
+      citedExcerpts: [],
+      versions: {
+        prompt: "grounded-teach-prompt-v1.6",
+        grounding: "stage4-grounded-teach-v1",
+        sufficiency: "sufficiency-policy-v1.14",
+      },
+    });
+
+    expect(reviewCase.detectedForbiddenClaims).toEqual([]);
+
+    const truePiReviewCase = buildReviewCase({
+      evaluationCase: {
+        id: "true-pi-review",
+        split: "regression",
+        messages: [{ role: "USER", content: "trap" }],
+        shouldAnswer: false,
+        forbiddenClaims: ["pi"],
+      },
+      actualClassification: "SUPPORTED",
+      generatedAnswerText: "The formula uses pi and radius.",
+      citations: [],
+      citedExcerpts: [],
+      versions: {
+        prompt: "grounded-teach-prompt-v1.6",
+        grounding: "stage4-grounded-teach-v1",
+        sufficiency: "sufficiency-policy-v1.14",
+      },
+    });
+
+    expect(truePiReviewCase.detectedForbiddenClaims).toEqual(["pi"]);
   });
 
   it("normalizes circle exponent notation for evaluator-only required fact matching", async () => {
