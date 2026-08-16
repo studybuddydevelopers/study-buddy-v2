@@ -6,7 +6,7 @@ export function evaluationFactAppears(answer: string, requiredFact: string) {
   const normalizedAnswer = normalizeEvaluationFactText(answer);
   const normalizedFact = normalizeEvaluationFactText(requiredFact);
 
-  if (normalizedAnswer.includes(normalizedFact)) return true;
+  if (evaluationPhraseAppearsNormalized(normalizedAnswer, normalizedFact)) return true;
 
   if (normalizedFact === "squared") {
     return /\br\s*(?:\^?\s*2|squared)\b/i.test(normalizedAnswer);
@@ -20,6 +20,23 @@ export function evaluationFactAppears(answer: string, requiredFact: string) {
   }
 
   return false;
+}
+
+export function evaluationPhraseAppears(answer: string, phrase: string) {
+  return evaluationPhraseAppearsNormalized(
+    normalizeEvaluationFactText(answer),
+    normalizeEvaluationFactText(phrase)
+  );
+}
+
+function evaluationPhraseAppearsNormalized(answer: string, phrase: string) {
+  if (!phrase) return false;
+  if (phrase === "pi") {
+    return /(^|[^a-z0-9])(?:pi|π)([^a-z0-9]|$)/i.test(answer);
+  }
+
+  const escaped = phrase.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  return new RegExp(`(^|[^a-z0-9])${escaped}([^a-z0-9]|$)`, "i").test(answer);
 }
 
 function normalizeEvaluationFactText(value: string) {
