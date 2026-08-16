@@ -27,7 +27,9 @@ export function buildStandaloneRetrievalQuery(
   const contextPrefix = [
     input.subjectName ? `Subject: ${input.subjectName}` : null,
     input.topicTitle ? `Topic: ${input.topicTitle}` : null,
-    isShortFollowUp(current) && nounPhraseContext
+    isShortFollowUp(current) &&
+    nounPhraseContext &&
+    (!hasExplicitCurrentConcept(current) || hasContextualPronounRelation(current))
       ? `Relevant context: ${nounPhraseContext}`
       : null,
   ]
@@ -62,7 +64,20 @@ export function buildBoundedRecentContext(messages: GroundedQueryMessage[]) {
 }
 
 function isShortFollowUp(value: string) {
-  return value.length <= 80 && /^(why|how|what|and|can you|explain|why is|why does|what about)\b/i.test(value);
+  return value.length <= 100 && /^(why|how|what|would|could|does|do|and|can you|explain|why is|why does|what about|would that|does that)\b/i.test(value);
+}
+
+function hasExplicitCurrentConcept(value: string) {
+  return /\b(?:acceleration|adjective|area|base|circle|conduction|convection|current|density|diffusion|force|food chain|food web|inference|main idea|mass|mean|median|meiosis|mitosis|noun|percentage|perimeter|photosynthesis|pressure|ratio|rectangle|resistance|respiration|speed|triangle|velocity|voltage|weight)\b/i.test(
+    value
+  );
+}
+
+function hasContextualPronounRelation(value: string) {
+  return /\b(?:that|it|this|those|these)\b/i.test(value) &&
+    /\b(?:affect|change|cause|causes|decrease|decreases|increase|increases|lead|leads|make|makes|raise|raises|reduce|reduces|rise|rises)\b/i.test(
+      value
+    );
 }
 
 function extractEducationalNounPhrases(messages: GroundedQueryMessage[]) {
