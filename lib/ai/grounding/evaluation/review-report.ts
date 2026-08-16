@@ -11,7 +11,10 @@ import type {
   GroundedEvaluationReviewReport,
   GroundedEvaluationSplit,
 } from "./types";
-import { findPresentEvaluationFacts } from "./fact-matching";
+import {
+  evaluationPhraseAppears,
+  findPresentEvaluationFacts,
+} from "./fact-matching";
 
 export const REVIEW_REPORT_SCHEMA_VERSION = "grounded-runtime-review-report-v1.1";
 export const DEFAULT_REVIEW_REPORT_DIR = ".grounded-evaluation-reports";
@@ -325,8 +328,7 @@ function extractCitationMarkers(value: string) {
 }
 
 function findPresentPhrases(value: string, phrases: string[]) {
-  const normalized = value.toLowerCase();
-  return phrases.filter((phrase) => normalized.includes(phrase.toLowerCase()));
+  return phrases.filter((phrase) => evaluationPhraseAppears(value, phrase));
 }
 
 function validNonNegative(value: number | null | undefined) {
