@@ -7,6 +7,7 @@ export type GroundedEvaluationSplit =
   | "holdout_v3"
   | "holdout_v4"
   | "holdout_v5"
+  | "holdout_v6"
   | "post_v5_regression"
   | "adversarial_safety";
 
@@ -189,6 +190,9 @@ export interface GroundedEvaluationReviewCase {
 export interface GroundedEvaluationReportSourceState {
   commit: string | null;
   diffHash: string;
+  treeHash?: string | null;
+  behaviorHash?: string | null;
+  behaviorFilePaths?: readonly string[];
   dirty: boolean;
 }
 
