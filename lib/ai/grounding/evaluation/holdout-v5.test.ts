@@ -455,8 +455,17 @@ function resourcesThroughHoldoutV5() {
         ...(item.setupResourceIds ?? []),
       ])
   );
+  const holdoutV6ResourceIds = new Set(
+    groundedEvaluationCases
+      .filter((item) => item.split === "holdout_v6")
+      .flatMap((item) => [
+        ...(item.corpusResourceIds ?? []),
+        ...(item.expectedResourceIds ?? []),
+        ...(item.setupResourceIds ?? []),
+      ])
+  );
 
   return groundedEvaluationResources.filter(
-    (item) => !postV5ResourceIds.has(item.id)
+    (item) => !postV5ResourceIds.has(item.id) && !holdoutV6ResourceIds.has(item.id)
   );
 }
