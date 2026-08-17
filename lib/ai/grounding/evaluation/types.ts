@@ -107,6 +107,7 @@ export interface GroundedEvaluationCaseResult {
 }
 
 export interface GroundedEvaluationReport {
+  pipeline?: GroundedEvaluationPipeline;
   split: GroundedEvaluationSplit | "all";
   caseCount: number;
   answerabilityAccuracy: number;
@@ -139,6 +140,31 @@ export type GroundedEvaluationClassification =
   | "SUPPORTED"
   | "INSUFFICIENT_CONTEXT"
   | "FAILED";
+
+export type GroundedEvaluationPipeline = "legacy" | "capability";
+
+export interface GroundedEvaluationCapabilityDiagnostics {
+  pipelineVersion: string;
+  promptVersion: string;
+  retrievalQuery: string;
+  requestRequirements: unknown;
+  evidenceCapabilities: unknown[];
+  detectedConflicts: unknown[];
+  answerabilityDecision: unknown;
+  validatedEvidenceUnits: unknown[];
+  providerCalled: boolean;
+  generationResult: {
+    present: boolean;
+    insufficientContext?: boolean;
+    answerSegmentCount?: number;
+  };
+  narrowValidatorResult: unknown | null;
+  repairResult: {
+    attempted: boolean;
+    successful: boolean;
+  };
+  finalClassification: GroundedEvaluationClassification;
+}
 
 export interface GroundedEvaluationReviewCitation {
   sourceLabel: string;
@@ -185,6 +211,8 @@ export interface GroundedEvaluationReviewCase {
     inputTokens: number | null;
     outputTokens: number | null;
   };
+  pipeline?: GroundedEvaluationPipeline;
+  capabilityDiagnostics?: GroundedEvaluationCapabilityDiagnostics;
 }
 
 export interface GroundedEvaluationReportSourceState {
@@ -198,6 +226,7 @@ export interface GroundedEvaluationReportSourceState {
 
 export interface GroundedEvaluationReviewReport {
   reportSchemaVersion: string;
+  pipeline?: GroundedEvaluationPipeline;
   split: GroundedEvaluationSplit | "all" | "mixed" | null;
   runId: string;
   runTimestamp: string;
