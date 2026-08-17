@@ -55,7 +55,10 @@ class RecordingStructuredProvider implements StructuredChatModelProvider {
   generateInputs: GenerateInput[] = [];
   structuredInputs: StructuredGenerateInput[] = [];
 
-  constructor(private readonly text = "Grounded fake response.") {}
+  constructor(
+    private readonly text = "Grounded fake response.",
+    private readonly structuredValue?: unknown
+  ) {}
 
   async generate(input: GenerateInput): Promise<GenerateResult> {
     this.generateInputs.push(input);
@@ -72,12 +75,25 @@ class RecordingStructuredProvider implements StructuredChatModelProvider {
   ): Promise<StructuredGenerateResult> {
     this.structuredInputs.push(input);
     const result = await this.generate(input);
+    if (this.structuredValue !== undefined) {
+      return {
+        value: this.structuredValue,
+        provider: result.provider,
+        model: result.model,
+        usage: result.usage,
+      };
+    }
+    const contract = extractPromptContract(
+      input.messages.map((message) => message.content).join("\n")
+    );
     return {
       value: {
         answerSegments: [
           {
             text: result.text,
-            sourceLabels: ["SOURCE_1"],
+            sourceLabels: contract.sourceLabels,
+            evidenceUnitIds: contract.evidenceUnitIds,
+            requirementIds: contract.requirementIds,
           },
         ],
         insufficientContext: false,
@@ -105,6 +121,42 @@ function context(overrides: Partial<GroundingPipelineContext> = {}): GroundingPi
     recentMessages: [],
     ...overrides,
   };
+}
+
+function extractPromptContract(text: string) {
+  const units = parsePromptArray<{
+    id?: unknown;
+    sourceLabel?: unknown;
+    supportsRequirementIds?: unknown;
+  }>(text, "validated_evidence_units_json");
+  const tasks = parsePromptArray<{ id?: unknown }>(text, "requested_tasks_json");
+  return {
+    sourceLabels: uniqueStrings(
+      units.map((unit) => unit.sourceLabel).filter((value): value is string => typeof value === "string")
+    ),
+    evidenceUnitIds: uniqueStrings(
+      units.map((unit) => unit.id).filter((value): value is string => typeof value === "string")
+    ),
+    requirementIds: uniqueStrings([
+      ...tasks.map((task) => task.id).filter((value): value is string => typeof value === "string"),
+      ...units.flatMap((unit) =>
+        Array.isArray(unit.supportsRequirementIds)
+          ? unit.supportsRequirementIds.filter((value): value is string => typeof value === "string")
+          : []
+      ),
+    ]),
+  };
+}
+
+function parsePromptArray<T>(text: string, tag: string): T[] {
+  const match = text.match(new RegExp(`<${tag}>\\n([\\s\\S]*?)\\n</${tag}>`));
+  if (!match) return [];
+  const parsed = JSON.parse(match[1] ?? "[]");
+  return Array.isArray(parsed) ? parsed : [];
+}
+
+function uniqueStrings(values: string[]) {
+  return [...new Set(values.filter(Boolean))];
 }
 
 function retrievedChunk(content: string, overrides: Partial<RetrievedChunk> = {}): RetrievedChunk {
@@ -137,9 +189,10 @@ async function runPipeline(input: {
   message: string;
   chunks: RetrievedChunk[];
   recentMessages?: GroundingPipelineContext["recentMessages"];
+  provider?: RecordingStructuredProvider;
 }) {
   const repository = new FakeSearchRepository(input.chunks);
-  const provider = new RecordingStructuredProvider();
+  const provider = input.provider ?? new RecordingStructuredProvider();
   const pipeline = new CapabilityGroundingPipeline({ searchRepository: repository });
   const outcome = await pipeline.generate({
     context: context({
@@ -275,11 +328,12 @@ describe("Stage 4.1 capability grounding pipeline", () => {
       .join("\n");
     expect(prompt).toContain("A ratio compares two quantities by division");
     expect(prompt).not.toMatch(/Ignore previous instructions|pressure formula/i);
-    expect(prompt).not.toContain("unit-1");
-    expect(prompt).not.toContain("evidenceUnitId");
+    expect(prompt).toContain("unit-1");
+    expect(prompt).toContain("evidenceUnitIds");
+    expect(prompt).toContain("requested_tasks_json");
   });
 
-  it("returns citations only for cited validated evidence units", async () => {
+  it("returns citations for the validated evidence units cited by the provider", async () => {
     const { outcome } = await runPipeline({
       message: "Give the pressure formula and define P.",
       chunks: [
@@ -302,6 +356,11 @@ describe("Stage 4.1 capability grounding pipeline", () => {
         sourceLabel: "SOURCE_1",
         resourceChunkId: "formula",
         evidenceUnitIds: ["unit-1"],
+      },
+      {
+        sourceLabel: "SOURCE_2",
+        resourceChunkId: "symbol",
+        evidenceUnitIds: ["unit-2"],
       },
     ]);
   });
@@ -326,6 +385,153 @@ describe("Stage 4.1 capability grounding pipeline", () => {
     });
     expect(wrongTopic.outcome.kind).toBe("INSUFFICIENT_CONTEXT");
     expect(wrongTopic.provider.structuredInputs).toHaveLength(0);
+  });
+
+  it("passes fake-provider output when every required task is covered", async () => {
+    const { outcome } = await runPipeline({
+      message: "How do acids and bases affect litmus paper?",
+      chunks: [
+        retrievedChunk(
+          "Acids turn blue litmus paper red, while bases turn red litmus paper blue."
+        ),
+      ],
+    });
+
+    expect(outcome.kind).toBe("COMPLETED");
+  });
+
+  it("fails fake-provider output when a required task is omitted", async () => {
+    const provider = new RecordingStructuredProvider("unused", {
+      answerSegments: [
+        {
+          text: "Acids turn blue litmus paper red.",
+          sourceLabels: ["SOURCE_1"],
+          evidenceUnitIds: ["unit-1"],
+          requirementIds: ["req-1.1"],
+        },
+      ],
+      insufficientContext: false,
+      suggestedQuestions: [],
+    });
+    const { outcome } = await runPipeline({
+      message: "How do acids and bases affect litmus paper?",
+      chunks: [
+        retrievedChunk(
+          "Acids turn blue litmus paper red, while bases turn red litmus paper blue."
+        ),
+      ],
+      provider,
+    });
+
+    expect(outcome.kind).toBe("FAILED");
+    expect(outcome.diagnostics?.narrowValidatorResult?.errors.map((error) => error.code)).toContain(
+      "MISSING_REQUIRED_TASK"
+    );
+  });
+
+  it("fails fake-provider output with an unsupported related task", async () => {
+    const provider = new RecordingStructuredProvider("unused", {
+      answerSegments: [
+        {
+          text: "The formula is V = I x R, and voltage is measured in volts.",
+          sourceLabels: ["SOURCE_1"],
+          evidenceUnitIds: ["unit-1"],
+          requirementIds: ["req-1", "req-unrequested-units"],
+        },
+      ],
+      insufficientContext: false,
+      suggestedQuestions: [],
+    });
+    const { outcome } = await runPipeline({
+      message: "Teach me Ohm's law.",
+      chunks: [
+        retrievedChunk(
+          "Ohm's law states that potential difference equals current times resistance: V = I x R."
+        ),
+      ],
+      provider,
+    });
+
+    expect(outcome.kind).toBe("FAILED");
+    expect(outcome.diagnostics?.narrowValidatorResult?.errors.map((error) => error.code)).toContain(
+      "UNKNOWN_REQUIREMENT_ID"
+    );
+  });
+
+  it("does not require optional evidence details that are not requested tasks", async () => {
+    const provider = new RecordingStructuredProvider("unused", {
+      answerSegments: [
+        {
+          text:
+            "Photosynthesis is the process by which green plants use light energy to make glucose from carbon dioxide and water.",
+          sourceLabels: ["SOURCE_1"],
+          evidenceUnitIds: ["unit-1"],
+          requirementIds: ["req-1"],
+        },
+      ],
+      insufficientContext: false,
+      suggestedQuestions: [],
+    });
+    const { outcome } = await runPipeline({
+      message: "Explain photosynthesis in simple terms.",
+      chunks: [
+        retrievedChunk(
+          "Photosynthesis is the process by which green plants use light energy to make glucose from carbon dioxide and water. Oxygen is released as a by-product."
+        ),
+      ],
+      provider,
+    });
+
+    expect(outcome.kind).toBe("COMPLETED");
+  });
+
+  it("accepts algebraic equation steps but rejects wrong numeric arithmetic", async () => {
+    const algebra = await runPipeline({
+      message: "Explain how to find x in x + 5 = 12.",
+      chunks: [
+        retrievedChunk(
+          "For x + 5 = 12, subtract 5 from both sides to get x = 7."
+        ),
+      ],
+      provider: new RecordingStructuredProvider("unused", {
+        answerSegments: [
+          {
+            text: "For x + 5 = 12, subtract 5 from both sides to get x = 7.",
+            sourceLabels: ["SOURCE_1"],
+            evidenceUnitIds: ["unit-1"],
+            requirementIds: ["req-1"],
+          },
+        ],
+        insufficientContext: false,
+        suggestedQuestions: [],
+      }),
+    });
+    expect(algebra.outcome.kind).toBe("COMPLETED");
+
+    const wrongArithmetic = await runPipeline({
+      message: "Calculate speed from 120 m in 10 s.",
+      chunks: [
+        retrievedChunk("speed = distance / time. The distance is 120 m. The time is 10 s."),
+      ],
+      provider: new RecordingStructuredProvider("unused", {
+        answerSegments: [
+          {
+            text: "Using the cited values, 120 / 10 = 13.",
+            sourceLabels: ["SOURCE_1"],
+            evidenceUnitIds: ["unit-1"],
+            requirementIds: ["req-1"],
+          },
+        ],
+        insufficientContext: false,
+        suggestedQuestions: [],
+      }),
+    });
+    expect(wrongArithmetic.outcome.kind).toBe("FAILED");
+    expect(
+      wrongArithmetic.outcome.diagnostics?.narrowValidatorResult?.errors.map(
+        (error) => error.code
+      )
+    ).toContain("INVALID_ARITHMETIC");
   });
 });
 
