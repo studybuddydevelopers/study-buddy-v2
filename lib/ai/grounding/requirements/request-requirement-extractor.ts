@@ -27,6 +27,10 @@ type RequirementDraft = {
   comparisonSides?: string[];
   requestedRelation?: string;
   requestedProcess?: string;
+  requestedFact?: string;
+  requestedEvent?: string;
+  requestedMethod?: string;
+  passageTask?: "MAIN_IDEA" | "EXPLICIT_DETAIL" | "SUMMARY";
   dependsOnPreviousTurn?: boolean;
   childRequirements?: RequirementDraft[];
 };
@@ -93,6 +97,15 @@ function buildRequirementDrafts(
 
   const ratio = buildRatioRequirement(question);
   if (ratio) return [withContext(ratio, context)];
+
+  const passageInterpretation = buildPassageInterpretationRequirement(question);
+  if (passageInterpretation) return [withContext(passageInterpretation, context)];
+
+  const procedure = buildProcedureMethodRequirement(question);
+  if (procedure) return [withContext(procedure, context)];
+
+  const factLookup = buildFactLookupRequirement(question);
+  if (factLookup) return [withContext(factLookup, context)];
 
   const calculation = buildCalculationRequirement(question);
   if (calculation) return [withContext(calculation, context)];
@@ -204,6 +217,68 @@ function buildCalculationRequirement(question: string): RequirementDraft | undef
     kind: "CALCULATION",
     targetConcepts: compactStrings([cleanConcept(target)]),
     requiredInputs: extractNumericInputs(question),
+  };
+}
+
+function buildFactLookupRequirement(question: string): RequirementDraft | undefined {
+  const probabilityEvent =
+    firstMatch(question, /\b(?:what\s+is\s+)?(?:the\s+)?(?:probability|chance|likelihood)\s+of\s+(.+?)(?:[?.]|$)/i) ??
+    firstMatch(question, /\b(?:probability|chance|likelihood)\s+for\s+(.+?)(?:[?.]|$)/i);
+  if (probabilityEvent) {
+    const event = normalizeEventPhrase(probabilityEvent);
+    return {
+      kind: "FACT_LOOKUP",
+      targetConcepts: ["probability"],
+      requestedFact: compactStrings(["probability", event]).join(" "),
+      requestedEvent: event,
+    };
+  }
+
+  const countTarget = firstMatch(question, /\bhow\s+many\s+(.+?)(?:[?.]|$)/i);
+  if (countTarget) {
+    const fact = cleanConcept(countTarget);
+    return {
+      kind: "FACT_LOOKUP",
+      targetConcepts: compactStrings([fact]),
+      requestedFact: compactStrings(["how many", fact]).join(" "),
+    };
+  }
+
+  if (
+    /\b(?:what|which)\s+(?:is\s+)?(?:the\s+)?(?:question\s+number|identifier|reference)(?:\s+(?:is\s+)?(?:this|it|from))?(?:[?.]|$)/i.test(
+      question
+    ) ||
+    /\b(?:which|what)\s+question\s+(?:is\s+)?(?:this|it)\s+from(?:[?.]|$)/i.test(
+      question
+    )
+  ) {
+    return {
+      kind: "FACT_LOOKUP",
+      targetConcepts: ["identifier"],
+      requestedFact: "question identifier",
+    };
+  }
+
+  return undefined;
+}
+
+function buildProcedureMethodRequirement(question: string): RequirementDraft | undefined {
+  if (!/\b(?:how\s+do\s+i|how\s+can\s+i|how\s+to|what\s+steps?|which\s+steps?|explain\s+how\s+to|show\s+how\s+to)\b/i.test(question)) {
+    return undefined;
+  }
+
+  const method =
+    firstMatch(question, /\b(?:explain\s+how\s+to|show\s+how\s+to|how\s+do\s+i|how\s+can\s+i|how\s+to)\s+(.+?)(?:[?.]|$)/i) ??
+    firstMatch(question, /\b(?:what|which)\s+steps?\s+(?:are\s+used\s+)?(?:to|for)\s+(.+?)(?:[?.]|$)/i);
+  const cleanedMethod = cleanMethod(method ?? question);
+  const target =
+    firstMatch(cleanedMethod, /\b(?:find|solve|balance|separate|filter|prepare|calculate)\s+(.+?)(?:\s+(?:in|from|with|using)\b|$)/i) ??
+    cleanedMethod;
+
+  return {
+    kind: "PROCEDURE_METHOD",
+    targetConcepts: compactStrings([cleanConcept(target)]),
+    requestedMethod: cleanedMethod,
   };
 }
 
@@ -363,6 +438,59 @@ function buildMultiPartRequirement(
 }
 
 function buildRelationRequirement(question: string): RequirementDraft | undefined {
+  const howAffectsMatch = question.match(
+    /\bhow\s+(?:do|does)\s+(.+?)\s+(affect|change|increase|decrease|reduce|cause|lead to|turn|turns)\s+(.+?)(?:[?.]|$)/i
+  );
+  if (howAffectsMatch) {
+    const cause = cleanConcept(howAffectsMatch[1] ?? "");
+    const relation = normalizeRelationIntent(howAffectsMatch[2] ?? "");
+    const target = cleanConcept(howAffectsMatch[3] ?? "");
+    return {
+      kind: "RELATION_MECHANISM_CONSEQUENCE",
+      targetConcepts: compactStrings([target, cause]),
+      requestedRelation: compactStrings([cause, relation, target]).join(" "),
+    };
+  }
+
+  const effectMatch = question.match(
+    /\bwhat\s+effect\s+do(?:es)?\s+(.+?)\s+(?:have\s+)?(?:on|upon)\s+(.+?)(?:[?.]|$)/i
+  );
+  if (effectMatch) {
+    const cause = cleanConcept(effectMatch[1] ?? "");
+    const target = cleanConcept(effectMatch[2] ?? "");
+    return {
+      kind: "RELATION_MECHANISM_CONSEQUENCE",
+      targetConcepts: compactStrings([target, cause]),
+      requestedRelation: compactStrings([cause, "affect", target]).join(" "),
+    };
+  }
+
+  const happensMatch = question.match(
+    /\bwhat\s+happens\s+to\s+(.+?)\s+when\s+(.+?)(?:[?.]|$)/i
+  );
+  if (happensMatch) {
+    const target = cleanConcept(happensMatch[1] ?? "");
+    const cause = cleanConcept(happensMatch[2] ?? "");
+    return {
+      kind: "RELATION_MECHANISM_CONSEQUENCE",
+      targetConcepts: compactStrings([target, cause]),
+      requestedRelation: compactStrings([cause, "affect", target]).join(" "),
+    };
+  }
+
+  const doToMatch = question.match(
+    /\bwhat\s+do(?:es)?\s+(.+?)\s+do\s+to\s+(.+?)(?:[?.]|$)/i
+  );
+  if (doToMatch) {
+    const cause = cleanConcept(doToMatch[1] ?? "");
+    const target = cleanConcept(doToMatch[2] ?? "");
+    return {
+      kind: "RELATION_MECHANISM_CONSEQUENCE",
+      targetConcepts: compactStrings([target, cause]),
+      requestedRelation: compactStrings([cause, "affect", target]).join(" "),
+    };
+  }
+
   const affectMatch = question.match(
     /\bwhy\s+does\s+(.+?)\s+(affect|cause|lead to|change|increase|decrease)\s+(.+?)(?:[?.]|$)/i
   );
@@ -433,6 +561,32 @@ function buildDefinitionRequirement(
   };
 }
 
+function buildPassageInterpretationRequirement(question: string): RequirementDraft | undefined {
+  if (/\bmain\s+idea\b/i.test(question) || /\bmainly\s+about\b/i.test(question) || /\bbest\s+summari[sz]es?\b/i.test(question)) {
+    return {
+      kind: "PASSAGE_INTERPRETATION",
+      targetConcepts: ["main idea"],
+      requestedFact: "main idea",
+      passageTask: "MAIN_IDEA",
+    };
+  }
+
+  if (
+    /\b(?:what|which)\s+(?:detail|reason|fact)\s+(?:is\s+)?(?:stated|given|mentioned)\s+(?:in\s+)?(?:the\s+)?(?:passage|paragraph|text)?(?:[?.]|$)/i.test(
+      question
+    )
+  ) {
+    return {
+      kind: "PASSAGE_INTERPRETATION",
+      targetConcepts: [],
+      requestedFact: "explicit stated detail",
+      passageTask: "EXPLICIT_DETAIL",
+    };
+  }
+
+  return undefined;
+}
+
 function withContext(
   draft: RequirementDraft,
   context: RequirementBuildContext
@@ -475,6 +629,10 @@ function assignRequirementId(
     comparisonSides: optionalUnique(draft.comparisonSides),
     requestedRelation: draft.requestedRelation,
     requestedProcess: draft.requestedProcess,
+    requestedFact: draft.requestedFact,
+    requestedEvent: draft.requestedEvent,
+    requestedMethod: draft.requestedMethod,
+    passageTask: draft.passageTask,
     dependsOnPreviousTurn: draft.dependsOnPreviousTurn || undefined,
     childRequirements: draft.childRequirements?.map((child, index) =>
       assignRequirementId(child, `${id}.${index + 1}`, subjectId, topicId)
@@ -694,6 +852,8 @@ function cleanConcept(value: string): string {
     .replace(/[?.!]+$/g, "")
     .replace(/\s+as\s+.+$/i, "")
     .replace(/\s+in\s+(?:physics|chemistry|biology|mathematics|maths|english|geography|science)$/i, "")
+    .replace(/\s+in\s+simple\s+terms$/i, "")
+    .replace(/\s+of\s+(?:a\s+|an\s+|the\s+)?(?:paragraph|passage|text)$/i, "")
     .replace(/^(?:a|an|the|this|that|its)\s+/i, "")
     .replace(/\b(?:formula|process|method|rule|conditions?|ways?|one|two|three)\b/gi, " ")
     .replace(/\s+/g, " ")
@@ -704,6 +864,29 @@ function cleanConcept(value: string): string {
   )
     ? ""
     : cleaned;
+}
+
+function cleanMethod(value: string): string {
+  return normalizeQuestion(value)
+    .replace(/[?.!]+$/g, "")
+    .replace(/\s+/g, " ")
+    .trim()
+    .toLowerCase();
+}
+
+function normalizeEventPhrase(value: string): string {
+  return cleanConcept(value)
+    .replace(/\ban\s+even\s+number\b/i, "rolling an even number")
+    .replace(/\ba\s+head\b/i, "getting heads")
+    .replace(/\bheads\b/i, "getting heads")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function normalizeRelationIntent(value: string): string {
+  const cleaned = normalizeQuestion(value).toLowerCase();
+  if (/^(?:affect|change|turn|turns)$/.test(cleaned)) return "affect";
+  return cleaned;
 }
 
 function cleanSymbolToken(value: string): string {
