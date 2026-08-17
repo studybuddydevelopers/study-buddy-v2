@@ -78,7 +78,6 @@ class RecordingStructuredProvider implements StructuredChatModelProvider {
           {
             text: result.text,
             sourceLabels: ["SOURCE_1"],
-            evidenceUnitIds: ["unit-1"],
           },
         ],
         insufficientContext: false,
@@ -276,6 +275,8 @@ describe("Stage 4.1 capability grounding pipeline", () => {
       .join("\n");
     expect(prompt).toContain("A ratio compares two quantities by division");
     expect(prompt).not.toMatch(/Ignore previous instructions|pressure formula/i);
+    expect(prompt).not.toContain("unit-1");
+    expect(prompt).not.toContain("evidenceUnitId");
   });
 
   it("returns citations only for cited validated evidence units", async () => {
