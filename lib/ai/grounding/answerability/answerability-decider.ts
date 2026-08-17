@@ -139,6 +139,18 @@ function evaluateRequirement(
   requirement: RequestRequirement,
   context: MatchContext
 ): RequirementMatch[] {
+  if (isActiveSourceBypassRequest(context.request)) {
+    return [
+      {
+        requirementId: requirement.id,
+        status: "UNSAFE",
+        supportRefs: [],
+        missingComponents: ["unsafe source-bypass request"],
+        conflictIds: [],
+      },
+    ];
+  }
+
   const direct = evaluateDirectRequirement(requirement, context);
   if (
     context.request.safetyIntent.asksForCurrentExternalInfo &&
@@ -585,6 +597,18 @@ function findRelation(
   return context.relations.find((relation) => {
     if (relation.polarity !== "POSITIVE") return false;
     const combined = normalizedText(`${relation.subject} ${relation.relation} ${relation.object}`);
+    if (requested.startsWith("conditions for ")) {
+      return (
+        targets.some((target) => combined.includes(target)) &&
+        /causes|cause|leads to|increases|requires|needs/.test(relation.relation)
+      );
+    }
+    if (requested.startsWith("prevention method for ")) {
+      return (
+        targets.some((target) => combined.includes(target)) &&
+        /reduces|decreases|prevents|stops/.test(relation.relation)
+      );
+    }
     if (requested.length > 0) return includesTokens(combined, requested);
     return targets.some((target) => combined.includes(target));
   });
@@ -684,6 +708,22 @@ function chooseRefusalReason(
     return "CURRENT_EXTERNAL_INFO_UNSUPPORTED";
   }
   return "MISSING_REQUIRED_EVIDENCE";
+}
+
+function isActiveSourceBypassRequest(request: RequestRequirements): boolean {
+  if (!request.safetyIntent.asksToIgnoreSources) return false;
+  return !request.requirements.some(hasEducationalRequirementSignal);
+}
+
+function hasEducationalRequirementSignal(requirement: RequestRequirement): boolean {
+  return (
+    requirement.targetConcepts.length > 0 ||
+    Boolean(requirement.requiredSymbols?.length) ||
+    Boolean(requirement.requiredInputs?.length) ||
+    Boolean(requirement.comparisonSides?.length) ||
+    Boolean(requirement.requestedProcess) ||
+    Boolean(requirement.childRequirements?.some(hasEducationalRequirementSignal))
+  );
 }
 
 function hasCurrentExternalSupport(
