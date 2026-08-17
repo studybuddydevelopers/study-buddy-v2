@@ -492,6 +492,13 @@ function evaluateFactLookupRequirement(
     ]);
   }
 
+  const definitionFact = findDefinitionFact(requirement, context);
+  if (definitionFact) {
+    return buildMatch(requirement.id, "SUPPORTED", [
+      supportRef(requirement.id, definitionFact.id, ["DEFINE"]),
+    ]);
+  }
+
   return buildMatch(
     requirement.id,
     "MISSING",
@@ -740,6 +747,10 @@ function findRelation(
   return context.relations.find((relation) => {
     if (relation.polarity !== "POSITIVE") return false;
     const combined = normalizedText(`${relation.subject} ${relation.relation} ${relation.object}`);
+    const causeTarget = requirement.targetConcepts[1];
+    if (causeTarget && !relationSubjectOverlaps(relation.subject, causeTarget)) {
+      return false;
+    }
     if (requested.startsWith("conditions for ")) {
       return (
         targets.some((target) => combined.includes(target)) &&
@@ -760,6 +771,13 @@ function findRelation(
     }
     return targets.some((target) => combined.includes(target));
   });
+}
+
+function relationSubjectOverlaps(subject: string, requestedCause: string) {
+  const subjectTokens = new Set(toSemanticTokens(subject));
+  const requestedTokens = toSemanticTokens(requestedCause);
+  if (requestedTokens.length === 0) return true;
+  return requestedTokens.some((token) => subjectTokens.has(token));
 }
 
 function findCalculationFact(
@@ -826,6 +844,26 @@ function findExplicitFact(
       return semanticTextMatches(combined, requested);
     }
     return semanticTextMatches(combined, requested);
+  });
+}
+
+function findDefinitionFact(
+  requirement: RequestRequirement,
+  context: MatchContext
+): CapabilityFact | undefined {
+  const requested = normalizedText(
+    `${requirement.requestedFact ?? ""} ${requirement.targetConcepts.join(" ")}`
+  );
+  if (!/\b(unit|units|measured|measure)\b/.test(requested)) return undefined;
+
+  return context.definitions.find((candidate) => {
+    if (candidate.polarity !== "POSITIVE") return false;
+    const combined = normalizedText(
+      `${candidate.canonicalConcept.label} ${candidate.canonicalConcept.aliases.join(" ")} ${candidate.definitionText} ${candidate.evidenceSpan.text}`
+    );
+    return /\b(measured|unit|units|volts?|amperes?|ohms?|metres?|meters?|seconds?|grams?|kilograms?)\b/.test(
+      combined
+    );
   });
 }
 
