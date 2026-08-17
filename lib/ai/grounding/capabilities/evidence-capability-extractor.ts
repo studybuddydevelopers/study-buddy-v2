@@ -52,6 +52,19 @@ const CONTROLLED_CONCEPTS: ConceptAliasEntry[] = [
   { id: "base", label: "Base", aliases: ["base", "bases", "alkali", "alkalis"] },
   { id: "osmosis", label: "Osmosis", aliases: ["osmosis"] },
   { id: "ratio", label: "Ratio", aliases: ["ratio", "ratios"] },
+  { id: "ohms-law", label: "Ohm's law", aliases: ["ohm's law", "ohms law"] },
+  { id: "conductor", label: "Conductor", aliases: ["conductor", "conductors"] },
+  { id: "insulator", label: "Insulator", aliases: ["insulator", "insulators"] },
+  {
+    id: "series-resistance-rule",
+    label: "Series resistance rule",
+    aliases: ["series resistance rule", "series resistance rules", "series rules"],
+  },
+  {
+    id: "parallel-resistance-rule",
+    label: "Parallel resistance rule",
+    aliases: ["parallel resistance rule", "parallel resistance rules", "parallel rules"],
+  },
   { id: "noun", label: "Noun", aliases: ["noun", "nouns"] },
   { id: "median", label: "Median", aliases: ["median"] },
   { id: "rusting", label: "Rusting", aliases: ["rusting"] },
@@ -177,7 +190,7 @@ export function canonicalizeConcept(
   rawConcept: string,
   scope?: { subjectId?: string; topicId?: string }
 ): CanonicalConcept {
-  const normalized = normalizeConceptText(rawConcept);
+  const normalized = singularizeConcept(normalizeConceptText(rawConcept));
   const match = CONTROLLED_CONCEPTS.find((entry) => {
     const subjectMatches =
       !entry.subjectIds || !scope?.subjectId || entry.subjectIds.includes(scope.subjectId);
@@ -186,7 +199,7 @@ export function canonicalizeConcept(
     return (
       subjectMatches &&
       topicMatches &&
-      entry.aliases.some((alias) => normalizeConceptText(alias) === normalized)
+      entry.aliases.some((alias) => singularizeConcept(normalizeConceptText(alias)) === normalized)
     );
   });
 
@@ -241,6 +254,7 @@ function extractConceptDefinitions(
 
   const definitionMatch =
     text.match(/^(?:(?:an|a|the)\s+)?(.+?)\s+(?:is|are|means|refers to)\s+(.+)$/i) ??
+    text.match(/^(?:(?:an|a|the)\s+)?(.+?)\s+(shows?)\s+how\s+(.+)$/i) ??
     text.match(/^(?:(?:an|a|the)\s+)?(.+?)\s+(compares|describes)\s+(.+)$/i);
   if (!definitionMatch) return [];
   if (isFormulaLike(text) || isSymbolDefinitionSentence(text)) return [];
@@ -281,13 +295,14 @@ function extractFormulas(
 
     const expression = `${left} = ${right}`;
     const symbols = extractFormulaSymbols(expression);
+    const inferredConcept = inferFormulaConcept(sentence.text, match.index, left, state);
     formulas.push({
       id: nextCapabilityId(state, "formula"),
       resourceChunkId: state.chunk.resourceChunkId,
       sourceLabel: state.chunk.sourceLabel,
       evidenceSpan: sliceSentenceSpan(sentence, match.index, match[0].length),
       confidence: "HIGH",
-      canonicalConcept: canonicalizeFormulaConcept(left, state),
+      canonicalConcept: canonicalizeFormulaConcept(left, state) ?? inferredConcept,
       expression,
       normalizedExpression: normalizeFormulaExpression(expression),
       outputQuantity: normalizeFormulaOutput(left),
@@ -407,6 +422,27 @@ function extractNumericValues(
     );
   }
 
+  if (isCalculationLikeSentence(sentence.text)) {
+    const seen = new Set(values.map((item) => `${item.value}:${item.unit ?? ""}`));
+    for (const match of sentence.text.matchAll(/\b([-+]?\d+(?:\.\d+)?)\s*(percent|%|[A-Za-z/²³]+)?\b/gi)) {
+      const value = Number(match[1]);
+      const unit = normalizeUnit(match[2]);
+      const spanLength = unit || !match[2] ? match[0].length : (match[1] ?? "").length;
+      const key = `${value}:${unit ?? ""}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      values.push(
+        createNumericValue({
+          state,
+          span: sliceSentenceSpan(sentence, match.index ?? 0, spanLength),
+          quantity: inferNumericQuantity(sentence.text, match.index ?? 0, unit),
+          value,
+          unit,
+        })
+      );
+    }
+  }
+
   return values;
 }
 
@@ -446,25 +482,61 @@ function extractComparisonSides(
   sentence: SentenceSpan,
   state: CapabilityState
 ): ComparisonSideCapability[] {
-  const match = sentence.text.match(
-    /\b(.+?)\s+(?:occurs|happens|takes place)\s+(.+)$/i
-  );
-  if (!match) return [];
+  const occurrence = sentence.text.match(/\b(.+?)\s+(?:occurs|happens|takes place)\s+(.+)$/i);
+  if (occurrence) {
+    return createComparisonSide({
+      state,
+      sentence,
+      side: cleanConcept(occurrence[1] ?? ""),
+      fact: cleanMeaning(occurrence[2] ?? ""),
+    });
+  }
 
-  const side = cleanConcept(match[1] ?? "");
-  const fact = cleanMeaning(match[2] ?? "");
+  const allow = sentence.text.match(
+    /\b(?:an|a|the)?\s*(.+?)\s+(allows?|does not allow|do not allow)\s+(.+)$/i
+  );
+  if (allow) {
+    return createComparisonSide({
+      state,
+      sentence,
+      side: cleanConcept(allow[1] ?? ""),
+      fact: cleanMeaning(`${allow[2] ?? ""} ${allow[3] ?? ""}`.trim()),
+    });
+  }
+
+  const has = isFormulaLike(sentence.text)
+    ? null
+    : sentence.text.match(/\b(?:an|a|the)?\s*(.+?)\s+(has|have)\s+(.+)$/i);
+  if (!has) return [];
+
+  return createComparisonSide({
+    state,
+    sentence,
+    side: cleanConcept(has[1] ?? ""),
+    fact: cleanMeaning(`${has[2] ?? ""} ${has[3] ?? ""}`.trim()),
+  });
+}
+
+function createComparisonSide(input: {
+  state: CapabilityState;
+  sentence: SentenceSpan;
+  side: string;
+  fact: string;
+}): ComparisonSideCapability[] {
+  const side = input.side;
+  const fact = input.fact;
   if (!side || !fact) return [];
 
   return [
     {
-      id: nextCapabilityId(state, "comparison"),
-      resourceChunkId: state.chunk.resourceChunkId,
-      sourceLabel: state.chunk.sourceLabel,
-      evidenceSpan: sentence,
+      id: nextCapabilityId(input.state, "comparison"),
+      resourceChunkId: input.state.chunk.resourceChunkId,
+      sourceLabel: input.state.chunk.sourceLabel,
+      evidenceSpan: input.sentence,
       confidence: "HIGH",
       side,
       fact,
-      polarity: /\bnot\b/i.test(sentence.text) ? "NEGATED" : "POSITIVE",
+      polarity: "POSITIVE",
     },
   ];
 }
@@ -563,7 +635,11 @@ function detectFormulaConflicts(
   const grouped = new Map<string, FormulaCapability[]>();
   for (const capability of capabilities) {
     for (const formula of capability.formulas) {
-      const key = `formula:${formula.outputQuantity ?? formula.canonicalConcept?.id ?? "unknown"}`;
+      const scope = compactStrings([
+        formula.canonicalConcept?.id,
+        formula.outputQuantity,
+      ]).join(":") || "unknown";
+      const key = `formula:${scope}`;
       grouped.set(key, [...(grouped.get(key) ?? []), formula]);
     }
   }
@@ -756,13 +832,46 @@ function canonicalizeFormulaConcept(
   return canonicalizeConcept(output, state.chunk);
 }
 
+function inferFormulaConcept(
+  sentenceText: string,
+  formulaStart: number,
+  left: string,
+  state: CapabilityState
+): CanonicalConcept | undefined {
+  const prefix = sentenceText.slice(0, formulaStart).replace(/[:;,]\s*$/g, "").trim();
+  const normalizedPrefix = normalizeConceptText(prefix);
+
+  const ohmsLaw =
+    prefix.toLowerCase().match(/\bohm'?s law\b/) ??
+    normalizedPrefix.match(/\bohm'?s law\b/);
+  if (ohmsLaw) return canonicalizeConcept(ohmsLaw[0], state.chunk);
+
+  const scopedResistance = normalizedPrefix.match(/\bresistors?\s+in\s+(series|parallel)\b/);
+  if (scopedResistance) {
+    return canonicalizeConcept(`${scopedResistance[1]} resistance rule`, state.chunk);
+  }
+
+  if (normalizeSymbol(left)) return undefined;
+  return undefined;
+}
+
 function extractFormulaSymbols(expression: string): SymbolReference[] {
   const symbols = new Map<string, SymbolReference>();
   for (const match of expression.matchAll(/\b[A-Za-z]\d*\b|[λρθαβγπδ]/g)) {
-    const symbol = normalizeSymbol(match[0]);
+    const raw = match[0];
+    if (raw.toLowerCase() === "x" && isMultiplicationToken(expression, match.index ?? 0)) {
+      continue;
+    }
+    const symbol = normalizeSymbol(raw);
     if (symbol) symbols.set(symbol.normalized, symbol);
   }
   return [...symbols.values()];
+}
+
+function isMultiplicationToken(expression: string, index: number): boolean {
+  const before = expression.slice(0, index).trimEnd().slice(-1);
+  const after = expression.slice(index + 1).trimStart().charAt(0);
+  return Boolean(before && after && /[A-Za-z0-9)]/.test(before) && /[A-Za-z0-9(]/.test(after));
 }
 
 function normalizeFormulaExpression(expression: string): string {
@@ -849,6 +958,9 @@ function normalizeConceptText(value: string): string {
     .replace(/[\u2018\u2019]/g, "'")
     .replace(/[\u201c\u201d]/g, '"')
     .replace(/\bthe\b/g, " ")
+    .replace(/^(?:term|concept|rule for|rules for)\s+/, "")
+    .replace(/\bfrom\s+(?:the\s+)?cards?\b/g, " ")
+    .replace(/\brules?\b/g, " rule ")
     .replace(/\s+/g, " ")
     .trim();
 }
@@ -879,4 +991,48 @@ function toTitleCase(value: string): string {
 
 function uniqueStrings(values: string[]): string[] {
   return [...new Set(values.filter(Boolean))];
+}
+
+function compactStrings(values: Array<string | undefined>): string[] {
+  return values.map((value) => value ?? "").filter(Boolean);
+}
+
+function singularizeConcept(value: string): string {
+  return value
+    .split(" ")
+    .map((token) => {
+      if (token.includes("'")) return token;
+      if (/^(?:series|physics|mathematics|osmosis)$/.test(token)) return token;
+      if (token.length > 3 && token.endsWith("ies")) return `${token.slice(0, -3)}y`;
+      if (token.length > 3 && token.endsWith("s")) return token.slice(0, -1);
+      return token;
+    })
+    .join(" ");
+}
+
+function isCalculationLikeSentence(text: string): boolean {
+  return /\b(percent|percentage|discount|increase|decrease|sale price|new value|calculate|find|subtract|add)\b/i.test(
+    text
+  );
+}
+
+function normalizeUnit(unit: string | undefined): string | undefined {
+  if (!unit) return undefined;
+  if (/^(?:is|are|give|gives|so|then|from|with|using)$/i.test(unit)) return undefined;
+  if (unit === "%") return "percent";
+  return unit.toLowerCase();
+}
+
+function inferNumericQuantity(sentenceText: string, index: number, unit?: string): string {
+  const before = sentenceText.slice(0, index).toLowerCase();
+  const after = sentenceText.slice(index).toLowerCase();
+  if (unit === "percent") return "percentage rate";
+  if (/\bsale price\s+is\s*$/i.test(before)) return "sale price";
+  if (/\bnew value\s+is\s*$/i.test(before)) return "new value";
+  if (/\bon\s*$/i.test(before)) return "base amount";
+  if (/\bis\s*$/i.test(before)) return "calculated result";
+  if (/\bdiscount\b/.test(before + after)) return "discount calculation input";
+  if (/\bincrease\b/.test(before + after)) return "percentage increase input";
+  if (/\bpercent(?:age)?\s+of\b/.test(before + after)) return "percentage of input";
+  return "calculation value";
 }
