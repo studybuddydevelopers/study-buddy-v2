@@ -91,6 +91,30 @@ describe("Stage 4.1 answerability decider golden cases", () => {
     expect(decision.validatedEvidenceUnits[0]?.allowedUses).toEqual(["DEFINE"]);
   });
 
+  it("does not classify a request as answerable without validated evidence units", () => {
+    const incompleteRequirement = customRequest([
+      {
+        id: "req-1",
+        kind: "CONCEPT_DEFINITION",
+        subjectId: SUBJECT_ID,
+        topicId: TOPIC_ID,
+        targetConcepts: [],
+        requestedRelation: "what does scanning mean",
+      },
+    ]);
+
+    const decision = decideAnswerability({
+      requestRequirements: incompleteRequirement,
+      evidenceCapabilities: extractEvidenceCapabilities({
+        chunks: [chunk("Scanning means looking quickly for a specific detail.")],
+      }),
+    });
+
+    expect(decision.classification).toBe("INSUFFICIENT_CONTEXT");
+    expect(decision.validatedEvidenceUnits).toEqual([]);
+    expect(decision.refusalReason).toBe("MISSING_REQUIRED_EVIDENCE");
+  });
+
   it("does not support negated definitions", () => {
     const decision = expectInsufficient("What is median?", [
       chunk("Median is not defined here."),
