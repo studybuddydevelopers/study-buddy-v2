@@ -1,11 +1,19 @@
 import { GroundedGenerationService } from "../grounded-generation-service";
 import type {
+  CapabilityPipelineOptions,
   GroundingPipeline,
   GroundingPipelineContext,
 } from "./types";
 
 export class LegacyGroundingPipeline implements GroundingPipeline {
-  constructor(private readonly service = new GroundedGenerationService()) {}
+  private readonly service: GroundedGenerationService;
+
+  constructor(optionsOrService: CapabilityPipelineOptions | GroundedGenerationService = {}) {
+    this.service =
+      optionsOrService instanceof GroundedGenerationService
+        ? optionsOrService
+        : new GroundedGenerationService(optionsOrService);
+  }
 
   generate(input: Parameters<GroundingPipeline["generate"]>[0]) {
     return this.service.generate({
