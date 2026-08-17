@@ -1,4 +1,6 @@
 import fs from "node:fs/promises";
+import { FakeChatModelProvider } from "@/lib/ai/chat/fake-provider";
+import { FakeEmbeddingProvider } from "@/lib/ai/embeddings/fake-provider";
 import { groundedEvaluationCases } from "@/lib/ai/grounding/evaluation/fixtures";
 import {
   runRuntimeGroundedEvaluation,
@@ -14,12 +16,16 @@ import type {
 } from "@/lib/ai/grounding/evaluation/runner";
 import type {
   GroundedEvaluationCase,
+  GroundedEvaluationPipeline,
   GroundedEvaluationSplit,
 } from "@/lib/ai/grounding/evaluation/types";
 
 interface Args {
   answersFile?: string;
   split: GroundedEvaluationSplit | "all";
+  pipeline: GroundedEvaluationPipeline;
+  provider: "configured" | "fake";
+  embeddingProvider: "configured" | "fake";
   caseIds?: string[];
   fixtureBaseline: boolean;
   allowConsumedHoldoutDiagnostic: boolean;
@@ -36,7 +42,22 @@ async function main() {
   if (args.dryRun) {
     const report = await runRuntimeGroundedEvaluationPreflight({
       split: args.split,
+      pipeline: args.pipeline,
       caseIds: args.caseIds,
+      provider:
+        args.provider === "fake" ? new FakeChatModelProvider() : undefined,
+      providerLabel: args.provider === "fake" ? "fake" : undefined,
+      providerModelLabel:
+        args.provider === "fake" ? "fake-chat-model" : undefined,
+      embeddingProvider:
+        args.embeddingProvider === "fake"
+          ? new FakeEmbeddingProvider({ dimensions: 1536 })
+          : undefined,
+      embeddingProviderLabel:
+        args.embeddingProvider === "fake" ? "fake" : undefined,
+      embeddingModelLabel:
+        args.embeddingProvider === "fake" ? "fake-embedding-model" : undefined,
+      embeddingDimensionsLabel: args.embeddingProvider === "fake" ? 1536 : undefined,
       allowConsumedHoldoutDiagnostic: args.allowConsumedHoldoutDiagnostic,
       confirmHoldoutFixtureHash: args.confirmHoldoutFixtureHash,
       maxCases: args.maxCases,
@@ -49,7 +70,22 @@ async function main() {
   if (!args.answersFile && !args.fixtureBaseline) {
     const report = await runRuntimeGroundedEvaluation({
       split: args.split,
+      pipeline: args.pipeline,
       caseIds: args.caseIds,
+      provider:
+        args.provider === "fake" ? new FakeChatModelProvider() : undefined,
+      providerLabel: args.provider === "fake" ? "fake" : undefined,
+      providerModelLabel:
+        args.provider === "fake" ? "fake-chat-model" : undefined,
+      embeddingProvider:
+        args.embeddingProvider === "fake"
+          ? new FakeEmbeddingProvider({ dimensions: 1536 })
+          : undefined,
+      embeddingProviderLabel:
+        args.embeddingProvider === "fake" ? "fake" : undefined,
+      embeddingModelLabel:
+        args.embeddingProvider === "fake" ? "fake-embedding-model" : undefined,
+      embeddingDimensionsLabel: args.embeddingProvider === "fake" ? 1536 : undefined,
       allowConsumedHoldoutDiagnostic: args.allowConsumedHoldoutDiagnostic,
       confirmHoldoutFixtureHash: args.confirmHoldoutFixtureHash,
       maxCases: args.maxCases,
@@ -96,6 +132,9 @@ function parseArgs(values: string[]): Args {
   return {
     answersFile: readStringArg(values, "--answers"),
     split: readSplit(values),
+    pipeline: readPipeline(values),
+    provider: readProvider(values),
+    embeddingProvider: readEmbeddingProvider(values),
     caseIds: readListArg(values, "--case"),
     fixtureBaseline: values.includes("--fixture-baseline"),
     allowConsumedHoldoutDiagnostic: values.includes("--diagnostic-consumed-holdout"),
@@ -106,6 +145,21 @@ function parseArgs(values: string[]): Args {
     reportFormat: readReportFormat(values),
     dryRun: values.includes("--dry-run"),
   };
+}
+
+function readPipeline(values: string[]): GroundedEvaluationPipeline {
+  const value = readStringArg(values, "--pipeline");
+  return value === "capability" ? "capability" : "legacy";
+}
+
+function readProvider(values: string[]): Args["provider"] {
+  return readStringArg(values, "--provider") === "fake" ? "fake" : "configured";
+}
+
+function readEmbeddingProvider(values: string[]): Args["embeddingProvider"] {
+  return readStringArg(values, "--embedding-provider") === "fake"
+    ? "fake"
+    : "configured";
 }
 
 function readListArg(values: string[], name: string) {
