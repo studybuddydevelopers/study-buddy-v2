@@ -271,6 +271,20 @@ describe("Stage 4.1 capability cross-layer contract", () => {
     expect(result.decision.refusalReason).toBe("UNRESOLVED_CONFLICT");
     expect(result.decision.requirementResults[0]?.status).toBe("CONFLICTING");
   });
+
+  it("gives same-scope formula conflicts precedence for concept-scoped formulas", () => {
+    const result = expectInsufficient("State the formula for momentum.", [
+      chunk("Momentum = mass x velocity."),
+      chunk("Momentum = mass / velocity.", {
+        resourceChunkId: "momentum-b",
+        sourceLabel: "SOURCE_2",
+      }),
+    ]);
+
+    expect(result.conflicts[0]?.conflictType).toBe("FORMULA_CONFLICT");
+    expect(result.decision.refusalReason).toBe("UNRESOLVED_CONFLICT");
+    expect(result.decision.requirementResults[0]?.status).toBe("CONFLICTING");
+  });
 });
 
 function stableId(value: string) {
