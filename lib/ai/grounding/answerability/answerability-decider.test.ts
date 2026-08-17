@@ -144,6 +144,24 @@ describe("Stage 4.1 answerability decider golden cases", () => {
     ]);
   });
 
+  it("supports formula plus requested unit facts as separate required content", () => {
+    const decision = expectSupported("Teach me Ohm's law and the units used.", [
+      chunk(
+        "Ohm's law states that potential difference equals current times resistance: V = I x R. Voltage is measured in volts, current in amperes, and resistance in ohms."
+      ),
+    ]);
+
+    expect(decision.requirementResults.map((result) => result.requirementId)).toEqual([
+      "req-1",
+      "req-1.1",
+      "req-1.2",
+    ]);
+    expect(decision.validatedEvidenceUnits.map((unit) => unit.quotedEvidence)).toEqual([
+      "V = I x R",
+      "Voltage is measured in volts, current in amperes, and resistance in ohms",
+    ]);
+  });
+
   it("requires every requested symbol definition", () => {
     const decision = expectInsufficient("Give the pressure formula and define P and A.", [
       chunk("P = F / A, where P is pressure."),
@@ -267,6 +285,25 @@ describe("Stage 4.1 answerability decider golden cases", () => {
     expect(insufficient.requirementResults[0]?.missingComponents).toContain(
       "removing producers affect food chain"
     );
+  });
+
+  it("requires both sides of a conjoined relation request", () => {
+    const complete = expectSupported("How do acids and bases affect litmus paper?", [
+      chunk(
+        "Acids turn blue litmus paper red, while bases turn red litmus paper blue."
+      ),
+    ]);
+    expect(complete.validatedEvidenceUnits.map((unit) => unit.quotedEvidence)).toEqual([
+      "Acids turn blue litmus paper red",
+      "bases turn red litmus paper blue",
+    ]);
+
+    const missing = expectInsufficient("How do acids and bases affect litmus paper?", [
+      chunk("Acids turn blue litmus paper red."),
+    ]);
+    expect(missing.requirementResults.some((result) =>
+      result.missingComponents.includes("bases affect litmus paper")
+    )).toBe(true);
   });
 
   it("supports process explanations only from process capabilities", () => {
