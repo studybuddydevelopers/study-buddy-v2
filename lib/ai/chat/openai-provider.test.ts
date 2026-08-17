@@ -43,7 +43,12 @@ describe("OpenAI structured chat adapter contract", () => {
             message: {
               content: JSON.stringify({
                 answerSegments: [
-                  { text: "Momentum depends on mass and velocity.", sourceLabels: ["SOURCE_1"] },
+                  {
+                    text: "Momentum depends on mass and velocity.",
+                    sourceLabels: ["SOURCE_1"],
+                    evidenceUnitIds: ["unit-1"],
+                    requirementIds: ["req-1"],
+                  },
                 ],
                 insufficientContext: false,
                 suggestedQuestions: [],
@@ -65,7 +70,12 @@ describe("OpenAI structured chat adapter contract", () => {
       model: "gpt-4o-mini",
       value: {
         answerSegments: [
-          { text: "Momentum depends on mass and velocity.", sourceLabels: ["SOURCE_1"] },
+          {
+            text: "Momentum depends on mass and velocity.",
+            sourceLabels: ["SOURCE_1"],
+            evidenceUnitIds: ["unit-1"],
+            requirementIds: ["req-1"],
+          },
         ],
         insufficientContext: false,
         suggestedQuestions: [],
