@@ -8,6 +8,7 @@ import type { RequestRequirements } from "../requirements/types";
 import type { ValidatedEvidenceUnit } from "../evidence-units/validated-evidence-unit";
 import type { NarrowGroundingValidationResult } from "../validation/narrow-grounding-validator";
 import type { GroundedTeachAnswerSegment } from "../structured-output";
+import type { GroundedGenerationOutcome } from "../grounded-generation-service";
 
 export type GroundingPipelineContext = {
   chatId: string;
@@ -30,10 +31,16 @@ export type CapabilityPipelineDiagnostics = {
   retrievalQuery: string;
   requestRequirements: RequestRequirements;
   evidenceCapabilities: EvidenceCapability[];
+  detectedConflicts: EvidenceCapability["conflicts"];
   answerabilityDecision: AnswerabilityDecision;
   validatedEvidenceUnits: ValidatedEvidenceUnit[];
+  providerCalled?: boolean;
   generationOutput?: unknown;
   narrowValidatorResult?: NarrowGroundingValidationResult;
+  repairResult?: {
+    attempted: boolean;
+    successful: boolean;
+  };
 };
 
 export type CapabilityGroundingCitation = {
@@ -73,9 +80,13 @@ export type CapabilityPipelineOptions = {
   now?: () => number;
 };
 
+export type GroundingPipelineOutcome =
+  | GroundedGenerationOutcome
+  | CapabilityGroundingOutcome;
+
 export interface GroundingPipeline {
   generate(input: {
     context: GroundingPipelineContext;
     provider: ChatModelProvider;
-  }): Promise<unknown>;
+  }): Promise<GroundingPipelineOutcome>;
 }
