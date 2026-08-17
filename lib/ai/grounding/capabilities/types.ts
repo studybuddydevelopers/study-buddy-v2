@@ -67,6 +67,27 @@ export type NumericCapability = CapabilityBase & {
   qualifier?: string;
 };
 
+export type ExplicitFactCapability = CapabilityBase & {
+  factKey: string;
+  factText: string;
+  canonicalConcept?: CanonicalConcept;
+  polarity: CapabilityPolarity;
+};
+
+export type MethodCapability = CapabilityBase & {
+  method: string;
+  stepsText: string;
+  canonicalConcept?: CanonicalConcept;
+};
+
+export type EventCapability = CapabilityBase & {
+  event: string;
+  outcomeText: string;
+  canonicalConcept?: CanonicalConcept;
+  numericValues: string[];
+  polarity: CapabilityPolarity;
+};
+
 export type RelationCapability = CapabilityBase & {
   subject: string;
   relation: string;
@@ -89,6 +110,12 @@ export type ConsequenceCapability = CapabilityBase & {
   cause: string;
   effect: string;
   polarity: CapabilityPolarity;
+};
+
+export type PassageInterpretationCapability = CapabilityBase & {
+  interpretationType: "MAIN_IDEA" | "EXPLICIT_DETAIL" | "SUMMARY";
+  targetText?: string;
+  interpretationText: string;
 };
 
 export type UnsafeContentType =
@@ -127,10 +154,14 @@ export type EvidenceCapability = {
   formulas: FormulaCapability[];
   symbolDefinitions: SymbolCapability[];
   numericValues: NumericCapability[];
+  explicitFacts: ExplicitFactCapability[];
+  methods: MethodCapability[];
+  eventFacts: EventCapability[];
   relations: RelationCapability[];
   comparisonSides: ComparisonSideCapability[];
   processFacts: ProcessCapability[];
   consequences: ConsequenceCapability[];
+  passageInterpretations: PassageInterpretationCapability[];
   conflicts: ConflictCapability[];
   unsafeContent?: UnsafeContentCapability[];
 };
