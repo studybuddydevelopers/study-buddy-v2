@@ -10,9 +10,13 @@ import type {
   ConsequenceCapability,
   EvidenceCapability,
   EvidenceSpan,
+  EventCapability,
   ExtractEvidenceCapabilitiesInput,
+  ExplicitFactCapability,
   FormulaCapability,
+  MethodCapability,
   NumericCapability,
+  PassageInterpretationCapability,
   ProcessCapability,
   RelationCapability,
   SymbolCapability,
@@ -124,10 +128,14 @@ export function extractEvidenceCapability(chunk: AuthorizedEvidenceChunk): Evide
     formulas: [],
     symbolDefinitions: [],
     numericValues: [],
+    explicitFacts: [],
+    methods: [],
+    eventFacts: [],
     relations: [],
     comparisonSides: [],
     processFacts: [],
     consequences: [],
+    passageInterpretations: [],
     conflicts: [],
     unsafeContent: [],
   };
@@ -157,10 +165,14 @@ export function extractEvidenceCapability(chunk: AuthorizedEvidenceChunk): Evide
 
     capability.conceptDefinitions.push(...extractConceptDefinitions(sentence, state));
     capability.numericValues.push(...extractNumericValues(sentence, state));
+    capability.explicitFacts.push(...extractExplicitFacts(sentence, state));
+    capability.methods.push(...extractMethods(sentence, state));
+    capability.eventFacts.push(...extractEventFacts(sentence, state));
     capability.relations.push(...extractRelations(sentence, state));
     capability.comparisonSides.push(...extractComparisonSides(sentence, state));
     capability.processFacts.push(...extractProcessFacts(sentence, state));
     capability.consequences.push(...extractConsequences(sentence, state));
+    capability.passageInterpretations.push(...extractPassageInterpretations(sentence, state));
   }
 
   if (capability.unsafeContent && capability.unsafeContent.length === 0) {
@@ -255,6 +267,26 @@ function extractConceptDefinitions(
         confidence: "HIGH",
       }),
     ];
+  }
+
+  const formulaBackedDefinition = text.match(
+    /^(?:(?:an|a|the)\s+)?(.+?)\s+(?:is|are|means|refers to)\s+([^:=]+?)\s*:\s*.+?=.+$/i
+  );
+  if (formulaBackedDefinition) {
+    const concept = cleanConcept(formulaBackedDefinition[1] ?? "");
+    const definitionText = formulaBackedDefinition[2] ?? "";
+    if (concept && !/\bformula\b/i.test(concept) && definitionText) {
+      return [
+        createConceptDefinition({
+          state,
+          span: sliceSentenceSpan(sentence, 0, text.indexOf(":") > 0 ? text.indexOf(":") : text.length),
+          concept,
+          definitionText,
+          polarity: "POSITIVE",
+          confidence: "HIGH",
+        }),
+      ];
+    }
   }
 
   const definitionMatch =
@@ -451,36 +483,158 @@ function extractNumericValues(
   return values;
 }
 
-function extractRelations(
+function extractExplicitFacts(
   sentence: SentenceSpan,
   state: CapabilityState
-): RelationCapability[] {
-  const relationMatch =
-    sentence.text.match(/\b(.+?)\s+(increases|decreases|reduces|affects|causes|depends on|leads to)\s+(.+)$/i) ??
-    sentence.text.match(/\b(.+?)\s+(carry|carries|transport|transports)\s+(.+)$/i) ??
-    sentence.text.match(/\b(.+?)\s+(increases|decreases)\s+with\s+(.+)$/i);
-  if (!relationMatch) return [];
-
-  const subject = cleanConcept(relationMatch[1] ?? "");
-  const relation = normalizeRelation(relationMatch[2] ?? "");
-  const object = cleanConcept(relationMatch[3] ?? "");
-  if (!subject || !relation || !object) return [];
-
-  return [
+): ExplicitFactCapability[] {
+  const facts: ExplicitFactCapability[] = [];
+  const text = sentence.text;
+  const patterns: Array<{ match: RegExp; key: (match: RegExpMatchArray) => string; concept?: (match: RegExpMatchArray) => string }> = [
     {
-      id: nextCapabilityId(state, "relation"),
+      match: /\bpractice\s+paper\s+identifier\s*:\s*(.+)$/i,
+      key: () => "practice paper identifier",
+      concept: () => "identifier",
+    },
+    {
+      match: /\b(?:question|item)\s+(\d+[A-Za-z]?)\b/i,
+      key: (match) => `question ${match[1] ?? ""}`.trim(),
+      concept: () => "identifier",
+    },
+    {
+      match: /\banswer\s*:\s*(.+)$/i,
+      key: () => "answer",
+    },
+  ];
+
+  for (const pattern of patterns) {
+    const match = text.match(pattern.match);
+    if (!match) continue;
+    const factKey = pattern.key(match);
+    if (!factKey) continue;
+    facts.push(
+      createExplicitFact({
+        state,
+        span: sentence,
+        factKey,
+        factText: text,
+        concept: pattern.concept?.(match) ?? factKey,
+        polarity: /\b(?:not|never|no)\b/i.test(text) ? "NEGATED" : "POSITIVE",
+      })
+    );
+  }
+
+  for (const match of text.matchAll(/\bthere\s+(?:are|is)\s+([^,.;]+?)(?=,\s*there\s+(?:are|is)\b|[.;]|$)/gi)) {
+    const factKey = cleanConcept(match[1] ?? "");
+    if (!factKey) continue;
+    facts.push(
+      createExplicitFact({
+        state,
+        span: sliceSentenceSpan(sentence, match.index ?? 0, match[0].length),
+        factKey,
+        factText: match[0] ?? text,
+        concept: factKey,
+        polarity: /\b(?:not|never|no)\b/i.test(match[0] ?? "") ? "NEGATED" : "POSITIVE",
+      })
+    );
+  }
+
+  return dedupeBy(facts, (fact) => `${fact.factKey}:${fact.factText}`);
+}
+
+function extractMethods(
+  sentence: SentenceSpan,
+  state: CapabilityState
+): MethodCapability[] {
+  const text = sentence.text;
+  const matches = [
+    text.match(/\b(.+?)\s+can\s+be\s+(?:solved|found|calculated|worked\s+out|balanced|separated|prepared|made|done)\s+by\s+(.+)$/i),
+    text.match(/\bfor\s+(.+?),\s*(.+?\b(?:subtract|add|divide|multiply|balance|filter|heat|cool|apply|remove|separate|mix|measure|solve)\b.+)$/i),
+    text.match(/\b(.+?)\s+(?:is|are)\s+made\s+by\s+(.+)$/i),
+  ].filter((match): match is RegExpMatchArray => Boolean(match));
+
+  return matches.map((match) => {
+    const target = cleanConcept(match[1] ?? "");
+    return {
+      id: nextCapabilityId(state, "method"),
       resourceChunkId: state.chunk.resourceChunkId,
       sourceLabel: state.chunk.sourceLabel,
       evidenceSpan: sentence,
       confidence: "HIGH",
+      method: target,
+      stepsText: cleanMeaning(`${match[2] ?? ""}` || text),
+      canonicalConcept: target ? canonicalizeConcept(target, state.chunk) : undefined,
+    };
+  });
+}
+
+function extractEventFacts(
+  sentence: SentenceSpan,
+  state: CapabilityState
+): EventCapability[] {
+  const text = sentence.text;
+  const probabilityMatch =
+    text.match(/\b(?:for\s+(.+?),\s*)?(?:the\s+)?(?:probability|chance|likelihood)\s+of\s+(.+?)\s+is\s+(.+)$/i) ??
+    text.match(/\b(?:the\s+)?(?:probability|chance|likelihood)\s+for\s+(.+?)\s+is\s+(.+)$/i);
+  if (!probabilityMatch) return [];
+
+  const scopedPrefix = probabilityMatch.length >= 4 ? cleanConcept(probabilityMatch[1] ?? "") : "";
+  const event = probabilityMatch.length >= 4
+    ? cleanEventText(`${probabilityMatch[2] ?? ""} ${scopedPrefix}`.trim())
+    : cleanEventText(probabilityMatch[1] ?? "");
+  const outcome = probabilityMatch.length >= 4 ? probabilityMatch[3] ?? "" : probabilityMatch[2] ?? "";
+  if (!event || !outcome) return [];
+
+  return [
+    {
+      id: nextCapabilityId(state, "event"),
+      resourceChunkId: state.chunk.resourceChunkId,
+      sourceLabel: state.chunk.sourceLabel,
+      evidenceSpan: sentence,
+      confidence: "HIGH",
+      event,
+      outcomeText: cleanMeaning(outcome),
+      canonicalConcept: canonicalizeConcept("probability", state.chunk),
+      numericValues: [...text.matchAll(/\b\d+\s+out\s+of\s+\d+\b|\b\d+\/\d+\b/g)].map(
+        (match) => match[0]
+      ),
+      polarity: /\b(?:not|never|no)\b/i.test(text) ? "NEGATED" : "POSITIVE",
+    },
+  ];
+}
+
+function extractRelations(
+  sentence: SentenceSpan,
+  state: CapabilityState
+): RelationCapability[] {
+  const relations: RelationCapability[] = [];
+  for (const clause of splitRelationClauses(sentence)) {
+    const relationMatch =
+      clause.text.match(/\b(.+?)\s+(increases|decreases|reduces|affects|causes|depends on|leads to|turns?|changes?)\s+(.+)$/i) ??
+      clause.text.match(/\b(.+?)\s+(carry|carries|transport|transports)\s+(.+)$/i) ??
+      clause.text.match(/\b(.+?)\s+(increases|decreases)\s+with\s+(.+)$/i);
+    if (!relationMatch) continue;
+
+    const subject = cleanConcept(relationMatch[1] ?? "");
+    const relation = normalizeRelation(relationMatch[2] ?? "");
+    const object = cleanConcept(relationMatch[3] ?? "");
+    if (!subject || !relation || !object) continue;
+
+    relations.push({
+      id: nextCapabilityId(state, "relation"),
+      resourceChunkId: state.chunk.resourceChunkId,
+      sourceLabel: state.chunk.sourceLabel,
+      evidenceSpan: clause,
+      confidence: "HIGH",
       subject,
       relation,
       object,
-      polarity: /\b(?:does not|do not|not|never)\b/i.test(sentence.text)
+      polarity: /\b(?:does not|do not|not|never)\b/i.test(clause.text)
         ? "NEGATED"
         : "POSITIVE",
-    },
-  ];
+    });
+  }
+
+  return relations;
 }
 
 function extractComparisonSides(
@@ -551,6 +705,7 @@ function extractProcessFacts(
   state: CapabilityState
 ): ProcessCapability[] {
   const match =
+    sentence.text.match(/\b(.+?)\s+is\s+the\s+process\s+by\s+which\s+(.+)$/i) ??
     sentence.text.match(/\b(.+?)\s+uses\s+(.+?)\s+to\s+(.+)$/i) ??
     sentence.text.match(/\b(.+?)\s+separates\s+(.+)$/i);
   if (!match) return [];
@@ -569,6 +724,49 @@ function extractProcessFacts(
       fact: cleanMeaning(sentence.text),
     },
   ];
+}
+
+function extractPassageInterpretations(
+  sentence: SentenceSpan,
+  state: CapabilityState
+): PassageInterpretationCapability[] {
+  const mainIdea =
+    sentence.text.match(/\b(?:the\s+)?main\s+idea\s+(?:is|means|refers to)\s+(.+)$/i) ??
+    sentence.text.match(/\b(?:the\s+)?central\s+point\s+(?:is|means|refers to)\s+(.+)$/i) ??
+    sentence.text.match(/\b(?:the\s+)?passage\s+is\s+mainly\s+about\s+(.+)$/i);
+  if (mainIdea) {
+    return [
+      {
+        id: nextCapabilityId(state, "passage"),
+        resourceChunkId: state.chunk.resourceChunkId,
+        sourceLabel: state.chunk.sourceLabel,
+        evidenceSpan: sentence,
+        confidence: "HIGH",
+        interpretationType: "MAIN_IDEA",
+        targetText: "main idea",
+        interpretationText: cleanMeaning(mainIdea[1] ?? sentence.text),
+      },
+    ];
+  }
+
+  const explicitDetail = sentence.text.match(
+    /\b(?:supporting\s+details?|stated\s+reason|explicit\s+detail)\s+(?:is|are|explain|show|give)\s+(.+)$/i
+  );
+  if (explicitDetail) {
+    return [
+      {
+        id: nextCapabilityId(state, "passage"),
+        resourceChunkId: state.chunk.resourceChunkId,
+        sourceLabel: state.chunk.sourceLabel,
+        evidenceSpan: sentence,
+        confidence: "HIGH",
+        interpretationType: "EXPLICIT_DETAIL",
+        interpretationText: cleanMeaning(explicitDetail[1] ?? sentence.text),
+      },
+    ];
+  }
+
+  return [];
 }
 
 function extractConsequences(
@@ -797,6 +995,29 @@ function createNumericValue(input: {
   };
 }
 
+function createExplicitFact(input: {
+  state: CapabilityState;
+  span: EvidenceSpan;
+  factKey: string;
+  factText: string;
+  concept?: string;
+  polarity: CapabilityPolarity;
+}): ExplicitFactCapability {
+  return {
+    id: nextCapabilityId(input.state, "fact"),
+    resourceChunkId: input.state.chunk.resourceChunkId,
+    sourceLabel: input.state.chunk.sourceLabel,
+    evidenceSpan: input.span,
+    confidence: "HIGH",
+    factKey: cleanMeaning(input.factKey),
+    factText: cleanMeaning(input.factText),
+    canonicalConcept: input.concept
+      ? canonicalizeConcept(input.concept, input.state.chunk)
+      : undefined,
+    polarity: input.polarity,
+  };
+}
+
 function splitSentences(content: string): SentenceSpan[] {
   const spans: SentenceSpan[] = [];
   const pattern = /[^.!?]+[.!?]?/g;
@@ -827,6 +1048,24 @@ function sliceSentenceSpan(sentence: SentenceSpan, relativeStart: number, length
     startOffset,
     endOffset: startOffset + text.length,
   };
+}
+
+function splitRelationClauses(sentence: SentenceSpan): SentenceSpan[] {
+  const clauses: SentenceSpan[] = [];
+  const pattern = /(?:^|(?:,\s*)?\bwhile\b\s+)([^,]+?)(?=(?:,\s*)?\bwhile\b|$)/gi;
+  let match: RegExpExecArray | null;
+  while ((match = pattern.exec(sentence.text)) !== null) {
+    const text = (match[1] ?? "").trim();
+    if (!text) continue;
+    const startInMatch = match[0].indexOf(match[1] ?? "");
+    const startOffset = sentence.startOffset + match.index + Math.max(0, startInMatch);
+    clauses.push({
+      text,
+      startOffset,
+      endOffset: startOffset + text.length,
+    });
+  }
+  return clauses.length > 0 ? clauses : [sentence];
 }
 
 function canonicalizeFormulaConcept(
@@ -957,6 +1196,13 @@ function cleanMeaning(value: string): string {
     .trim();
 }
 
+function cleanEventText(value: string): string {
+  return cleanConcept(value)
+    .replace(/\brolling\s+rolling\b/g, "rolling")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
 function normalizeConceptText(value: string): string {
   return value
     .toLowerCase()
@@ -1000,6 +1246,16 @@ function uniqueStrings(values: string[]): string[] {
 
 function compactStrings(values: Array<string | undefined>): string[] {
   return values.map((value) => value ?? "").filter(Boolean);
+}
+
+function dedupeBy<T>(items: T[], getKey: (item: T) => string): T[] {
+  const seen = new Set<string>();
+  return items.filter((item) => {
+    const key = getKey(item);
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
 }
 
 function singularizeConcept(value: string): string {
