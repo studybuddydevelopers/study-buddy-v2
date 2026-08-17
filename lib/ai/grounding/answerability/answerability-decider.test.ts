@@ -402,6 +402,122 @@ describe("Stage 4.1 answerability decider golden cases", () => {
     expect(decision.classification).toBe("SUPPORTED");
   });
 
+  it("lets same-scope formula conflicts dominate even when one formula supports the request", () => {
+    const evidenceCapabilities = extractEvidenceCapabilities({
+      chunks: [
+        chunk("Celsius to Fahrenheit formula is F = C x 9 / 5 + 32.", {
+          resourceChunkId: "formula-a",
+          sourceLabel: "SOURCE_1",
+        }),
+        chunk("Celsius to Fahrenheit formula is F = C x 5 / 9 + 32.", {
+          resourceChunkId: "formula-b",
+          sourceLabel: "SOURCE_2",
+        }),
+      ],
+    });
+    const conflicts = detectCapabilityConflicts(evidenceCapabilities);
+    const decision = decideAnswerability({
+      requestRequirements: request("Which Celsius to Fahrenheit formula should I use?"),
+      evidenceCapabilities,
+      conflicts,
+    });
+
+    expect(conflicts).toHaveLength(1);
+    expect(decision.classification).toBe("INSUFFICIENT_CONTEXT");
+    expect(decision.refusalReason).toBe("UNRESOLVED_CONFLICT");
+    expect(decision.validatedEvidenceUnits).toEqual([]);
+  });
+
+  it("composes complementary transport facts across resources without treating them as conflicts", () => {
+    const decision = expectSupported("Explain what xylem and phloem transport.", [
+      chunk("Xylem carries water and mineral salts from roots to leaves.", {
+        resourceChunkId: "xylem",
+        sourceLabel: "SOURCE_1",
+      }),
+      chunk("Phloem transports dissolved food made in leaves to other parts of the plant.", {
+        resourceChunkId: "phloem",
+        sourceLabel: "SOURCE_2",
+      }),
+    ]);
+
+    expect(decision.validatedEvidenceUnits.map((unit) => unit.sourceLabel)).toEqual([
+      "SOURCE_1",
+      "SOURCE_2",
+    ]);
+  });
+
+  it("supports formula and symbol requirements from structural formula evidence", () => {
+    expectSupported("Give the kinetic energy formula and define m and v.", [
+      chunk(
+        "Kinetic energy formula is KE = 1/2 x m x v^2. In the formula, m means mass and v means velocity."
+      ),
+    ]);
+
+    expectSupported("In rho = m / V, what does V represent?", [
+      chunk("Density relation is rho = m / V. In this relation, m means mass and V means volume."),
+    ]);
+
+    expectSupported("What is the parallelogram area formula, and what do b and h mean?", [
+      chunk("Area of a parallelogram is A = b x h. In this formula, b means base and h means vertical height."),
+    ]);
+
+    expectSupported("In s = d / t, define t.", [
+      chunk("For a sound pulse, speed is s = d / t. In this formula, d means distance and t means time."),
+    ]);
+  });
+
+  it("supports generic unit-rate options only when every option has cost and quantity", () => {
+    expectSupported("Which pack is cheaper per pen?", [
+      chunk(
+        "Unit cost is found by dividing total cost by number of items. Pack R costs 600 naira for 12 pens. Pack S costs 450 naira for 9 pens."
+      ),
+    ]);
+
+    expectSupported("Which crate is cheaper per bottle?", [
+      chunk(
+        "Cost per bottle is total cost divided by bottles. Crate A costs 720 naira for 12 bottles. Crate B costs 500 naira for 5 bottles."
+      ),
+    ]);
+
+    const missing = expectInsufficient("Which data plan has the lower cost per GB?", [
+      chunk(
+        "Unit cost per GB is total cost divided by GB. Plan Beta costs 900 naira for 3 GB. Plan Alpha lists 1200 naira but does not state the GB amount."
+      ),
+    ]);
+    expect(missing.requirementResults[0]?.missingComponents).toContain(
+      "option-components:2"
+    );
+  });
+
+  it("matches contextual formula follow-ups to resolved concepts", () => {
+    const decision = decideAnswerability({
+      requestRequirements: request("What is its formula and what does V mean?", {
+        requirements: extractRequestRequirements({
+          requestId: "request-test",
+          question: "What is its formula and what does V mean?",
+          subjectId: SUBJECT_ID,
+          topicId: TOPIC_ID,
+          recentMessages: [{ role: "USER", content: "What is density?" }],
+        }).requirements,
+      }),
+      evidenceCapabilities: extractEvidenceCapabilities({
+        chunks: [
+          chunk("Density relation is rho = m / V. In this relation, m means mass and V means volume."),
+        ],
+      }),
+    });
+
+    expect(decision.classification).toBe("SUPPORTED");
+  });
+
+  it("supports English comparison sides from domain-neutral definition wording", () => {
+    expectSupported("Compare metaphor and simile.", [
+      chunk(
+        "A metaphor says one thing is another thing for effect. A simile compares two things using like or as."
+      ),
+    ]);
+  });
+
   it("never includes hostile capabilities in validated evidence units", () => {
     const decision = expectSupported("What is ratio?", [
       chunk(
