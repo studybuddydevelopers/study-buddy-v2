@@ -203,16 +203,49 @@ function validateArithmeticInSegment(
     if (!Number.isFinite(left) || !Number.isFinite(right) || !Number.isFinite(result)) {
       return false;
     }
-    if (!citedEvidence.includes(match[1] ?? "") || !citedEvidence.includes(match[3] ?? "")) {
+    const leftText = match[1] ?? "";
+    const rightText = match[3] ?? "";
+    const resultText = match[4] ?? "";
+    if (
+      !numericTextSupportedByEvidence(leftText, citedEvidence) ||
+      !numericTextSupportedByEvidence(rightText, citedEvidence)
+    ) {
       return false;
     }
-    if (!operationPermittedByEvidence(operator, citedEvidence)) return false;
+    const calculationEvidenceCanSupportStatedResult =
+      citedUnits.some((unit) => unit.allowedUses.includes("CALCULATE")) &&
+      numericTextSupportedByEvidence(resultText, citedEvidence);
+    if (
+      !operationPermittedByEvidence(operator, citedEvidence) &&
+      !calculationEvidenceCanSupportStatedResult
+    ) {
+      return false;
+    }
 
     const expected = calculate(left, operator, right);
     if (expected === undefined || Math.abs(expected - result) > 1e-9) return false;
   }
 
   return true;
+}
+
+function numericTextSupportedByEvidence(value: string, evidence: string) {
+  if (!value) return false;
+  if (new RegExp(`\\b${escapeRegExp(value)}\\b`).test(evidence)) return true;
+
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric)) return false;
+  const percentValue = numeric * 100;
+  if (percentValue > 0 && percentValue < 100) {
+    const percentText = Number.isInteger(percentValue)
+      ? String(percentValue)
+      : String(percentValue).replace(/0+$/, "").replace(/\.$/, "");
+    return new RegExp(`\\b${escapeRegExp(percentText)}\\s*(?:percent|%)\\b`, "i").test(
+      evidence
+    );
+  }
+
+  return false;
 }
 
 function operationPermittedByEvidence(operator: string, evidence: string) {
@@ -233,6 +266,10 @@ function calculate(left: number, operator: string, right: number) {
   if (operator === "+") return left + right;
   if (operator === "-") return left - right;
   return undefined;
+}
+
+function escapeRegExp(value: string) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
 function hasValidCitationReferencesInText(text: string, allowedLabels: Set<string>) {
