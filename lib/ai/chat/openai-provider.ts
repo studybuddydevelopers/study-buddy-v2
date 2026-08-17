@@ -9,6 +9,17 @@ import type {
   StructuredGenerateResult,
 } from "./types";
 
+type OpenAIChatCompletionResponse = {
+  id?: string;
+  model?: string;
+  choices?: Array<{ message?: { content?: string | null } | null }>;
+  usage?: {
+    prompt_tokens?: number;
+    completion_tokens?: number;
+    total_tokens?: number;
+  } | null;
+};
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
 }
@@ -83,36 +94,11 @@ export class OpenAIChatModelProvider implements ChatModelProvider {
     input: StructuredGenerateInput
   ): Promise<StructuredGenerateResult> {
     try {
-      const completion = await this.client.chat.completions.create({
-        model: this.model,
-        messages: input.messages.map((message) => ({
-          role: message.role,
-          content: message.content,
-        })),
-        temperature: input.temperature ?? 0.2,
-        max_tokens: input.maxOutputTokens ?? 700,
-        response_format: {
-          type: "json_schema",
-          json_schema: {
-            name: input.outputSchema.name,
-            schema: input.outputSchema.schema,
-            strict: input.outputSchema.strict ?? true,
-          },
-        },
-      });
-      const rawText = completion.choices?.[0]?.message?.content ?? "";
+      const completion = await this.client.chat.completions.create(
+        buildOpenAIStructuredChatRequest(input, this.model)
+      );
 
-      return {
-        value: JSON.parse(rawText),
-        rawText,
-        provider: "openai",
-        model: this.model,
-        usage: {
-          inputTokens: completion.usage?.prompt_tokens,
-          outputTokens: completion.usage?.completion_tokens,
-          totalTokens: completion.usage?.total_tokens,
-        },
-      };
+      return parseOpenAIStructuredChatCompletion(completion, this.model);
     } catch (error) {
       if (error instanceof SyntaxError) {
         throw new ChatProviderError(
@@ -122,4 +108,46 @@ export class OpenAIChatModelProvider implements ChatModelProvider {
       throw new ChatProviderError(mapOpenAIError(error));
     }
   }
+}
+
+export function buildOpenAIStructuredChatRequest(
+  input: StructuredGenerateInput,
+  model: string
+) {
+  return {
+    model,
+    messages: input.messages.map((message) => ({
+      role: message.role,
+      content: message.content,
+    })),
+    temperature: input.temperature ?? 0.2,
+    max_tokens: input.maxOutputTokens ?? 700,
+    response_format: {
+      type: "json_schema" as const,
+      json_schema: {
+        name: input.outputSchema.name,
+        schema: input.outputSchema.schema,
+        strict: input.outputSchema.strict ?? true,
+      },
+    },
+  };
+}
+
+export function parseOpenAIStructuredChatCompletion(
+  completion: OpenAIChatCompletionResponse,
+  model: string
+): StructuredGenerateResult {
+  const rawText = completion.choices?.[0]?.message?.content ?? "";
+
+  return {
+    value: JSON.parse(rawText),
+    rawText,
+    provider: "openai",
+    model,
+    usage: {
+      inputTokens: completion.usage?.prompt_tokens,
+      outputTokens: completion.usage?.completion_tokens,
+      totalTokens: completion.usage?.total_tokens,
+    },
+  };
 }
