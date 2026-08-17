@@ -163,10 +163,11 @@ function buildRatioRequirement(question: string): RequirementDraft | undefined {
     return undefined;
   }
   if (!/\b\d+\s*(?::|to)\s*\d+\b/i.test(question)) return undefined;
+  const ratioValue = extractRatioValue(question);
 
   return {
     kind: "CONCEPT_DEFINITION",
-    targetConcepts: ["ratio"],
+    targetConcepts: compactStrings(["ratio", ratioValue ? `ratio ${ratioValue}` : ""]),
   };
 }
 
@@ -355,6 +356,25 @@ function buildFormulaConceptRequirement(
     firstMatch(question, /\b(.+?\blaw)\b.+\b(?:units?|symbols?|formula)\b/i);
   if (!concept) return undefined;
 
+  if (/\bunits?\b/i.test(question)) {
+    const cleaned = cleanConcept(concept);
+    return {
+      kind: "MULTI_PART",
+      targetConcepts: compactStrings([cleaned, "units"]),
+      childRequirements: [
+        {
+          kind: "FORMULA",
+          targetConcepts: compactStrings([cleaned, context.contextConcept]),
+        },
+        {
+          kind: "FACT_LOOKUP",
+          targetConcepts: ["units"],
+          requestedFact: `${cleaned} units used`,
+        },
+      ],
+    };
+  }
+
   return {
     kind: "FORMULA",
     targetConcepts: compactStrings([cleanConcept(concept), context.contextConcept]),
@@ -445,6 +465,18 @@ function buildRelationRequirement(question: string): RequirementDraft | undefine
     const cause = cleanConcept(howAffectsMatch[1] ?? "");
     const relation = normalizeRelationIntent(howAffectsMatch[2] ?? "");
     const target = cleanConcept(howAffectsMatch[3] ?? "");
+    const causes = splitConjoinedConcepts(cause);
+    if (causes.length > 1) {
+      return {
+        kind: "MULTI_PART",
+        targetConcepts: compactStrings([target, ...causes]),
+        childRequirements: causes.map((item) => ({
+          kind: "RELATION_MECHANISM_CONSEQUENCE",
+          targetConcepts: compactStrings([target, item]),
+          requestedRelation: compactStrings([item, relation, target]).join(" "),
+        })),
+      };
+    }
     return {
       kind: "RELATION_MECHANISM_CONSEQUENCE",
       targetConcepts: compactStrings([target, cause]),
@@ -817,6 +849,19 @@ function extractNumericInputs(question: string): string[] {
     }
   }
   return [...inputs];
+}
+
+function extractRatioValue(question: string): string | undefined {
+  const match = question.match(/\b(\d+)\s*(?::|to)\s*(\d+)\b/i);
+  if (!match) return undefined;
+  return `${match[1]}:${match[2]}`;
+}
+
+function splitConjoinedConcepts(value: string): string[] {
+  return value
+    .split(/\s+and\s+/i)
+    .map(cleanConcept)
+    .filter(Boolean);
 }
 
 function splitOnTopLevelAnd(question: string): string[] {
