@@ -264,7 +264,7 @@ export class FakeChatModelProvider implements ChatModelProvider {
     const runtimeControl = getRuntimeControl();
     const value =
       this.options.structuredValue ??
-      buildStructuredValue(runtimeControl.structuredMode ?? "VALID", result.text);
+      buildStructuredValue(input, runtimeControl.structuredMode ?? "VALID", result.text);
 
     return {
       value,
@@ -276,7 +276,18 @@ export class FakeChatModelProvider implements ChatModelProvider {
   }
 }
 
-function buildStructuredValue(mode: FakeStructuredChatMode, text: string) {
+function buildStructuredValue(
+  input: StructuredGenerateInput,
+  mode: FakeStructuredChatMode,
+  text: string
+) {
+  const contract = extractStructuredPromptContract(input);
+  const validSegment = {
+    text,
+    sourceLabels: contract.sourceLabels,
+    evidenceUnitIds: contract.evidenceUnitIds,
+    requirementIds: contract.requirementIds,
+  };
   switch (mode) {
     case "EMPTY_ANSWER":
       return {
@@ -288,32 +299,32 @@ function buildStructuredValue(mode: FakeStructuredChatMode, text: string) {
       return { answer: text };
     case "UNKNOWN_LABEL":
       return {
-        answerSegments: [{ text, sourceLabels: ["SOURCE_9"] }],
+        answerSegments: [{ ...validSegment, sourceLabels: ["SOURCE_9"] }],
         insufficientContext: false,
         suggestedQuestions: [],
       };
     case "MISSING_CITATION":
       return {
-        answerSegments: [{ text, sourceLabels: [] }],
+        answerSegments: [{ ...validSegment, sourceLabels: [] }],
         insufficientContext: false,
         suggestedQuestions: [],
       };
     case "OBJECT_WITHOUT_MARKER":
       return {
-        answerSegments: [{ text, sourceLabels: ["SOURCE_1"] }],
+        answerSegments: [validSegment],
         insufficientContext: false,
         suggestedQuestions: [],
       };
     case "MARKER_WITHOUT_OBJECT":
       return {
-        answerSegments: [{ text: `${text} [SOURCE_1]`, sourceLabels: [] }],
+        answerSegments: [{ ...validSegment, text: `${text} [SOURCE_1]`, sourceLabels: [] }],
         insufficientContext: false,
         suggestedQuestions: [],
       };
     case "DUPLICATE_LABEL":
       return {
         answerSegments: [
-          { text, sourceLabels: ["SOURCE_1", "SOURCE_1"] },
+          { ...validSegment, sourceLabels: [contract.sourceLabels[0] ?? "SOURCE_1", contract.sourceLabels[0] ?? "SOURCE_1"] },
         ],
         insufficientContext: false,
         suggestedQuestions: [],
@@ -326,14 +337,14 @@ function buildStructuredValue(mode: FakeStructuredChatMode, text: string) {
       };
     case "EXCESSIVE_SUGGESTIONS":
       return {
-        answerSegments: [{ text, sourceLabels: ["SOURCE_1"] }],
+        answerSegments: [validSegment],
         insufficientContext: false,
         suggestedQuestions: ["one", "two", "three", "four"],
       };
     case "FAKE_LINK_CITATION":
       return {
         answerSegments: [
-          { text: `${text} [SOURCE_1](https://example.test/source)`, sourceLabels: ["SOURCE_1"] },
+          { ...validSegment, text: `${text} [SOURCE_1](https://example.test/source)` },
         ],
         insufficientContext: false,
         suggestedQuestions: [],
@@ -341,9 +352,60 @@ function buildStructuredValue(mode: FakeStructuredChatMode, text: string) {
     case "VALID":
     default:
       return {
-        answerSegments: [{ text, sourceLabels: ["SOURCE_1"] }],
+        answerSegments: [validSegment],
         insufficientContext: false,
         suggestedQuestions: [],
       };
   }
+}
+
+function extractStructuredPromptContract(input: StructuredGenerateInput) {
+  const text = input.messages.map((message) => message.content).join("\n");
+  const units = parsePromptJsonArray<{
+    id?: unknown;
+    sourceLabel?: unknown;
+    supportsRequirementIds?: unknown;
+  }>(text, "validated_evidence_units_json");
+  const tasks = parsePromptJsonArray<{ id?: unknown }>(text, "requested_tasks_json");
+  const sourceLabels = uniqueStrings(
+    units
+      .map((unit) => unit.sourceLabel)
+      .filter((value): value is string => typeof value === "string")
+  );
+  const evidenceUnitIds = uniqueStrings(
+    units.map((unit) => unit.id).filter((value): value is string => typeof value === "string")
+  );
+  const requirementIds = uniqueStrings([
+    ...tasks.map((task) => task.id).filter((value): value is string => typeof value === "string"),
+    ...units.flatMap((unit) =>
+      Array.isArray(unit.supportsRequirementIds)
+        ? unit.supportsRequirementIds.filter(
+            (value): value is string => typeof value === "string"
+          )
+        : []
+    ),
+  ]);
+
+  return {
+    sourceLabels: sourceLabels.length > 0 ? sourceLabels : ["SOURCE_1"],
+    evidenceUnitIds: evidenceUnitIds.length > 0 ? evidenceUnitIds : ["unit-1"],
+    requirementIds: requirementIds.length > 0 ? requirementIds : ["req-1"],
+  };
+}
+
+function parsePromptJsonArray<T>(text: string, tag: string): T[] {
+  const match = text.match(
+    new RegExp(`<${tag}>\\n([\\s\\S]*?)\\n</${tag}>`)
+  );
+  if (!match) return [];
+  try {
+    const parsed = JSON.parse(match[1] ?? "[]");
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+function uniqueStrings(values: string[]) {
+  return [...new Set(values.filter(Boolean))];
 }
