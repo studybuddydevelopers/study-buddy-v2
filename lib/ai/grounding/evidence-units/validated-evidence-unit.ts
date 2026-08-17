@@ -4,8 +4,12 @@ import type {
   ConsequenceCapability,
   EvidenceCapability,
   EvidenceSpan,
+  EventCapability,
+  ExplicitFactCapability,
   FormulaCapability,
+  MethodCapability,
   NumericCapability,
+  PassageInterpretationCapability,
   ProcessCapability,
   RelationCapability,
   SymbolCapability,
@@ -48,10 +52,14 @@ type EducationalCapability =
   | FormulaCapability
   | SymbolCapability
   | NumericCapability
+  | ExplicitFactCapability
+  | MethodCapability
+  | EventCapability
   | RelationCapability
   | ComparisonSideCapability
   | ProcessCapability
-  | ConsequenceCapability;
+  | ConsequenceCapability
+  | PassageInterpretationCapability;
 
 export function buildValidatedEvidenceUnits(
   input: BuildValidatedEvidenceUnitsInput
@@ -107,10 +115,14 @@ export function indexEducationalCapabilities(
       ...capability.formulas,
       ...capability.symbolDefinitions,
       ...capability.numericValues,
+      ...capability.explicitFacts,
+      ...capability.methods,
+      ...capability.eventFacts,
       ...capability.relations,
       ...capability.comparisonSides,
       ...capability.processFacts,
       ...capability.consequences,
+      ...capability.passageInterpretations,
     ]) {
       index.set(item.id, item);
     }
