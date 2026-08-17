@@ -8,6 +8,7 @@ export type GroundedEvaluationSplit =
   | "holdout_v4"
   | "holdout_v5"
   | "holdout_v6"
+  | "capability_e2"
   | "post_v5_regression"
   | "adversarial_safety";
 
