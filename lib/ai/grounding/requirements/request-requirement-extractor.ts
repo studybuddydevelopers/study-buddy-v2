@@ -176,11 +176,19 @@ function buildMultiOptionRequirement(question: string): RequirementDraft | undef
     return undefined;
   }
 
-  if (!/\b(two|three|four|options?|packs?|choices?|alternatives?)\b/i.test(question)) {
+  const asksForUnitRate = /\b(?:cheaper|cheapest|lower|lowest|less|best)\b.{0,40}\bper\s+[A-Za-z]+\b/i.test(
+    question
+  );
+  if (
+    !asksForUnitRate &&
+    !/\b(two|three|four|options?|packs?|crates?|plans?|shops?|choices?|alternatives?)\b/i.test(question)
+  ) {
     return undefined;
   }
 
-  const relation = firstMatch(question, /\b(cheaper per item|cheapest|best|lowest|highest|greater|smaller)\b/i);
+  const relation =
+    firstMatch(question, /\b((?:cheaper|cheapest|lower|lowest|less|best)\s+per\s+[A-Za-z]+)\b/i) ??
+    firstMatch(question, /\b(cheaper per item|cheapest|best|lowest|highest|greater|smaller)\b/i);
 
   return {
     kind: "MULTI_OPTION_COMPARISON",
@@ -458,6 +466,31 @@ function buildMultiPartRequirement(
 }
 
 function buildRelationRequirement(question: string): RequirementDraft | undefined {
+  const transportLookup = question.match(
+    /\bwhat\s+(.+?)\s+(carry|carries|transport|transports)\b/i
+  );
+  if (transportLookup) {
+    const subject = cleanConcept(transportLookup[1] ?? "");
+    const relation = normalizeRelationIntent(transportLookup[2] ?? "");
+    const subjects = splitConjoinedConcepts(subject);
+    if (subjects.length > 1) {
+      return {
+        kind: "MULTI_PART",
+        targetConcepts: subjects,
+        childRequirements: subjects.map((item) => ({
+          kind: "RELATION_MECHANISM_CONSEQUENCE",
+          targetConcepts: [item],
+          requestedRelation: compactStrings([item, relation]).join(" "),
+        })),
+      };
+    }
+    return {
+      kind: "RELATION_MECHANISM_CONSEQUENCE",
+      targetConcepts: compactStrings([subject]),
+      requestedRelation: compactStrings([subject, relation]).join(" "),
+    };
+  }
+
   const howAffectsMatch = question.match(
     /\bhow\s+(?:do|does)\s+(.+?)\s+(affect|change|increase|decrease|reduce|cause|lead to|turn|turns)\s+(.+?)(?:[?.]|$)/i
   );
@@ -931,6 +964,7 @@ function normalizeEventPhrase(value: string): string {
 function normalizeRelationIntent(value: string): string {
   const cleaned = normalizeQuestion(value).toLowerCase();
   if (/^(?:affect|change|turn|turns)$/.test(cleaned)) return "affect";
+  if (/^(?:carry|carries|transport|transports)$/.test(cleaned)) return "transport";
   return cleaned;
 }
 
