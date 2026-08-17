@@ -575,7 +575,7 @@ function splitOnTopLevelAnd(question: string): string[] {
 }
 
 function inferOptionSides(question: string): string[] {
-  const explicit = [...question.matchAll(/\b(pack|option|choice)\s*([A-Za-z0-9]+)\b/gi)]
+  const explicit = [...question.matchAll(/\b(pack|option|choice)\s+([A-Za-z0-9]+)\b/gi)]
     .map((match) => `${(match[1] ?? "option").toLowerCase()} ${match[2] ?? ""}`.trim());
   if (explicit.length >= 2) return uniqueStrings(explicit);
   if (/\btwo\b/i.test(question)) return ["option 1", "option 2"];
