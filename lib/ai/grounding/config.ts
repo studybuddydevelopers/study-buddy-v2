@@ -13,7 +13,12 @@ export function isGroundedChatEnabled() {
 }
 
 export function getSelectedGroundingPipeline(): GroundingPipelineKind {
-  const selected = process.env.AI_GROUNDING_PIPELINE;
+  return resolveGroundingPipelineKind(process.env.AI_GROUNDING_PIPELINE);
+}
+
+export function resolveGroundingPipelineKind(
+  selected: string | null | undefined
+): GroundingPipelineKind {
   if (selected !== "capability") return "legacy";
   return process.env.NODE_ENV === "production" ? "legacy" : "capability";
 }
