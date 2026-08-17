@@ -10,8 +10,12 @@ import type {
   ConsequenceCapability,
   EvidenceCapability,
   EvidenceSpan,
+  EventCapability,
+  ExplicitFactCapability,
   FormulaCapability,
+  MethodCapability,
   NumericCapability,
+  PassageInterpretationCapability,
   ProcessCapability,
   RelationCapability,
   SymbolCapability,
@@ -48,10 +52,14 @@ type MatchContext = {
   formulas: FormulaCapability[];
   symbols: SymbolCapability[];
   numerics: NumericCapability[];
+  explicitFacts: ExplicitFactCapability[];
+  methods: MethodCapability[];
+  eventFacts: EventCapability[];
   relations: RelationCapability[];
   comparisonSides: ComparisonSideCapability[];
   processes: ProcessCapability[];
   consequences: ConsequenceCapability[];
+  passageInterpretations: PassageInterpretationCapability[];
   evidenceSpansByCapabilityId: Map<string, EvidenceSpan>;
 };
 
@@ -127,10 +135,16 @@ function buildMatchContext(
     formulas: evidenceCapabilities.flatMap((capability) => capability.formulas),
     symbols: evidenceCapabilities.flatMap((capability) => capability.symbolDefinitions),
     numerics: evidenceCapabilities.flatMap((capability) => capability.numericValues),
+    explicitFacts: evidenceCapabilities.flatMap((capability) => capability.explicitFacts),
+    methods: evidenceCapabilities.flatMap((capability) => capability.methods),
+    eventFacts: evidenceCapabilities.flatMap((capability) => capability.eventFacts),
     relations: evidenceCapabilities.flatMap((capability) => capability.relations),
     comparisonSides: evidenceCapabilities.flatMap((capability) => capability.comparisonSides),
     processes: evidenceCapabilities.flatMap((capability) => capability.processFacts),
     consequences: evidenceCapabilities.flatMap((capability) => capability.consequences),
+    passageInterpretations: evidenceCapabilities.flatMap(
+      (capability) => capability.passageInterpretations
+    ),
     evidenceSpansByCapabilityId: new Map(
       [...indexEducationalCapabilities(evidenceCapabilities)].map(([id, capability]) => [
         id,
@@ -218,6 +232,12 @@ function evaluateDirectRequirement(
       return evaluateRelationRequirement(requirement, context);
     case "PROCESS_EXPLANATION":
       return evaluateProcessRequirement(requirement, context);
+    case "FACT_LOOKUP":
+      return evaluateFactLookupRequirement(requirement, context);
+    case "PROCEDURE_METHOD":
+      return evaluateProcedureMethodRequirement(requirement, context);
+    case "PASSAGE_INTERPRETATION":
+      return evaluatePassageInterpretationRequirement(requirement, context);
   }
 }
 
@@ -239,7 +259,15 @@ function evaluateDefinitionRequirement(
         candidate.polarity === "POSITIVE" && candidate.canonicalConcept.id === target
     );
     if (!definition) {
-      missing.push(`definition:${target}`);
+      const formula = context.formulas.find(
+        (candidate) =>
+          candidate.canonicalConcept?.id === target || candidate.outputQuantity === target
+      );
+      if (formula) {
+        supportRefs.push(supportRef(requirement.id, formula.id, ["DEFINE", "FORMULA"]));
+      } else {
+        missing.push(`definition:${target}`);
+      }
       continue;
     }
     supportRefs.push(supportRef(requirement.id, definition.id, ["DEFINE"]));
@@ -446,6 +474,105 @@ function evaluateProcessRequirement(
   ]);
 }
 
+function evaluateFactLookupRequirement(
+  requirement: RequestRequirement,
+  context: MatchContext
+): RequirementMatch {
+  const event = findEventFact(requirement, context);
+  if (event) {
+    return buildMatch(requirement.id, "SUPPORTED", [
+      supportRef(requirement.id, event.id, ["CALCULATE", "DEFINE"]),
+    ]);
+  }
+
+  const fact = findExplicitFact(requirement, context);
+  if (fact) {
+    return buildMatch(requirement.id, "SUPPORTED", [
+      supportRef(requirement.id, fact.id, ["DEFINE"]),
+    ]);
+  }
+
+  return buildMatch(
+    requirement.id,
+    "MISSING",
+    [],
+    [requirement.requestedFact ?? requirement.requestedEvent ?? "explicit fact"]
+  );
+}
+
+function evaluateProcedureMethodRequirement(
+  requirement: RequestRequirement,
+  context: MatchContext
+): RequirementMatch {
+  const method = findMethod(requirement, context);
+  if (method) {
+    return buildMatch(requirement.id, "SUPPORTED", [
+      supportRef(requirement.id, method.id, ["PROCESS", "CALCULATE"]),
+    ]);
+  }
+
+  const process = context.processes.find((candidate) =>
+    requirement.requestedMethod
+      ? semanticTextMatches(
+          `${candidate.process} ${candidate.fact}`,
+          requirement.requestedMethod
+        )
+      : conceptMatches(candidate.process, requirement.targetConcepts, context.request)
+  );
+  if (process) {
+    return buildMatch(requirement.id, "SUPPORTED", [
+      supportRef(requirement.id, process.id, ["PROCESS"]),
+    ]);
+  }
+
+  return buildMatch(
+    requirement.id,
+    "MISSING",
+    [],
+    [requirement.requestedMethod ?? "method"]
+  );
+}
+
+function evaluatePassageInterpretationRequirement(
+  requirement: RequestRequirement,
+  context: MatchContext
+): RequirementMatch {
+  const interpretation = context.passageInterpretations.find((candidate) => {
+    if (requirement.passageTask && candidate.interpretationType !== requirement.passageTask) {
+      return false;
+    }
+    const requested = normalizedText(
+      `${requirement.requestedFact ?? ""} ${requirement.targetConcepts.join(" ")}`
+    );
+    if (!requested) return true;
+    return semanticTextMatches(
+      `${candidate.targetText ?? ""} ${candidate.interpretationText} ${candidate.evidenceSpan.text}`,
+      requested
+    );
+  });
+  if (interpretation) {
+    return buildMatch(requirement.id, "SUPPORTED", [
+      supportRef(requirement.id, interpretation.id, ["DEFINE"]),
+    ]);
+  }
+
+  const definition = requirement.targetConcepts
+    .map((target) => findDefinitionForConcept(target, context))
+    .find(Boolean);
+  if (definition) {
+    return buildMatch(requirement.id, "SUPPORTED", [
+      supportRef(requirement.id, definition.id, ["DEFINE"]),
+    ]);
+  }
+
+  return buildMatch(
+    requirement.id,
+    "MISSING",
+    [],
+    [requirement.requestedFact ?? requirement.passageTask ?? "passage interpretation"]
+  );
+}
+
 function evaluateMultiPartRequirement(
   requirement: RequestRequirement,
   context: MatchContext
@@ -625,7 +752,12 @@ function findRelation(
         /reduces|decreases|prevents|stops/.test(relation.relation)
       );
     }
-    if (requested.length > 0) return includesTokens(combined, requested);
+    if (requested.length > 0) {
+      return semanticTextMatches(
+        `${combined} ${normalizeRelationAlias(relation.relation)}`,
+        requested
+      );
+    }
     return targets.some((target) => combined.includes(target));
   });
 }
@@ -671,6 +803,72 @@ function findCalculationFact(
   }
 
   return undefined;
+}
+
+function findExplicitFact(
+  requirement: RequestRequirement,
+  context: MatchContext
+): ExplicitFactCapability | undefined {
+  const requested = normalizedText(
+    `${requirement.requestedFact ?? ""} ${requirement.targetConcepts.join(" ")}`
+  );
+  const targetIds = canonicalTargetIds(requirement, context.request);
+  return context.explicitFacts.find((candidate) => {
+    if (candidate.polarity !== "POSITIVE") return false;
+    const combined = normalizedText(
+      `${candidate.factKey} ${candidate.factText} ${candidate.canonicalConcept?.label ?? ""} ${candidate.canonicalConcept?.aliases.join(" ") ?? ""}`
+    );
+    if (
+      targetIds.length > 0 &&
+      candidate.canonicalConcept &&
+      targetIds.includes(candidate.canonicalConcept.id)
+    ) {
+      return semanticTextMatches(combined, requested);
+    }
+    return semanticTextMatches(combined, requested);
+  });
+}
+
+function findMethod(
+  requirement: RequestRequirement,
+  context: MatchContext
+): MethodCapability | undefined {
+  const requestedRaw = `${requirement.requestedMethod ?? ""} ${requirement.targetConcepts.join(" ")}`;
+  const requested = normalizedText(requestedRaw);
+  const targets = canonicalTargetIds(requirement, context.request);
+  return context.methods.find((candidate) => {
+    const combinedRaw = `${candidate.method} ${candidate.stepsText} ${candidate.evidenceSpan.text} ${candidate.canonicalConcept?.label ?? ""}`;
+    const combined = normalizedText(combinedRaw);
+    if (mathExpressionMatches(combinedRaw, requestedRaw)) return true;
+    if (
+      candidate.canonicalConcept &&
+      targets.length > 0 &&
+      targets.includes(candidate.canonicalConcept.id)
+    ) {
+      return true;
+    }
+    return semanticTextMatches(combined, requested);
+  });
+}
+
+function findEventFact(
+  requirement: RequestRequirement,
+  context: MatchContext
+): EventCapability | undefined {
+  const requested = normalizedText(
+    `${requirement.requestedEvent ?? ""} ${requirement.requestedFact ?? ""} ${requirement.targetConcepts.join(" ")}`
+  );
+  const targets = canonicalTargetIds(requirement, context.request);
+  return context.eventFacts.find((candidate) => {
+    if (candidate.polarity !== "POSITIVE") return false;
+    const combined = normalizedText(
+      `${candidate.event} ${candidate.outcomeText} ${candidate.numericValues.join(" ")} ${candidate.evidenceSpan.text}`
+    );
+    const conceptSupported =
+      targets.length === 0 ||
+      (candidate.canonicalConcept && targets.includes(candidate.canonicalConcept.id));
+    return conceptSupported && semanticTextMatches(combined, requested);
+  });
 }
 
 function findConsequence(
@@ -781,6 +979,10 @@ function hasEducationalRequirementSignal(requirement: RequestRequirement): boole
     Boolean(requirement.requiredInputs?.length) ||
     Boolean(requirement.comparisonSides?.length) ||
     Boolean(requirement.requestedProcess) ||
+    Boolean(requirement.requestedFact) ||
+    Boolean(requirement.requestedEvent) ||
+    Boolean(requirement.requestedMethod) ||
+    Boolean(requirement.passageTask) ||
     Boolean(requirement.childRequirements?.some(hasEducationalRequirementSignal))
   );
 }
@@ -812,6 +1014,89 @@ function includesTokens(haystack: string, needle: string): boolean {
   const tokens = needle.split(" ").filter((token) => token.length > 2);
   return tokens.length > 0 && tokens.every((token) => haystack.includes(token));
 }
+
+function semanticTextMatches(haystack: string, needle: string): boolean {
+  const haystackTokens = new Set(toSemanticTokens(haystack));
+  const needleTokens = toSemanticTokens(needle);
+  if (needleTokens.length === 0) return false;
+  const matched = needleTokens.filter((token) => haystackTokens.has(token));
+  if (needleTokens.length <= 2) return matched.length === needleTokens.length;
+  return matched.length >= Math.max(2, Math.ceil(needleTokens.length * 0.65));
+}
+
+function mathExpressionMatches(haystack: string, needle: string): boolean {
+  if (!/[=+\-*/]/.test(needle)) return false;
+  const requestedTokens = needle
+    .split(" ")
+    .filter((token) => /^[a-z]$|\d+/.test(token));
+  if (requestedTokens.length === 0) return false;
+  const haystackTokens = new Set(
+    haystack.split(" ").filter((token) => /^[a-z]$|\d+/.test(token))
+  );
+  return requestedTokens.every((token) => haystackTokens.has(token));
+}
+
+function toSemanticTokens(value: string): string[] {
+  const synonymized = normalizedText(value)
+    .replace(/\baffects?\b/g, " affect ")
+    .replace(/\bchanges?\b/g, " affect ")
+    .replace(/\bturns?\b/g, " affect ")
+    .replace(/\broll(?:ing)?\b/g, " roll ")
+    .replace(/\bgetting\b/g, " get ")
+    .replace(/\bchance\b/g, " probability ")
+    .replace(/\blikelihood\b/g, " probability ")
+    .replace(/\bmainly\b/g, " main ")
+    .replace(/\bsummar(?:y|ise|ize|ises|izes)\b/g, " summary ");
+  return uniqueStrings(
+    synonymized
+      .split(" ")
+      .map((token) => singularizeToken(token))
+      .filter((token) => token.length > 2 && !SEMANTIC_STOPWORDS.has(token))
+  );
+}
+
+function normalizeRelationAlias(relation: string): string {
+  if (/^(?:turn|turns|change|changes|affect|affects)$/.test(relation)) {
+    return "affect";
+  }
+  return relation;
+}
+
+function singularizeToken(token: string): string {
+  if (/^(?:physics|mathematics|series)$/.test(token)) return token;
+  if (token.length > 4 && token.endsWith("ies")) return `${token.slice(0, -3)}y`;
+  if (token.length > 3 && token.endsWith("s")) return token.slice(0, -1);
+  return token;
+}
+
+const SEMANTIC_STOPWORDS = new Set([
+  "the",
+  "and",
+  "for",
+  "from",
+  "with",
+  "when",
+  "what",
+  "which",
+  "how",
+  "why",
+  "does",
+  "have",
+  "this",
+  "that",
+  "into",
+  "using",
+  "used",
+  "simple",
+  "term",
+  "terms",
+  "question",
+  "mathematics",
+  "physics",
+  "chemistry",
+  "biology",
+  "english",
+]);
 
 function hasRequestedInputs(text: string, requestedInputs: string[]): boolean {
   if (requestedInputs.length === 0) return true;
