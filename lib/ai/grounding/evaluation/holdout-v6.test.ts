@@ -111,12 +111,12 @@ describe("Stage 4 holdout_v6 preparation", () => {
     const holdoutCases = holdoutV6Cases();
     const resolved = resolveEvaluationResourcesForSplit(
       holdoutCases,
-      groundedEvaluationResources
+      resourcesThroughHoldoutV6()
     );
     const scope = buildEvaluationResourceScope({
       split: HOLDOUT_V6_SPLIT,
       cases: holdoutCases,
-      allResources: groundedEvaluationResources,
+      allResources: resourcesThroughHoldoutV6(),
       resolvedResources: resolved,
     });
 
@@ -404,4 +404,20 @@ function readApplicationTestCorpus() {
   return files
     .map((filePath) => readFileSync(path.join(process.cwd(), filePath), "utf8"))
     .join("\n");
+}
+
+function resourcesThroughHoldoutV6() {
+  const capabilityE2ResourceIds = new Set(
+    groundedEvaluationCases
+      .filter((item) => item.split === "capability_e2")
+      .flatMap((item) => [
+        ...(item.corpusResourceIds ?? []),
+        ...(item.expectedResourceIds ?? []),
+        ...(item.setupResourceIds ?? []),
+      ])
+  );
+
+  return groundedEvaluationResources.filter(
+    (item) => !capabilityE2ResourceIds.has(item.id)
+  );
 }
