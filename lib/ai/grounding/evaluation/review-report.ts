@@ -16,7 +16,7 @@ import {
   findPresentEvaluationFacts,
 } from "./fact-matching";
 
-export const REVIEW_REPORT_SCHEMA_VERSION = "grounded-runtime-review-report-v1.1";
+export const REVIEW_REPORT_SCHEMA_VERSION = "grounded-runtime-review-report-v1.2";
 export const DEFAULT_REVIEW_REPORT_DIR = ".grounded-evaluation-reports";
 export const GENERATED_ANSWER_REVIEW_CHAR_LIMIT = 12_000;
 export const CITED_EXCERPT_CHAR_LIMIT = 700;
@@ -38,6 +38,8 @@ export interface BuildReviewCaseInput {
   repairUsed?: boolean;
   inputTokens?: number | null;
   outputTokens?: number | null;
+  pipeline?: GroundedEvaluationReviewCase["pipeline"];
+  capabilityDiagnostics?: GroundedEvaluationReviewCase["capabilityDiagnostics"];
 }
 
 export interface BuildReviewReportInput {
@@ -49,6 +51,7 @@ export interface BuildReviewReportInput {
   sourceState: GroundedEvaluationReportSourceState;
   frozenConfig: Record<string, unknown>;
   cases: GroundedEvaluationReviewCase[];
+  pipeline?: GroundedEvaluationReviewReport["pipeline"];
 }
 
 export interface WriteReviewArtifactsOptions {
@@ -110,12 +113,15 @@ export function buildReviewCase(input: BuildReviewCaseInput) {
       inputTokens: validNonNegative(input.inputTokens),
       outputTokens: validNonNegative(input.outputTokens),
     },
+    pipeline: input.pipeline,
+    capabilityDiagnostics: input.capabilityDiagnostics,
   } satisfies GroundedEvaluationReviewCase;
 }
 
 export function buildReviewReport(input: BuildReviewReportInput) {
   const reportWithoutHash = {
     reportSchemaVersion: REVIEW_REPORT_SCHEMA_VERSION,
+    pipeline: input.pipeline,
     split: input.split ?? inferReportSplit(input.cases),
     runId: input.runId,
     runTimestamp: input.runTimestamp,
@@ -205,6 +211,7 @@ export function toReviewMarkdown(report: GroundedEvaluationReviewReport) {
     `# Grounded Evaluation Review ${report.runId}`,
     "",
     `- Schema: \`${report.reportSchemaVersion}\``,
+    `- Pipeline: \`${report.pipeline ?? "legacy"}\``,
     `- Timestamp: \`${report.runTimestamp}\``,
     `- Fixture hash: \`${report.fixtureHash}\``,
     `- Split hash: \`${report.splitHash ?? "not recorded"}\``,
@@ -223,6 +230,7 @@ export function toReviewMarkdown(report: GroundedEvaluationReviewReport) {
       `- Query: ${item.userQuery}`,
       `- Expected: \`${item.expectedClassification}\``,
       `- Actual: \`${item.actualClassification}\``,
+      `- Pipeline: \`${item.pipeline ?? "legacy"}\``,
       `- Answer hash: \`${item.answerContentHash}\``,
       `- Repair used: \`${String(item.repairUsed)}\``,
       `- Regeneration used: \`${String(item.regenerationUsed)}\``,
@@ -271,6 +279,18 @@ export function toReviewMarkdown(report: GroundedEvaluationReviewReport) {
         );
       }
       lines.push("");
+    }
+
+    if (item.capabilityDiagnostics) {
+      lines.push(
+        "Capability diagnostics:",
+        "",
+        `- Provider called: \`${String(item.capabilityDiagnostics.providerCalled)}\``,
+        `- Final classification: \`${item.capabilityDiagnostics.finalClassification}\``,
+        `- Evidence units: \`${item.capabilityDiagnostics.validatedEvidenceUnits.length}\``,
+        `- Conflicts: \`${item.capabilityDiagnostics.detectedConflicts.length}\``,
+        ""
+      );
     }
   }
 
