@@ -226,6 +226,95 @@ describe("Stage 4.1 capability cross-layer contract", () => {
     expect(followUp.requestRequirements.requirements[0]?.dependsOnPreviousTurn).toBe(true);
   });
 
+  it("supports bounded fact lookups without using arbitrary QA fallback", () => {
+    const pastQuestion = expectSupported(
+      "For Mathematics 2021 Question 5, how many blue counters?",
+      [
+        chunk(
+          "Practice paper identifier: Mathematics 2021 Question 5. If there are 20 red counters, there are 25 blue counters. Answer: 25."
+        ),
+      ]
+    );
+    expect(pastQuestion.requestRequirements.requirements[0]?.kind).toBe("FACT_LOOKUP");
+    expect(pastQuestion.evidenceCapabilities[0]?.explicitFacts.length).toBeGreaterThan(0);
+
+    const missing = expectInsufficient("How many blue counters are there?", [
+      chunk("A ratio compares two quantities by division."),
+    ]);
+    expect(missing.decision.requirementResults[0]?.missingComponents).toContain(
+      "how many blue counters are there"
+    );
+  });
+
+  it("supports procedure/method requests across unrelated domains", () => {
+    const algebra = expectSupported("Explain how to find x in x + 5 = 12.", [
+      chunk(
+        "A linear equation can be solved by keeping both sides balanced. For x + 5 = 12, subtract 5 from both sides to get x = 7."
+      ),
+    ]);
+    expect(algebra.requestRequirements.requirements[0]?.kind).toBe("PROCEDURE_METHOD");
+    expect(algebra.decision.validatedEvidenceUnits[0]?.quotedEvidence).toContain(
+      "subtract 5"
+    );
+
+    expectSupported("What steps are used to filter sand from water?", [
+      chunk(
+        "Filtration can be done by pouring the sand and water mixture through filter paper."
+      ),
+    ]);
+
+    expectSupported("How do I balance a chemical equation?", [
+      chunk("A chemical equation can be balanced by changing coefficients until atoms match on both sides."),
+    ]);
+  });
+
+  it("supports relation/effect requests through explicit relation capabilities", () => {
+    expectSupported("How do acids and bases affect litmus paper?", [
+      chunk("Acids turn blue litmus paper red, while bases turn red litmus paper blue."),
+    ]);
+
+    expectSupported("What happens to evaporation when temperature increases?", [
+      chunk("Increasing temperature increases evaporation rate."),
+    ]);
+
+    expectSupported("What effect does force have on acceleration?", [
+      chunk("Increasing force changes acceleration."),
+    ]);
+  });
+
+  it("supports event-condition facts without canonicalising the whole question", () => {
+    expectSupported("What is the probability of an even number on a fair die?", [
+      chunk(
+        "For a fair six-sided die, the probability of rolling an even number is 3 out of 6, which simplifies to 1/2."
+      ),
+    ]);
+
+    expectSupported("What is the probability of heads on a fair coin?", [
+      chunk("For a fair coin, the probability of getting heads is 1 out of 2."),
+    ]);
+
+    expectSupported("What is the chance of choosing a vowel from these letters?", [
+      chunk("For the letters A, B, C, the chance of choosing a vowel is 1 out of 3."),
+    ]);
+  });
+
+  it("supports bounded passage interpretation requests", () => {
+    expectSupported("What is the main idea of a paragraph?", [
+      chunk(
+        "The main idea is the central point of a paragraph or passage. Supporting details explain the main idea."
+      ),
+    ]);
+
+    expectSupported("What is this passage mainly about?", [
+      chunk("The passage is mainly about how plants need light to grow."),
+    ]);
+
+    const missing = expectInsufficient("Which statement best summarises the paragraph?", [
+      chunk("The paragraph gives three dates and names but no central point."),
+    ]);
+    expect(missing.decision.requirementResults[0]?.status).toBe("MISSING");
+  });
+
   it("keeps wrong-concept and negated-support evidence insufficient", () => {
     expectInsufficient("What is median?", [
       chunk("A ratio compares two quantities."),
