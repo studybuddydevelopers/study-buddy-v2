@@ -148,19 +148,9 @@ export function extractEvidenceCapability(chunk: AuthorizedEvidenceChunk): Evide
       continue;
     }
 
-    const formulaSymbolDefinitions = extractSymbolDefinitions(sentence, state);
-    const formulas = extractFormulas(sentence, state, formulaSymbolDefinitions);
+    const symbolDefinitions = extractSymbolDefinitions(sentence, state);
+    const formulas = extractFormulas(sentence, state, symbolDefinitions);
     capability.formulas.push(...formulas);
-    capability.symbolDefinitions.push(...formulaSymbolDefinitions);
-
-    const symbolDefinitions = extractSymbolDefinitions(sentence, state).filter(
-      (candidate) =>
-        !formulaSymbolDefinitions.some(
-          (existing) =>
-            existing.symbol.normalized === candidate.symbol.normalized &&
-            existing.evidenceSpan.startOffset === candidate.evidenceSpan.startOffset
-        )
-    );
     capability.symbolDefinitions.push(...symbolDefinitions);
 
     capability.conceptDefinitions.push(...extractConceptDefinitions(sentence, state));
@@ -289,6 +279,26 @@ function extractConceptDefinitions(
     }
   }
 
+  const saysDefinition = text.match(
+    /^(?:(?:an|a|the)\s+)?(.+?)\s+(says?|states?)\s+(.+)$/i
+  );
+  if (saysDefinition && !isFormulaLike(text)) {
+    const concept = cleanConcept(saysDefinition[1] ?? "");
+    const definitionText = `${saysDefinition[2] ?? ""} ${saysDefinition[3] ?? ""}`.trim();
+    if (concept && definitionText && !/\bnot\b/i.test(definitionText)) {
+      return [
+        createConceptDefinition({
+          state,
+          span: sentence,
+          concept,
+          definitionText,
+          polarity: "POSITIVE",
+          confidence: "HIGH",
+        }),
+      ];
+    }
+  }
+
   const definitionMatch =
     text.match(/^(?:(?:an|a|the)\s+)?(.+?)\s+(?:is|are|means|refers to)\s+(.+)$/i) ??
     text.match(/^(?:(?:an|a|the)\s+)?(.+?)\s+(shows?)\s+how\s+(.+)$/i) ??
@@ -326,20 +336,27 @@ function extractFormulas(
     /\b([A-Za-z][A-Za-z ]{1,40}?|[A-Za-z\u0370-\u03ff][A-Za-z0-9_\u0370-\u03ff]*)\s*=\s*([^.;]+?)(?=,?\s+where\b|[.;]|$)/gi;
   let match: RegExpExecArray | null;
   while ((match = formulaPattern.exec(sentence.text)) !== null) {
-    const left = normalizeFormulaLeft(match[1] ?? "");
+    const rawLeft = match[1] ?? "";
+    const left = normalizeFormulaLeft(rawLeft);
     const right = normalizeFormulaSide(match[2] ?? "");
     if (!left || !right || !isFormulaRightSide(right)) continue;
 
     const expression = `${left} = ${right}`;
     const symbols = extractFormulaSymbols(expression);
-    const inferredConcept = inferFormulaConcept(sentence.text, match.index, left, state);
+    const inferredConcept = inferFormulaConcept(
+      sentence.text,
+      match.index,
+      rawLeft,
+      left,
+      state
+    );
     formulas.push({
       id: nextCapabilityId(state, "formula"),
       resourceChunkId: state.chunk.resourceChunkId,
       sourceLabel: state.chunk.sourceLabel,
       evidenceSpan: sliceSentenceSpan(sentence, match.index, match[0].length),
       confidence: "HIGH",
-      canonicalConcept: canonicalizeFormulaConcept(left, state) ?? inferredConcept,
+      canonicalConcept: inferredConcept ?? canonicalizeFormulaConcept(left, state),
       expression,
       normalizedExpression: normalizeFormulaExpression(expression),
       outputQuantity: normalizeFormulaOutput(left),
@@ -362,26 +379,50 @@ function extractSymbolDefinitions(
 ): SymbolCapability[] {
   const definitions: SymbolCapability[] = [];
   const seen = new Set<string>();
-  const patterns: RegExp[] = [
-    /\b([A-Za-z\u0370-\u03ff][A-Za-z0-9_\u0370-\u03ff]*|lambda|rho|theta|alpha|beta|gamma|pi|delta|[λρθαβγπδ])\s+(means|represents|denotes|stands for|is)\s+([^,.;]+)(?=[,.;]|$)/gi,
-    /([λρθαβγπδ])\s+(means|represents|denotes|stands for|is)\s+([^,.;]+)(?=[,.;]|$)/gi,
-    /\bwhere\s+([A-Za-z\u0370-\u03ff][A-Za-z0-9_\u0370-\u03ff]*|lambda|rho|theta|alpha|beta|gamma|pi|delta|[λρθαβγπδ])\s+(?:means|represents|denotes|stands for|is)\s+([^,.;]+)(?=[,.;]|$)/gi,
-    /\b([A-Za-z\u0370-\u03ff][A-Za-z0-9_\u0370-\u03ff]*|lambda|rho|theta|alpha|beta|gamma|pi|delta|[λρθαβγπδ])\s*=\s*([A-Za-z][A-Za-z ]{2,40})(?=[,.;]|$)/gi,
+  const symbolToken = String.raw`([A-Za-z\u0370-\u03ff][A-Za-z0-9_\u0370-\u03ff]*|lambda|rho|theta|alpha|beta|gamma|pi|delta|[λρθαβγπδ])`;
+  const symbolStart = String.raw`(?:\b|(?=[λρθαβγπδ]))`;
+  const definitionVerb = String.raw`(?:means|represents|denotes|stands for|is)`;
+  const nextDefinition = String.raw`(?:,?\s+and\s+|,\s*)${symbolToken}\s+${definitionVerb}\b`;
+  const definitionEnd = String.raw`(?=${nextDefinition}|,?\s+but\b|[.;]|$)`;
+  const patterns: Array<{ pattern: RegExp; meaningIndex: number }> = [
+    {
+      pattern: new RegExp(
+        String.raw`${symbolStart}${symbolToken}\s+${definitionVerb}\s+(.+?)${definitionEnd}`,
+        "gi"
+      ),
+      meaningIndex: 2,
+    },
+    {
+      pattern: new RegExp(
+        String.raw`\bwhere\s+${symbolStart}${symbolToken}\s+${definitionVerb}\s+(.+?)${definitionEnd}`,
+        "gi"
+      ),
+      meaningIndex: 2,
+    },
+    {
+      pattern: new RegExp(
+        String.raw`\bdefines?\s+${symbolStart}${symbolToken}\s+as\s+(.+?)${definitionEnd}`,
+        "gi"
+      ),
+      meaningIndex: 2,
+    },
+    {
+      pattern: new RegExp(
+        String.raw`${symbolStart}${symbolToken}\s*=\s*([A-Za-z][A-Za-z ]{2,40})(?=[,.;]|$)`,
+        "gi"
+      ),
+      meaningIndex: 2,
+    },
   ];
 
-  for (const pattern of patterns) {
+  for (const { pattern, meaningIndex } of patterns) {
     let match: RegExpExecArray | null;
     while ((match = pattern.exec(sentence.text)) !== null) {
       const rawSymbol = match[1] ?? "";
       const symbol = normalizeSymbol(rawSymbol);
       if (!symbol) continue;
 
-      const meaning =
-        pattern.source.includes("where\\s+")
-          ? match[2] ?? ""
-          : pattern.source.includes("\\s*=\\s*")
-            ? match[2] ?? ""
-            : match[3] ?? "";
+      const meaning = match[meaningIndex] ?? "";
       if (!meaning || isFormulaRightSide(meaning) || /^not\s+(?:defined|given|provided|stated)/i.test(meaning)) {
         continue;
       }
@@ -401,10 +442,14 @@ function extractSymbolDefinitions(
     }
   }
 
-  const negated = sentence.text.match(
-    /\b([A-Za-z\u0370-\u03ff][A-Za-z0-9_\u0370-\u03ff]*|lambda|rho|theta|alpha|beta|gamma|pi|delta|[λρθαβγπδ])\s+is\s+not\s+defined\b/i
-  );
-  if (negated) {
+  const negatedPatterns = [
+    new RegExp(String.raw`${symbolStart}${symbolToken}\s+is\s+not\s+defined\b`, "i"),
+    new RegExp(String.raw`\bdoes\s+not\s+define\s+${symbolStart}${symbolToken}\b`, "i"),
+    new RegExp(String.raw`\bgives?\s+no\s+meaning\s+for\s+${symbolStart}${symbolToken}\b`, "i"),
+  ];
+  for (const pattern of negatedPatterns) {
+    const negated = sentence.text.match(pattern);
+    if (!negated) continue;
     const symbol = normalizeSymbol(negated[1] ?? "");
     if (symbol) {
       definitions.push(
@@ -427,6 +472,37 @@ function extractNumericValues(
   state: CapabilityState
 ): NumericCapability[] {
   const values: NumericCapability[] = [];
+  for (const match of sentence.text.matchAll(
+    /\b([A-Za-z][A-Za-z0-9 ]{0,40}?)\s+(?:costs?|charges?)\s+([-+]?\d+(?:\.\d+)?)\s*(naira|ngn|₦|£|\$|dollars?|pounds?)\s+for\s+([-+]?\d+(?:\.\d+)?)\s*([A-Za-z][A-Za-z0-9/ ]{0,24})\b/gi
+  )) {
+    const qualifier = cleanConcept(match[1] ?? "");
+    const price = Number(match[2]);
+    const priceUnit = normalizeUnit(match[3]);
+    const quantity = Number(match[4]);
+    const quantityUnit = normalizeUnit(match[5]);
+    if (!qualifier || !Number.isFinite(price) || !Number.isFinite(quantity)) continue;
+    values.push(
+      createNumericValue({
+        state,
+        span: sliceSentenceSpan(sentence, match.index ?? 0, match[0].length),
+        quantity: "cost",
+        qualifier,
+        value: price,
+        unit: priceUnit,
+        role: "PRICE",
+      }),
+      createNumericValue({
+        state,
+        span: sliceSentenceSpan(sentence, match.index ?? 0, match[0].length),
+        quantity: "quantity",
+        qualifier,
+        value: quantity,
+        unit: quantityUnit,
+        role: "QUANTITY",
+      })
+    );
+  }
+
   const qualified = sentence.text.match(
     /\b(?:the\s+)?([A-Za-z][A-Za-z ]{1,40}?)\s+(?:across|in|of|for)\s+(?:the\s+)?([A-Za-z][A-Za-z ]{1,40}?)\s+is\s+([-+]?\d+(?:\.\d+)?)\s*([A-Za-z%/²³]+)\b/i
   );
@@ -439,6 +515,7 @@ function extractNumericValues(
         qualifier: cleanConcept(qualified[2] ?? ""),
         value: Number(qualified[3]),
         unit: qualified[4],
+        role: inferNumericRole(qualified[1] ?? "", qualified[4]),
       })
     );
     return values;
@@ -455,6 +532,7 @@ function extractNumericValues(
         quantity: cleanConcept(direct[1] ?? ""),
         value: Number(direct[2]),
         unit: direct[3],
+        role: inferNumericRole(direct[1] ?? "", direct[3]),
       })
     );
   }
@@ -475,6 +553,7 @@ function extractNumericValues(
           quantity: inferNumericQuantity(sentence.text, match.index ?? 0, unit),
           value,
           unit,
+          role: inferNumericRole(inferNumericQuantity(sentence.text, match.index ?? 0, unit), unit),
         })
       );
     }
@@ -660,6 +739,16 @@ function extractComparisonSides(
       sentence,
       side: cleanConcept(allow[1] ?? ""),
       fact: cleanMeaning(`${allow[2] ?? ""} ${allow[3] ?? ""}`.trim()),
+    });
+  }
+
+  const says = sentence.text.match(/\b(?:an|a|the)?\s*(.+?)\s+(says?|states?)\s+(.+)$/i);
+  if (says && !isFormulaLike(sentence.text)) {
+    return createComparisonSide({
+      state,
+      sentence,
+      side: cleanConcept(says[1] ?? ""),
+      fact: cleanMeaning(`${says[2] ?? ""} ${says[3] ?? ""}`.trim()),
     });
   }
 
@@ -980,6 +1069,7 @@ function createNumericValue(input: {
   value: number;
   unit?: string;
   qualifier?: string;
+  role?: NumericCapability["role"];
 }): NumericCapability {
   return {
     id: nextCapabilityId(input.state, "numeric"),
@@ -992,6 +1082,7 @@ function createNumericValue(input: {
     value: input.value,
     unit: input.unit,
     qualifier: input.qualifier,
+    role: input.role,
   };
 }
 
@@ -1079,14 +1170,22 @@ function canonicalizeFormulaConcept(
 function inferFormulaConcept(
   sentenceText: string,
   formulaStart: number,
+  rawLeft: string,
   left: string,
   state: CapabilityState
 ): CanonicalConcept | undefined {
   const prefix = sentenceText.slice(0, formulaStart).replace(/[:;,]\s*$/g, "").trim();
-  const normalizedPrefix = normalizeConceptText(prefix);
+  const leftContext = rawLeft
+    .replace(new RegExp(`${escapeRegExp(left)}\\s*$`, "i"), "")
+    .trim();
+  const contextText = compactStrings([prefix, leftContext])
+    .join(" ")
+    .replace(/[:;,]\s*$/g, "")
+    .trim();
+  const normalizedPrefix = normalizeConceptText(contextText);
 
   const ohmsLaw =
-    prefix.toLowerCase().match(/\bohm'?s law\b/) ??
+    contextText.toLowerCase().match(/\bohm'?s law\b/) ??
     normalizedPrefix.match(/\bohm'?s law\b/);
   if (ohmsLaw) return canonicalizeConcept(ohmsLaw[0], state.chunk);
 
@@ -1095,8 +1194,13 @@ function inferFormulaConcept(
     return canonicalizeConcept(`${scopedResistance[1]} resistance rule`, state.chunk);
   }
 
-  if (normalizeSymbol(left)) return undefined;
-  return undefined;
+  const candidates = [
+    normalizedPrefix.match(/\b(.+?)\s+(?:formula|relation|equation)\s*(?:is|equals?|:)?$/i)?.[1],
+    normalizedPrefix.match(/\b(.+?)\s+(?:is|are|equals?)$/i)?.[1],
+    normalizedPrefix,
+  ].map((candidate) => cleanFormulaConceptCandidate(candidate ?? ""));
+  const candidate = candidates.find(Boolean);
+  return candidate ? canonicalizeConcept(candidate, state.chunk) : undefined;
 }
 
 function extractFormulaSymbols(expression: string): SymbolReference[] {
@@ -1128,6 +1232,20 @@ function normalizeFormulaExpression(expression: string): string {
     .replace(/−/g, "-");
 }
 
+function cleanFormulaConceptCandidate(value: string): string {
+  let cleaned = cleanConcept(value)
+    .replace(/^for\s+.+?,\s*/, "")
+    .replace(/^(?:for\s+)?(?:a|an|the)\s+/, "")
+    .replace(/\b(?:formula|relation|equation|equals?|is|are|states?|that|found by)\b/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+  const areaOf = cleaned.match(/^area\s+of\s+(.+)$/i);
+  if (areaOf) {
+    cleaned = `${cleanConcept(areaOf[1] ?? "")} area`.trim();
+  }
+  return cleaned;
+}
+
 function normalizeFormulaSide(side: string): string {
   return side
     .replace(/\b(?:formula|is|equals?)\b/gi, "")
@@ -1139,7 +1257,7 @@ function normalizeFormulaLeft(side: string): string {
   const cleaned = normalizeFormulaSide(side);
   const tokens = cleaned.split(/\s+/).filter(Boolean);
   const lastToken = tokens[tokens.length - 1];
-  if (tokens.length > 1 && lastToken && normalizeSymbol(lastToken)) {
+  if (tokens.length > 1 && lastToken && (normalizeSymbol(lastToken) || /^[A-Z]{2,5}$/.test(lastToken))) {
     return lastToken;
   }
   return cleaned;
@@ -1150,6 +1268,17 @@ function normalizeFormulaOutput(output: string): string | undefined {
   if (symbol) return symbol.normalized;
   const cleaned = cleanConcept(output);
   return cleaned || undefined;
+}
+
+function inferNumericRole(quantity: string, unit?: string): NumericCapability["role"] {
+  const normalized = normalizeConceptText(`${quantity} ${unit ?? ""}`);
+  if (/\b(price|cost|charge|fee|fare|naira|ngn|₦|£|\$|dollar|pound)\b/.test(normalized)) {
+    return "PRICE";
+  }
+  if (/\b(quantity|items?|count|number|pack|pens?|bottles?|pages?|gb|gbs|kilometres?|kilometers?|miles?)\b/.test(normalized)) {
+    return "QUANTITY";
+  }
+  return "VALUE";
 }
 
 function isFormulaRightSide(value: string): boolean {
@@ -1246,6 +1375,10 @@ function uniqueStrings(values: string[]): string[] {
 
 function compactStrings(values: Array<string | undefined>): string[] {
   return values.map((value) => value ?? "").filter(Boolean);
+}
+
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
 function dedupeBy<T>(items: T[], getKey: (item: T) => string): T[] {
