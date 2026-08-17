@@ -42,10 +42,14 @@ function expectCapabilityProvenance(capability: EvidenceCapability) {
     ...capability.formulas,
     ...capability.symbolDefinitions,
     ...capability.numericValues,
+    ...capability.explicitFacts,
+    ...capability.methods,
+    ...capability.eventFacts,
     ...capability.relations,
     ...capability.comparisonSides,
     ...capability.processFacts,
     ...capability.consequences,
+    ...capability.passageInterpretations,
     ...(capability.unsafeContent ?? []),
   ];
 
@@ -145,6 +149,54 @@ describe("Stage 4.1 evidence capability extraction", () => {
     });
   });
 
+  it("extracts bounded explicit facts without treating every sentence as a fact", () => {
+    const capability = extract(
+      "Practice paper identifier: Mathematics 2021 Question 5. If there are 20 red counters, there are 25 blue counters. A ratio compares quantities."
+    );
+
+    expect(capability.explicitFacts.map((fact) => fact.factKey)).toEqual([
+      "practice paper identifier",
+      "question 5",
+      "20 red counters",
+      "25 blue counters",
+    ]);
+    expect(capability.explicitFacts.every((fact) => fact.polarity === "POSITIVE")).toBe(
+      true
+    );
+    expect(capability.conceptDefinitions.some((definition) =>
+      /ratio compares/.test(definition.evidenceSpan.text)
+    )).toBe(true);
+  });
+
+  it("extracts generic method capabilities across domains", () => {
+    const capability = extract(
+      "A linear equation can be solved by keeping both sides balanced. For x + 5 = 12, subtract 5 from both sides to get x = 7. Filtration can be done by pouring the mixture through filter paper."
+    );
+
+    expect(capability.methods.map((method) => method.method)).toEqual([
+      "linear equation",
+      "x + 5 = 12",
+      "filtration",
+    ]);
+    expect(capability.methods.map((method) => method.stepsText)).toContain(
+      "subtract 5 from both sides to get x = 7"
+    );
+  });
+
+  it("extracts event outcome facts for probability-style evidence", () => {
+    const capability = extract(
+      "For a fair six-sided die, the probability of rolling an even number is 3 out of 6, which simplifies to 1/2."
+    );
+
+    expect(capability.eventFacts).toHaveLength(1);
+    expect(capability.eventFacts[0]).toMatchObject({
+      event: "rolling an even number fair six-sided die",
+      outcomeText: "3 out of 6, which simplifies to 1/2",
+      numericValues: ["3 out of 6", "1/2"],
+      polarity: "POSITIVE",
+    });
+  });
+
   it("extracts explicit relations without inferring mechanisms", () => {
     const capability = extract("Increasing temperature increases evaporation rate.");
 
@@ -154,6 +206,27 @@ describe("Stage 4.1 evidence capability extraction", () => {
       relation: "increases",
       object: "evaporation rate",
       polarity: "POSITIVE",
+    });
+  });
+
+  it("extracts relation/effect clauses across domains", () => {
+    const chemistry = extract(
+      "Acids turn blue litmus paper red, while bases turn red litmus paper blue."
+    );
+    expect(chemistry.relations.map((relation) => [
+      relation.subject,
+      relation.relation,
+      relation.object,
+    ])).toEqual([
+      ["acids", "turn", "blue litmus paper red"],
+      ["bases", "turn", "red litmus paper blue"],
+    ]);
+
+    const physics = extract("Increasing force changes acceleration.");
+    expect(physics.relations[0]).toMatchObject({
+      subject: "increasing force",
+      relation: "changes",
+      object: "acceleration",
     });
   });
 
@@ -167,6 +240,37 @@ describe("Stage 4.1 evidence capability extraction", () => {
     expect(capability.processFacts[0]?.fact).toBe(
       "Filtration uses a filter to separate an insoluble solid from a liquid"
     );
+  });
+
+  it("extracts process facts from explicit process-by-which definitions only", () => {
+    const process = extract(
+      "Photosynthesis is the process by which green plants use light energy to make glucose."
+    );
+    expect(process.processFacts).toHaveLength(1);
+    expect(process.processFacts[0]).toMatchObject({
+      process: "photosynthesis",
+      fact: "Photosynthesis is the process by which green plants use light energy to make glucose",
+    });
+
+    const plainDefinition = extract("Filtration is a separation technique.");
+    expect(plainDefinition.processFacts).toHaveLength(0);
+  });
+
+  it("extracts passage interpretation capabilities", () => {
+    const capability = extract(
+      "The main idea is the central point of a paragraph or passage. Supporting details explain the main idea."
+    );
+
+    expect(capability.passageInterpretations).toEqual([
+      expect.objectContaining({
+        interpretationType: "MAIN_IDEA",
+        interpretationText: "the central point of a paragraph or passage",
+      }),
+      expect.objectContaining({
+        interpretationType: "EXPLICIT_DETAIL",
+        interpretationText: "the main idea",
+      }),
+    ]);
   });
 
   it("extracts explicit consequences", () => {
