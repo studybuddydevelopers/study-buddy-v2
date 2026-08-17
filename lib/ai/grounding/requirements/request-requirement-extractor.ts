@@ -91,6 +91,9 @@ function buildRequirementDrafts(
   const multiOption = buildMultiOptionRequirement(question);
   if (multiOption) return [withContext(multiOption, context)];
 
+  const ratio = buildRatioRequirement(question);
+  if (ratio) return [withContext(ratio, context)];
+
   const calculation = buildCalculationRequirement(question);
   if (calculation) return [withContext(calculation, context)];
 
@@ -105,6 +108,9 @@ function buildRequirementDrafts(
 
   const formula = buildFormulaRequirement(question, context);
   if (formula) return [withContext(formula, context)];
+
+  const formulaConcept = buildFormulaConceptRequirement(question, context);
+  if (formulaConcept) return [withContext(formulaConcept, context)];
 
   const multiPart = buildMultiPartRequirement(question, context);
   if (multiPart) return [withContext(multiPart, context)];
@@ -132,6 +138,25 @@ function buildRequirementDrafts(
   ];
 }
 
+function buildRatioRequirement(question: string): RequirementDraft | undefined {
+  if (/\bsimplif(?:y|ying|ies)\b/i.test(question) && /\bratios?\b/i.test(question)) {
+    return {
+      kind: "CONCEPT_DEFINITION",
+      targetConcepts: ["simplifying a ratio"],
+    };
+  }
+
+  if (!/\b(compare|comparison|compares|amounts?|quantit(?:y|ies)|parts?)\b/i.test(question)) {
+    return undefined;
+  }
+  if (!/\b\d+\s*(?::|to)\s*\d+\b/i.test(question)) return undefined;
+
+  return {
+    kind: "CONCEPT_DEFINITION",
+    targetConcepts: ["ratio"],
+  };
+}
+
 function buildMultiOptionRequirement(question: string): RequirementDraft | undefined {
   if (!/\b(which|choose|select|best|cheapest|cheaper|lowest|highest)\b/i.test(question)) {
     return undefined;
@@ -152,7 +177,11 @@ function buildMultiOptionRequirement(question: string): RequirementDraft | undef
 }
 
 function buildCalculationRequirement(question: string): RequirementDraft | undefined {
-  if (!/\b(calculate|work out|compute|determine|find)\b/i.test(question)) {
+  if (
+    !/\b(calculate|work out|compute|determine|find|show how|explain how)\b/i.test(
+      question
+    )
+  ) {
     return undefined;
   }
 
@@ -160,7 +189,16 @@ function buildCalculationRequirement(question: string): RequirementDraft | undef
     firstMatch(
       question,
       /\b(?:calculate|work out|compute|determine|find)\s+(?:the\s+)?(.+?)(?:\s+(?:from|when|if|given|using|where|with)\b|[?.]|$)/i
-    ) ?? "";
+    ) ??
+    firstMatch(
+      question,
+      /\b(?:show how|explain how).+?\b(?:gives?|finds?|produces?)\s+(?:the\s+)?(.+?)(?:[?.]|$)/i
+    ) ??
+    firstMatch(
+      question,
+      /\b(?:sale price|new value|discount amount|percentage increase|percentage decrease|percentage of)\b/i
+    ) ??
+    "";
 
   return {
     kind: "CALCULATION",
@@ -230,6 +268,24 @@ function buildFormulaRequirement(
   };
 }
 
+function buildFormulaConceptRequirement(
+  question: string,
+  context: RequirementBuildContext
+): RequirementDraft | undefined {
+  const concept =
+    firstMatch(
+      question,
+      /\b(?:teach|explain|state|give|describe)\s+(?:me\s+)?(.+?\blaw)\b/i
+    ) ??
+    firstMatch(question, /\b(.+?\blaw)\b.+\b(?:units?|symbols?|formula)\b/i);
+  if (!concept) return undefined;
+
+  return {
+    kind: "FORMULA",
+    targetConcepts: compactStrings([cleanConcept(concept), context.contextConcept]),
+  };
+}
+
 function buildSymbolDefinitionRequirement(question: string): RequirementDraft | undefined {
   const symbol = extractPrimarySymbolRequest(question);
   if (!symbol) return undefined;
@@ -248,6 +304,25 @@ function buildMultiPartRequirement(
   if (!/\b(state|list|name|give|mention)\b/i.test(question)) return undefined;
   if (!/\band\b/i.test(question)) return undefined;
   if (/\b(compare|calculate|formula)\b/i.test(question)) return undefined;
+
+  const scopedRule = question.match(
+    /\b(?:state|list|name|give|mention)\s+(?:the\s+)?(.+?)\s+and\s+(.+?)\s+(.+?\brules?)\b/i
+  );
+  if (scopedRule) {
+    const first = cleanConcept(scopedRule[1] ?? "");
+    const second = cleanConcept(scopedRule[2] ?? "");
+    const base = cleanConcept(scopedRule[3] ?? "");
+    const firstTarget = compactStrings([first, base]).join(" ");
+    const secondTarget = compactStrings([second, base]).join(" ");
+    return {
+      kind: "MULTI_PART",
+      targetConcepts: compactStrings([firstTarget, secondTarget]),
+      childRequirements: [firstTarget, secondTarget].map((target) => ({
+        kind: "FORMULA",
+        targetConcepts: compactStrings([target]),
+      })),
+    };
+  }
 
   const rustingTarget =
     firstMatch(question, /\bconditions?\s+for\s+(.+?)\s+and\b/i) ??
@@ -339,10 +414,18 @@ function buildDefinitionRequirement(
 ): RequirementDraft | undefined {
   const concept =
     firstMatch(question, /\bwhat\s+(?:is|are)\s+(.+?)(?:[?.]|$)/i) ??
+    firstMatch(question, /\bwhat\s+does\s+(.+?)\s+(?:mean|means|refer to|describe)\b/i) ??
     firstMatch(question, /\bdefine\s+(.+?)(?:[?.]|$)/i) ??
     firstMatch(question, /\b(?:state|give)\s+(?:the\s+)?meaning\s+of\s+(.+?)(?:[?.]|$)/i);
 
   if (!concept && !context.contextConcept) return undefined;
+
+  if (!concept && context.contextConcept && /\bequivalent forms?\b/i.test(question)) {
+    return {
+      kind: "CONCEPT_DEFINITION",
+      targetConcepts: compactStrings([`equivalent ${context.contextConcept}`]),
+    };
+  }
 
   return {
     kind: "CONCEPT_DEFINITION",
@@ -482,7 +565,7 @@ function resolveRecentContext(messages: RequestContextMessage[], limit: number) 
 function isContextualFollowUp(question: string): boolean {
   return /\b(it|its|that|this|this quantity|that quantity|that process|that formula)\b/i.test(
     question
-  );
+  ) || /\b(equivalent forms?|these forms?|those forms?)\b/i.test(question);
 }
 
 function hasExplicitCurrentConcept(question: string): boolean {
@@ -565,7 +648,15 @@ function extractNumericInputs(question: string): string[] {
     inputs.add(normalizeQuestion(match[0] ?? ""));
   }
   for (const match of question.matchAll(/\b[-+]?\d+(?:\.\d+)?\s*[A-Za-z]+(?:\/[A-Za-z]+)?\b/g)) {
-    inputs.add(normalizeQuestion(match[0] ?? ""));
+    const input = normalizeQuestion(match[0] ?? "");
+    if (!/\b(?:give|gives|is|are|so|then|from|with|using)\b$/i.test(input)) {
+      inputs.add(input);
+    }
+  }
+  if (/\b(percent|percentage|discount|increase|decrease|sale price|new value)\b/i.test(question)) {
+    for (const match of question.matchAll(/\b[-+]?\d+(?:\.\d+)?\b/g)) {
+      inputs.add(normalizeQuestion(match[0] ?? ""));
+    }
   }
   return [...inputs];
 }
