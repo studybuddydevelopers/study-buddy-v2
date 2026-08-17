@@ -74,6 +74,17 @@ export class CapabilityGroundingPipeline implements GroundingPipeline {
           promptVersion: CAPABILITY_GROUNDED_PROMPT_VERSION,
           retrievalQuery,
           requestRequirements,
+          evidenceCapabilities: [],
+          detectedConflicts: [],
+          answerabilityDecision: {
+            classification: "INSUFFICIENT_CONTEXT",
+            requirementResults: [],
+            validatedEvidenceUnits: [],
+            refusalReason: "MISSING_REQUIRED_EVIDENCE",
+          },
+          validatedEvidenceUnits: [],
+          providerCalled: false,
+          repairResult: { attempted: false, successful: false },
         },
       };
     }
@@ -120,7 +131,10 @@ export class CapabilityGroundingPipeline implements GroundingPipeline {
       return {
         kind: "FAILED",
         failureCode: AiGenerationFailureCode.INVALID_PROVIDER_RESPONSE,
-        diagnostics: diagnosticsBase,
+        diagnostics: {
+          ...diagnosticsBase,
+          providerCalled: false,
+        },
       };
     }
 
@@ -144,6 +158,7 @@ export class CapabilityGroundingPipeline implements GroundingPipeline {
       });
       const diagnostics = {
         ...diagnosticsBase,
+        providerCalled: true,
         generationOutput: result.value,
         narrowValidatorResult: validation,
       };
@@ -171,7 +186,10 @@ export class CapabilityGroundingPipeline implements GroundingPipeline {
       return {
         kind: "FAILED",
         failureCode: getSafeProviderFailureCode(error),
-        diagnostics: diagnosticsBase,
+        diagnostics: {
+          ...diagnosticsBase,
+          providerCalled: true,
+        },
       };
     }
   }
@@ -299,8 +317,13 @@ function buildDiagnostics(input: {
     retrievalQuery: input.retrievalQuery,
     requestRequirements: input.requestRequirements,
     evidenceCapabilities: input.evidenceCapabilities,
+    detectedConflicts: input.evidenceCapabilities.flatMap(
+      (capability) => capability.conflicts
+    ),
     answerabilityDecision: input.answerabilityDecision,
     validatedEvidenceUnits: input.answerabilityDecision.validatedEvidenceUnits,
+    providerCalled: false,
+    repairResult: { attempted: false, successful: false },
   };
 }
 
