@@ -692,6 +692,8 @@ function firstMatch(
 function cleanConcept(value: string): string {
   const cleaned = normalizeQuestion(value)
     .replace(/[?.!]+$/g, "")
+    .replace(/\s+as\s+.+$/i, "")
+    .replace(/\s+in\s+(?:physics|chemistry|biology|mathematics|maths|english|geography|science)$/i, "")
     .replace(/^(?:a|an|the|this|that|its)\s+/i, "")
     .replace(/\b(?:formula|process|method|rule|conditions?|ways?|one|two|three)\b/gi, " ")
     .replace(/\s+/g, " ")
