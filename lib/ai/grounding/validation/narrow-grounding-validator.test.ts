@@ -23,15 +23,15 @@ function response(overrides: {
   text?: string;
   sourceLabels?: string[];
   evidenceUnitIds?: string[];
+  requirementIds?: string[];
 } = {}) {
   return {
     answerSegments: [
       {
         text: overrides.text ?? "Speed is found by dividing distance by time.",
         sourceLabels: overrides.sourceLabels ?? ["SOURCE_1"],
-        ...(overrides.evidenceUnitIds
-          ? { evidenceUnitIds: overrides.evidenceUnitIds }
-          : {}),
+        evidenceUnitIds: overrides.evidenceUnitIds ?? ["unit-1"],
+        requirementIds: overrides.requirementIds ?? ["req-1"],
       },
     ],
     insufficientContext: false,
@@ -74,6 +74,54 @@ describe("Stage 4.1 narrow grounding validator", () => {
 
     expect(result.supported).toBe(false);
     expect(result.errors.map((error) => error.code)).toEqual(["INVALID_SCHEMA"]);
+  });
+
+  it("fails unknown requirement ids", () => {
+    const result = validateNarrowGroundedOutput({
+      value: response({ requirementIds: ["req-2"] }),
+      validatedEvidenceUnits: [unit()],
+    });
+
+    expect(result.supported).toBe(false);
+    expect(result.errors.map((error) => error.code)).toContain("UNKNOWN_REQUIREMENT_ID");
+  });
+
+  it("fails requirement ids that are not supported by the cited evidence unit", () => {
+    const result = validateNarrowGroundedOutput({
+      value: response({
+        evidenceUnitIds: ["unit-2"],
+        requirementIds: ["req-1"],
+      }),
+      validatedEvidenceUnits: [
+        unit(),
+        unit({
+          id: "unit-2",
+          supportsRequirementIds: ["req-2"],
+        }),
+      ],
+    });
+
+    expect(result.supported).toBe(false);
+    expect(result.errors.map((error) => error.code)).toContain(
+      "UNAUTHORISED_REQUIREMENT_ID"
+    );
+  });
+
+  it("fails when a required task is not covered by any segment", () => {
+    const result = validateNarrowGroundedOutput({
+      value: response({ requirementIds: ["req-1"] }),
+      validatedEvidenceUnits: [
+        unit(),
+        unit({
+          id: "unit-2",
+          sourceLabel: "SOURCE_2",
+          supportsRequirementIds: ["req-2"],
+        }),
+      ],
+    });
+
+    expect(result.supported).toBe(false);
+    expect(result.errors.map((error) => error.code)).toContain("MISSING_REQUIRED_TASK");
   });
 
   it("fails uncited required segments", () => {
@@ -157,6 +205,29 @@ describe("Stage 4.1 narrow grounding validator", () => {
 
     expect(result.supported).toBe(false);
     expect(result.errors.map((error) => error.code)).toContain("INVALID_ARITHMETIC");
+  });
+
+  it("does not treat algebraic equation steps as invalid numeric arithmetic", () => {
+    const result = validateNarrowGroundedOutput({
+      value: response({
+        text: "For x + 5 = 12, subtract 5 from both sides to get x = 7.",
+      }),
+      validatedEvidenceUnits: [
+        unit({
+          quotedEvidence: "For x + 5 = 12, subtract 5 from both sides to get x = 7",
+          evidenceSpans: [
+            {
+              text: "For x + 5 = 12, subtract 5 from both sides to get x = 7",
+              startOffset: 0,
+              endOffset: 56,
+            },
+          ],
+          allowedUses: ["PROCESS", "CALCULATE"],
+        }),
+      ],
+    });
+
+    expect(result.supported).toBe(true);
   });
 
   it("fails fake citation labels in segment text", () => {
