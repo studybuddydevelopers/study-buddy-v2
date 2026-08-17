@@ -226,6 +226,10 @@ function evaluateDefinitionRequirement(
   context: MatchContext
 ): RequirementMatch {
   const targets = canonicalTargetIds(requirement, context.request);
+  if (targets.length === 0) {
+    return buildMatch(requirement.id, "MISSING", [], ["definition target"], []);
+  }
+
   const supportRefs: CapabilitySupportRef[] = [];
   const missing: string[] = [];
 
@@ -317,11 +321,14 @@ function evaluateCalculationRequirement(
   const missing: string[] = [];
   const formula = findFormula(requirement, context);
   const relation = findRelation(requirement, context);
+  const calculationFact = findCalculationFact(requirement, context);
 
   if (formula) {
     supportRefs.push(supportRef(requirement.id, formula.id, ["CALCULATE", "FORMULA"]));
   } else if (relation) {
     supportRefs.push(supportRef(requirement.id, relation.id, ["CALCULATE", "RELATION"]));
+  } else if (calculationFact) {
+    supportRefs.push(supportRef(requirement.id, calculationFact.id, ["CALCULATE"]));
   } else {
     missing.push("calculation method");
   }
@@ -619,6 +626,49 @@ function findRelation(
   });
 }
 
+function findCalculationFact(
+  requirement: RequestRequirement,
+  context: MatchContext
+): CapabilityFact | ConsequenceCapability | NumericCapability | undefined {
+  const requestedInputs = requirement.requiredInputs ?? [];
+  const targets = canonicalTargetIds(requirement, context.request);
+  const targetTexts = requirement.targetConcepts.map(normalizedText);
+
+  const candidateDefinitions = context.definitions.filter(
+    (definition) => definition.polarity === "POSITIVE"
+  );
+  const definition = candidateDefinitions.find((candidate) => {
+    const combined = normalizedText(
+      `${candidate.canonicalConcept.label} ${candidate.canonicalConcept.aliases.join(" ")} ${candidate.definitionText} ${candidate.evidenceSpan.text}`
+    );
+    return (
+      hasRequestedInputs(combined, requestedInputs) &&
+      (targets.length === 0 ||
+        targetTexts.length === 0 ||
+        targetTexts.some((target) => includesTokens(combined, target)))
+    );
+  });
+  if (definition) return definition;
+
+  const consequence = context.consequences.find((candidate) => {
+    if (candidate.polarity !== "POSITIVE") return false;
+    const combined = normalizedText(`${candidate.cause} ${candidate.effect} ${candidate.evidenceSpan.text}`);
+    return hasRequestedInputs(combined, requestedInputs);
+  });
+  if (consequence) return consequence;
+
+  if (requestedInputs.length > 0) {
+    const matchingNumerics = requestedInputs
+      .map((input) => findNumericInput(input, context))
+      .filter((numeric): numeric is NumericCapability => Boolean(numeric));
+    if (matchingNumerics.length === requestedInputs.length) {
+      return matchingNumerics[0];
+    }
+  }
+
+  return undefined;
+}
+
 function findConsequence(
   requirement: RequestRequirement,
   context: MatchContext
@@ -757,6 +807,21 @@ function parseInputValue(input: string): { value: number; unit?: string } | unde
 function includesTokens(haystack: string, needle: string): boolean {
   const tokens = needle.split(" ").filter((token) => token.length > 2);
   return tokens.length > 0 && tokens.every((token) => haystack.includes(token));
+}
+
+function hasRequestedInputs(text: string, requestedInputs: string[]): boolean {
+  if (requestedInputs.length === 0) return true;
+  return requestedInputs.every((input) => {
+    const parsed = parseInputValue(input);
+    if (!parsed) return false;
+    const valuePattern = new RegExp(`\\b${escapeRegExp(String(parsed.value))}(?:\\.0+)?\\b`);
+    if (!valuePattern.test(text)) return false;
+    return !parsed.unit || text.includes(parsed.unit);
+  });
+}
+
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
 function normalizedText(value: string): string {
