@@ -62,6 +62,20 @@ describe("Stage 4.1 narrow grounding validator", () => {
     expect(result.errors.map((error) => error.code)).toContain("UNKNOWN_SOURCE_LABEL");
   });
 
+  it("fails missing required model fields cleanly", () => {
+    const result = validateNarrowGroundedOutput({
+      value: {
+        answerSegments: [{ text: "Momentum depends on mass and velocity." }],
+        insufficientContext: false,
+        suggestedQuestions: [],
+      },
+      validatedEvidenceUnits: [unit()],
+    });
+
+    expect(result.supported).toBe(false);
+    expect(result.errors.map((error) => error.code)).toEqual(["INVALID_SCHEMA"]);
+  });
+
   it("fails uncited required segments", () => {
     const result = validateNarrowGroundedOutput({
       value: response({ sourceLabels: [] }),
@@ -101,6 +115,32 @@ describe("Stage 4.1 narrow grounding validator", () => {
         evidenceUnitIds: ["unit-1"],
       }),
       validatedEvidenceUnits: [unit()],
+    });
+
+    expect(result.supported).toBe(true);
+  });
+
+  it("accepts correct arithmetic when calculation evidence states operands and result in prose", () => {
+    const result = validateNarrowGroundedOutput({
+      value: response({
+        text:
+          "The profit is 50, so the selling price is 200 + 50 = 250.",
+      }),
+      validatedEvidenceUnits: [
+        unit({
+          quotedEvidence:
+            "A 25 percent profit on 200 is 50, so the selling price is 250",
+          evidenceSpans: [
+            {
+              text:
+                "A 25 percent profit on 200 is 50, so the selling price is 250",
+              startOffset: 0,
+              endOffset: 65,
+            },
+          ],
+          allowedUses: ["CALCULATE"],
+        }),
+      ],
     });
 
     expect(result.supported).toBe(true);
