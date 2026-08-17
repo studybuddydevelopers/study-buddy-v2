@@ -135,6 +135,47 @@ describe("Stage 4.1 request requirement extraction", () => {
     expect(requirement.requestedProcess).toBe("filtration");
   });
 
+  it("extracts bounded factual lookup requests", () => {
+    const count = firstRequirement(
+      "For Mathematics 2021 Question 5, how many blue counters?"
+    );
+    expectKind(count, "FACT_LOOKUP");
+    expect(count.targetConcepts).toEqual(["blue counters"]);
+    expect(count.requestedFact).toBe("how many blue counters");
+
+    const probability = firstRequirement(
+      "What is the probability of an even number on a fair die?"
+    );
+    expectKind(probability, "FACT_LOOKUP");
+    expect(probability.targetConcepts).toEqual(["probability"]);
+    expect(probability.requestedEvent).toBe("even number on a fair die");
+
+    const identifier = firstRequirement("Which question is this from?");
+    expectKind(identifier, "FACT_LOOKUP");
+    expect(identifier.targetConcepts).toEqual(["identifier"]);
+    expect(identifier.requestedFact).toBe("question identifier");
+  });
+
+  it("extracts procedure requests separately from calculation-result requests", () => {
+    const procedure = firstRequirement("Explain how to find x in x + 5 = 12.");
+    expectKind(procedure, "PROCEDURE_METHOD");
+    expect(procedure.requestedMethod).toBe("find x in x + 5 = 12");
+
+    const calculation = firstRequirement(
+      "Show how a 20 percent discount on 500 gives the sale price."
+    );
+    expectKind(calculation, "CALCULATION");
+    expect(calculation.targetConcepts).toEqual(["sale price"]);
+  });
+
+  it("extracts passage interpretation requests without oversized concept names", () => {
+    const requirement = firstRequirement("What is the main idea of a paragraph?");
+
+    expectKind(requirement, "PASSAGE_INTERPRETATION");
+    expect(requirement.targetConcepts).toEqual(["main idea"]);
+    expect(requirement.passageTask).toBe("MAIN_IDEA");
+  });
+
   it("resolves contextual follow-ups from recent user requests only", () => {
     const requirement = firstRequirement("What is its formula?", [
       { role: "USER", content: "What is pressure?" },
@@ -236,5 +277,40 @@ describe("Stage 4.1 request requirement paraphrase properties", () => {
 
     expectKind(requirement, "COMPARISON");
     expect(requirement.comparisonSides).toEqual(["evaporation", "boiling"]);
+  });
+
+  it.each([
+    "What happens to blue litmus when acid is added?",
+    "How does temperature affect evaporation?",
+    "What effect does force have on acceleration?",
+    "What does acid do to litmus paper?",
+  ])("maps relation/effect paraphrase %s to a relation shape", (question) => {
+    const requirement = firstRequirement(question);
+
+    expectKind(requirement, "RELATION_MECHANISM_CONSEQUENCE");
+    expect(requirement.requestedRelation).toBeTruthy();
+    expect(requirement.targetConcepts.length).toBeGreaterThanOrEqual(2);
+  });
+
+  it.each([
+    "How do I solve a linear equation?",
+    "What steps are used to balance a chemical equation?",
+    "Show how to filter an insoluble solid from water.",
+  ])("maps procedure paraphrase %s to procedure-method shape", (question) => {
+    const requirement = firstRequirement(question);
+
+    expectKind(requirement, "PROCEDURE_METHOD");
+    expect(requirement.requestedMethod).toBeTruthy();
+  });
+
+  it.each([
+    "What is the main idea of the passage?",
+    "What is this passage mainly about?",
+    "Which statement best summarises the paragraph?",
+  ])("maps passage paraphrase %s to passage interpretation shape", (question) => {
+    const requirement = firstRequirement(question);
+
+    expectKind(requirement, "PASSAGE_INTERPRETATION");
+    expect(requirement.passageTask).toBe("MAIN_IDEA");
   });
 });
