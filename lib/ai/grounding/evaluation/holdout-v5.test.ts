@@ -464,8 +464,20 @@ function resourcesThroughHoldoutV5() {
         ...(item.setupResourceIds ?? []),
       ])
   );
+  const capabilityE2ResourceIds = new Set(
+    groundedEvaluationCases
+      .filter((item) => item.split === "capability_e2")
+      .flatMap((item) => [
+        ...(item.corpusResourceIds ?? []),
+        ...(item.expectedResourceIds ?? []),
+        ...(item.setupResourceIds ?? []),
+      ])
+  );
 
   return groundedEvaluationResources.filter(
-    (item) => !postV5ResourceIds.has(item.id) && !holdoutV6ResourceIds.has(item.id)
+    (item) =>
+      !postV5ResourceIds.has(item.id) &&
+      !holdoutV6ResourceIds.has(item.id) &&
+      !capabilityE2ResourceIds.has(item.id)
   );
 }
