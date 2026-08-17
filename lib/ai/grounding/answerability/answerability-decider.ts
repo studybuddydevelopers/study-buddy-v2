@@ -403,22 +403,30 @@ function evaluateMultiOptionRequirement(
   const supportRefs: CapabilitySupportRef[] = [];
   const missing: string[] = [];
   const sides = requirement.comparisonSides ?? [];
+  const optionGroups = buildNumericOptionGroups(context.numerics);
+
+  if (usesPlaceholderOptions(sides)) {
+    const completeGroups = optionGroups.filter((group) => group.price && group.quantity);
+    for (const group of completeGroups) {
+      if (group.price) supportRefs.push(supportRef(requirement.id, group.price.id, ["COMPARE", "CALCULATE"]));
+      if (group.quantity) supportRefs.push(supportRef(requirement.id, group.quantity.id, ["COMPARE", "CALCULATE"]));
+    }
+    if (completeGroups.length < Math.max(2, sides.length)) {
+      missing.push(`option-components:${completeGroups.length + 1}`);
+    }
+    return buildMatchFromMissing(requirement.id, supportRefs, missing);
+  }
 
   for (const side of sides) {
-    const optionValues = context.numerics.filter((numeric) =>
-      normalizedText(numeric.qualifier ?? numeric.quantity).includes(normalizedText(side))
-    );
-    const hasPrice = optionValues.some((numeric) => /price|cost|£|\$|₦/i.test(numeric.quantity));
-    const hasQuantity = optionValues.some((numeric) =>
-      /quantity|items?|count|number|pack/i.test(numeric.quantity)
+    const optionValues = optionGroups.find((group) =>
+      group.label.includes(normalizedText(side))
     );
 
-    if (hasPrice && hasQuantity) {
-      for (const numeric of optionValues.filter((item) =>
-        /price|cost|£|\$|₦|quantity|items?|count|number|pack/i.test(item.quantity)
-      )) {
-        supportRefs.push(supportRef(requirement.id, numeric.id, ["COMPARE", "CALCULATE"]));
-      }
+    if (optionValues?.price && optionValues.quantity) {
+      supportRefs.push(
+        supportRef(requirement.id, optionValues.price.id, ["COMPARE", "CALCULATE"]),
+        supportRef(requirement.id, optionValues.quantity.id, ["COMPARE", "CALCULATE"])
+      );
     } else {
       missing.push(`option-components:${normalizedText(side)}`);
     }
@@ -612,6 +620,51 @@ function evaluateMultiPartRequirement(
   );
 }
 
+function buildNumericOptionGroups(numerics: NumericCapability[]) {
+  const groups = new Map<
+    string,
+    {
+      label: string;
+      price?: NumericCapability;
+      quantity?: NumericCapability;
+    }
+  >();
+
+  for (const numeric of numerics) {
+    const label = normalizedText(numeric.qualifier ?? optionLabelFromQuantity(numeric.quantity));
+    if (!label) continue;
+    const existing = groups.get(label) ?? { label };
+    if (numeric.role === "PRICE" || /price|cost|charge|fee|fare|£|\$|₦|naira|ngn/i.test(numeric.quantity)) {
+      existing.price = numeric;
+    }
+    if (
+      numeric.role === "QUANTITY" ||
+      /quantity|items?|count|number|pack|pens?|bottles?|pages?|gb|miles?|kilometres?|kilometers?/i.test(
+        `${numeric.quantity} ${numeric.unit ?? ""}`
+      )
+    ) {
+      existing.quantity = numeric;
+    }
+    groups.set(label, existing);
+  }
+
+  return [...groups.values()].sort((left, right) => left.label.localeCompare(right.label));
+}
+
+function optionLabelFromQuantity(quantity: string) {
+  const match = normalizedText(quantity).match(
+    /\b((?:option|pack|crate|plan|shop|bundle|ticket)\s+[a-z0-9]+)\b/
+  );
+  return match?.[1] ?? "";
+}
+
+function usesPlaceholderOptions(sides: string[]) {
+  return (
+    sides.length === 0 ||
+    sides.every((side) => /^option\s+\d+$/i.test(normalizedText(side)))
+  );
+}
+
 function findRelevantConflicts(
   requirement: RequestRequirement,
   context: MatchContext
@@ -631,7 +684,10 @@ function findRelevantConflicts(
       }
       if (
         conflict.conflictType === "FORMULA_CONFLICT" &&
-        (targetIds.some((target) => formulaConflictScopeMatches(conflict.scopeKey, target)) ||
+        ((isFormulaRequirement(requirement) &&
+          targetIds.length === 0 &&
+          normalizedSymbols.length === 0) ||
+          targetIds.some((target) => formulaConflictScopeMatches(conflict.scopeKey, target)) ||
           normalizedSymbols.some((symbol) => formulaConflictScopeMatches(conflict.scopeKey, symbol)))
       ) {
         return true;
@@ -663,6 +719,14 @@ function findRelevantConflicts(
 
 function formulaConflictScopeMatches(scopeKey: string, target: string): boolean {
   return scopeKey === `formula:${target}` || scopeKey.startsWith(`formula:${target}:`) || scopeKey.endsWith(`:${target}`);
+}
+
+function isFormulaRequirement(requirement: RequestRequirement): boolean {
+  return (
+    requirement.kind === "FORMULA" ||
+    requirement.kind === "FORMULA_WITH_SYMBOLS" ||
+    requirement.kind === "CALCULATION"
+  );
 }
 
 function findFormula(
@@ -1096,6 +1160,9 @@ function toSemanticTokens(value: string): string[] {
 function normalizeRelationAlias(relation: string): string {
   if (/^(?:turn|turns|change|changes|affect|affects)$/.test(relation)) {
     return "affect";
+  }
+  if (/^(?:carry|carries|transport|transports)$/.test(relation)) {
+    return "transport";
   }
   return relation;
 }
