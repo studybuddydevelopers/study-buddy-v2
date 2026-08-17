@@ -6,7 +6,8 @@ const narrowAnswerSegmentSchema = z
   .object({
     text: z.string().trim().min(1).max(1200),
     sourceLabels: z.array(z.string().regex(/^SOURCE_[1-9][0-9]*$/)).max(8),
-    evidenceUnitIds: z.array(z.string().min(1)).max(16).optional(),
+    evidenceUnitIds: z.array(z.string().min(1)).max(16),
+    requirementIds: z.array(z.string().min(1)).max(16),
   })
   .strict();
 
@@ -29,8 +30,11 @@ export type NarrowGroundingValidationErrorCode =
   | "INVALID_SCHEMA"
   | "UNKNOWN_SOURCE_LABEL"
   | "UNKNOWN_EVIDENCE_UNIT"
+  | "UNKNOWN_REQUIREMENT_ID"
   | "MISSING_SEGMENT_CITATION"
+  | "MISSING_REQUIRED_TASK"
   | "UNAUTHORISED_EVIDENCE_UNIT"
+  | "UNAUTHORISED_REQUIREMENT_ID"
   | "INVALID_ARITHMETIC"
   | "FORBIDDEN_CONTENT"
   | "DEBUG_CONTENT";
@@ -56,6 +60,10 @@ export function validateNarrowGroundedOutput(input: {
 
   const allowedLabels = new Set(input.validatedEvidenceUnits.map((unit) => unit.sourceLabel));
   const unitsById = new Map(input.validatedEvidenceUnits.map((unit) => [unit.id, unit]));
+  const requiredRequirementIds = uniqueStrings(
+    input.validatedEvidenceUnits.flatMap((unit) => unit.supportsRequirementIds)
+  );
+  const allowedRequirementIds = new Set(requiredRequirementIds);
   const errors: NarrowGroundingValidationResult["errors"] = [];
 
   if (parsed.data.insufficientContext) {
@@ -77,7 +85,8 @@ export function validateNarrowGroundedOutput(input: {
     const normalized = {
       text: normalizeText(segment.text),
       sourceLabels: uniqueStrings(segment.sourceLabels),
-      evidenceUnitIds: uniqueStrings(segment.evidenceUnitIds ?? []),
+      evidenceUnitIds: uniqueStrings(segment.evidenceUnitIds),
+      requirementIds: uniqueStrings(segment.requirementIds),
     };
     normalizedSegments.push(normalized);
 
@@ -99,6 +108,7 @@ export function validateNarrowGroundedOutput(input: {
       }
     }
 
+    const citedUnits: ValidatedEvidenceUnit[] = [];
     for (const unitId of normalized.evidenceUnitIds) {
       const unit = unitsById.get(unitId);
       if (!unit) {
@@ -109,10 +119,32 @@ export function validateNarrowGroundedOutput(input: {
         });
         continue;
       }
+      citedUnits.push(unit);
       if (!normalized.sourceLabels.includes(unit.sourceLabel)) {
         errors.push({
           code: "UNAUTHORISED_EVIDENCE_UNIT",
           message: "Evidence unit does not match the cited source label.",
+          segmentIndex: index,
+        });
+      }
+    }
+
+    for (const requirementId of normalized.requirementIds) {
+      if (!allowedRequirementIds.has(requirementId)) {
+        errors.push({
+          code: "UNKNOWN_REQUIREMENT_ID",
+          message: "Unknown requested task id.",
+          segmentIndex: index,
+        });
+        continue;
+      }
+      if (
+        citedUnits.length > 0 &&
+        !citedUnits.some((unit) => unit.supportsRequirementIds.includes(requirementId))
+      ) {
+        errors.push({
+          code: "UNAUTHORISED_REQUIREMENT_ID",
+          message: "Requested task id is not supported by the cited evidence units.",
           segmentIndex: index,
         });
       }
@@ -151,6 +183,21 @@ export function validateNarrowGroundedOutput(input: {
     }
   }
 
+  if (!parsed.data.insufficientContext) {
+    for (const requirementId of requiredRequirementIds) {
+      if (
+        !normalizedSegments.some((segment) =>
+          segment.requirementIds.includes(requirementId)
+        )
+      ) {
+        errors.push({
+          code: "MISSING_REQUIRED_TASK",
+          message: "A required requested task was not covered by any answer segment.",
+        });
+      }
+    }
+  }
+
   if (errors.length > 0) {
     return { supported: false, errors };
   }
@@ -183,6 +230,8 @@ function validateArithmeticInSegment(
   segment: NarrowGroundedAnswerSegment,
   units: ValidatedEvidenceUnit[]
 ): boolean {
+  if (containsUnresolvedAlgebra(segment.text)) return true;
+
   const arithmeticMatches = [...segment.text.matchAll(
     /([-+]?\d+(?:\.\d+)?)\s*([/+*×x÷-])\s*([-+]?\d+(?:\.\d+)?)\s*=\s*([-+]?\d+(?:\.\d+)?)/g
   )];
@@ -227,6 +276,12 @@ function validateArithmeticInSegment(
   }
 
   return true;
+}
+
+function containsUnresolvedAlgebra(text: string) {
+  return /(?:^|[^A-Za-z])(?:[a-zA-Z])\s*[+\-*/×÷=]|[+\-*/×÷=]\s*(?:[a-zA-Z])(?:[^A-Za-z]|$)/.test(
+    text
+  );
 }
 
 function numericTextSupportedByEvidence(value: string, evidence: string) {
