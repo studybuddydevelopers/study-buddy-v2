@@ -224,7 +224,12 @@ export function normalizeSymbol(rawSymbol: string): SymbolReference | undefined 
   const lowered = display.toLowerCase();
   const greek = GREEK_SYMBOLS.get(lowered) ?? GREEK_SYMBOLS.get(display);
   if (greek) return { display, normalized: greek };
-  if (/^[A-Za-z](?:[_-]?[A-Za-z0-9]+|\d+|[¹²³])?$/.test(display)) {
+  if (
+    /^[A-Za-z]$/.test(display) ||
+    /^[A-Za-z]\d+$/.test(display) ||
+    /^[A-Za-z][_-][A-Za-z0-9]+$/.test(display) ||
+    /^[A-Za-z][¹²³]$/.test(display)
+  ) {
     return { display, normalized: display.toLowerCase() };
   }
   return undefined;
@@ -286,7 +291,7 @@ function extractFormulas(
 ): FormulaCapability[] {
   const formulas: FormulaCapability[] = [];
   const formulaPattern =
-    /\b([A-Za-z\u0370-\u03ff][A-Za-z0-9_\u0370-\u03ff]*|[A-Za-z][A-Za-z ]{1,40}?)\s*=\s*([^.;]+?)(?=,?\s+where\b|[.;]|$)/gi;
+    /\b([A-Za-z][A-Za-z ]{1,40}?|[A-Za-z\u0370-\u03ff][A-Za-z0-9_\u0370-\u03ff]*)\s*=\s*([^.;]+?)(?=,?\s+where\b|[.;]|$)/gi;
   let match: RegExpExecArray | null;
   while ((match = formulaPattern.exec(sentence.text)) !== null) {
     const left = normalizeFormulaLeft(match[1] ?? "");
