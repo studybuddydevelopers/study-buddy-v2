@@ -40,6 +40,13 @@ describe("Stage 4.1 request requirement extraction", () => {
     expect(ratio.targetConcepts).toEqual(["ratio"]);
   });
 
+  it("keeps the requested ratio value as required answer content", () => {
+    const requirement = firstRequirement("How do I compare 2 amounts using 2 to 3?");
+
+    expectKind(requirement, "CONCEPT_DEFINITION");
+    expect(requirement.targetConcepts).toEqual(["ratio", "ratio 2:3"]);
+  });
+
   it("extracts formula requests without inventing numeric inputs", () => {
     const requirement = firstRequirement("What is the formula for density?");
 
@@ -56,6 +63,20 @@ describe("Stage 4.1 request requirement extraction", () => {
     expectKind(requirement, "FORMULA_WITH_SYMBOLS");
     expect(requirement.targetConcepts).toEqual(["kinetic energy"]);
     expect(requirement.requiredSymbols).toEqual(["m", "v"]);
+  });
+
+  it("extracts formula plus units requests as separate required tasks", () => {
+    const requirement = firstRequirement("Teach me Ohm's law and the units used.");
+
+    expectKind(requirement, "MULTI_PART");
+    expect(requirement.childRequirements?.map((child) => child.kind)).toEqual([
+      "FORMULA",
+      "FACT_LOOKUP",
+    ]);
+    expect(requirement.childRequirements?.[0]?.targetConcepts).toEqual(["ohm's law"]);
+    expect(requirement.childRequirements?.[1]?.requestedFact).toBe(
+      "ohm's law units used"
+    );
   });
 
   it("extracts standalone symbol-definition requests", () => {
@@ -125,6 +146,16 @@ describe("Stage 4.1 request requirement extraction", () => {
     expect(requirement.requestedRelation).toBe(
       "increasing temperature affect evaporation"
     );
+  });
+
+  it("splits conjoined relation subjects into separate required tasks", () => {
+    const requirement = firstRequirement("How do acids and bases affect litmus paper?");
+
+    expectKind(requirement, "MULTI_PART");
+    expect(requirement.childRequirements?.map((child) => child.requestedRelation)).toEqual([
+      "acids affect litmus paper",
+      "bases affect litmus paper",
+    ]);
   });
 
   it("extracts process-explanation requests", () => {
@@ -287,9 +318,14 @@ describe("Stage 4.1 request requirement paraphrase properties", () => {
   ])("maps relation/effect paraphrase %s to a relation shape", (question) => {
     const requirement = firstRequirement(question);
 
-    expectKind(requirement, "RELATION_MECHANISM_CONSEQUENCE");
-    expect(requirement.requestedRelation).toBeTruthy();
-    expect(requirement.targetConcepts.length).toBeGreaterThanOrEqual(2);
+    if (question === "How do acids and bases affect litmus paper?") {
+      expectKind(requirement, "MULTI_PART");
+      expect(requirement.childRequirements).toHaveLength(2);
+    } else {
+      expectKind(requirement, "RELATION_MECHANISM_CONSEQUENCE");
+      expect(requirement.requestedRelation).toBeTruthy();
+      expect(requirement.targetConcepts.length).toBeGreaterThanOrEqual(2);
+    }
   });
 
   it.each([
