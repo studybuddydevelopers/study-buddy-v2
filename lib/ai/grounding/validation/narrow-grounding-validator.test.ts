@@ -22,16 +22,12 @@ function unit(overrides: Partial<ValidatedEvidenceUnit> = {}): ValidatedEvidence
 function response(overrides: {
   text?: string;
   sourceLabels?: string[];
-  evidenceUnitIds?: string[];
-  requirementIds?: string[];
 } = {}) {
   return {
     answerSegments: [
       {
         text: overrides.text ?? "Speed is found by dividing distance by time.",
         sourceLabels: overrides.sourceLabels ?? ["SOURCE_1"],
-        evidenceUnitIds: overrides.evidenceUnitIds ?? ["unit-1"],
-        requirementIds: overrides.requirementIds ?? ["req-1"],
       },
     ],
     insufficientContext: false,
@@ -42,7 +38,7 @@ function response(overrides: {
 describe("Stage 4.1 narrow grounding validator", () => {
   it("passes valid source labels and authorised evidence units", () => {
     const result = validateNarrowGroundedOutput({
-      value: response({ evidenceUnitIds: ["unit-1"] }),
+      value: response(),
       validatedEvidenceUnits: [unit()],
     });
 
@@ -76,46 +72,77 @@ describe("Stage 4.1 narrow grounding validator", () => {
     expect(result.errors.map((error) => error.code)).toEqual(["INVALID_SCHEMA"]);
   });
 
-  it("fails unknown requirement ids", () => {
+  it("passes when the model omits internal requirement and evidence-unit ids", () => {
     const result = validateNarrowGroundedOutput({
-      value: response({ requirementIds: ["req-2"] }),
+      value: response(),
       validatedEvidenceUnits: [unit()],
     });
 
-    expect(result.supported).toBe(false);
-    expect(result.errors.map((error) => error.code)).toContain("UNKNOWN_REQUIREMENT_ID");
+    expect(result.supported).toBe(true);
+    expect(result.response?.citations).toEqual([
+      { sourceLabel: "SOURCE_1", evidenceUnitIds: ["unit-1"] },
+    ]);
   });
 
-  it("fails requirement ids that are not supported by the cited evidence unit", () => {
+  it("passes two required tasks when both authorised source labels are cited", () => {
     const result = validateNarrowGroundedOutput({
-      value: response({
-        evidenceUnitIds: ["unit-2"],
-        requirementIds: ["req-1"],
-      }),
+      value: {
+        answerSegments: [
+          {
+            text: "Acids turn blue litmus paper red.",
+            sourceLabels: ["SOURCE_1"],
+          },
+          {
+            text: "Bases turn red litmus paper blue.",
+            sourceLabels: ["SOURCE_2"],
+          },
+        ],
+        insufficientContext: false,
+        suggestedQuestions: [],
+      },
       validatedEvidenceUnits: [
-        unit(),
+        unit({ supportsRequirementIds: ["req-1"] }),
         unit({
           id: "unit-2",
+          sourceLabel: "SOURCE_2",
           supportsRequirementIds: ["req-2"],
         }),
       ],
     });
 
-    expect(result.supported).toBe(false);
-    expect(result.errors.map((error) => error.code)).toContain(
-      "UNAUTHORISED_REQUIREMENT_ID"
-    );
+    expect(result.supported).toBe(true);
   });
 
-  it("fails when a required task is not covered by any segment", () => {
+  it("fails when a required task has no cited authorised source label", () => {
     const result = validateNarrowGroundedOutput({
-      value: response({ requirementIds: ["req-1"] }),
+      value: response({ sourceLabels: ["SOURCE_1"] }),
       validatedEvidenceUnits: [
         unit(),
         unit({
           id: "unit-2",
           sourceLabel: "SOURCE_2",
           supportsRequirementIds: ["req-2"],
+        }),
+      ],
+    });
+
+    expect(result.supported).toBe(false);
+    expect(result.errors.map((error) => error.code)).toContain("MISSING_REQUIRED_TASK");
+  });
+
+  it("fails when a segment cites an unrelated source label for another required task", () => {
+    const result = validateNarrowGroundedOutput({
+      value: response({
+        text: "Acids turn blue litmus paper red.",
+        sourceLabels: ["SOURCE_2"],
+      }),
+      validatedEvidenceUnits: [
+        unit({ supportsRequirementIds: ["req-acid"] }),
+        unit({
+          id: "unit-2",
+          sourceLabel: "SOURCE_2",
+          supportsRequirementIds: ["req-base"],
+          quotedEvidence: "Bases turn red litmus paper blue.",
         }),
       ],
     });
@@ -134,33 +161,10 @@ describe("Stage 4.1 narrow grounding validator", () => {
     expect(result.errors.map((error) => error.code)).toContain("MISSING_SEGMENT_CITATION");
   });
 
-  it("fails cited unauthorised evidence units", () => {
-    const result = validateNarrowGroundedOutput({
-      value: response({ evidenceUnitIds: ["unit-2"] }),
-      validatedEvidenceUnits: [unit()],
-    });
-
-    expect(result.supported).toBe(false);
-    expect(result.errors.map((error) => error.code)).toContain("UNKNOWN_EVIDENCE_UNIT");
-  });
-
-  it("fails evidence units cited under the wrong source label", () => {
-    const result = validateNarrowGroundedOutput({
-      value: response({ sourceLabels: ["SOURCE_2"], evidenceUnitIds: ["unit-1"] }),
-      validatedEvidenceUnits: [unit(), unit({ id: "unit-2", sourceLabel: "SOURCE_2" })],
-    });
-
-    expect(result.supported).toBe(false);
-    expect(result.errors.map((error) => error.code)).toContain(
-      "UNAUTHORISED_EVIDENCE_UNIT"
-    );
-  });
-
   it("passes correct deterministic arithmetic", () => {
     const result = validateNarrowGroundedOutput({
       value: response({
         text: "Using the cited values, 120 / 10 = 12.",
-        evidenceUnitIds: ["unit-1"],
       }),
       validatedEvidenceUnits: [unit()],
     });
@@ -198,7 +202,6 @@ describe("Stage 4.1 narrow grounding validator", () => {
     const result = validateNarrowGroundedOutput({
       value: response({
         text: "Using the cited values, 120 / 10 = 13.",
-        evidenceUnitIds: ["unit-1"],
       }),
       validatedEvidenceUnits: [unit()],
     });
@@ -248,6 +251,26 @@ describe("Stage 4.1 narrow grounding validator", () => {
 
     expect(result.supported).toBe(false);
     expect(result.errors.map((error) => error.code)).toContain("FORBIDDEN_CONTENT");
+  });
+
+  it("fails unsupported closed-world proportionality elaboration", () => {
+    const result = validateNarrowGroundedOutput({
+      value: response({
+        text:
+          "Ohm's law is V = I x R, and current is directly proportional to voltage.",
+      }),
+      validatedEvidenceUnits: [
+        unit({
+          quotedEvidence: "Ohm's law is V = I x R.",
+          allowedUses: ["FORMULA"],
+        }),
+      ],
+    });
+
+    expect(result.supported).toBe(false);
+    expect(result.errors.map((error) => error.code)).toContain(
+      "UNSUPPORTED_ELABORATION"
+    );
   });
 
   it("passes normal grounded paraphrase without semantic re-parsing", () => {
