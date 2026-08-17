@@ -92,9 +92,14 @@ export function decideAnswerability(
     conflictIds: uniqueStrings(match.conflictIds),
   }));
 
-  const allSupported =
+  const statusesSupported =
     requirementResults.length > 0 &&
     requirementResults.every((result) => result.status === "SUPPORTED");
+  const allSupported =
+    statusesSupported &&
+    requirementResults.every(
+      (result) => result.supportingEvidenceUnitIds.length > 0
+    );
   const conflictIds = uniqueStrings(requirementResults.flatMap((result) => result.conflictIds));
   const classification = allSupported ? "SUPPORTED" : "INSUFFICIENT_CONTEXT";
 
