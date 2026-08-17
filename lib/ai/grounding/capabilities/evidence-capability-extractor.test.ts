@@ -380,6 +380,85 @@ describe("Stage 4.1 evidence capability extraction", () => {
     expect(conflicts[0]?.scopeKey).toBe("formula:p");
   });
 
+  it("extracts formula concepts and coordinated symbol definitions generically", () => {
+    const kinetic = extract(
+      "Kinetic energy formula is KE = 1/2 x m x v^2. In the formula, m means mass and v means velocity."
+    );
+    expect(kinetic.formulas[0]).toMatchObject({
+      expression: "KE = 1/2 x m x v^2",
+      outputQuantity: "ke",
+    });
+    expect(kinetic.formulas[0]?.canonicalConcept?.id).toBe("concept:kinetic-energy");
+    expect(kinetic.symbolDefinitions.map((symbol) => [
+      symbol.symbol.normalized,
+      symbol.meaning,
+    ])).toEqual([
+      ["m", "mass"],
+      ["v", "velocity"],
+    ]);
+
+    const density = extract(
+      "Density relation is rho = m / V. In this relation, m means mass and V means volume."
+    );
+    expect(density.formulas[0]?.canonicalConcept?.id).toBe("density");
+    expect(density.symbolDefinitions.map((symbol) => [
+      symbol.symbol.normalized,
+      symbol.meaning,
+    ])).toEqual([
+      ["m", "mass"],
+      ["v", "volume"],
+    ]);
+  });
+
+  it("extracts domain-neutral comparison facts from says/states wording", () => {
+    const capability = extract(
+      "A metaphor says one thing is another thing for effect. A simile compares two things using like or as."
+    );
+
+    expect(capability.conceptDefinitions.map((definition) => [
+      definition.canonicalConcept.id,
+      definition.definitionText,
+    ])).toEqual([
+      ["concept:metaphor", "says one thing is another thing for effect"],
+      ["concept:simile", "compares two things using like or as"],
+    ]);
+    expect(capability.comparisonSides.map((side) => [side.side, side.fact])).toContainEqual([
+      "metaphor",
+      "says one thing is another thing for effect",
+    ]);
+  });
+
+  it("extracts generic cost-for-quantity option inputs", () => {
+    const capability = extract(
+      "Pack R costs 600 naira for 12 pens. Crate A costs 720 naira for 12 bottles."
+    );
+
+    expect(capability.numericValues.map((numeric) => [
+      numeric.qualifier,
+      numeric.role,
+      numeric.value,
+      numeric.unit,
+    ])).toEqual([
+      ["pack r", "PRICE", 600, "naira"],
+      ["pack r", "QUANTITY", 12, "pens"],
+      ["crate a", "PRICE", 720, "naira"],
+      ["crate a", "QUANTITY", 12, "bottles"],
+    ]);
+  });
+
+  it("separates positive symbol meanings from later negated symbol clauses", () => {
+    const capability = extract("F means force, but the card does not define d.");
+
+    expect(capability.symbolDefinitions.map((symbol) => [
+      symbol.symbol.normalized,
+      symbol.meaning,
+      symbol.polarity,
+    ])).toEqual([
+      ["f", "force", "POSITIVE"],
+      ["d", undefined, "NEGATED"],
+    ]);
+  });
+
   it("canonicalizes only controlled aliases", () => {
     expect(canonicalizeConcept("simple interest").id).toBe("simple-interest");
     expect(canonicalizeConcept("simple-interest").id).toBe("simple-interest");
