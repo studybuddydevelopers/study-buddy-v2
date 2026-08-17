@@ -76,8 +76,13 @@ class RecordingStructuredProvider implements StructuredChatModelProvider {
     this.structuredInputs.push(input);
     const result = await this.generate(input);
     if (this.structuredValue !== undefined) {
+      const value = Array.isArray(this.structuredValue)
+        ? this.structuredValue[
+            Math.min(this.structuredInputs.length - 1, this.structuredValue.length - 1)
+          ]
+        : this.structuredValue;
       return {
-        value: this.structuredValue,
+        value,
         provider: result.provider,
         model: result.model,
         usage: result.usage,
@@ -92,8 +97,6 @@ class RecordingStructuredProvider implements StructuredChatModelProvider {
           {
             text: result.text,
             sourceLabels: contract.sourceLabels,
-            evidenceUnitIds: contract.evidenceUnitIds,
-            requirementIds: contract.requirementIds,
           },
         ],
         insufficientContext: false,
@@ -124,35 +127,11 @@ function context(overrides: Partial<GroundingPipelineContext> = {}): GroundingPi
 }
 
 function extractPromptContract(text: string) {
-  const units = parsePromptArray<{
-    id?: unknown;
-    sourceLabel?: unknown;
-    supportsRequirementIds?: unknown;
-  }>(text, "validated_evidence_units_json");
-  const tasks = parsePromptArray<{ id?: unknown }>(text, "requested_tasks_json");
   return {
     sourceLabels: uniqueStrings(
-      units.map((unit) => unit.sourceLabel).filter((value): value is string => typeof value === "string")
+      [...text.matchAll(/\bSOURCE_[1-9][0-9]*\b/g)].map((match) => match[0] ?? "")
     ),
-    evidenceUnitIds: uniqueStrings(
-      units.map((unit) => unit.id).filter((value): value is string => typeof value === "string")
-    ),
-    requirementIds: uniqueStrings([
-      ...tasks.map((task) => task.id).filter((value): value is string => typeof value === "string"),
-      ...units.flatMap((unit) =>
-        Array.isArray(unit.supportsRequirementIds)
-          ? unit.supportsRequirementIds.filter((value): value is string => typeof value === "string")
-          : []
-      ),
-    ]),
   };
-}
-
-function parsePromptArray<T>(text: string, tag: string): T[] {
-  const match = text.match(new RegExp(`<${tag}>\\n([\\s\\S]*?)\\n</${tag}>`));
-  if (!match) return [];
-  const parsed = JSON.parse(match[1] ?? "[]");
-  return Array.isArray(parsed) ? parsed : [];
 }
 
 function uniqueStrings(values: string[]) {
@@ -328,9 +307,13 @@ describe("Stage 4.1 capability grounding pipeline", () => {
       .join("\n");
     expect(prompt).toContain("A ratio compares two quantities by division");
     expect(prompt).not.toMatch(/Ignore previous instructions|pressure formula/i);
-    expect(prompt).toContain("unit-1");
-    expect(prompt).toContain("evidenceUnitIds");
-    expect(prompt).toContain("requested_tasks_json");
+    expect(prompt).toContain("<required_tasks>");
+    expect(prompt).toContain("<validated_evidence_by_task>");
+    expect(prompt).toContain("Treat the validated evidence units as a closed world");
+    expect(prompt).toContain("Do not output internal task ids or evidence-unit ids");
+    expect(prompt).not.toContain("requested_tasks_json");
+    expect(prompt).not.toContain("evidenceUnitIds");
+    expect(prompt).not.toContain("requirementIds");
   });
 
   it("returns citations for the validated evidence units cited by the provider", async () => {
@@ -406,8 +389,6 @@ describe("Stage 4.1 capability grounding pipeline", () => {
         {
           text: "Acids turn blue litmus paper red.",
           sourceLabels: ["SOURCE_1"],
-          evidenceUnitIds: ["unit-1"],
-          requirementIds: ["req-1.1"],
         },
       ],
       insufficientContext: false,
@@ -416,9 +397,14 @@ describe("Stage 4.1 capability grounding pipeline", () => {
     const { outcome } = await runPipeline({
       message: "How do acids and bases affect litmus paper?",
       chunks: [
-        retrievedChunk(
-          "Acids turn blue litmus paper red, while bases turn red litmus paper blue."
-        ),
+        retrievedChunk("Acids turn blue litmus paper red.", {
+          id: "acid-litmus",
+          resourceId: "resource-acid-litmus",
+        }),
+        retrievedChunk("Bases turn red litmus paper blue.", {
+          id: "base-litmus",
+          resourceId: "resource-base-litmus",
+        }),
       ],
       provider,
     });
@@ -427,16 +413,69 @@ describe("Stage 4.1 capability grounding pipeline", () => {
     expect(outcome.diagnostics?.narrowValidatorResult?.errors.map((error) => error.code)).toContain(
       "MISSING_REQUIRED_TASK"
     );
+    expect(outcome.diagnostics?.repairResult).toEqual({
+      attempted: true,
+      successful: false,
+    });
+  });
+
+  it("repairs fake-provider output when a required task is omitted initially", async () => {
+    const provider = new RecordingStructuredProvider("unused", [
+      {
+        answerSegments: [
+          {
+            text: "Acids turn blue litmus paper red.",
+            sourceLabels: ["SOURCE_1"],
+          },
+        ],
+        insufficientContext: false,
+        suggestedQuestions: [],
+      },
+      {
+        answerSegments: [
+          {
+            text: "Acids turn blue litmus paper red.",
+            sourceLabels: ["SOURCE_1"],
+          },
+          {
+            text: "Bases turn red litmus paper blue.",
+            sourceLabels: ["SOURCE_2"],
+          },
+        ],
+        insufficientContext: false,
+        suggestedQuestions: [],
+      },
+    ]);
+    const { outcome } = await runPipeline({
+      message: "How do acids and bases affect litmus paper?",
+      chunks: [
+        retrievedChunk("Acids turn blue litmus paper red.", {
+          id: "acid-litmus",
+          resourceId: "resource-acid-litmus",
+        }),
+        retrievedChunk("Bases turn red litmus paper blue.", {
+          id: "base-litmus",
+          resourceId: "resource-base-litmus",
+        }),
+      ],
+      provider,
+    });
+
+    expect(outcome.kind).toBe("COMPLETED");
+    expect(provider.structuredInputs).toHaveLength(2);
+    expect(outcome.diagnostics?.repairResult).toEqual({
+      attempted: true,
+      successful: true,
+    });
   });
 
   it("fails fake-provider output with an unsupported related task", async () => {
     const provider = new RecordingStructuredProvider("unused", {
       answerSegments: [
         {
-          text: "The formula is V = I x R, and voltage is measured in volts.",
+          text:
+            "The formula is V = I x R, and current is directly proportional to voltage.",
           sourceLabels: ["SOURCE_1"],
-          evidenceUnitIds: ["unit-1"],
-          requirementIds: ["req-1", "req-unrequested-units"],
         },
       ],
       insufficientContext: false,
@@ -454,8 +493,54 @@ describe("Stage 4.1 capability grounding pipeline", () => {
 
     expect(outcome.kind).toBe("FAILED");
     expect(outcome.diagnostics?.narrowValidatorResult?.errors.map((error) => error.code)).toContain(
-      "UNKNOWN_REQUIREMENT_ID"
+      "UNSUPPORTED_ELABORATION"
     );
+    expect(outcome.diagnostics?.repairResult).toEqual({
+      attempted: true,
+      successful: false,
+    });
+  });
+
+  it("repairs fake-provider output with unsupported proportionality removed", async () => {
+    const provider = new RecordingStructuredProvider("unused", [
+      {
+        answerSegments: [
+          {
+            text:
+              "The formula is V = I x R, and current is directly proportional to voltage.",
+            sourceLabels: ["SOURCE_1"],
+          },
+        ],
+        insufficientContext: false,
+        suggestedQuestions: [],
+      },
+      {
+        answerSegments: [
+          {
+            text: "The formula is V = I x R.",
+            sourceLabels: ["SOURCE_1"],
+          },
+        ],
+        insufficientContext: false,
+        suggestedQuestions: [],
+      },
+    ]);
+    const { outcome } = await runPipeline({
+      message: "Teach me Ohm's law.",
+      chunks: [
+        retrievedChunk(
+          "Ohm's law states that potential difference equals current times resistance: V = I x R."
+        ),
+      ],
+      provider,
+    });
+
+    expect(outcome.kind).toBe("COMPLETED");
+    expect(provider.structuredInputs).toHaveLength(2);
+    expect(outcome.diagnostics?.repairResult).toEqual({
+      attempted: true,
+      successful: true,
+    });
   });
 
   it("does not require optional evidence details that are not requested tasks", async () => {
@@ -465,8 +550,6 @@ describe("Stage 4.1 capability grounding pipeline", () => {
           text:
             "Photosynthesis is the process by which green plants use light energy to make glucose from carbon dioxide and water.",
           sourceLabels: ["SOURCE_1"],
-          evidenceUnitIds: ["unit-1"],
-          requirementIds: ["req-1"],
         },
       ],
       insufficientContext: false,
@@ -498,8 +581,6 @@ describe("Stage 4.1 capability grounding pipeline", () => {
           {
             text: "For x + 5 = 12, subtract 5 from both sides to get x = 7.",
             sourceLabels: ["SOURCE_1"],
-            evidenceUnitIds: ["unit-1"],
-            requirementIds: ["req-1"],
           },
         ],
         insufficientContext: false,
@@ -518,8 +599,6 @@ describe("Stage 4.1 capability grounding pipeline", () => {
           {
             text: "Using the cited values, 120 / 10 = 13.",
             sourceLabels: ["SOURCE_1"],
-            evidenceUnitIds: ["unit-1"],
-            requirementIds: ["req-1"],
           },
         ],
         insufficientContext: false,
