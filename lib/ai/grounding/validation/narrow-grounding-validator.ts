@@ -6,8 +6,6 @@ const narrowAnswerSegmentSchema = z
   .object({
     text: z.string().trim().min(1).max(1200),
     sourceLabels: z.array(z.string().regex(/^SOURCE_[1-9][0-9]*$/)).max(8),
-    evidenceUnitIds: z.array(z.string().min(1)).max(16),
-    requirementIds: z.array(z.string().min(1)).max(16),
   })
   .strict();
 
@@ -29,12 +27,9 @@ export type NarrowGroundedResponse = z.infer<typeof narrowGroundedResponseSchema
 export type NarrowGroundingValidationErrorCode =
   | "INVALID_SCHEMA"
   | "UNKNOWN_SOURCE_LABEL"
-  | "UNKNOWN_EVIDENCE_UNIT"
-  | "UNKNOWN_REQUIREMENT_ID"
   | "MISSING_SEGMENT_CITATION"
   | "MISSING_REQUIRED_TASK"
-  | "UNAUTHORISED_EVIDENCE_UNIT"
-  | "UNAUTHORISED_REQUIREMENT_ID"
+  | "UNSUPPORTED_ELABORATION"
   | "INVALID_ARITHMETIC"
   | "FORBIDDEN_CONTENT"
   | "DEBUG_CONTENT";
@@ -59,11 +54,9 @@ export function validateNarrowGroundedOutput(input: {
   }
 
   const allowedLabels = new Set(input.validatedEvidenceUnits.map((unit) => unit.sourceLabel));
-  const unitsById = new Map(input.validatedEvidenceUnits.map((unit) => [unit.id, unit]));
   const requiredRequirementIds = uniqueStrings(
     input.validatedEvidenceUnits.flatMap((unit) => unit.supportsRequirementIds)
   );
-  const allowedRequirementIds = new Set(requiredRequirementIds);
   const errors: NarrowGroundingValidationResult["errors"] = [];
 
   if (parsed.data.insufficientContext) {
@@ -85,8 +78,6 @@ export function validateNarrowGroundedOutput(input: {
     const normalized = {
       text: normalizeText(segment.text),
       sourceLabels: uniqueStrings(segment.sourceLabels),
-      evidenceUnitIds: uniqueStrings(segment.evidenceUnitIds),
-      requirementIds: uniqueStrings(segment.requirementIds),
     };
     normalizedSegments.push(normalized);
 
@@ -108,47 +99,11 @@ export function validateNarrowGroundedOutput(input: {
       }
     }
 
-    const citedUnits: ValidatedEvidenceUnit[] = [];
-    for (const unitId of normalized.evidenceUnitIds) {
-      const unit = unitsById.get(unitId);
-      if (!unit) {
-        errors.push({
-          code: "UNKNOWN_EVIDENCE_UNIT",
-          message: "Unknown evidence unit.",
-          segmentIndex: index,
-        });
-        continue;
-      }
-      citedUnits.push(unit);
-      if (!normalized.sourceLabels.includes(unit.sourceLabel)) {
-        errors.push({
-          code: "UNAUTHORISED_EVIDENCE_UNIT",
-          message: "Evidence unit does not match the cited source label.",
-          segmentIndex: index,
-        });
-      }
-    }
-
-    for (const requirementId of normalized.requirementIds) {
-      if (!allowedRequirementIds.has(requirementId)) {
-        errors.push({
-          code: "UNKNOWN_REQUIREMENT_ID",
-          message: "Unknown requested task id.",
-          segmentIndex: index,
-        });
-        continue;
-      }
-      if (
-        citedUnits.length > 0 &&
-        !citedUnits.some((unit) => unit.supportsRequirementIds.includes(requirementId))
-      ) {
-        errors.push({
-          code: "UNAUTHORISED_REQUIREMENT_ID",
-          message: "Requested task id is not supported by the cited evidence units.",
-          segmentIndex: index,
-        });
-      }
-    }
+    const citedUnits = unitsForSourceLabels(
+      normalized.sourceLabels,
+      input.validatedEvidenceUnits
+    );
+    const citedEvidence = citedUnits.map((unit) => unit.quotedEvidence).join(" ");
 
     if (containsForbiddenContent(normalized.text)) {
       errors.push({
@@ -174,6 +129,14 @@ export function validateNarrowGroundedOutput(input: {
       });
     }
 
+    if (containsUnsupportedClosedWorldElaboration(normalized.text, citedEvidence)) {
+      errors.push({
+        code: "UNSUPPORTED_ELABORATION",
+        message: "Output adds a related fact that is not present in the cited evidence.",
+        segmentIndex: index,
+      });
+    }
+
     if (!validateArithmeticInSegment(normalized, input.validatedEvidenceUnits)) {
       errors.push({
         code: "INVALID_ARITHMETIC",
@@ -184,12 +147,15 @@ export function validateNarrowGroundedOutput(input: {
   }
 
   if (!parsed.data.insufficientContext) {
-    for (const requirementId of requiredRequirementIds) {
-      if (
-        !normalizedSegments.some((segment) =>
-          segment.requirementIds.includes(requirementId)
+    const coveredRequirementIds = uniqueStrings(
+      normalizedSegments.flatMap((segment) =>
+        unitsForSourceLabels(segment.sourceLabels, input.validatedEvidenceUnits).flatMap(
+          (unit) => unit.supportsRequirementIds
         )
-      ) {
+      )
+    );
+    for (const requirementId of requiredRequirementIds) {
+      if (!coveredRequirementIds.includes(requirementId)) {
         errors.push({
           code: "MISSING_REQUIRED_TASK",
           message: "A required requested task was not covered by any answer segment.",
@@ -206,10 +172,10 @@ export function validateNarrowGroundedOutput(input: {
     normalizedSegments.flatMap((segment) => segment.sourceLabels)
   ).map((sourceLabel) => ({
     sourceLabel,
-    evidenceUnitIds: uniqueStrings(
-      normalizedSegments
-        .filter((segment) => segment.sourceLabels.includes(sourceLabel))
-        .flatMap((segment) => segment.evidenceUnitIds ?? [])
+      evidenceUnitIds: uniqueStrings(
+        input.validatedEvidenceUnits
+          .filter((unit) => unit.sourceLabel === sourceLabel)
+          .map((unit) => unit.id)
     ),
   }));
 
@@ -238,9 +204,7 @@ function validateArithmeticInSegment(
   if (arithmeticMatches.length === 0) return true;
 
   const citedUnits = units.filter(
-    (unit) =>
-      segment.sourceLabels.includes(unit.sourceLabel) ||
-      (segment.evidenceUnitIds ?? []).includes(unit.id)
+    (unit) => segment.sourceLabels.includes(unit.sourceLabel)
   );
   const citedEvidence = citedUnits.map((unit) => unit.quotedEvidence).join(" ");
 
@@ -276,6 +240,21 @@ function validateArithmeticInSegment(
   }
 
   return true;
+}
+
+function unitsForSourceLabels(
+  sourceLabels: string[],
+  units: ValidatedEvidenceUnit[]
+): ValidatedEvidenceUnit[] {
+  return units.filter((unit) => sourceLabels.includes(unit.sourceLabel));
+}
+
+function containsUnsupportedClosedWorldElaboration(text: string, citedEvidence: string) {
+  if (!/\b(?:directly|inversely)?\s*proportional(?:ity)?\b/i.test(text)) {
+    return false;
+  }
+
+  return !/\bproportional(?:ity)?\b/i.test(citedEvidence);
 }
 
 function containsUnresolvedAlgebra(text: string) {
