@@ -65,6 +65,27 @@ describe("Stage 4.1 request requirement extraction", () => {
     expect(requirement.requiredSymbols).toEqual(["m", "v"]);
   });
 
+  it("extracts unit-rate option comparisons without requiring explicit option words", () => {
+    const crate = firstRequirement("Which crate is cheaper per bottle?");
+    expectKind(crate, "MULTI_OPTION_COMPARISON");
+    expect(crate.requestedRelation).toBe("cheaper per bottle");
+    expect(crate.comparisonSides).toEqual(["option 1", "option 2"]);
+
+    const plan = firstRequirement("Which data plan has the lower cost per GB?");
+    expectKind(plan, "MULTI_OPTION_COMPARISON");
+    expect(plan.comparisonSides).toEqual(["option 1", "option 2"]);
+  });
+
+  it("extracts complementary transport lookups as multi-part relation requirements", () => {
+    const requirement = firstRequirement("Explain what xylem and phloem transport.");
+
+    expectKind(requirement, "MULTI_PART");
+    expect(requirement.childRequirements?.map((child) => child.requestedRelation)).toEqual([
+      "xylem transport",
+      "phloem transport",
+    ]);
+  });
+
   it("extracts formula plus units requests as separate required tasks", () => {
     const requirement = firstRequirement("Teach me Ohm's law and the units used.");
 
