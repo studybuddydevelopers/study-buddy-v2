@@ -46,8 +46,6 @@ describe("OpenAI structured chat adapter contract", () => {
                   {
                     text: "Momentum depends on mass and velocity.",
                     sourceLabels: ["SOURCE_1"],
-                    evidenceUnitIds: ["unit-1"],
-                    requirementIds: ["req-1"],
                   },
                 ],
                 insufficientContext: false,
@@ -73,8 +71,6 @@ describe("OpenAI structured chat adapter contract", () => {
           {
             text: "Momentum depends on mass and velocity.",
             sourceLabels: ["SOURCE_1"],
-            evidenceUnitIds: ["unit-1"],
-            requirementIds: ["req-1"],
           },
         ],
         insufficientContext: false,
