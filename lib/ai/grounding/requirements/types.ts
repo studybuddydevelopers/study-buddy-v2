@@ -9,7 +9,10 @@ export type RequirementKind =
   | "MULTI_OPTION_COMPARISON"
   | "RELATION_MECHANISM_CONSEQUENCE"
   | "PROCESS_EXPLANATION"
-  | "CONTEXTUAL_FOLLOW_UP";
+  | "CONTEXTUAL_FOLLOW_UP"
+  | "FACT_LOOKUP"
+  | "PROCEDURE_METHOD"
+  | "PASSAGE_INTERPRETATION";
 
 export type RequirementRole =
   | "USER"
@@ -32,6 +35,10 @@ export type RequestRequirement = {
   comparisonSides?: string[];
   requestedRelation?: string;
   requestedProcess?: string;
+  requestedFact?: string;
+  requestedEvent?: string;
+  requestedMethod?: string;
+  passageTask?: "MAIN_IDEA" | "EXPLICIT_DETAIL" | "SUMMARY";
   dependsOnPreviousTurn?: boolean;
   childRequirements?: RequestRequirement[];
 };
