@@ -1,0 +1,140 @@
+export type CapabilityConfidence = "HIGH" | "MEDIUM" | "LOW";
+
+export type CapabilityPolarity = "POSITIVE" | "NEGATED" | "ABSENT";
+
+export type CanonicalConcept = {
+  id: string;
+  label: string;
+  aliases: string[];
+};
+
+export type EvidenceSpan = {
+  text: string;
+  startOffset: number;
+  endOffset: number;
+};
+
+export type AuthorizedEvidenceChunk = {
+  resourceChunkId: string;
+  sourceLabel: string;
+  subjectId: string;
+  topicId?: string;
+  title?: string;
+  content: string;
+};
+
+export type SymbolReference = {
+  display: string;
+  normalized: string;
+};
+
+type CapabilityBase = {
+  id: string;
+  resourceChunkId: string;
+  sourceLabel: string;
+  evidenceSpan: EvidenceSpan;
+  confidence: CapabilityConfidence;
+};
+
+export type CapabilityFact = CapabilityBase & {
+  canonicalConcept: CanonicalConcept;
+  definitionText: string;
+  polarity: CapabilityPolarity;
+};
+
+export type FormulaCapability = CapabilityBase & {
+  canonicalConcept?: CanonicalConcept;
+  expression: string;
+  normalizedExpression: string;
+  outputQuantity?: string;
+  symbols: SymbolReference[];
+  symbolDefinitions: SymbolCapability[];
+  requiredInputs: string[];
+};
+
+export type SymbolCapability = CapabilityBase & {
+  symbol: SymbolReference;
+  meaning?: string;
+  canonicalConcept?: CanonicalConcept;
+  polarity: CapabilityPolarity;
+};
+
+export type NumericCapability = CapabilityBase & {
+  quantity: string;
+  canonicalConcept?: CanonicalConcept;
+  value: number;
+  unit?: string;
+  qualifier?: string;
+};
+
+export type RelationCapability = CapabilityBase & {
+  subject: string;
+  relation: string;
+  object: string;
+  polarity: CapabilityPolarity;
+};
+
+export type ComparisonSideCapability = CapabilityBase & {
+  side: string;
+  fact: string;
+  polarity: CapabilityPolarity;
+};
+
+export type ProcessCapability = CapabilityBase & {
+  process: string;
+  fact: string;
+};
+
+export type ConsequenceCapability = CapabilityBase & {
+  cause: string;
+  effect: string;
+  polarity: CapabilityPolarity;
+};
+
+export type UnsafeContentType =
+  | "PROMPT_INJECTION"
+  | "SOURCE_MANIPULATION"
+  | "SECRET_REQUEST"
+  | "BYPASS_REQUEST";
+
+export type UnsafeContentCapability = CapabilityBase & {
+  unsafeType: UnsafeContentType;
+  matchedText: string;
+};
+
+export type ConflictType =
+  | "DEFINITION_CONFLICT"
+  | "FORMULA_CONFLICT"
+  | "NUMERIC_VALUE_CONFLICT"
+  | "RELATION_CONFLICT";
+
+export type ConflictCapability = {
+  id: string;
+  scopeKey: string;
+  conflictType: ConflictType;
+  conflictingCapabilityIds: string[];
+  resourceChunkIds: string[];
+  sourceLabels: string[];
+  evidenceSpans: EvidenceSpan[];
+};
+
+export type EvidenceCapability = {
+  resourceChunkId: string;
+  sourceLabel: string;
+  subjectId: string;
+  topicId?: string;
+  conceptDefinitions: CapabilityFact[];
+  formulas: FormulaCapability[];
+  symbolDefinitions: SymbolCapability[];
+  numericValues: NumericCapability[];
+  relations: RelationCapability[];
+  comparisonSides: ComparisonSideCapability[];
+  processFacts: ProcessCapability[];
+  consequences: ConsequenceCapability[];
+  conflicts: ConflictCapability[];
+  unsafeContent?: UnsafeContentCapability[];
+};
+
+export type ExtractEvidenceCapabilitiesInput = {
+  chunks: AuthorizedEvidenceChunk[];
+};
