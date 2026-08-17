@@ -497,8 +497,8 @@ function findRelevantConflicts(
       }
       if (
         conflict.conflictType === "FORMULA_CONFLICT" &&
-        (targetIds.some((target) => conflict.scopeKey === `formula:${target}`) ||
-          normalizedSymbols.some((symbol) => conflict.scopeKey === `formula:${symbol}`))
+        (targetIds.some((target) => formulaConflictScopeMatches(conflict.scopeKey, target)) ||
+          normalizedSymbols.some((symbol) => formulaConflictScopeMatches(conflict.scopeKey, symbol)))
       ) {
         return true;
       }
@@ -525,6 +525,10 @@ function findRelevantConflicts(
       return false;
     })
     .map((conflict) => conflict.id);
+}
+
+function formulaConflictScopeMatches(scopeKey: string, target: string): boolean {
+  return scopeKey === `formula:${target}` || scopeKey.startsWith(`formula:${target}:`) || scopeKey.endsWith(`:${target}`);
 }
 
 function findFormula(
