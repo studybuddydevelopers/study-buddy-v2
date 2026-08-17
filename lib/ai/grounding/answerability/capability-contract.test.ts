@@ -78,11 +78,7 @@ describe("Stage 4.1 capability cross-layer contract", () => {
       "A ratio shows how one quantity compares with another.",
       "The term ratio describes a comparison of two quantities.",
     ];
-    const requests = [
-      "What is ratio?",
-      "How do I compare 2 amounts using 2 to 3?",
-      "Define ratio.",
-    ];
+    const requests = ["What is ratio?", "Define ratio."];
 
     for (const content of evidence) {
       for (const request of requests) {
@@ -100,6 +96,20 @@ describe("Stage 4.1 capability cross-layer contract", () => {
     }
   });
 
+  it("requires the requested ratio value when the user asks about a specific ratio", () => {
+    const result = expectSupported("How do I compare 2 amounts using 2 to 3?", [
+      chunk(
+        "A ratio compares two quantities by division. The ratio 2:3 means two parts to three parts."
+      ),
+    ]);
+
+    expect(result.requestRequirements.requirements[0]?.targetConcepts).toEqual([
+      "ratio",
+      "ratio 2:3",
+    ]);
+    expect(result.decision.validatedEvidenceUnits).toHaveLength(2);
+  });
+
   it("supports formula requests from structural formula capabilities without numeric operands", () => {
     const result = expectSupported("Teach me Ohm's law and the units used.", [
       chunk(
@@ -107,11 +117,14 @@ describe("Stage 4.1 capability cross-layer contract", () => {
       ),
     ]);
 
-    expect(result.requestRequirements.requirements[0]?.kind).toBe("FORMULA");
+    expect(result.requestRequirements.requirements[0]?.kind).toBe("MULTI_PART");
     expect(result.evidenceCapabilities[0]?.formulas[0]?.canonicalConcept?.id).toBe(
       "ohms-law"
     );
-    expect(result.decision.validatedEvidenceUnits[0]?.allowedUses).toContain("FORMULA");
+    expect(result.decision.validatedEvidenceUnits.map((unit) => unit.allowedUses)).toEqual([
+      ["FORMULA"],
+      ["DEFINE"],
+    ]);
   });
 
   it("does not satisfy a formula request with an unrelated formula", () => {
@@ -269,9 +282,10 @@ describe("Stage 4.1 capability cross-layer contract", () => {
   });
 
   it("supports relation/effect requests through explicit relation capabilities", () => {
-    expectSupported("How do acids and bases affect litmus paper?", [
+    const litmus = expectSupported("How do acids and bases affect litmus paper?", [
       chunk("Acids turn blue litmus paper red, while bases turn red litmus paper blue."),
     ]);
+    expect(litmus.decision.validatedEvidenceUnits).toHaveLength(2);
 
     expectSupported("What happens to evaporation when temperature increases?", [
       chunk("Increasing temperature increases evaporation rate."),
