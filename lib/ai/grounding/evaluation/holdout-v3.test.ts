@@ -704,7 +704,8 @@ function historicalResourcesThroughHoldoutV3() {
           item.split === "holdout_v5" ||
           item.split === "holdout_v6" ||
           item.split === "post_v5_regression" ||
-          item.split === "adversarial_safety"
+          item.split === "adversarial_safety" ||
+          item.split === "capability_e2"
       )
       .flatMap((item) => [
         ...(item.corpusResourceIds ?? []),
