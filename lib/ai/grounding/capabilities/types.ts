@@ -65,6 +65,7 @@ export type NumericCapability = CapabilityBase & {
   value: number;
   unit?: string;
   qualifier?: string;
+  role?: "PRICE" | "QUANTITY" | "VALUE";
 };
 
 export type ExplicitFactCapability = CapabilityBase & {
