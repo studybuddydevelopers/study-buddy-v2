@@ -278,6 +278,33 @@ describe("Stage 4.1 capability grounding pipeline", () => {
     expect(prompt).not.toMatch(/Ignore previous instructions|pressure formula/i);
   });
 
+  it("returns citations only for cited validated evidence units", async () => {
+    const { outcome } = await runPipeline({
+      message: "Give the pressure formula and define P.",
+      chunks: [
+        retrievedChunk("P = F / A.", {
+          id: "formula",
+          resourceId: "resource-formula",
+        }),
+        retrievedChunk("P means pressure.", {
+          id: "symbol",
+          resourceId: "resource-symbol",
+        }),
+      ],
+    });
+
+    expect(outcome.kind).toBe("COMPLETED");
+    if (outcome.kind !== "COMPLETED") return;
+    expect(outcome.diagnostics.validatedEvidenceUnits).toHaveLength(2);
+    expect(outcome.citations).toEqual([
+      {
+        sourceLabel: "SOURCE_1",
+        resourceChunkId: "formula",
+        evidenceUnitIds: ["unit-1"],
+      },
+    ]);
+  });
+
   it("supports contextual follow-up and refuses wrong-topic contextual evidence", async () => {
     const supported = await runPipeline({
       message: "What is its formula?",
@@ -320,6 +347,28 @@ describe("Stage 4.1 pipeline selector preservation", () => {
 
     vi.stubEnv("NODE_ENV", "production");
     expect(getSelectedGroundingPipeline()).toBe("legacy");
+
+    if (previousPipeline === undefined) {
+      delete process.env.AI_GROUNDING_PIPELINE;
+    } else {
+      process.env.AI_GROUNDING_PIPELINE = previousPipeline;
+    }
+    vi.unstubAllEnvs();
+  });
+
+  it("supports explicit evaluator selector override without relying on ambient env", () => {
+    const previousPipeline = process.env.AI_GROUNDING_PIPELINE;
+    process.env.AI_GROUNDING_PIPELINE = "legacy";
+    vi.stubEnv("NODE_ENV", "test");
+
+    expect(selectGroundingPipeline({}, "capability")).toBeInstanceOf(
+      CapabilityGroundingPipeline
+    );
+
+    vi.stubEnv("NODE_ENV", "production");
+    expect(selectGroundingPipeline({}, "capability")).not.toBeInstanceOf(
+      CapabilityGroundingPipeline
+    );
 
     if (previousPipeline === undefined) {
       delete process.env.AI_GROUNDING_PIPELINE;
