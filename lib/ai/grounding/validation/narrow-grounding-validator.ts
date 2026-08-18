@@ -137,6 +137,14 @@ export function validateNarrowGroundedOutput(input: {
       });
     }
 
+    if (containsNovelRelationClaim(normalized.text, citedUnits)) {
+      errors.push({
+        code: "UNSUPPORTED_ELABORATION",
+        message: "Output introduces a relation or entity not present in the cited evidence.",
+        segmentIndex: index,
+      });
+    }
+
     if (!validateArithmeticInSegment(normalized, input.validatedEvidenceUnits)) {
       errors.push({
         code: "INVALID_ARITHMETIC",
@@ -255,6 +263,30 @@ function containsUnsupportedClosedWorldElaboration(text: string, citedEvidence: 
   }
 
   return !/\bproportional(?:ity)?\b/i.test(citedEvidence);
+}
+
+function containsNovelRelationClaim(text: string, citedUnits: ValidatedEvidenceUnit[]) {
+  const evidenceText = citedUnits
+    .map((unit) =>
+      [
+        unit.quotedEvidence,
+        ...(unit.semanticComponents ?? []).map((component) =>
+          [
+            component.text,
+            component.relation,
+            component.object,
+            component.concept?.aliases?.join(" "),
+          ].filter(Boolean).join(" ")
+        ),
+      ].join(" ")
+    )
+    .join(" ")
+    .toLowerCase();
+  const generated = text.toLowerCase();
+  const relationPhrases = [
+    ...generated.matchAll(/\b(?:opposite|adjacent|bottom|top|upper|lower|nearby|parallel|perpendicular)\s+[a-z]{3,}\b/g),
+  ].map((match) => match[0]);
+  return relationPhrases.some((phrase) => !evidenceText.includes(phrase));
 }
 
 function containsUnresolvedAlgebra(text: string) {
