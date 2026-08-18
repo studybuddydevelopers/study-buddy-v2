@@ -12,6 +12,7 @@ import type {
   PassageInterpretationCapability,
   ProcessCapability,
   RelationCapability,
+  SemanticComponent,
   SymbolCapability,
 } from "../capabilities/types";
 
@@ -34,6 +35,7 @@ export type ValidatedEvidenceUnit = {
   quotedEvidence: string;
   evidenceSpans: EvidenceSpan[];
   allowedUses: AllowedEvidenceUse[];
+  semanticComponents?: SemanticComponent[];
 };
 
 export type CapabilitySupportRef = {
@@ -99,6 +101,7 @@ export function buildValidatedEvidenceUnits(
       quotedEvidence: capability.evidenceSpan.text,
       evidenceSpans: [capability.evidenceSpan],
       allowedUses: group.allowedUses,
+      semanticComponents: capability.semanticComponents,
     });
   }
 
