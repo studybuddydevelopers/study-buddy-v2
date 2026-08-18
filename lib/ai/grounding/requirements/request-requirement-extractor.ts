@@ -6,6 +6,14 @@ import type {
   RequestSafetyIntent,
   RequirementKind,
 } from "./types";
+import {
+  canonicalizeSemanticConcept,
+  inferRequestedFacet,
+  makeSemanticComponent,
+  normalizeSemanticBaseConcept,
+  type SemanticComponent,
+  type SemanticFacet,
+} from "../semantic-concepts";
 
 const DEFAULT_CONTEXT_LIMIT = 6;
 const SYMBOL_NAMES = new Set([
@@ -22,6 +30,11 @@ const SYMBOL_NAMES = new Set([
 type RequirementDraft = {
   kind: RequirementKind;
   targetConcepts: string[];
+  requestedAction?: string;
+  requestedFacet?: SemanticFacet;
+  constraints?: string[];
+  ignoredDirectiveText?: string[];
+  requiredSemanticComponents?: SemanticComponent[];
   requiredSymbols?: string[];
   requiredInputs?: string[];
   comparisonSides?: string[];
@@ -41,6 +54,7 @@ type RequirementBuildContext = {
   contextConcept?: string;
   contextProcess?: string;
   dependsOnPreviousTurn: boolean;
+  ignoredDirectiveText?: string[];
 };
 
 export function extractRequestRequirements(
@@ -51,21 +65,24 @@ export function extractRequestRequirements(
   const explicitQuotedTask = extractExplicitQuotedTask(normalizedQuestion, quotedSegments);
   const activeQuestion =
     explicitQuotedTask ?? removeNonTaskHostileQuotes(normalizedQuestion, quotedSegments);
+  const directiveMetadata = extractDirectiveMetadata(activeQuestion);
+  const educationalQuestion = directiveMetadata.educationalQuestion;
   const context = resolveRecentContext(
     input.recentMessages ?? [],
     input.maxContextMessages ?? DEFAULT_CONTEXT_LIMIT
   );
-  const currentHasExplicitConcept = hasExplicitCurrentConcept(activeQuestion);
+  const currentHasExplicitConcept = hasExplicitCurrentConcept(educationalQuestion);
   const shouldUseContext =
     !currentHasExplicitConcept &&
     isContextualFollowUp(activeQuestion) &&
     Boolean(context.concept || context.process);
-  const drafts = buildRequirementDrafts(activeQuestion, {
+  const drafts = buildRequirementDrafts(educationalQuestion, {
     subjectId: input.subjectId,
     topicId: input.topicId,
     contextConcept: shouldUseContext ? context.concept : undefined,
     contextProcess: shouldUseContext ? context.process : undefined,
     dependsOnPreviousTurn: shouldUseContext,
+    ignoredDirectiveText: directiveMetadata.ignoredDirectiveText,
   });
 
   return {
@@ -106,6 +123,12 @@ function buildRequirementDrafts(
 
   const factLookup = buildFactLookupRequirement(question);
   if (factLookup) return [withContext(factLookup, context)];
+
+  const formulaRelation = buildFormulaRelationRequirement(question);
+  if (formulaRelation) return [withContext(formulaRelation, context)];
+
+  const facetRequirement = buildFacetRequirement(question, context);
+  if (facetRequirement) return [withContext(facetRequirement, context)];
 
   const calculation = buildCalculationRequirement(question);
   if (calculation) return [withContext(calculation, context)];
@@ -152,10 +175,11 @@ function buildRequirementDrafts(
 }
 
 function buildRatioRequirement(question: string): RequirementDraft | undefined {
-  if (/\bsimplif(?:y|ying|ies)\b/i.test(question) && /\bratios?\b/i.test(question)) {
+  if (/\bsimplif(?:y|ying|ies|ied)\b/i.test(question) && /\bratios?\b/i.test(question)) {
+    const ratioValue = extractRatioValue(question);
     return {
       kind: "CONCEPT_DEFINITION",
-      targetConcepts: ["simplifying a ratio"],
+      targetConcepts: ratioValue ? ["ratio"] : ["simplifying a ratio"],
     };
   }
 
@@ -271,6 +295,130 @@ function buildFactLookupRequirement(question: string): RequirementDraft | undefi
   return undefined;
 }
 
+function buildFormulaRelationRequirement(question: string): RequirementDraft | undefined {
+  const proveFormula = question.match(
+    /\buse\s+(?:the\s+)?(.+?\bformula)\s+to\s+prove\s+(?:the\s+)?(.+?\bformula)\b/i
+  );
+  if (proveFormula) {
+    const source = cleanConcept(proveFormula[1] ?? "");
+    const target = cleanConcept(proveFormula[2] ?? "");
+    return {
+      kind: "RELATION_MECHANISM_CONSEQUENCE",
+      targetConcepts: compactStrings([source, target]),
+      requestedRelation: compactStrings([source, "prove", target]).join(" "),
+      requestedAction: "prove formula relation",
+      constraints: ["prove", source],
+    };
+  }
+
+  const explainUsingFormula = question.match(
+    /\bexplain\s+(?:the\s+)?(.+?)\s+using\s+(?:the\s+)?(.+?\bformula)\b/i
+  );
+  if (explainUsingFormula) {
+    const target = cleanConcept(explainUsingFormula[1] ?? "");
+    const formula = cleanConcept(explainUsingFormula[2] ?? "");
+    return {
+      kind: "RELATION_MECHANISM_CONSEQUENCE",
+      targetConcepts: compactStrings([target, formula]),
+      requestedRelation: compactStrings([formula, "explain", target]).join(" "),
+      requestedAction: "explain concept using formula",
+      constraints: compactStrings([formula]),
+    };
+  }
+
+  return undefined;
+}
+
+function buildFacetRequirement(
+  question: string,
+  context: RequirementBuildContext
+): RequirementDraft | undefined {
+  const measured =
+    firstMatch(question, /\bwhat\s+(?:is|are)\s+(.+?)\s+measured\s+in(?:[?.]|$)/i) ??
+    firstMatch(question, /\b(?:unit|units)\s+of\s+(.+?)(?:[?.]|$)/i);
+  if (measured) {
+    const target = cleanConcept(measured);
+    return {
+      kind: "FACT_LOOKUP",
+      targetConcepts: compactStrings([target]),
+      requestedFact: `${target} unit`,
+      requestedFacet: "UNIT",
+      requestedAction: "state unit",
+    };
+  }
+
+  const useful =
+    firstMatch(question, /\bwhy\s+(?:is|are)\s+(.+?)\s+useful(?:[?.]|$)/i) ??
+    firstMatch(question, /\bwhat\s+is\s+(?:the\s+)?purpose\s+of\s+(.+?)(?:[?.]|$)/i) ??
+    firstMatch(question, /\bwhat\s+is\s+(.+?)\s+used\s+for(?:[?.]|$)/i);
+  if (useful) {
+    const target = cleanConcept(useful);
+    return {
+      kind: "RELATION_MECHANISM_CONSEQUENCE",
+      targetConcepts: compactStrings([target, context.contextConcept]),
+      requestedRelation: `${target} purpose`,
+      requestedFacet: "PURPOSE",
+      requestedAction: "explain purpose",
+    };
+  }
+
+  const kindMentioned =
+    firstMatch(question, /\bwhat\s+(?:kinds?|types?)\s+of\s+(.+?)\s+are\s+mentioned(?:[?.]|$)/i) ??
+    firstMatch(question, /\bwhat\s+(?:is|are)\s+(?:a\s+|an\s+|the\s+)?(.+?),\s+and\s+what\s+(?:kinds?|types?)\s+are\s+mentioned(?:[?.]|$)/i);
+  if (kindMentioned) {
+    const target = cleanConcept(kindMentioned);
+    return {
+      kind: "CONCEPT_DEFINITION",
+      targetConcepts: compactStrings([target]),
+      requestedFacet: "DEFINITION",
+      requestedAction: "define and list mentioned kinds",
+      constraints: ["kinds mentioned"],
+    };
+  }
+
+  const usedAndLimitation = question.match(
+    /\bwhen\s+should\s+(.+?)\s+be\s+used,\s+and\s+what\s+can\s+it\s+not\s+do(?:[?.]|$)/i
+  );
+  if (usedAndLimitation) {
+    const target = cleanConcept(usedAndLimitation[1] ?? "");
+    return {
+      kind: "MULTI_PART",
+      targetConcepts: compactStrings([target]),
+      requestedAction: "state use and limitation",
+      childRequirements: [
+        {
+          kind: "PROCESS_EXPLANATION",
+          targetConcepts: compactStrings([target]),
+          requestedProcess: target,
+          requestedFacet: "PROCESS",
+        },
+        {
+          kind: "FACT_LOOKUP",
+          targetConcepts: compactStrings([target]),
+          requestedFact: `${target} limitation`,
+          requestedFacet: "LIMITATION",
+        },
+      ],
+    };
+  }
+
+  const limitation =
+    firstMatch(question, /\bwhat\s+is\s+(?:its|the)\s+limitation(?:[?.]|$)/i) ??
+    firstMatch(question, /\bwhat\s+can\s+(.+?)\s+not\s+do(?:[?.]|$)/i);
+  if (limitation || /\bwhat\s+can\s+it\s+not\s+do\b/i.test(question)) {
+    const target = cleanConcept(limitation ?? context.contextConcept ?? "");
+    return {
+      kind: "FACT_LOOKUP",
+      targetConcepts: compactStrings([target, context.contextConcept]),
+      requestedFact: `${target || context.contextConcept || "concept"} limitation`,
+      requestedFacet: "LIMITATION",
+      requestedAction: "state limitation",
+    };
+  }
+
+  return undefined;
+}
+
 function buildProcedureMethodRequirement(question: string): RequirementDraft | undefined {
   if (!/\b(?:how\s+do\s+i|how\s+can\s+i|how\s+to|what\s+steps?|which\s+steps?|explain\s+how\s+to|show\s+how\s+to)\b/i.test(question)) {
     return undefined;
@@ -306,7 +454,7 @@ function buildComparisonRequirement(question: string): RequirementDraft | undefi
 
   if (!compareMatch) return undefined;
 
-  const sides = compareMatch.map(cleanConcept);
+  const sides = normalizeComparisonSides(compareMatch.map(cleanConcept));
 
   if (sides.length < 2) return undefined;
 
@@ -585,6 +733,33 @@ function buildProcessRequirement(
   question: string,
   context: RequirementBuildContext
 ): RequirementDraft | undefined {
+  if (/\bfood\s+chain\b/i.test(question) && /\bproducers?\b/i.test(question) && /\bconsumers?\b/i.test(question)) {
+    return {
+      kind: "MULTI_PART",
+      targetConcepts: ["food chain", "producers", "consumers"],
+      childRequirements: [
+        {
+          kind: "PROCESS_EXPLANATION",
+          targetConcepts: ["food chain"],
+          requestedProcess: "food chain",
+          requestedFacet: "PROCESS",
+        },
+        {
+          kind: "RELATION_MECHANISM_CONSEQUENCE",
+          targetConcepts: ["producers"],
+          requestedRelation: "producers function",
+          requestedFacet: "FUNCTION",
+        },
+        {
+          kind: "RELATION_MECHANISM_CONSEQUENCE",
+          targetConcepts: ["consumers"],
+          requestedRelation: "consumers function",
+          requestedFacet: "FUNCTION",
+        },
+      ],
+    };
+  }
+
   const process =
     firstMatch(question, /\b(?:explain|describe)\s+(?:the\s+)?process\s+of\s+(.+?)(?:[?.]|$)/i) ??
     firstMatch(question, /\b(?:explain|describe)\s+(.+?)(?:[?.]|$)/i);
@@ -605,11 +780,31 @@ function buildDefinitionRequirement(
   question: string,
   context: RequirementBuildContext
 ): RequirementDraft | undefined {
+  if (/\bmain\s+idea\b/i.test(question) && /\bsupporting\s+details?\b/i.test(question)) {
+    return {
+      kind: "MULTI_PART",
+      targetConcepts: ["main idea", "supporting details"],
+      childRequirements: [
+        {
+          kind: "CONCEPT_DEFINITION",
+          targetConcepts: ["main idea"],
+          requestedFacet: "DEFINITION",
+        },
+        {
+          kind: "CONCEPT_DEFINITION",
+          targetConcepts: ["supporting details"],
+          requestedFacet: "DEFINITION",
+        },
+      ],
+    };
+  }
+
   const concept =
     firstMatch(question, /\bwhat\s+(?:is|are)\s+(.+?)(?:[?.]|$)/i) ??
     firstMatch(question, /\bwhat\s+does\s+(.+?)\s+(?:mean|means|refer to|describe)\b/i) ??
     firstMatch(question, /\bdefine\s+(.+?)(?:[?.]|$)/i) ??
-    firstMatch(question, /\b(?:state|give)\s+(?:the\s+)?meaning\s+of\s+(.+?)(?:[?.]|$)/i);
+    firstMatch(question, /\b(?:state|give)\s+(?:the\s+)?meaning\s+of\s+(.+?)(?:[?.]|$)/i) ??
+    firstMatch(question, /\b(?:teach|answer|explain)\s+(?:the\s+)?(.+?)(?:[?.]|$)/i);
 
   if (!concept && !context.contextConcept) return undefined;
 
@@ -656,11 +851,13 @@ function withContext(
   draft: RequirementDraft,
   context: RequirementBuildContext
 ): RequirementDraft {
-  if (!context.dependsOnPreviousTurn) return draft;
-
   return {
     ...draft,
-    dependsOnPreviousTurn: true,
+    ignoredDirectiveText: optionalUnique([
+      ...(draft.ignoredDirectiveText ?? []),
+      ...(context.ignoredDirectiveText ?? []),
+    ]),
+    dependsOnPreviousTurn: context.dependsOnPreviousTurn ? true : draft.dependsOnPreviousTurn,
     childRequirements: draft.childRequirements?.map((child) =>
       withContext(child, context)
     ),
@@ -683,12 +880,22 @@ function assignRequirementId(
   subjectId: string,
   topicId?: string
 ): RequestRequirement {
+  const semantic = buildSemanticEnrichment(draft, subjectId, topicId);
   return {
     id,
     kind: draft.kind,
     subjectId,
     topicId,
     targetConcepts: uniqueStrings(draft.targetConcepts),
+    baseConcept: semantic.baseConcept,
+    requestedAction: draft.requestedAction,
+    requestedFacet: draft.requestedFacet ?? semantic.requestedFacet,
+    constraints: optionalUnique([...(draft.constraints ?? []), ...semantic.constraints]),
+    ignoredDirectiveText: optionalUnique(draft.ignoredDirectiveText),
+    requiredSemanticComponents: optionalSemanticComponents([
+      ...(draft.requiredSemanticComponents ?? []),
+      ...semantic.requiredSemanticComponents,
+    ]),
     requiredSymbols: optionalUnique(draft.requiredSymbols),
     requiredInputs: optionalUnique(draft.requiredInputs),
     comparisonSides: optionalUnique(draft.comparisonSides),
@@ -705,11 +912,186 @@ function assignRequirementId(
   };
 }
 
+function buildSemanticEnrichment(
+  draft: RequirementDraft,
+  subjectId: string,
+  topicId?: string
+): {
+  baseConcept?: RequestRequirement["baseConcept"];
+  requestedFacet?: SemanticFacet;
+  constraints: string[];
+  requiredSemanticComponents: SemanticComponent[];
+} {
+  const requestedFacet = draft.requestedFacet ?? facetForRequirement(draft);
+  const primaryTarget = primarySemanticTarget(draft);
+  const baseConcept = primaryTarget
+    ? canonicalizeSemanticConcept({
+        rawConcept: primaryTarget,
+        subjectId,
+        topicId,
+        facet: requestedFacet,
+      })
+    : undefined;
+  const constraints = draft.constraints ?? [];
+  const components: SemanticComponent[] = [];
+
+  if (baseConcept && requestedFacet) {
+    components.push(
+      makeSemanticComponent({
+        kind: requestedFacet,
+        concept: baseConcept,
+        constraints,
+        text: primaryTarget,
+      })
+    );
+  }
+
+  for (const symbol of draft.requiredSymbols ?? []) {
+    components.push(
+      makeSemanticComponent({
+        kind: "SYMBOL",
+        symbol: cleanSymbolToken(symbol).toLowerCase(),
+        text: symbol,
+      })
+    );
+  }
+
+  for (const side of draft.comparisonSides ?? []) {
+    const sideConcept = canonicalizeSemanticConcept({
+      rawConcept: side,
+      subjectId,
+      topicId,
+      facet: "DEFINITION",
+    });
+    if (sideConcept) {
+      components.push(
+        makeSemanticComponent({
+          kind: "COMPARISON_SIDE",
+          concept: sideConcept,
+          text: side,
+        })
+      );
+    }
+  }
+
+  for (const input of draft.requiredInputs ?? []) {
+    components.push(
+      makeSemanticComponent({
+        kind: "QUANTITY",
+        concept: baseConcept,
+        text: input,
+      })
+    );
+  }
+
+  return {
+    baseConcept,
+    requestedFacet,
+    constraints,
+    requiredSemanticComponents: components,
+  };
+}
+
+function facetForRequirement(draft: RequirementDraft): SemanticFacet | undefined {
+  if (draft.requestedFacet) return draft.requestedFacet;
+  switch (draft.kind) {
+    case "CONCEPT_DEFINITION":
+    case "CONTEXTUAL_FOLLOW_UP":
+      return inferRequestedFacet(
+        `${draft.requestedAction ?? ""} ${draft.requestedFact ?? ""} ${draft.targetConcepts.join(" ")}`
+      );
+    case "FORMULA":
+    case "FORMULA_WITH_SYMBOLS":
+      return "FORMULA";
+    case "CALCULATION":
+      return "METHOD";
+    case "RELATION_MECHANISM_CONSEQUENCE":
+      return "CONSEQUENCE";
+    case "PROCESS_EXPLANATION":
+      return "PROCESS";
+    case "PROCEDURE_METHOD":
+      return "METHOD";
+    case "FACT_LOOKUP":
+      return draft.requestedFacet ?? "DEFINITION";
+    case "PASSAGE_INTERPRETATION":
+      return "DEFINITION";
+    case "COMPARISON":
+    case "MULTI_OPTION_COMPARISON":
+    case "MULTI_PART":
+    case "SYMBOL_DEFINITION":
+      return undefined;
+  }
+}
+
+function primarySemanticTarget(draft: RequirementDraft): string | undefined {
+  if (draft.kind === "SYMBOL_DEFINITION") return undefined;
+  const raw =
+    draft.targetConcepts[0] ??
+    draft.requestedProcess ??
+    draft.requestedMethod ??
+    draft.requestedFact ??
+    draft.requestedRelation;
+  if (!raw) return undefined;
+  const cleaned = normalizeSemanticBaseConcept(raw, draft.requestedFacet ?? facetForRequirement(draft));
+  return cleaned || undefined;
+}
+
 function buildSafetyIntent(activeQuestion: string, quotedSegments: string[]): RequestSafetyIntent {
   return {
     asksForCurrentExternalInfo: asksForCurrentExternalInfo(activeQuestion),
     containsHostileQuotedText: quotedSegments.some(isHostileInstruction),
     asksToIgnoreSources: asksToIgnoreSources(activeQuestion),
+  };
+}
+
+function extractDirectiveMetadata(question: string): {
+  educationalQuestion: string;
+  ignoredDirectiveText: string[];
+} {
+  const ignoredDirectiveText: string[] = [];
+  let educationalQuestion = question;
+  const directivePatterns = [
+    /\b(ignore|bypass|override|disregard)\b.{0,80}\b(source|evidence|citation|resource|context|instruction)s?(?:\s+limits?)?\b/gi,
+    /\b(?:answer|use)\b.{0,50}\b(?:from memory|general knowledge|outside sources?)\b/gi,
+    /\buse\s+source[_\s-]*\d+\b/gi,
+    /\buse only the source label(?: the server gives you)?\b/gi,
+  ];
+
+  for (const pattern of directivePatterns) {
+    educationalQuestion = educationalQuestion.replace(pattern, (match) => {
+      ignoredDirectiveText.push(normalizeQuestion(match));
+      return " ";
+    });
+  }
+
+  educationalQuestion = normalizeQuestion(
+    ignoredDirectiveText.length > 0
+      ? educationalQuestion
+          .replace(/\b(?:and|but)\s+(?:answer|explain|tell me|state)\b/gi, " ")
+          .replace(/\b(?:and|but)\s*$/i, " ")
+          .replace(/^\b(?:answer|tell me)\b\s+/i, "")
+          .replace(/\s+/g, " ")
+      : educationalQuestion
+  );
+  const leftoverTokens = educationalQuestion.toLowerCase().replace(/[^a-z]+/g, " ").trim();
+  if (/^(?:and|but|then)?$/.test(leftoverTokens)) {
+    educationalQuestion = "";
+  }
+
+  if (!educationalQuestion && ignoredDirectiveText.length > 0) {
+    const fallbackTarget =
+      firstMatch(question, /\b(?:answer|explain|tell me|state)\s+(.+?)\s+from\s+memory\b/i) ??
+      firstMatch(question, /\b(?:answer|explain|tell me|state)\s+(.+?)(?:[?.]|$)/i);
+    const cleanedFallback = normalizeQuestion(fallbackTarget ?? "");
+    educationalQuestion =
+      cleanedFallback && !/^(?:from memory|general knowledge|outside sources?)$/i.test(cleanedFallback)
+        ? normalizeQuestion(`what is ${cleanedFallback}`)
+        : "";
+  }
+
+  return {
+    educationalQuestion: educationalQuestion || (ignoredDirectiveText.length > 0 ? "" : question),
+    ignoredDirectiveText: uniqueStrings(ignoredDirectiveText),
   };
 }
 
@@ -818,9 +1200,16 @@ function extractLikelyConcept(question: string): string | undefined {
 }
 
 function extractFormulaConcept(question: string): string {
+  const shapeArea =
+    firstMatch(question, /\barea\s+of\s+(?:a\s+)?(circle|triangle|rectangle|parallelogram)\s+formula\b/i) ??
+    firstMatch(question, /\b(circle|triangle|rectangle|parallelogram)\s+area\s+formula\b/i);
+  if (shapeArea) return `area of ${cleanConcept(shapeArea)}`;
+
+  if (/\bcircle\s+boundary\s+formula\b/i.test(question)) return "circle boundary";
+
   const direct =
     firstMatch(question, /\bformula\s+(?:for|of)\s+(.+?)(?:\s+and\b|[?.]|$)/i) ??
-    firstMatch(question, /\b(?:give|state|write|what\s+is)\s+(?:the\s+)?(.+?)\s+formula(?:\s+and\b|[?.]|$)/i);
+    firstMatch(question, /\b(?:give|state|write|what\s+is|teach|explain)\s+(?:the\s+)?(.+?)\s+formula(?:\s+and\b|[?.]|$)/i);
 
   return cleanConcept(direct ?? "");
 }
@@ -928,12 +1317,16 @@ function firstMatch(
 function cleanConcept(value: string): string {
   const cleaned = normalizeQuestion(value)
     .replace(/[?.!]+$/g, "")
+    .replace(/\b(?:using|from|with)\s+(?:these|the|this|two)?\s*(?:[a-z0-9]+\s+){0,3}(?:notes?|cards?|sources?|evidence|formula notes?)$/i, "")
     .replace(/\s+as\s+.+$/i, "")
+    .replace(/\s+and\s+(?:name|define|identify|explain)\s+(?:the\s+)?(?:variables?|symbols?)$/i, "")
+    .replace(/\s+and\s+what\s+(?:do|does|is|are)\s+.+$/i, "")
+    .replace(/\s+(?:and|or)$/i, "")
     .replace(/\s+in\s+(?:physics|chemistry|biology|mathematics|maths|english|geography|science)$/i, "")
     .replace(/\s+in\s+simple\s+terms$/i, "")
     .replace(/\s+of\s+(?:a\s+|an\s+|the\s+)?(?:paragraph|passage|text)$/i, "")
     .replace(/^(?:a|an|the|this|that|its)\s+/i, "")
-    .replace(/\b(?:formula|process|method|rule|conditions?|ways?|one|two|three)\b/gi, " ")
+    .replace(/\b(?:formula|process|method|rule|conditions?|ways?|one|two|three|cards?|notes?)\b/gi, " ")
     .replace(/\s+/g, " ")
     .trim()
     .toLowerCase();
@@ -942,6 +1335,20 @@ function cleanConcept(value: string): string {
   )
     ? ""
     : cleaned;
+}
+
+function normalizeComparisonSides(sides: string[]): string[] {
+  if (sides.length !== 2) return sides;
+  const [left, right] = sides;
+  if (!left || !right) return sides;
+  const rightNorm = normalizeQuestion(right).toLowerCase();
+  if (rightNorm.includes("resistance") && /^(?:series|parallel)$/.test(left)) {
+    return [`${left} resistance rule`, right];
+  }
+  if (rightNorm.includes("circuit resistance") && /^(?:series|parallel)$/.test(left)) {
+    return [`${left} circuit resistance rule`, right];
+  }
+  return sides;
 }
 
 function cleanMethod(value: string): string {
@@ -995,6 +1402,26 @@ function optionalUnique(values: string[] | undefined): string[] | undefined {
   if (!values) return undefined;
   const unique = uniqueStrings(values);
   return unique.length > 0 ? unique : undefined;
+}
+
+function optionalSemanticComponents(
+  values: SemanticComponent[]
+): SemanticComponent[] | undefined {
+  const unique = new Map<string, SemanticComponent>();
+  for (const value of values) {
+    const key = [
+      value.kind,
+      value.concept?.baseConcept ?? "",
+      value.concept?.facet ?? "",
+      value.symbol ?? "",
+      value.relation ?? "",
+      value.object ?? "",
+      value.text ?? "",
+    ].join(":");
+    unique.set(key, value);
+  }
+  const result = [...unique.values()];
+  return result.length > 0 ? result : undefined;
 }
 
 function stableHash(value: string): string {
