@@ -1,3 +1,9 @@
+import type {
+  SemanticComponent,
+  SemanticConcept,
+  SemanticFacet,
+} from "../semantic-concepts";
+
 export type RequirementKind =
   | "CONCEPT_DEFINITION"
   | "FORMULA"
@@ -30,6 +36,12 @@ export type RequestRequirement = {
   subjectId: string;
   topicId?: string;
   targetConcepts: string[];
+  baseConcept?: SemanticConcept;
+  requestedAction?: string;
+  requestedFacet?: SemanticFacet;
+  constraints?: string[];
+  ignoredDirectiveText?: string[];
+  requiredSemanticComponents?: SemanticComponent[];
   requiredSymbols?: string[];
   requiredInputs?: string[];
   comparisonSides?: string[];
