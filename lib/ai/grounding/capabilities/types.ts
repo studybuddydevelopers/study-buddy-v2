@@ -1,12 +1,14 @@
+import type {
+  CanonicalConcept,
+  SemanticComponent,
+  SemanticConcept,
+} from "../semantic-concepts";
+
+export type { CanonicalConcept, SemanticComponent, SemanticConcept };
+
 export type CapabilityConfidence = "HIGH" | "MEDIUM" | "LOW";
 
 export type CapabilityPolarity = "POSITIVE" | "NEGATED" | "ABSENT";
-
-export type CanonicalConcept = {
-  id: string;
-  label: string;
-  aliases: string[];
-};
 
 export type EvidenceSpan = {
   text: string;
@@ -34,6 +36,7 @@ type CapabilityBase = {
   sourceLabel: string;
   evidenceSpan: EvidenceSpan;
   confidence: CapabilityConfidence;
+  semanticComponents?: SemanticComponent[];
 };
 
 export type CapabilityFact = CapabilityBase & {
@@ -163,6 +166,7 @@ export type EvidenceCapability = {
   processFacts: ProcessCapability[];
   consequences: ConsequenceCapability[];
   passageInterpretations: PassageInterpretationCapability[];
+  semanticComponents: SemanticComponent[];
   conflicts: ConflictCapability[];
   unsafeContent?: UnsafeContentCapability[];
 };
