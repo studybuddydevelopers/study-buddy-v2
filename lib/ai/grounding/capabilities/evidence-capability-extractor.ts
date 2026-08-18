@@ -24,55 +24,17 @@ import type {
   UnsafeContentCapability,
   UnsafeContentType,
 } from "./types";
+import {
+  canonicalizeConcept as sharedCanonicalizeConcept,
+  canonicalizeSemanticConcept,
+  findMentionedCanonicalConcepts,
+  makeSemanticComponent,
+  normalizeSemanticBaseConcept,
+  type SemanticComponent,
+  type SemanticFacet,
+} from "../semantic-concepts";
 
 type SentenceSpan = EvidenceSpan;
-
-type ConceptAliasEntry = {
-  id: string;
-  label: string;
-  aliases: string[];
-  subjectIds?: string[];
-  topicIds?: string[];
-};
-
-const CONTROLLED_CONCEPTS: ConceptAliasEntry[] = [
-  {
-    id: "simple-interest",
-    label: "Simple interest",
-    aliases: ["simple interest", "simple-interest", "si"],
-  },
-  { id: "density", label: "Density", aliases: ["density"] },
-  { id: "speed", label: "Speed", aliases: ["speed"] },
-  { id: "pressure", label: "Pressure", aliases: ["pressure"] },
-  { id: "voltage", label: "Voltage", aliases: ["voltage", "potential difference"] },
-  { id: "resistance", label: "Resistance", aliases: ["resistance"] },
-  { id: "frequency", label: "Frequency", aliases: ["frequency"] },
-  { id: "wavelength", label: "Wavelength", aliases: ["wavelength"] },
-  { id: "evaporation", label: "Evaporation", aliases: ["evaporation"] },
-  { id: "boiling", label: "Boiling", aliases: ["boiling"] },
-  { id: "filtration", label: "Filtration", aliases: ["filtration"] },
-  { id: "photosynthesis", label: "Photosynthesis", aliases: ["photosynthesis"] },
-  { id: "acid", label: "Acid", aliases: ["acid", "acids"] },
-  { id: "base", label: "Base", aliases: ["base", "bases", "alkali", "alkalis"] },
-  { id: "osmosis", label: "Osmosis", aliases: ["osmosis"] },
-  { id: "ratio", label: "Ratio", aliases: ["ratio", "ratios"] },
-  { id: "ohms-law", label: "Ohm's law", aliases: ["ohm's law", "ohms law"] },
-  { id: "conductor", label: "Conductor", aliases: ["conductor", "conductors"] },
-  { id: "insulator", label: "Insulator", aliases: ["insulator", "insulators"] },
-  {
-    id: "series-resistance-rule",
-    label: "Series resistance rule",
-    aliases: ["series resistance rule", "series resistance rules", "series rules"],
-  },
-  {
-    id: "parallel-resistance-rule",
-    label: "Parallel resistance rule",
-    aliases: ["parallel resistance rule", "parallel resistance rules", "parallel rules"],
-  },
-  { id: "noun", label: "Noun", aliases: ["noun", "nouns"] },
-  { id: "median", label: "Median", aliases: ["median"] },
-  { id: "rusting", label: "Rusting", aliases: ["rusting"] },
-];
 
 const GREEK_SYMBOLS = new Map<string, string>([
   ["lambda", "λ"],
@@ -136,6 +98,7 @@ export function extractEvidenceCapability(chunk: AuthorizedEvidenceChunk): Evide
     processFacts: [],
     consequences: [],
     passageInterpretations: [],
+    semanticComponents: [],
     conflicts: [],
     unsafeContent: [],
   };
@@ -153,17 +116,40 @@ export function extractEvidenceCapability(chunk: AuthorizedEvidenceChunk): Evide
     capability.formulas.push(...formulas);
     capability.symbolDefinitions.push(...symbolDefinitions);
 
-    capability.conceptDefinitions.push(...extractConceptDefinitions(sentence, state));
-    capability.numericValues.push(...extractNumericValues(sentence, state));
-    capability.explicitFacts.push(...extractExplicitFacts(sentence, state));
-    capability.methods.push(...extractMethods(sentence, state));
-    capability.eventFacts.push(...extractEventFacts(sentence, state));
-    capability.relations.push(...extractRelations(sentence, state));
-    capability.comparisonSides.push(...extractComparisonSides(sentence, state));
-    capability.processFacts.push(...extractProcessFacts(sentence, state));
-    capability.consequences.push(...extractConsequences(sentence, state));
-    capability.passageInterpretations.push(...extractPassageInterpretations(sentence, state));
+    const definitions = extractConceptDefinitions(sentence, state);
+    const numerics = extractNumericValues(sentence, state);
+    const facts = extractExplicitFacts(sentence, state);
+    const methods = extractMethods(sentence, state);
+    const events = extractEventFacts(sentence, state);
+    const relations = extractRelations(sentence, state);
+    const comparisonSides = extractComparisonSides(sentence, state);
+    const processes = extractProcessFacts(sentence, state);
+    const consequences = extractConsequences(sentence, state);
+    const passageInterpretations = extractPassageInterpretations(sentence, state);
+
+    capability.conceptDefinitions.push(...definitions);
+    capability.numericValues.push(...numerics);
+    capability.explicitFacts.push(...facts);
+    capability.methods.push(...methods);
+    capability.eventFacts.push(...events);
+    capability.relations.push(...relations);
+    capability.comparisonSides.push(...comparisonSides);
+    capability.processFacts.push(...processes);
+    capability.consequences.push(...consequences);
+    capability.passageInterpretations.push(...passageInterpretations);
+
+    updateLastSemanticTarget(state, [
+      ...definitions,
+      ...formulas,
+      ...facts,
+      ...methods,
+      ...relations,
+      ...processes,
+      ...consequences,
+    ]);
   }
+
+  attachSemanticComponents(capability);
 
   if (capability.unsafeContent && capability.unsafeContent.length === 0) {
     delete capability.unsafeContent;
@@ -192,32 +178,7 @@ export function canonicalizeConcept(
   rawConcept: string,
   scope?: { subjectId?: string; topicId?: string }
 ): CanonicalConcept {
-  const normalized = singularizeConcept(normalizeConceptText(rawConcept));
-  const match = CONTROLLED_CONCEPTS.find((entry) => {
-    const subjectMatches =
-      !entry.subjectIds || !scope?.subjectId || entry.subjectIds.includes(scope.subjectId);
-    const topicMatches =
-      !entry.topicIds || !scope?.topicId || entry.topicIds.includes(scope.topicId);
-    return (
-      subjectMatches &&
-      topicMatches &&
-      entry.aliases.some((alias) => singularizeConcept(normalizeConceptText(alias)) === normalized)
-    );
-  });
-
-  if (match) {
-    return {
-      id: match.id,
-      label: match.label,
-      aliases: match.aliases,
-    };
-  }
-
-  return {
-    id: `concept:${slugify(normalized || "unknown")}`,
-    label: toTitleCase(normalized || rawConcept),
-    aliases: normalized ? [normalized] : [],
-  };
+  return sharedCanonicalizeConcept(rawConcept, scope);
 }
 
 export function normalizeSymbol(rawSymbol: string): SymbolReference | undefined {
@@ -302,7 +263,7 @@ function extractConceptDefinitions(
   const definitionMatch =
     text.match(/^(?:(?:an|a|the)\s+)?(.+?)\s+(?:is|are|means|refers to)\s+(.+)$/i) ??
     text.match(/^(?:(?:an|a|the)\s+)?(.+?)\s+(shows?)\s+how\s+(.+)$/i) ??
-    text.match(/^(?:(?:an|a|the)\s+)?(.+?)\s+(compares|describes)\s+(.+)$/i);
+    text.match(/^(?:(?:an|a|the)\s+)?(.+?)\s+(shows?|compares|describes|explains?|proves?|gives?)\s+(.+)$/i);
   if (!definitionMatch) return [];
   if (isFormulaLike(text) || isSymbolDefinitionSentence(text)) return [];
 
@@ -503,14 +464,13 @@ function extractNumericValues(
     );
   }
 
-  const qualified = sentence.text.match(
-    /\b(?:the\s+)?([A-Za-z][A-Za-z ]{1,40}?)\s+(?:across|in|of|for)\s+(?:the\s+)?([A-Za-z][A-Za-z ]{1,40}?)\s+is\s+([-+]?\d+(?:\.\d+)?)\s*([A-Za-z%/²³]+)\b/i
-  );
-  if (qualified) {
+  for (const qualified of sentence.text.matchAll(
+    /\b(?:the\s+)?([A-Za-z][A-Za-z ]{1,40}?)\s+(?:across|in|of|for|through)\s+(?:the\s+)?([A-Za-z][A-Za-z ]{1,40}?)\s+is\s+([-+]?\d+(?:\.\d+)?)\s*([A-Za-z%/²³]+)\b/gi
+  )) {
     values.push(
       createNumericValue({
         state,
-        span: sentence,
+        span: sliceSentenceSpan(sentence, qualified.index ?? 0, qualified[0].length),
         quantity: cleanConcept(qualified[1] ?? ""),
         qualifier: cleanConcept(qualified[2] ?? ""),
         value: Number(qualified[3]),
@@ -518,17 +478,16 @@ function extractNumericValues(
         role: inferNumericRole(qualified[1] ?? "", qualified[4]),
       })
     );
-    return values;
   }
 
-  const direct = sentence.text.match(
-    /\b(?:the\s+)?([A-Za-z][A-Za-z ]{1,40}?)\s+is\s+([-+]?\d+(?:\.\d+)?)\s*([A-Za-z%/²³]+)\b/i
-  );
-  if (direct && !isDefinitionVerbContext(sentence.text)) {
+  for (const direct of sentence.text.matchAll(
+    /\b(?:the\s+)?([A-Za-z][A-Za-z ]{1,40}?)\s+is\s+([-+]?\d+(?:\.\d+)?)\s*([A-Za-z%/²³]+)\b/gi
+  )) {
+    if (isDefinitionVerbContext(sentence.text)) continue;
     values.push(
       createNumericValue({
         state,
-        span: sentence,
+        span: sliceSentenceSpan(sentence, direct.index ?? 0, direct[0].length),
         quantity: cleanConcept(direct[1] ?? ""),
         value: Number(direct[2]),
         unit: direct[3],
@@ -559,7 +518,11 @@ function extractNumericValues(
     }
   }
 
-  return values;
+  return dedupeBy(
+    values,
+    (value) =>
+      `${value.value}:${value.unit ?? ""}`
+  );
 }
 
 function extractExplicitFacts(
@@ -568,6 +531,28 @@ function extractExplicitFacts(
 ): ExplicitFactCapability[] {
   const facts: ExplicitFactCapability[] = [];
   const text = sentence.text;
+  const limitationMatch =
+    text.match(/\b(?:its|the)\s+limitation\s+is\s+(.+)$/i) ??
+    text.match(/\b(.+?)\s+(?:cannot|can not|does not|do not)\s+(.+)$/i);
+  if (limitationMatch) {
+    const concept = limitationMatch.length >= 3
+      ? cleanConcept(limitationMatch[1] ?? "")
+      : state.lastSemanticTarget ?? "limitation";
+    const factText = limitationMatch.length >= 3
+      ? `${limitationMatch[1] ?? ""} ${limitationMatch[2] ?? ""}`.trim()
+      : text;
+    facts.push(
+      createExplicitFact({
+        state,
+        span: sentence,
+        factKey: `${concept || state.lastSemanticTarget || "concept"} limitation`,
+        factText,
+        concept: concept || state.lastSemanticTarget,
+        polarity: "POSITIVE",
+      })
+    );
+  }
+
   const patterns: Array<{ match: RegExp; key: (match: RegExpMatchArray) => string; concept?: (match: RegExpMatchArray) => string }> = [
     {
       match: /\bpractice\s+paper\s+identifier\s*:\s*(.+)$/i,
@@ -584,6 +569,24 @@ function extractExplicitFacts(
       key: () => "answer",
     },
   ];
+
+  const canBeKinds = text.match(/\b(.+?)\s+can\s+be\s+(.+)$/i);
+  if (canBeKinds) {
+    const concept = cleanConcept(canBeKinds[1] ?? "");
+    const factText = cleanMeaning(canBeKinds[2] ?? "");
+    if (concept && factText) {
+      facts.push(
+        createExplicitFact({
+          state,
+          span: sentence,
+          factKey: `${concept} kinds`,
+          factText,
+          concept,
+          polarity: "POSITIVE",
+        })
+      );
+    }
+  }
 
   for (const pattern of patterns) {
     const match = text.match(pattern.match);
@@ -688,7 +691,7 @@ function extractRelations(
   const relations: RelationCapability[] = [];
   for (const clause of splitRelationClauses(sentence)) {
     const relationMatch =
-      clause.text.match(/\b(.+?)\s+(increases|decreases|reduces|affects|causes|depends on|leads to|turns?|changes?)\s+(.+)$/i) ??
+      clause.text.match(/\b(.+?)\s+(increases|decreases|reduces|affects|causes|depends on|leads to|turns?|changes?|transfers?|makes?|eats?)\s+(.+)$/i) ??
       clause.text.match(/\b(.+?)\s+(carry|carries|transport|transports)\s+(.+)$/i) ??
       clause.text.match(/\b(.+?)\s+(increases|decreases)\s+with\s+(.+)$/i);
     if (!relationMatch) continue;
@@ -1009,10 +1012,373 @@ type ConflictCandidate = {
 type CapabilityState = {
   chunk: AuthorizedEvidenceChunk;
   sequence: number;
+  lastSemanticTarget?: string;
 };
 
 function createCapabilityState(chunk: AuthorizedEvidenceChunk): CapabilityState {
   return { chunk, sequence: 0 };
+}
+
+function updateLastSemanticTarget(
+  state: CapabilityState,
+  capabilities: Array<{
+    canonicalConcept?: CanonicalConcept;
+    process?: string;
+    method?: string;
+    subject?: string;
+    cause?: string;
+  }>
+) {
+  const target = capabilities
+    .map((capability) =>
+      capability.canonicalConcept?.aliases[0] ??
+      capability.canonicalConcept?.label ??
+      capability.process ??
+      capability.method ??
+      capability.subject ??
+      capability.cause
+    )
+    .find(Boolean);
+  if (target) state.lastSemanticTarget = target;
+}
+
+function attachSemanticComponents(capability: EvidenceCapability) {
+  const allComponents: SemanticComponent[] = [];
+  const component = (
+    input: Omit<Parameters<typeof componentForCapability>[0], "subjectId" | "topicId">
+  ) =>
+    componentForCapability({
+      ...input,
+      subjectId: capability.subjectId,
+      topicId: capability.topicId,
+    });
+
+  for (const definition of capability.conceptDefinitions) {
+    if (definition.polarity !== "POSITIVE") {
+      definition.semanticComponents = [];
+      continue;
+    }
+    const facets = definitionFacets(definition.definitionText, definition.evidenceSpan.text);
+    definition.semanticComponents = facets.map((facet) =>
+      component({
+        kind: facet,
+        conceptRaw: definition.canonicalConcept.aliases[0] ?? definition.canonicalConcept.label,
+        capability: definition,
+        text: definition.definitionText,
+      })
+    );
+    allComponents.push(...definition.semanticComponents);
+  }
+
+  for (const formula of capability.formulas) {
+    formula.semanticComponents = [
+      component({
+        kind: "FORMULA",
+        conceptRaw:
+          formula.canonicalConcept?.aliases[0] ??
+          formula.canonicalConcept?.label ??
+          formula.outputQuantity ??
+          formula.expression,
+        capability: formula,
+        text: formula.expression,
+      }),
+      ...(formula.outputQuantity
+        ? [
+            component({
+              kind: "SYMBOL",
+              conceptRaw: formula.outputQuantity,
+              capability: formula,
+              text: formula.expression,
+              symbol: formula.outputQuantity,
+            }),
+          ]
+        : []),
+    ];
+    allComponents.push(...formula.semanticComponents);
+  }
+
+  for (const symbol of capability.symbolDefinitions) {
+    if (symbol.polarity !== "POSITIVE") {
+      symbol.semanticComponents = [];
+      continue;
+    }
+    symbol.semanticComponents = [
+      component({
+        kind: "SYMBOL",
+        conceptRaw: symbol.meaning ?? symbol.symbol.normalized,
+        capability: symbol,
+        text: symbol.meaning ?? symbol.evidenceSpan.text,
+        symbol: symbol.symbol.normalized,
+      }),
+    ];
+    allComponents.push(...symbol.semanticComponents);
+  }
+
+  for (const numeric of capability.numericValues) {
+    numeric.semanticComponents = [
+      component({
+        kind: "QUANTITY",
+        conceptRaw: numeric.quantity,
+        capability: numeric,
+        text: numeric.evidenceSpan.text,
+        value: numeric.value,
+        unit: numeric.unit,
+      }),
+    ];
+    allComponents.push(...numeric.semanticComponents);
+  }
+
+  for (const fact of capability.explicitFacts) {
+    if (fact.polarity !== "POSITIVE") {
+      fact.semanticComponents = [];
+      continue;
+    }
+    fact.semanticComponents = [
+      component({
+        kind: "EXPLICIT_FACT",
+        conceptRaw: fact.canonicalConcept?.aliases[0] ?? fact.factKey,
+        capability: fact,
+        text: fact.factText,
+      }),
+      ...definitionFacets(fact.factText, fact.evidenceSpan.text)
+        .filter((facet) => facet !== "DEFINITION")
+        .map((facet) =>
+          component({
+            kind: facet,
+            conceptRaw: fact.canonicalConcept?.aliases[0] ?? fact.factKey,
+            capability: fact,
+            text: fact.factText,
+          })
+        ),
+    ];
+    allComponents.push(...fact.semanticComponents);
+  }
+
+  for (const method of capability.methods) {
+    method.semanticComponents = [
+      component({
+        kind: "METHOD",
+        conceptRaw: method.method,
+        capability: method,
+        text: method.stepsText,
+      }),
+    ];
+    allComponents.push(...method.semanticComponents);
+  }
+
+  for (const event of capability.eventFacts) {
+    if (event.polarity !== "POSITIVE") {
+      event.semanticComponents = [];
+      continue;
+    }
+    event.semanticComponents = [
+      component({
+        kind: "EXPLICIT_FACT",
+        conceptRaw: event.event,
+        capability: event,
+        text: event.outcomeText,
+      }),
+    ];
+    allComponents.push(...event.semanticComponents);
+  }
+
+  for (const relation of capability.relations) {
+    if (relation.polarity !== "POSITIVE") {
+      relation.semanticComponents = [];
+      continue;
+    }
+    const relationKind = relationFacet(relation.relation, relation.evidenceSpan.text);
+    relation.semanticComponents = [
+      component({
+        kind: relationKind,
+        conceptRaw: relation.subject,
+        capability: relation,
+        text: relation.evidenceSpan.text,
+        relation: relation.relation,
+        object: relation.object,
+      }),
+      ...findMentionedCanonicalConcepts(
+        `${relation.subject} ${relation.relation} ${relation.object}`,
+        capability
+      )
+        .filter((concept) => concept.id !== canonicalizeConcept(relation.subject, capability).id)
+        .map((concept) =>
+          component({
+            kind: relationKind,
+            conceptRaw: concept.aliases[0] ?? concept.label,
+            capability: relation,
+            text: relation.evidenceSpan.text,
+            relation: relation.relation,
+            object: relation.object,
+          })
+        ),
+    ];
+    allComponents.push(...relation.semanticComponents);
+  }
+
+  for (const side of capability.comparisonSides) {
+    if (side.polarity !== "POSITIVE") {
+      side.semanticComponents = [];
+      continue;
+    }
+    side.semanticComponents = [
+      component({
+        kind: "COMPARISON_SIDE",
+        conceptRaw: side.side,
+        capability: side,
+        text: side.fact,
+      }),
+    ];
+    allComponents.push(...side.semanticComponents);
+  }
+
+  for (const process of capability.processFacts) {
+    process.semanticComponents = [
+      component({
+        kind: processFacet(process.fact),
+        conceptRaw: process.process,
+        capability: process,
+        text: process.fact,
+      }),
+    ];
+    allComponents.push(...process.semanticComponents);
+  }
+
+  for (const consequence of capability.consequences) {
+    if (consequence.polarity !== "POSITIVE") {
+      consequence.semanticComponents = [];
+      continue;
+    }
+    consequence.semanticComponents = [
+      component({
+        kind: "CONSEQUENCE",
+        conceptRaw: consequence.cause,
+        capability: consequence,
+        text: consequence.effect,
+        relation: "cause",
+        object: consequence.effect,
+      }),
+    ];
+    allComponents.push(...consequence.semanticComponents);
+  }
+
+  for (const passage of capability.passageInterpretations) {
+    passage.semanticComponents = [
+      component({
+        kind: "PASSAGE_INTERPRETATION",
+        conceptRaw: passage.targetText ?? passage.interpretationType,
+        capability: passage,
+        text: passage.interpretationText,
+      }),
+    ];
+    allComponents.push(...passage.semanticComponents);
+  }
+
+  capability.semanticComponents = allComponents;
+}
+
+function componentForCapability(input: {
+  subjectId: string;
+  topicId?: string;
+  kind: SemanticComponent["kind"];
+  conceptRaw: string;
+  capability: {
+    id: string;
+    resourceChunkId: string;
+    sourceLabel: string;
+    evidenceSpan: EvidenceSpan;
+  };
+  text: string;
+  symbol?: string;
+  relation?: string;
+  object?: string;
+  value?: number;
+  unit?: string;
+}): SemanticComponent {
+  const facet = isSemanticFacet(input.kind) ? input.kind : undefined;
+  return makeSemanticComponent({
+    kind: input.kind,
+    concept: canonicalizeSemanticConcept({
+      rawConcept: input.conceptRaw,
+      subjectId: input.subjectId,
+      topicId: input.topicId,
+      facet,
+    }),
+    symbol: input.symbol,
+    relation: input.relation,
+    object: input.object,
+    value: input.value,
+    unit: input.unit,
+    text: input.text || input.capability.evidenceSpan.text,
+    sourceCapabilityId: input.capability.id,
+    resourceChunkId: input.capability.resourceChunkId,
+    sourceLabel: input.capability.sourceLabel,
+  });
+}
+
+function definitionFacets(definitionText: string, evidenceText: string): SemanticFacet[] {
+  const combined = normalizeConceptText(`${definitionText} ${evidenceText}`);
+  const facets: SemanticFacet[] = ["DEFINITION"];
+  if (/\b(?:formula|equals?|pi|squared|square|times|multiply|multiplied|multiplying|divide|divided|dividing|add|added|adding|subtract|subtracted|minus)\b/.test(combined)) {
+    facets.push("FORMULA");
+  }
+  if (/\b(?:found by|calculated by|worked out by|solved by|adding|dividing|multiplying|subtracting|simplified by)\b/.test(combined)) {
+    facets.push("METHOD");
+  }
+  if (/\b(?:measured in|unit|units|volts?|amperes?|amps?|ohms?|watts?|metres?|meters?|seconds?|grams?|kilograms?|pascals?|newtons?)\b/.test(combined)) {
+    facets.push("UNIT");
+  }
+  if (/\b(?:purpose|used for|useful for|helps?|needed for|for growth|for repair|role is)\b/.test(combined)) {
+    facets.push("PURPOSE");
+  }
+  if (/\b(?:function|role|transports?|carries|allows?|does not allow)\b/.test(combined)) {
+    facets.push("FUNCTION");
+  }
+  if (/\b(?:process|by which|changes?|separates?|produces?|forms?|turns?|passes?)\b/.test(combined)) {
+    facets.push("PROCESS");
+  }
+  if (/\b(?:limitation|cannot|can not|does not|do not|not suitable|rather than)\b/.test(combined)) {
+    facets.push("LIMITATION");
+  }
+  if (/\b(?:causes?|leads to|results? in|effect|reduces?|increases?)\b/.test(combined)) {
+    facets.push("CONSEQUENCE");
+  }
+  return uniqueSemanticFacets(facets);
+}
+
+function relationFacet(relation: string, evidenceText: string): SemanticComponent["kind"] {
+  const combined = normalizeConceptText(`${relation} ${evidenceText}`);
+  if (/\b(?:transport|carry|allow|does not allow|do not allow|make|eat|transfer)\b/.test(combined)) return "FUNCTION";
+  if (/\b(?:purpose|useful|used for|needed for|helps?)\b/.test(combined)) return "PURPOSE";
+  if (/\b(?:cannot|can not|does not|do not|limitation|rather than)\b/.test(combined)) return "LIMITATION";
+  if (/\b(?:cause|lead to|reduce|increase|effect|result)\b/.test(combined)) return "CONSEQUENCE";
+  return "RELATION";
+}
+
+function processFacet(text: string): SemanticComponent["kind"] {
+  const normalized = normalizeConceptText(text);
+  if (/\b(?:limitation|cannot|can not|does not|do not)\b/.test(normalized)) return "LIMITATION";
+  if (/\b(?:used for|useful|purpose|needed for|helps?)\b/.test(normalized)) return "PURPOSE";
+  if (/\b(?:method|steps?|found by|calculated by|separated by|using)\b/.test(normalized)) return "METHOD";
+  return "PROCESS";
+}
+
+function isSemanticFacet(kind: SemanticComponent["kind"]): kind is SemanticFacet {
+  return [
+    "DEFINITION",
+    "FORMULA",
+    "UNIT",
+    "PURPOSE",
+    "FUNCTION",
+    "PROCESS",
+    "LIMITATION",
+    "CONSEQUENCE",
+    "METHOD",
+  ].includes(kind);
+}
+
+function uniqueSemanticFacets(facets: SemanticFacet[]): SemanticFacet[] {
+  return [...new Set(facets)];
 }
 
 function nextCapabilityId(state: CapabilityState, prefix: string): string {
@@ -1194,6 +1560,22 @@ function inferFormulaConcept(
     return canonicalizeConcept(`${scopedResistance[1]} resistance rule`, state.chunk);
   }
 
+  const areaOfShape = normalizedPrefix.match(/\barea\s+of\s+(a\s+)?(circle|triangle|rectangle|parallelogram)\b/);
+  if (areaOfShape) {
+    return canonicalizeConcept(`area of ${areaOfShape[2]}`, state.chunk);
+  }
+
+  const foundBy = normalizedPrefix.match(/\b(.+?)\s+can\s+be\s+found\s+by\b/);
+  if (foundBy) {
+    const concept = cleanFormulaConceptCandidate(foundBy[1] ?? "");
+    if (concept) return canonicalizeConcept(concept, state.chunk);
+  }
+
+  if (!normalizedPrefix && normalizeSymbol(left) && state.lastSemanticTarget) {
+    const semanticTarget = normalizeSemanticBaseConcept(state.lastSemanticTarget, "FORMULA");
+    if (semanticTarget) return canonicalizeConcept(semanticTarget, state.chunk);
+  }
+
   const candidates = [
     normalizedPrefix.match(/\b(.+?)\s+(?:formula|relation|equation)\s*(?:is|equals?|:)?$/i)?.[1],
     normalizedPrefix.match(/\b(.+?)\s+(?:is|are|equals?)$/i)?.[1],
@@ -1236,7 +1618,7 @@ function cleanFormulaConceptCandidate(value: string): string {
   let cleaned = cleanConcept(value)
     .replace(/^for\s+.+?,\s*/, "")
     .replace(/^(?:for\s+)?(?:a|an|the)\s+/, "")
-    .replace(/\b(?:formula|relation|equation|equals?|is|are|states?|that|found by)\b/g, " ")
+    .replace(/\b(?:formula|relation|equation|equals?|is|are|states?|that|found by|can be measured with|measured with|can be found by)\b/g, " ")
     .replace(/\s+/g, " ")
     .trim();
   const areaOf = cleaned.match(/^area\s+of\s+(.+)$/i);
@@ -1313,6 +1695,7 @@ function normalizeRelation(relation: string): string {
 
 function cleanConcept(value: string): string {
   return normalizeConceptText(value)
+    .replace(/^(?:and|but|then)\s+/, "")
     .replace(/^(?:a|an|the)\s+/, "")
     .replace(/[,:;]+$/g, "")
     .trim();
@@ -1354,21 +1737,6 @@ function normalizedMeaning(value: string): string {
     .trim();
 }
 
-function slugify(value: string): string {
-  return value
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-|-$/g, "");
-}
-
-function toTitleCase(value: string): string {
-  return value
-    .split(" ")
-    .filter(Boolean)
-    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-    .join(" ");
-}
-
 function uniqueStrings(values: string[]): string[] {
   return [...new Set(values.filter(Boolean))];
 }
@@ -1389,19 +1757,6 @@ function dedupeBy<T>(items: T[], getKey: (item: T) => string): T[] {
     seen.add(key);
     return true;
   });
-}
-
-function singularizeConcept(value: string): string {
-  return value
-    .split(" ")
-    .map((token) => {
-      if (token.includes("'")) return token;
-      if (/^(?:series|physics|mathematics|osmosis)$/.test(token)) return token;
-      if (token.length > 3 && token.endsWith("ies")) return `${token.slice(0, -3)}y`;
-      if (token.length > 3 && token.endsWith("s")) return token.slice(0, -1);
-      return token;
-    })
-    .join(" ");
 }
 
 function isCalculationLikeSentence(text: string): boolean {
