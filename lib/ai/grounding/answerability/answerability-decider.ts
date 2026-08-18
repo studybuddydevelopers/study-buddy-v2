@@ -30,6 +30,10 @@ import type {
   RequestRequirement,
   RequestRequirements,
 } from "../requirements/types";
+import {
+  semanticComponentMatches,
+  type SemanticComponent,
+} from "../semantic-concepts";
 import type {
   AnswerabilityDecision,
   AnswerabilityRefusalReason,
@@ -60,6 +64,7 @@ type MatchContext = {
   processes: ProcessCapability[];
   consequences: ConsequenceCapability[];
   passageInterpretations: PassageInterpretationCapability[];
+  semanticComponents: SemanticComponent[];
   evidenceSpansByCapabilityId: Map<string, EvidenceSpan>;
 };
 
@@ -145,6 +150,7 @@ function buildMatchContext(
     passageInterpretations: evidenceCapabilities.flatMap(
       (capability) => capability.passageInterpretations
     ),
+    semanticComponents: evidenceCapabilities.flatMap((capability) => capability.semanticComponents),
     evidenceSpansByCapabilityId: new Map(
       [...indexEducationalCapabilities(evidenceCapabilities)].map(([id, capability]) => [
         id,
@@ -212,6 +218,14 @@ function evaluateDirectRequirement(
     return buildMatch(requirement.id, "CONFLICTING", [], [], relevantConflicts);
   }
 
+  const semanticMatch = evaluateSemanticComponents(requirement, context);
+  if (semanticMatch?.status === "SUPPORTED" && canUseSemanticFastMatch(requirement)) {
+    return semanticMatch;
+  }
+  if (semanticMatch?.status === "MISSING" && hasMandatorySemanticTargetGap(requirement)) {
+    return semanticMatch;
+  }
+
   switch (requirement.kind) {
     case "CONCEPT_DEFINITION":
     case "CONTEXTUAL_FOLLOW_UP":
@@ -239,6 +253,115 @@ function evaluateDirectRequirement(
     case "PASSAGE_INTERPRETATION":
       return evaluatePassageInterpretationRequirement(requirement, context);
   }
+}
+
+function canUseSemanticFastMatch(requirement: RequestRequirement): boolean {
+  if (requirement.kind === "CALCULATION") return false;
+  if (requirement.kind === "CONCEPT_DEFINITION" && requirement.targetConcepts.length > 1) {
+    return false;
+  }
+  if (
+    requirement.kind === "RELATION_MECHANISM_CONSEQUENCE" &&
+    requirement.requestedFacet === "CONSEQUENCE" &&
+    Boolean(requirement.requestedRelation)
+  ) {
+    return false;
+  }
+  return true;
+}
+
+function evaluateSemanticComponents(
+  requirement: RequestRequirement,
+  context: MatchContext
+): RequirementMatch | undefined {
+  const required = requirement.requiredSemanticComponents ?? [];
+  if (required.length === 0) return undefined;
+
+  const supportRefs: CapabilitySupportRef[] = [];
+  const missing: string[] = [];
+
+  for (const requiredComponent of required) {
+    const evidenceComponent = findEvidenceSemanticComponent(requiredComponent, context);
+    if (!evidenceComponent?.sourceCapabilityId) {
+      missing.push(semanticMissingLabel(requiredComponent));
+      continue;
+    }
+    supportRefs.push(
+      supportRef(
+        requirement.id,
+        evidenceComponent.sourceCapabilityId,
+        allowedUsesForSemanticComponent(requiredComponent)
+      )
+    );
+  }
+
+  return buildMatchFromMissing(requirement.id, supportRefs, missing);
+}
+
+function findEvidenceSemanticComponent(
+  requiredComponent: SemanticComponent,
+  context: MatchContext
+): SemanticComponent | undefined {
+  return context.semanticComponents.find((candidate) => {
+    if (semanticComponentMatches(requiredComponent, candidate)) return true;
+    if (
+      requiredComponent.kind === "COMPARISON_SIDE" &&
+      requiredComponent.concept &&
+      candidate.concept?.baseConcept === requiredComponent.concept.baseConcept
+    ) {
+      return ["DEFINITION", "RELATION", "PROCESS", "FORMULA", "FUNCTION", "PURPOSE", "COMPARISON_SIDE"].includes(candidate.kind);
+    }
+    return false;
+  });
+}
+
+function allowedUsesForSemanticComponent(component: SemanticComponent): AllowedEvidenceUse[] {
+  switch (component.kind) {
+    case "FORMULA":
+      return ["FORMULA"];
+    case "SYMBOL":
+      return ["SYMBOL"];
+    case "QUANTITY":
+    case "METHOD":
+      return ["CALCULATE"];
+    case "COMPARISON_SIDE":
+      return ["COMPARE"];
+    case "PROCESS":
+      return ["PROCESS"];
+    case "RELATION":
+    case "FUNCTION":
+      return ["RELATION"];
+    case "CONSEQUENCE":
+      return ["CONSEQUENCE"];
+    case "LIMITATION":
+    case "PURPOSE":
+    case "UNIT":
+    case "DEFINITION":
+    case "EXPLICIT_FACT":
+    case "PASSAGE_INTERPRETATION":
+    default:
+      return ["DEFINE"];
+  }
+}
+
+function semanticMissingLabel(component: SemanticComponent) {
+  return [
+    component.kind.toLowerCase(),
+    component.concept?.baseConcept,
+    component.symbol,
+    component.relation,
+    component.object,
+  ].filter(Boolean).join(":") || component.kind.toLowerCase();
+}
+
+function hasMandatorySemanticTargetGap(requirement: RequestRequirement) {
+  if (requirement.kind === "SYMBOL_DEFINITION") return false;
+  return (requirement.requiredSemanticComponents ?? []).some(
+    (component) =>
+      ["FORMULA", "PROCESS", "PURPOSE", "UNIT", "SYMBOL"].includes(component.kind) &&
+      !component.concept?.baseConcept &&
+      !component.symbol
+  );
 }
 
 function evaluateDefinitionRequirement(
@@ -353,6 +476,9 @@ function evaluateCalculationRequirement(
 
   if (formula) {
     supportRefs.push(supportRef(requirement.id, formula.id, ["CALCULATE", "FORMULA"]));
+    for (const numeric of findRelevantFormulaNumerics(formula, requirement, context)) {
+      supportRefs.push(supportRef(requirement.id, numeric.id, ["CALCULATE"]));
+    }
   } else if (relation) {
     supportRefs.push(supportRef(requirement.id, relation.id, ["CALCULATE", "RELATION"]));
   } else if (calculationFact) {
@@ -373,6 +499,30 @@ function evaluateCalculationRequirement(
   return buildMatchFromMissing(requirement.id, supportRefs, missing);
 }
 
+function findRelevantFormulaNumerics(
+  formula: FormulaCapability,
+  requirement: RequestRequirement,
+  context: MatchContext
+): NumericCapability[] {
+  const requiredInputs = new Set(formula.requiredInputs.map(normalizedText));
+  const formulaText = normalizedText(formula.expression);
+  const requestedText = normalizedText(
+    `${requirement.targetConcepts.join(" ")} ${requirement.requiredInputs?.join(" ") ?? ""} ${requirement.requestedMethod ?? ""}`
+  );
+  return context.numerics.filter((numeric) => {
+    const quantity = normalizedText(numeric.quantity);
+    const qualifier = normalizedText(numeric.qualifier ?? "");
+    if (requiredInputs.has(quantity)) return true;
+    if (formulaText.includes(quantity)) return true;
+    if (formula.symbolDefinitions.some((symbol) =>
+      symbol.meaning && normalizedText(symbol.meaning) === quantity
+    )) {
+      return true;
+    }
+    return requestedText.length > 0 && (requestedText.includes(quantity) || requestedText.includes(qualifier));
+  });
+}
+
 function evaluateComparisonRequirement(
   requirement: RequestRequirement,
   context: MatchContext
@@ -385,7 +535,9 @@ function evaluateComparisonRequirement(
 
   for (const side of sides) {
     const sideSupport =
-      findComparisonSide(side, context) ?? findDefinitionForConcept(side, context);
+      findComparisonSide(side, context) ??
+      findDefinitionForConcept(side, context) ??
+      findSemanticComparisonSideSupport(side, requirement, context);
     if (sideSupport) {
       supportRefs.push(supportRef(requirement.id, sideSupport.id, ["COMPARE"]));
     } else {
@@ -394,6 +546,47 @@ function evaluateComparisonRequirement(
   }
 
   return buildMatchFromMissing(requirement.id, supportRefs, missing);
+}
+
+function findSemanticComparisonSideSupport(
+  side: string,
+  requirement: RequestRequirement,
+  context: MatchContext
+): { id: string } | undefined {
+  const sideId = canonicalizeConcept(side, context.request).id;
+  const component = context.semanticComponents.find((candidate) => {
+    if (!candidate.sourceCapabilityId || candidate.concept?.baseConcept !== sideId) {
+      return false;
+    }
+    return ["DEFINITION", "RELATION", "PROCESS", "FORMULA", "FUNCTION", "PURPOSE", "COMPARISON_SIDE"].includes(candidate.kind);
+  });
+  if (component?.sourceCapabilityId) return { id: component.sourceCapabilityId };
+
+  return [
+    ...context.relations,
+    ...context.processes,
+    ...context.methods,
+    ...context.explicitFacts,
+  ].find((candidate) => {
+    const text = "subject" in candidate
+      ? `${candidate.subject} ${candidate.relation} ${candidate.object}`
+      : "process" in candidate
+        ? `${candidate.process} ${candidate.fact}`
+        : "method" in candidate
+          ? `${candidate.method} ${candidate.stepsText}`
+          : `${candidate.factKey} ${candidate.factText}`;
+    const candidateSideId = canonicalizeConcept(
+      "subject" in candidate
+        ? candidate.subject
+        : "process" in candidate
+          ? candidate.process
+          : "method" in candidate
+            ? candidate.method
+            : candidate.canonicalConcept?.label ?? candidate.factKey,
+      context.request
+    ).id;
+    return candidateSideId === sideId && normalizedText(text).length > 0;
+  });
 }
 
 function evaluateMultiOptionRequirement(
@@ -742,7 +935,7 @@ function formulaMatchesRequirement(
   context: MatchContext
 ): boolean {
   const targets = canonicalTargetIds(requirement, context.request);
-  if (targets.length === 0) return Boolean(formula.outputQuantity);
+  if (targets.length === 0) return false;
   if (formula.canonicalConcept && targets.includes(formula.canonicalConcept.id)) return true;
   if (formula.outputQuantity && targets.includes(formula.outputQuantity)) return true;
 
@@ -999,7 +1192,10 @@ function canonicalTargetIds(
   request: RequestRequirements
 ): string[] {
   return uniqueStrings(
-    requirement.targetConcepts.map((target) => canonicalizeConcept(target, request).id)
+    [
+      requirement.baseConcept?.baseConcept,
+      ...requirement.targetConcepts.map((target) => canonicalizeConcept(target, request).id),
+    ].filter((target): target is string => Boolean(target))
   );
 }
 
@@ -1070,13 +1266,18 @@ function chooseRefusalReason(
 }
 
 function isActiveSourceBypassRequest(request: RequestRequirements): boolean {
-  if (!request.safetyIntent.asksToIgnoreSources) return false;
+  const hasDirectiveMetadata = request.requirements.some(
+    (requirement) => (requirement.ignoredDirectiveText ?? []).length > 0
+  );
+  if (!request.safetyIntent.asksToIgnoreSources && !hasDirectiveMetadata) return false;
   return !request.requirements.some(hasEducationalRequirementSignal);
 }
 
 function hasEducationalRequirementSignal(requirement: RequestRequirement): boolean {
   return (
     requirement.targetConcepts.length > 0 ||
+    Boolean(requirement.baseConcept?.baseConcept) ||
+    Boolean(requirement.requiredSemanticComponents?.length) ||
     Boolean(requirement.requiredSymbols?.length) ||
     Boolean(requirement.requiredInputs?.length) ||
     Boolean(requirement.comparisonSides?.length) ||
