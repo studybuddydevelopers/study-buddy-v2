@@ -196,14 +196,6 @@ describe("Stage 4.1 capability grounding pipeline", () => {
       chunks: [retrievedChunk("density = mass / volume.")],
     },
     {
-      label: "formula + symbols across chunks",
-      message: "Give the pressure formula and define P.",
-      chunks: [
-        retrievedChunk("P = F / A.", { id: "formula", resourceId: "resource-formula" }),
-        retrievedChunk("P means pressure.", { id: "symbol", resourceId: "resource-symbol" }),
-      ],
-    },
-    {
       label: "complete calculation",
       message: "Calculate speed from 120 m in 10 s.",
       chunks: [
@@ -329,6 +321,20 @@ describe("Stage 4.1 capability grounding pipeline", () => {
           resourceId: "resource-symbol",
         }),
       ],
+      provider: new RecordingStructuredProvider("unused", {
+        answerSegments: [
+          {
+            text: "The pressure formula is P = F / A.",
+            sourceLabels: ["SOURCE_1"],
+          },
+          {
+            text: "P means pressure.",
+            sourceLabels: ["SOURCE_2"],
+          },
+        ],
+        insufficientContext: false,
+        suggestedQuestions: [],
+      }),
     });
 
     expect(outcome.kind).toBe("COMPLETED");
@@ -611,6 +617,179 @@ describe("Stage 4.1 capability grounding pipeline", () => {
         (error) => error.code
       )
     ).toContain("INVALID_ARITHMETIC");
+  });
+
+  it("repairs a ratio answer that invents an unsupported alternate calculation path", async () => {
+    const provider = new RecordingStructuredProvider("unused", [
+      {
+        answerSegments: [
+          {
+            text:
+              "10 divided by 3 parts equals approximately 3.33. One part is 5, so girls are 15.",
+            sourceLabels: ["SOURCE_1"],
+          },
+        ],
+        insufficientContext: false,
+        suggestedQuestions: [],
+      },
+      {
+        answerSegments: [
+          {
+            text:
+              "Boys:girls is 2:3. Since boys are 10, one part is 10 / 2 = 5, so girls are 5 x 3 = 15. Keep the order of the compared quantities.",
+            sourceLabels: ["SOURCE_1"],
+          },
+        ],
+        insufficientContext: false,
+        suggestedQuestions: [],
+      },
+    ]);
+    const { outcome } = await runPipeline({
+      message: "Work through the boys to girls ratio example.",
+      chunks: [
+        retrievedChunk(
+          "Worked ratio example: if boys:girls = 2:3 and boys = 10, then one part is 5, so girls = 15. Always keep the order of the compared quantities."
+        ),
+      ],
+      provider,
+    });
+
+    expect(outcome.kind).toBe("COMPLETED");
+    expect(provider.structuredInputs).toHaveLength(2);
+    expect(outcome.diagnostics?.repairResult).toEqual({
+      attempted: true,
+      successful: true,
+    });
+  });
+
+  it("passes a ratio answer that follows the supported one-part method", async () => {
+    const provider = new RecordingStructuredProvider("unused", {
+      answerSegments: [
+        {
+          text:
+            "Boys:girls is 2:3. Since boys are 10, one part is 10 / 2 = 5, so girls are 5 x 3 = 15. Keep the order of the compared quantities.",
+          sourceLabels: ["SOURCE_1"],
+        },
+      ],
+      insufficientContext: false,
+      suggestedQuestions: [],
+    });
+    const { outcome } = await runPipeline({
+      message: "Work through the boys to girls ratio example.",
+      chunks: [
+        retrievedChunk(
+          "Worked ratio example: if boys:girls = 2:3 and boys = 10, then one part is 5, so girls = 15. Always keep the order of the compared quantities."
+        ),
+      ],
+      provider,
+    });
+
+    expect(outcome.kind).toBe("COMPLETED");
+    expect(provider.structuredInputs).toHaveLength(1);
+  });
+
+  it("fails a past-question explanation that gives only the result", async () => {
+    const provider = new RecordingStructuredProvider("unused", {
+      answerSegments: [
+        {
+          text: "Mathematics 2021 Question 5 has the answer 25 blue counters.",
+          sourceLabels: ["SOURCE_1"],
+        },
+      ],
+      insufficientContext: false,
+      suggestedQuestions: [],
+    });
+    const { outcome } = await runPipeline({
+      message: "For Mathematics 2021 Question 5, explain the blue counters answer.",
+      chunks: [
+        retrievedChunk(
+          "Practice paper identifier: Mathematics 2021 Question 5. A club has red and blue counters in the ratio 4:5. If there are 20 red counters, there are 25 blue counters. Answer: 25."
+        ),
+      ],
+      provider,
+    });
+
+    expect(outcome.kind).toBe("FAILED");
+    expect(outcome.diagnostics?.narrowValidatorResult?.errors.map((error) => error.code)).toContain(
+      "MISSING_REQUIRED_TASK"
+    );
+  });
+
+  it("passes a past-question explanation with the required context and answer", async () => {
+    const provider = new RecordingStructuredProvider("unused", {
+      answerSegments: [
+        {
+          text:
+            "Mathematics 2021 Question 5 says there are 20 red counters and 25 blue counters, so the blue counters answer is 25.",
+          sourceLabels: ["SOURCE_1"],
+        },
+      ],
+      insufficientContext: false,
+      suggestedQuestions: [],
+    });
+    const { outcome } = await runPipeline({
+      message: "For Mathematics 2021 Question 5, explain the blue counters answer.",
+      chunks: [
+        retrievedChunk(
+          "Practice paper identifier: Mathematics 2021 Question 5. A club has red and blue counters in the ratio 4:5. If there are 20 red counters, there are 25 blue counters. Answer: 25."
+        ),
+      ],
+      provider,
+    });
+
+    expect(outcome.kind).toBe("COMPLETED");
+  });
+
+  it("fails a triangle formula answer that omits requested variable meanings", async () => {
+    const provider = new RecordingStructuredProvider("unused", {
+      answerSegments: [
+        {
+          text: "The triangle area formula is Area = 1/2 x b x h.",
+          sourceLabels: ["SOURCE_1"],
+        },
+      ],
+      insufficientContext: false,
+      suggestedQuestions: [],
+    });
+    const { outcome } = await runPipeline({
+      message: "Teach the triangle area formula and define the variables.",
+      chunks: [
+        retrievedChunk(
+          "The area of a triangle is one half times base times perpendicular height: Area = 1/2 x base x height. The height must meet the base at a right angle."
+        ),
+      ],
+      provider,
+    });
+
+    expect(outcome.kind).toBe("FAILED");
+    expect(outcome.diagnostics?.narrowValidatorResult?.errors.map((error) => error.code)).toContain(
+      "MISSING_REQUIRED_TASK"
+    );
+  });
+
+  it("passes a triangle formula answer with explicit variable meanings", async () => {
+    const provider = new RecordingStructuredProvider("unused", {
+      answerSegments: [
+        {
+          text:
+            "The triangle area formula is Area = 1/2 x base x perpendicular height. The base is the side used, and the perpendicular height meets the base at a right angle.",
+          sourceLabels: ["SOURCE_1"],
+        },
+      ],
+      insufficientContext: false,
+      suggestedQuestions: [],
+    });
+    const { outcome } = await runPipeline({
+      message: "Teach the triangle area formula and define the variables.",
+      chunks: [
+        retrievedChunk(
+          "The area of a triangle is one half times base times perpendicular height: Area = 1/2 x base x height. The height must meet the base at a right angle."
+        ),
+      ],
+      provider,
+    });
+
+    expect(outcome.kind).toBe("COMPLETED");
   });
 });
 
