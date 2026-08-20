@@ -44,6 +44,7 @@ export type RequestRequirement = {
   requiredSemanticComponents?: SemanticComponent[];
   requiredSymbols?: string[];
   requiredInputs?: string[];
+  requiredInputConcepts?: string[];
   comparisonSides?: string[];
   requestedRelation?: string;
   requestedProcess?: string;
