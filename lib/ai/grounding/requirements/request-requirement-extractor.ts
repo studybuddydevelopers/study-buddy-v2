@@ -37,6 +37,7 @@ type RequirementDraft = {
   requiredSemanticComponents?: SemanticComponent[];
   requiredSymbols?: string[];
   requiredInputs?: string[];
+  requiredInputConcepts?: string[];
   comparisonSides?: string[];
   requestedRelation?: string;
   requestedProcess?: string;
@@ -248,8 +249,9 @@ function buildCalculationRequirement(question: string): RequirementDraft | undef
 
   return {
     kind: "CALCULATION",
-    targetConcepts: compactStrings([cleanConcept(target)]),
+    targetConcepts: compactStrings([cleanCalculationTarget(target)]),
     requiredInputs: extractNumericInputs(question),
+    requiredInputConcepts: extractNamedCalculationInputs(question),
   };
 }
 
@@ -800,6 +802,7 @@ function buildDefinitionRequirement(
   }
 
   const concept =
+    firstMatch(question, /\bwhat\s+about\s+(.+?)\s+in\s+(?:that|this)\s+topic(?:[?.]|$)/i) ??
     firstMatch(question, /\bwhat\s+(?:is|are)\s+(.+?)(?:[?.]|$)/i) ??
     firstMatch(question, /\bwhat\s+does\s+(.+?)\s+(?:mean|means|refer to|describe)\b/i) ??
     firstMatch(question, /\bdefine\s+(.+?)(?:[?.]|$)/i) ??
@@ -898,6 +901,7 @@ function assignRequirementId(
     ]),
     requiredSymbols: optionalUnique(draft.requiredSymbols),
     requiredInputs: optionalUnique(draft.requiredInputs),
+    requiredInputConcepts: optionalUnique(draft.requiredInputConcepts),
     comparisonSides: optionalUnique(draft.comparisonSides),
     requestedRelation: draft.requestedRelation,
     requestedProcess: draft.requestedProcess,
@@ -1101,9 +1105,9 @@ function asksForCurrentExternalInfo(question: string): boolean {
     return false;
   }
 
-  return /\b(latest|today|yesterday|tomorrow|this year|current(?:ly)?|up[- ]to[- ]date|real[- ]time|recent|news|deadline|registration|internet|online|web)\b/.test(
+  return /\b(latest|today|yesterday|tomorrow|this year|up[- ]to[- ]date|real[- ]time|recent|news|deadline|registration|internet|online|web)\b/.test(
     lower
-  );
+  ) || /\bcurrent\s+(?:affairs?|news|events?|exchange rates?|prices?|weather|deadline|registration|syllabus|announcement|status|version)\b/.test(lower);
 }
 
 function asksToIgnoreSources(question: string): boolean {
@@ -1273,6 +1277,26 @@ function extractNumericInputs(question: string): string[] {
   return [...inputs];
 }
 
+function extractNamedCalculationInputs(question: string): string[] {
+  const named = new Set<string>();
+  for (const match of question.matchAll(
+    /\b(?:using|with|given)\s+([a-z][a-z ,/-]+?)(?:[?.]|$)/gi
+  )) {
+    for (const item of splitNamedInputs(match[1] ?? "")) {
+      named.add(item);
+    }
+  }
+  return [...named];
+}
+
+function splitNamedInputs(value: string): string[] {
+  return value
+    .replace(/\band\b/gi, ",")
+    .split(",")
+    .map(cleanConcept)
+    .filter((item) => item.length > 0);
+}
+
 function extractRatioValue(question: string): string | undefined {
   const match = question.match(/\b(\d+)\s*(?::|to)\s*(\d+)\b/i);
   if (!match) return undefined;
@@ -1317,6 +1341,7 @@ function firstMatch(
 function cleanConcept(value: string): string {
   const cleaned = normalizeQuestion(value)
     .replace(/[?.!]+$/g, "")
+    .replace(/\baccording\s+to\s+(?:the\s+)?(?:[a-z0-9 -]+?\s+)?(?:cards?|notes?|sources?|evidence)\b/gi, " ")
     .replace(/\b(?:using|from|with)\s+(?:these|the|this|two)?\s*(?:[a-z0-9]+\s+){0,3}(?:notes?|cards?|sources?|evidence|formula notes?)$/i, "")
     .replace(/\s+as\s+.+$/i, "")
     .replace(/\s+and\s+(?:name|define|identify|explain)\s+(?:the\s+)?(?:variables?|symbols?)$/i, "")
@@ -1335,6 +1360,20 @@ function cleanConcept(value: string): string {
   )
     ? ""
     : cleaned;
+}
+
+function cleanCalculationTarget(value: string): string {
+  const cleaned = cleanConcept(value)
+    .replace(/\b(?:runner|motor|lamp|heater|sample|loan|complete|card|journey)\b'?s?\b/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+  if (/\bspeed\b/.test(cleaned)) return "speed";
+  if (/\bdensity\b/.test(cleaned)) return "density";
+  if (/\belectrical\s+power\b|\bpower\b/.test(cleaned)) return "electrical power";
+  if (/\bresultant\s+force\b|\bforce\b/.test(cleaned)) return "resultant force";
+  if (/\bsimple\s+interest\b/.test(cleaned)) return "simple interest";
+  if (/\bpercentage\s+change\b/.test(cleaned)) return "percentage change";
+  return cleaned;
 }
 
 function normalizeComparisonSides(sides: string[]): string[] {
