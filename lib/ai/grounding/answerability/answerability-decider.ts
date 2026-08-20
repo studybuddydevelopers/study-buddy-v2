@@ -32,11 +32,13 @@ import type {
 } from "../requirements/types";
 import {
   semanticComponentMatches,
+  canonicalizeSemanticConcept,
   type SemanticComponent,
 } from "../semantic-concepts";
 import type {
   AnswerabilityDecision,
   AnswerabilityRefusalReason,
+  CalculationPath,
   RequirementMatch,
   RequirementResult,
   RequirementStatus,
@@ -80,6 +82,9 @@ export function decideAnswerability(
     evaluateRequirement(requirement, context)
   );
   const supportRefs = matches.flatMap((match) => match.supportRefs);
+  const calculationPaths = input.requestRequirements.requirements.flatMap((requirement) =>
+    collectCalculationPaths(requirement, context)
+  );
   const validatedEvidenceUnits = buildValidatedEvidenceUnits({
     evidenceCapabilities: scopedEvidence,
     supportRefs,
@@ -124,6 +129,7 @@ export function decideAnswerability(
       ? undefined
       : chooseRefusalReason(input.requestRequirements, requirementResults, conflictIds),
     conflictIds: conflictIds.length > 0 ? conflictIds : undefined,
+    calculationPaths: calculationPaths.length > 0 ? calculationPaths : undefined,
   };
 }
 
@@ -468,35 +474,62 @@ function evaluateCalculationRequirement(
   requirement: RequestRequirement,
   context: MatchContext
 ): RequirementMatch {
-  const supportRefs: CapabilitySupportRef[] = [];
-  const missing: string[] = [];
-  const formula = findFormula(requirement, context);
-  const relation = findRelation(requirement, context);
+  const paths = buildCalculationPaths(requirement, context);
+  const completePath = paths.find((path) => path.complete);
+  if (!completePath) {
+    const explicitInputFallback = findExplicitInputCalculationSupport(requirement, context);
+    if (explicitInputFallback.length > 0) {
+      return buildMatch(requirement.id, "SUPPORTED", explicitInputFallback);
+    }
+
+    const missing = paths.length > 0
+      ? uniqueStrings(
+          paths.flatMap((path) =>
+            path.requiredInputs
+              .filter((input) =>
+                !path.availableInputs.some((available) =>
+                  semanticComponentMatches(input, available)
+                )
+              )
+              .map(calculationInputMissingLabel)
+          )
+        )
+      : ["calculation method"];
+
+    return buildMatch(requirement.id, "MISSING", [], missing, []);
+  }
+
+  const supportRefs = uniqueSupportRefs([
+    supportRef(requirement.id, completePath.formulaCapabilityId, ["CALCULATE", "FORMULA"]),
+    ...completePath.availableInputs
+      .map((input) => input.sourceCapabilityId)
+      .filter((id): id is string => Boolean(id))
+      .map((id) => supportRef(requirement.id, id, ["CALCULATE"])),
+  ]);
+
+  return buildMatch(requirement.id, "SUPPORTED", supportRefs);
+}
+
+function findExplicitInputCalculationSupport(
+  requirement: RequestRequirement,
+  context: MatchContext
+): CapabilitySupportRef[] {
+  const explicitInputs = requirement.requiredInputs ?? [];
+  if (explicitInputs.length === 0 || (requirement.requiredInputConcepts ?? []).length > 0) {
+    return [];
+  }
   const calculationFact = findCalculationFact(requirement, context);
+  if (!calculationFact) return [];
 
-  if (formula) {
-    supportRefs.push(supportRef(requirement.id, formula.id, ["CALCULATE", "FORMULA"]));
-    for (const numeric of findRelevantFormulaNumerics(formula, requirement, context)) {
-      supportRefs.push(supportRef(requirement.id, numeric.id, ["CALCULATE"]));
-    }
-  } else if (relation) {
-    supportRefs.push(supportRef(requirement.id, relation.id, ["CALCULATE", "RELATION"]));
-  } else if (calculationFact) {
-    supportRefs.push(supportRef(requirement.id, calculationFact.id, ["CALCULATE"]));
-  } else {
-    missing.push("calculation method");
-  }
+  const inputNumerics = explicitInputs
+    .map((input) => findNumericInput(input, context))
+    .filter((numeric): numeric is NumericCapability => Boolean(numeric));
+  if (inputNumerics.length !== explicitInputs.length) return [];
 
-  for (const input of requirement.requiredInputs ?? []) {
-    const numeric = findNumericInput(input, context);
-    if (numeric) {
-      supportRefs.push(supportRef(requirement.id, numeric.id, ["CALCULATE"]));
-    } else {
-      missing.push(`input:${input}`);
-    }
-  }
-
-  return buildMatchFromMissing(requirement.id, supportRefs, missing);
+  return uniqueSupportRefs([
+    supportRef(requirement.id, calculationFact.id, ["CALCULATE"]),
+    ...inputNumerics.map((numeric) => supportRef(requirement.id, numeric.id, ["CALCULATE"])),
+  ]);
 }
 
 function findRelevantFormulaNumerics(
@@ -662,6 +695,13 @@ function evaluateProcessRequirement(
     conceptMatches(candidate.process, requirement.targetConcepts, context.request)
   );
   if (!process) {
+    const definition = findDefinitionProcessFallback(requirement, context);
+    if (definition) {
+      return buildMatch(requirement.id, "SUPPORTED", [
+        supportRef(requirement.id, definition.id, ["DEFINE", "PROCESS"]),
+      ]);
+    }
+
     return buildMatch(
       requirement.id,
       "MISSING",
@@ -673,6 +713,17 @@ function evaluateProcessRequirement(
   return buildMatch(requirement.id, "SUPPORTED", [
     supportRef(requirement.id, process.id, ["PROCESS"]),
   ]);
+}
+
+function findDefinitionProcessFallback(
+  requirement: RequestRequirement,
+  context: MatchContext
+): CapabilityFact | undefined {
+  const targetIds = canonicalTargetIds(requirement, context.request);
+  if (!targetIds.includes("current")) return undefined;
+  return requirement.targetConcepts
+    .map((target) => findDefinitionForConcept(target, context))
+    .find(Boolean);
 }
 
 function evaluateFactLookupRequirement(
@@ -871,7 +922,10 @@ function findRelevantConflicts(
     .filter((conflict) => {
       if (
         conflict.conflictType === "DEFINITION_CONFLICT" &&
-        targetIds.some((target) => conflict.scopeKey === `definition:${target}`)
+        (targetIds.some((target) => conflict.scopeKey === `definition:${target}`) ||
+          (isFormulaRequirement(requirement) &&
+            targetIds.length === 0 &&
+            conflict.scopeKey.startsWith("definition:")))
       ) {
         return true;
       }
@@ -905,6 +959,18 @@ function findRelevantConflicts(
         const requested = normalizedText(requirement.requestedRelation ?? "");
         return requested.length > 0 && conflict.scopeKey.includes(requested.split(" ")[0] ?? "");
       }
+      if (
+        conflict.conflictType === "EXPLICIT_FACT_CONFLICT" &&
+        (requirement.kind === "FACT_LOOKUP" || requirement.kind === "CONCEPT_DEFINITION")
+      ) {
+        const requested = normalizedText(
+          `${requirement.requestedFact ?? ""} ${requirement.targetConcepts.join(" ")}`
+        );
+        return (
+          (conflict.scopeKey === "fact:answer" && /\banswer\b/.test(requested)) ||
+          (conflict.scopeKey === "fact:identifier" && /\bidentifier|question\b/.test(requested))
+        );
+      }
       return false;
     })
     .map((conflict) => conflict.id);
@@ -929,13 +995,295 @@ function findFormula(
   return context.formulas.find((formula) => formulaMatchesRequirement(formula, requirement, context));
 }
 
+export function buildCalculationPathsForTest(
+  requirement: RequestRequirement,
+  input: DecideAnswerabilityInput
+): CalculationPath[] {
+  const scopedEvidence = input.evidenceCapabilities.filter((capability) =>
+    evidenceMatchesScope(input.requestRequirements, capability)
+  );
+  const conflicts = input.conflicts ?? detectCapabilityConflicts(scopedEvidence);
+  return buildCalculationPaths(
+    requirement,
+    buildMatchContext(input.requestRequirements, scopedEvidence, conflicts)
+  );
+}
+
+function collectCalculationPaths(
+  requirement: RequestRequirement,
+  context: MatchContext
+): CalculationPath[] {
+  const direct = requirement.kind === "CALCULATION"
+    ? buildCalculationPaths(requirement, context)
+    : [];
+  return [
+    ...direct,
+    ...(requirement.childRequirements ?? []).flatMap((child) =>
+      collectCalculationPaths(child, context)
+    ),
+  ];
+}
+
+function buildCalculationPaths(
+  requirement: RequestRequirement,
+  context: MatchContext
+): CalculationPath[] {
+  if (requirement.kind !== "CALCULATION") return [];
+  return candidateCalculationFormulas(requirement, context).map((formula) => {
+    const outputConcept = inferCalculationOutputConcept(requirement, formula, context);
+    const requiredInputConcepts = inferRequiredCalculationInputConcepts(
+      requirement,
+      formula,
+      outputConcept,
+      context
+    );
+    const requiredInputs = requiredInputConcepts.map((concept) =>
+      makeCalculationInputComponent(concept, requirement, context)
+    );
+    const availableInputs = requiredInputs
+      .map((input) => {
+        const numeric = findNumericForInputComponent(input, context);
+        return numeric ? availableInputFromNumeric(input, numeric) : undefined;
+      })
+      .filter((input): input is SemanticComponent => Boolean(input));
+    return {
+      requirementId: requirement.id,
+      formulaCapabilityId: formula.id,
+      outputConcept,
+      requiredInputs,
+      availableInputs,
+      complete: requiredInputs.every((input) =>
+        availableInputs.some((available) => semanticComponentMatches(input, available))
+      ),
+    };
+  });
+}
+
+function availableInputFromNumeric(
+  input: SemanticComponent,
+  numeric: NumericCapability
+): SemanticComponent {
+  return {
+    ...input,
+    value: numeric.value,
+    unit: numeric.unit,
+    text: numeric.evidenceSpan.text,
+    sourceCapabilityId: numeric.id,
+    resourceChunkId: numeric.resourceChunkId,
+    sourceLabel: numeric.sourceLabel,
+  };
+}
+
+function candidateCalculationFormulas(
+  requirement: RequestRequirement,
+  context: MatchContext
+): FormulaCapability[] {
+  const direct = context.formulas.filter((formula) =>
+    formulaMatchesRequirement(formula, requirement, context)
+  );
+  if (direct.length > 0) return direct;
+
+  const targetIds = canonicalTargetIds(requirement, context.request);
+  if (targetIds.length === 0) return context.formulas;
+  return context.formulas.filter((formula) => {
+    const formulaText = normalizedText(
+      `${formula.canonicalConcept?.id ?? ""} ${formula.canonicalConcept?.label ?? ""} ${
+        formula.expression
+      } ${formula.outputQuantity ?? ""}`
+    );
+    return targetIds.some((target) => formulaText.includes(target.replace(/-/g, " ")));
+  });
+}
+
+function inferCalculationOutputConcept(
+  requirement: RequestRequirement,
+  formula: FormulaCapability,
+  context: MatchContext
+): string {
+  return (
+    canonicalTargetIds(requirement, context.request)[0] ??
+    formula.canonicalConcept?.id ??
+    canonicalizeConcept(formula.outputQuantity ?? "calculation", context.request).id
+  );
+}
+
+function inferRequiredCalculationInputConcepts(
+  requirement: RequestRequirement,
+  formula: FormulaCapability,
+  outputConcept: string,
+  context: MatchContext
+): string[] {
+  const explicit = (requirement.requiredInputConcepts ?? [])
+    .map((input) => canonicalizeConcept(input, context.request).id);
+  const byOutput = calculationInputConceptsForOutput(outputConcept);
+  if (explicit.length > 0) return uniqueStrings([...byOutput, ...explicit]);
+  if (byOutput.length > 0) return byOutput;
+
+  const formulaText = normalizedText(
+    `${formula.expression} ${formula.requiredInputs.join(" ")} ${formula.symbolDefinitions
+      .map((symbol) => symbol.meaning ?? "")
+      .join(" ")}`
+  );
+  const byFormulaText = calculationInputConceptsFromText(formulaText);
+  if (byFormulaText.length > 0) return byFormulaText;
+
+  return uniqueStrings(
+    formula.requiredInputs
+      .map((input) =>
+        formula.symbolDefinitions.find((symbol) => symbol.symbol.normalized === input)
+          ?.canonicalConcept?.id ?? canonicalizeConcept(input, context.request).id
+      )
+      .filter((input) => input !== outputConcept)
+  );
+}
+
+function calculationInputConceptsForOutput(outputConcept: string): string[] {
+  const map: Record<string, string[]> = {
+    speed: ["distance", "time"],
+    density: ["mass", "volume"],
+    pressure: ["force", "area"],
+    force: ["mass", "acceleration"],
+    power: ["voltage", "current"],
+    "simple-interest": ["principal", "rate", "time"],
+    "percentage-change": ["change", "original-value"],
+    percentage: ["change", "original-value"],
+  };
+  return map[outputConcept] ?? [];
+}
+
+function calculationInputConceptsFromText(text: string): string[] {
+  return uniqueStrings(
+    [
+      ["distance", /\bdistance\b|\bmet(?:er|re)s?\b/],
+      ["time", /\btime\b|\bseconds?\b|\bminutes?\b|\bhours?\b|\byears?\b/],
+      ["mass", /\bmass\b|\bkilograms?\b|\bgrams?\b/],
+      ["volume", /\bvolume\b|\bcm3\b|\bcm²\b|\bcm³\b|\bm3\b|\blitres?\b|\bliters?\b/],
+      ["force", /\bforce\b|\bnewtons?\b/],
+      ["area", /\barea\b/],
+      ["voltage", /\bvoltage\b|\bvolts?\b/],
+      ["current", /\bcurrent\b|\bamperes?\b|\bamps?\b/],
+      ["acceleration", /\bacceleration\b|\bm\/s2\b|\bm\/s²\b/],
+      ["principal", /\bprincipal\b/],
+      ["rate", /\brate\b|\bpercent\b|%/],
+      ["change", /\bchange\b/],
+      ["original-value", /\boriginal\s+value\b|\boriginal\b/],
+    ]
+      .filter(([, pattern]) => (pattern as RegExp).test(text))
+      .map(([concept]) => concept as string)
+  );
+}
+
+function makeCalculationInputComponent(
+  conceptId: string,
+  requirement: RequestRequirement,
+  context: MatchContext
+): SemanticComponent {
+  return {
+    kind: "QUANTITY",
+    concept: canonicalizeSemanticConcept({
+      rawConcept: calculationConceptAlias(conceptId),
+      subjectId: requirement.subjectId,
+      topicId: requirement.topicId,
+      facet: undefined,
+    }),
+    text: conceptId,
+  };
+}
+
+function findNumericForInputComponent(
+  input: SemanticComponent,
+  context: MatchContext
+): NumericCapability | undefined {
+  return context.numerics.find((numeric) => numericMatchesInputComponent(numeric, input, context));
+}
+
+function numericMatchesInputComponent(
+  numeric: NumericCapability,
+  input: SemanticComponent,
+  context: MatchContext
+): boolean {
+  if (input.concept && numeric.canonicalConcept?.id === input.concept.baseConcept) {
+    return true;
+  }
+  const inputId = input.concept?.baseConcept ?? "";
+  const aliases = input.concept?.aliases ?? [];
+  const text = normalizedText(
+    `${numeric.quantity} ${numeric.qualifier ?? ""} ${numeric.unit ?? ""} ${numeric.evidenceSpan.text} ${
+      numeric.canonicalConcept?.label ?? ""
+    } ${numeric.canonicalConcept?.aliases.join(" ") ?? ""}`
+  );
+  if (aliases.some((alias) => includesTokens(text, normalizedText(alias)))) return true;
+  return unitImpliesConcept(numeric.unit, inputId, text);
+}
+
+function calculationConceptAlias(conceptId: string): string {
+  const aliases: Record<string, string> = {
+    "original-value": "original value",
+    "percentage-change": "percentage change",
+    "simple-interest": "simple interest",
+  };
+  return aliases[conceptId] ?? conceptId.replace(/-/g, " ");
+}
+
+function unitImpliesConcept(unit: string | undefined, conceptId: string, text: string): boolean {
+  const normalizedUnit = normalizedText(unit ?? "");
+  if (!normalizedUnit && !text) return false;
+  switch (conceptId) {
+    case "distance":
+      return unitMatches(normalizedUnit, ["metres?", "meters?", "m", "km", "kilometres?", "kilometers?"]) &&
+        !/[/%]/.test(normalizedUnit);
+    case "time":
+      return unitMatches(normalizedUnit, ["seconds?", "secs?", "s", "minutes?", "mins?", "hours?", "years?"]) ||
+        /\btime\b/.test(text);
+    case "mass":
+      return unitMatches(normalizedUnit, ["kg", "kilograms?", "g", "grams?"]);
+    case "volume":
+      return unitMatches(normalizedUnit, ["cm3", "cm³", "m3", "m³", "litres?", "liters?", "l"]) ||
+        /\bvolume\b/.test(text);
+    case "current":
+      return unitMatches(normalizedUnit, ["a", "amps?", "amperes?"]) || /\bcurrent\b/.test(text);
+    case "voltage":
+      return unitMatches(normalizedUnit, ["v", "volts?"]) || /\bvoltage\b|\bpotential difference\b/.test(text);
+    case "force":
+      return unitMatches(normalizedUnit, ["n", "newtons?"]) || /\bforce\b/.test(text);
+    case "acceleration":
+      return /\bm\/s2|m\/s²\b/.test(normalizedUnit) || /\bacceleration\b/.test(text);
+    case "rate":
+      return /\bpercent\b|%/.test(normalizedUnit) || /\brate\b/.test(text);
+    case "principal":
+      return /\bprincipal\b|\bp\s+is\b/.test(text);
+    case "change":
+      return /\bchange\b/.test(text) && !/\boriginal\b/.test(text);
+    case "original-value":
+      return /\boriginal\s+value\b|\boriginal\b/.test(text);
+    default:
+      return false;
+  }
+}
+
+function unitMatches(unit: string, alternatives: string[]): boolean {
+  return alternatives.some((alternative) =>
+    new RegExp(`^(?:${alternative})$`, "i").test(unit)
+  );
+}
+
+function calculationInputMissingLabel(input: SemanticComponent) {
+  return `input:${input.concept?.baseConcept ?? input.text ?? "unknown"}`;
+}
+
 function formulaMatchesRequirement(
   formula: FormulaCapability,
   requirement: RequestRequirement,
   context: MatchContext
 ): boolean {
   const targets = canonicalTargetIds(requirement, context.request);
-  if (targets.length === 0) return false;
+  if (targets.length === 0) {
+    return (
+      isFormulaRequirement(requirement) &&
+      context.formulas.length === 1 &&
+      (requirement.requiredSymbols?.length ?? 0) === 0
+    );
+  }
   if (formula.canonicalConcept && targets.includes(formula.canonicalConcept.id)) return true;
   if (formula.outputQuantity && targets.includes(formula.outputQuantity)) return true;
 
@@ -1250,6 +1598,16 @@ function buildMatch(
     missingComponents,
     conflictIds,
   };
+}
+
+function uniqueSupportRefs(refs: CapabilitySupportRef[]): CapabilitySupportRef[] {
+  const seen = new Set<string>();
+  return refs.filter((ref) => {
+    const key = `${ref.requirementId}:${ref.capabilityId}:${ref.allowedUses.join(",")}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
 }
 
 function chooseRefusalReason(
