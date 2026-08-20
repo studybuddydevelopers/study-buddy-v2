@@ -25,6 +25,11 @@ export type RequirementRole =
   | "ASSISTANT"
   | "SYSTEM";
 
+export type PresentationStyle =
+  | "SIMPLE"
+  | "STEP_BY_STEP"
+  | "CONCISE";
+
 export type RequestContextMessage = {
   role: RequirementRole;
   content: string;
@@ -38,6 +43,7 @@ export type RequestRequirement = {
   targetConcepts: string[];
   baseConcept?: SemanticConcept;
   requestedAction?: string;
+  presentationStyle?: PresentationStyle;
   requestedFacet?: SemanticFacet;
   constraints?: string[];
   ignoredDirectiveText?: string[];
