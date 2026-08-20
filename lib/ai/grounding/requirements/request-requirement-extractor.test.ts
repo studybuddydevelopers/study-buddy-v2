@@ -204,6 +204,7 @@ describe("Stage 4.1 request requirement extraction", () => {
     expect(leafRequirements(requirement).map((leaf) => leaf.requestedFact)).toEqual([
       "question 5",
       "blue counters answer",
+      "blue counters answer supporting context",
       "answer",
     ]);
   });
