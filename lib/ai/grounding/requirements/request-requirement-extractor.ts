@@ -5,6 +5,7 @@ import type {
   RequestRequirements,
   RequestSafetyIntent,
   RequirementKind,
+  PresentationStyle,
 } from "./types";
 import {
   canonicalizeSemanticConcept,
@@ -31,6 +32,7 @@ type RequirementDraft = {
   kind: RequirementKind;
   targetConcepts: string[];
   requestedAction?: string;
+  presentationStyle?: PresentationStyle;
   requestedFacet?: SemanticFacet;
   constraints?: string[];
   ignoredDirectiveText?: string[];
@@ -56,6 +58,8 @@ type RequirementBuildContext = {
   contextProcess?: string;
   dependsOnPreviousTurn: boolean;
   ignoredDirectiveText?: string[];
+  requestedAction?: string;
+  presentationStyle?: PresentationStyle;
 };
 
 export function extractRequestRequirements(
@@ -73,9 +77,11 @@ export function extractRequestRequirements(
     input.maxContextMessages ?? DEFAULT_CONTEXT_LIMIT
   );
   const currentHasExplicitConcept = hasExplicitCurrentConcept(educationalQuestion);
+  const namedPossessiveFacet = hasNamedPossessiveFacetTarget(educationalQuestion);
   const shouldUseContext =
-    !currentHasExplicitConcept &&
+    !namedPossessiveFacet &&
     isContextualFollowUp(activeQuestion) &&
+    (!currentHasExplicitConcept || isPronounOnlyFollowUp(activeQuestion)) &&
     Boolean(context.concept || context.process);
   const drafts = buildRequirementDrafts(educationalQuestion, {
     subjectId: input.subjectId,
@@ -110,56 +116,77 @@ function buildRequirementDrafts(
   question: string,
   context: RequirementBuildContext
 ): RequirementDraft[] {
+  const normalizedContext = {
+    ...context,
+    requestedAction: detectRequestedAction(question),
+    presentationStyle: detectPresentationStyle(question),
+  };
+
+  const methodSelection = buildMethodSelectionRequirement(question);
+  if (methodSelection) return [withContext(methodSelection, normalizedContext)];
+
   const multiOption = buildMultiOptionRequirement(question);
-  if (multiOption) return [withContext(multiOption, context)];
+  if (multiOption) return [withContext(multiOption, normalizedContext)];
+
+  const formulaPlusUnits = buildFormulaAndUnitRequirement(question, context);
+  if (formulaPlusUnits) return [withContext(formulaPlusUnits, normalizedContext)];
+
+  const formulaVariables = buildFormulaVariableRequirement(question, context);
+  if (formulaVariables) return [withContext(formulaVariables, normalizedContext)];
+
+  const workedExample = buildWorkedExampleRequirement(question);
+  if (workedExample) return [withContext(workedExample, normalizedContext)];
+
+  const referencedAnswer = buildReferencedAnswerRequirement(question);
+  if (referencedAnswer) return [withContext(referencedAnswer, normalizedContext)];
 
   const ratio = buildRatioRequirement(question);
-  if (ratio) return [withContext(ratio, context)];
+  if (ratio) return [withContext(ratio, normalizedContext)];
 
   const passageInterpretation = buildPassageInterpretationRequirement(question);
-  if (passageInterpretation) return [withContext(passageInterpretation, context)];
+  if (passageInterpretation) return [withContext(passageInterpretation, normalizedContext)];
 
-  const procedure = buildProcedureMethodRequirement(question);
-  if (procedure) return [withContext(procedure, context)];
+  const procedure = buildProcedureMethodRequirement(question, context);
+  if (procedure) return [withContext(procedure, normalizedContext)];
 
   const factLookup = buildFactLookupRequirement(question);
-  if (factLookup) return [withContext(factLookup, context)];
+  if (factLookup) return [withContext(factLookup, normalizedContext)];
 
   const formulaRelation = buildFormulaRelationRequirement(question);
-  if (formulaRelation) return [withContext(formulaRelation, context)];
+  if (formulaRelation) return [withContext(formulaRelation, normalizedContext)];
 
   const facetRequirement = buildFacetRequirement(question, context);
-  if (facetRequirement) return [withContext(facetRequirement, context)];
+  if (facetRequirement) return [withContext(facetRequirement, normalizedContext)];
 
   const calculation = buildCalculationRequirement(question);
-  if (calculation) return [withContext(calculation, context)];
+  if (calculation) return [withContext(calculation, normalizedContext)];
 
   const comparison = buildComparisonRequirement(question);
-  if (comparison) return [withContext(comparison, context)];
+  if (comparison) return [withContext(comparison, normalizedContext)];
 
   const formulaWithSymbols = buildFormulaWithSymbolsRequirement(question, context);
-  if (formulaWithSymbols) return [withContext(formulaWithSymbols, context)];
+  if (formulaWithSymbols) return [withContext(formulaWithSymbols, normalizedContext)];
 
   const symbolDefinition = buildSymbolDefinitionRequirement(question);
-  if (symbolDefinition) return [withContext(symbolDefinition, context)];
+  if (symbolDefinition) return [withContext(symbolDefinition, normalizedContext)];
 
   const formula = buildFormulaRequirement(question, context);
-  if (formula) return [withContext(formula, context)];
+  if (formula) return [withContext(formula, normalizedContext)];
 
   const formulaConcept = buildFormulaConceptRequirement(question, context);
-  if (formulaConcept) return [withContext(formulaConcept, context)];
+  if (formulaConcept) return [withContext(formulaConcept, normalizedContext)];
 
   const multiPart = buildMultiPartRequirement(question, context);
-  if (multiPart) return [withContext(multiPart, context)];
+  if (multiPart) return [withContext(multiPart, normalizedContext)];
 
   const relation = buildRelationRequirement(question);
-  if (relation) return [withContext(relation, context)];
+  if (relation) return [withContext(relation, normalizedContext)];
 
   const process = buildProcessRequirement(question, context);
-  if (process) return [withContext(process, context)];
+  if (process) return [withContext(process, normalizedContext)];
 
   const definition = buildDefinitionRequirement(question, context);
-  if (definition) return [withContext(definition, context)];
+  if (definition) return [withContext(definition, normalizedContext)];
 
   return [
     withContext(
@@ -170,7 +197,7 @@ function buildRequirementDrafts(
         targetConcepts: compactStrings([context.contextConcept]),
         requestedRelation: cleanConcept(question),
       },
-      context
+      normalizedContext
     ),
   ];
 }
@@ -193,6 +220,28 @@ function buildRatioRequirement(question: string): RequirementDraft | undefined {
   return {
     kind: "CONCEPT_DEFINITION",
     targetConcepts: compactStrings(["ratio", ratioValue ? `ratio ${ratioValue}` : ""]),
+  };
+}
+
+function buildMethodSelectionRequirement(question: string): RequirementDraft | undefined {
+  const match =
+    question.match(/\bwhen\s+(?:should|would|do)\s+(?:i\s+)?use\s+(.+?)\s+(?:instead\s+of|rather\s+than)\s+(.+?)(?:[?.]|$)/i) ??
+    question.match(/\bwhen\s+would\s+(.+?)\s+be\s+better\s+than\s+(.+?)(?:[?.]|$)/i);
+  if (!match) return undefined;
+
+  const sides = normalizeComparisonSides([
+    cleanConcept(match[1] ?? ""),
+    cleanConcept(match[2] ?? ""),
+  ]);
+  if (sides.length < 2) return undefined;
+
+  return {
+    kind: "COMPARISON",
+    targetConcepts: sides,
+    comparisonSides: sides,
+    requestedAction: "SELECT_METHOD",
+    constraints: ["method selection"],
+    requestedRelation: `${sides[0]} instead of ${sides[1]}`,
   };
 }
 
@@ -220,6 +269,160 @@ function buildMultiOptionRequirement(question: string): RequirementDraft | undef
     targetConcepts: compactStrings([relation ?? "options"]),
     comparisonSides: inferOptionSides(question),
     requestedRelation: relation ?? cleanConcept(question),
+  };
+}
+
+function buildFormulaAndUnitRequirement(
+  question: string,
+  context: RequirementBuildContext
+): RequirementDraft | undefined {
+  if (!/\b(?:units?|measured\s+in)\b/i.test(question)) return undefined;
+
+  const formulaish =
+    /\bformula\b/i.test(question) ||
+    /\blaw\b/i.test(question) ||
+    /\b[A-Za-z]\s*=\s*[A-Za-z0-9]/.test(question) ||
+    /\bone\s+formula\b/i.test(question);
+  const concept = inferFormulaUnitTarget(question, context);
+  if (!concept) return undefined;
+
+  const unitTarget = inferUnitFactTarget(question, concept);
+  const unitChild: RequirementDraft = {
+    kind: "FACT_LOOKUP",
+    targetConcepts: compactStrings([unitTarget]),
+    requestedFact: `${unitTarget} units used`,
+    requestedFacet: "UNIT",
+    requestedAction: "STATE_UNIT",
+  };
+
+  if (formulaish) {
+    return {
+      kind: "MULTI_PART",
+      targetConcepts: compactStrings([concept, unitTarget]),
+      requestedAction: detectRequestedAction(question) ?? "EXPLAIN",
+      presentationStyle: detectPresentationStyle(question),
+      childRequirements: [
+        {
+          kind: "FORMULA",
+          targetConcepts: compactStrings([concept, context.contextConcept]),
+          requestedAction: "STATE_FORMULA",
+        },
+        unitChild,
+      ],
+    };
+  }
+
+  return {
+    kind: "MULTI_PART",
+    targetConcepts: compactStrings([concept, unitTarget]),
+    requestedAction: detectRequestedAction(question) ?? "TEACH",
+    presentationStyle: detectPresentationStyle(question),
+    childRequirements: [
+      {
+        kind: "CONCEPT_DEFINITION",
+        targetConcepts: compactStrings([concept, context.contextConcept]),
+        requestedFacet: "DEFINITION",
+        requestedAction: "DEFINE",
+      },
+      unitChild,
+    ],
+  };
+}
+
+function buildFormulaVariableRequirement(
+  question: string,
+  context: RequirementBuildContext
+): RequirementDraft | undefined {
+  if (!/\bformula\b/i.test(question)) return undefined;
+  if (
+    !/\b(?:define|explain|name|identify|state)\b.{0,80}\b(?:variables?|symbols?)\b/i.test(
+      question
+    )
+  ) {
+    return undefined;
+  }
+
+  const concept = extractFormulaConcept(question);
+  if (!concept && !context.contextConcept) return undefined;
+
+  return {
+    kind: "MULTI_PART",
+    targetConcepts: compactStrings([concept, context.contextConcept]),
+    requestedAction: detectRequestedAction(question) ?? "TEACH",
+    presentationStyle: detectPresentationStyle(question),
+    childRequirements: [
+      {
+        kind: "FORMULA",
+        targetConcepts: compactStrings([concept, context.contextConcept]),
+        requestedAction: "STATE_FORMULA",
+      },
+      {
+        kind: "FACT_LOOKUP",
+        targetConcepts: compactStrings([concept, context.contextConcept]),
+        requestedFact: `${concept || context.contextConcept || "formula"} variables`,
+        requestedFacet: "DEFINITION",
+        requestedAction: "DEFINE_VARIABLES",
+      },
+    ],
+  };
+}
+
+function buildWorkedExampleRequirement(question: string): RequirementDraft | undefined {
+  const target =
+    firstMatch(question, /\b(?:work\s+through|walk\s+(?:me\s+)?through|go\s+through)\s+(?:the\s+|this\s+)?(.+?)(?:[?.]|$)/i) ??
+    firstMatch(question, /\b(?:show\s+me|show|explain)\s+(?:the\s+|this\s+)?(.+?)\s+step\s+by\s+step(?:[?.]|$)/i) ??
+    firstMatch(question, /\b(?:teach|explain|show\s+me)\s+(?:me\s+)?(?:the\s+|this\s+)?(.+?\bexample)(?:[?.]|$)/i);
+  if (!target) return undefined;
+
+  const cleaned = cleanWorkedExampleTarget(target);
+  if (!cleaned) return undefined;
+
+  return {
+    kind: "PROCEDURE_METHOD",
+    targetConcepts: [cleaned],
+    requestedMethod: `worked example ${cleaned}`,
+    requestedAction: "WORK_THROUGH",
+    presentationStyle: "STEP_BY_STEP",
+    constraints: ["worked example"],
+  };
+}
+
+function buildReferencedAnswerRequirement(question: string): RequirementDraft | undefined {
+  const referenced = question.match(
+    /\bfor\s+(.+?\bquestion\s+\d+[A-Za-z]?)\s*,?\s*(?:please\s+)?(?:explain|work\s+through|walk\s+(?:me\s+)?through|show\s+me)\s+(?:the\s+)?(.+?)(?:[?.]|$)/i
+  );
+  if (!referenced) return undefined;
+
+  const reference = cleanConcept(referenced[1] ?? "");
+  const answerTarget = cleanConcept(referenced[2] ?? "");
+  if (!reference || !answerTarget) return undefined;
+
+  const questionNumber = firstMatch(reference, /\b(question\s+\d+[A-Za-z]?)\b/i) ?? reference;
+
+  return {
+    kind: "MULTI_PART",
+    targetConcepts: compactStrings([reference, answerTarget]),
+    requestedAction: "EXPLAIN",
+    childRequirements: [
+      {
+        kind: "FACT_LOOKUP",
+        targetConcepts: ["identifier"],
+        requestedFact: questionNumber,
+        requestedFacet: "DEFINITION",
+      },
+      {
+        kind: "FACT_LOOKUP",
+        targetConcepts: compactStrings([answerTarget]),
+        requestedFact: answerTarget,
+        requestedFacet: "DEFINITION",
+      },
+      {
+        kind: "FACT_LOOKUP",
+        targetConcepts: ["answer"],
+        requestedFact: "answer",
+        requestedFacet: "DEFINITION",
+      },
+    ],
   };
 }
 
@@ -370,11 +573,26 @@ function buildFacetRequirement(
   if (kindMentioned) {
     const target = cleanConcept(kindMentioned);
     return {
-      kind: "CONCEPT_DEFINITION",
+      kind: "MULTI_PART",
       targetConcepts: compactStrings([target]),
-      requestedFacet: "DEFINITION",
-      requestedAction: "define and list mentioned kinds",
+      requestedAction: "DEFINE",
       constraints: ["kinds mentioned"],
+      childRequirements: [
+        {
+          kind: "CONCEPT_DEFINITION",
+          targetConcepts: compactStrings([target]),
+          requestedFacet: "DEFINITION",
+          requestedAction: "DEFINE",
+        },
+        {
+          kind: "FACT_LOOKUP",
+          targetConcepts: compactStrings([target]),
+          requestedFact: `${target} kinds mentioned`,
+          requestedFacet: "DEFINITION",
+          requestedAction: "LIST_KINDS",
+          constraints: ["kinds mentioned"],
+        },
+      ],
     };
   }
 
@@ -421,7 +639,28 @@ function buildFacetRequirement(
   return undefined;
 }
 
-function buildProcedureMethodRequirement(question: string): RequirementDraft | undefined {
+function buildProcedureMethodRequirement(
+  question: string,
+  context: RequirementBuildContext
+): RequirementDraft | undefined {
+  const madeTarget =
+    firstMatch(question, /\bhow\s+do\s+i\s+(?:get|make|create|form)\s+(.+?)(?:[?.]|$)/i) ??
+    firstMatch(question, /\bhow\s+(?:is|are)\s+(.+?)\s+(?:made|formed|created|produced)(?:[?.]|$)/i) ??
+    firstMatch(question, /\bwhat\s+do\s+i\s+do\s+to\s+(?:get|make|create|form)\s+(.+?)(?:[?.]|$)/i) ??
+    firstMatch(question, /\bshow\s+me\s+how\s+to\s+(?:get|make|create|form)\s+(.+?)(?:[?.]|$)/i);
+  if (madeTarget) {
+    let target = cleanConcept(madeTarget);
+    if (context.contextConcept && /\bequivalent\s+forms?\b/i.test(target)) {
+      target = `equivalent ${context.contextConcept}`;
+    }
+    return {
+      kind: "PROCEDURE_METHOD",
+      targetConcepts: compactStrings([target]),
+      requestedMethod: `make ${target}`,
+      requestedAction: "EXPLAIN",
+    };
+  }
+
   if (!/\b(?:how\s+do\s+i|how\s+can\s+i|how\s+to|what\s+steps?|which\s+steps?|explain\s+how\s+to|show\s+how\s+to)\b/i.test(question)) {
     return undefined;
   }
@@ -805,6 +1044,7 @@ function buildDefinitionRequirement(
     firstMatch(question, /\bwhat\s+about\s+(.+?)\s+in\s+(?:that|this)\s+topic(?:[?.]|$)/i) ??
     firstMatch(question, /\bwhat\s+(?:is|are)\s+(.+?)(?:[?.]|$)/i) ??
     firstMatch(question, /\bwhat\s+does\s+(.+?)\s+(?:mean|means|refer to|describe)\b/i) ??
+    firstMatch(question, /\btell\s+me\s+what\s+(.+?)\s+(?:mean|means|refer to|describe)\b/i) ??
     firstMatch(question, /\bdefine\s+(.+?)(?:[?.]|$)/i) ??
     firstMatch(question, /\b(?:state|give)\s+(?:the\s+)?meaning\s+of\s+(.+?)(?:[?.]|$)/i) ??
     firstMatch(question, /\b(?:teach|answer|explain)\s+(?:the\s+)?(.+?)(?:[?.]|$)/i);
@@ -825,6 +1065,29 @@ function buildDefinitionRequirement(
 }
 
 function buildPassageInterpretationRequirement(question: string): RequirementDraft | undefined {
+  if (/\bmain\s+idea\b/i.test(question) && /\bsupporting\s+details?\b/i.test(question)) {
+    return {
+      kind: "MULTI_PART",
+      targetConcepts: ["main idea", "supporting details"],
+      requestedAction: detectRequestedAction(question) ?? "TEACH",
+      presentationStyle: detectPresentationStyle(question),
+      childRequirements: [
+        {
+          kind: "PASSAGE_INTERPRETATION",
+          targetConcepts: ["main idea"],
+          requestedFact: "main idea",
+          passageTask: "MAIN_IDEA",
+        },
+        {
+          kind: "PASSAGE_INTERPRETATION",
+          targetConcepts: ["supporting details"],
+          requestedFact: "supporting details",
+          passageTask: "EXPLICIT_DETAIL",
+        },
+      ],
+    };
+  }
+
   if (/\bmain\s+idea\b/i.test(question) || /\bmainly\s+about\b/i.test(question) || /\bbest\s+summari[sz]es?\b/i.test(question)) {
     return {
       kind: "PASSAGE_INTERPRETATION",
@@ -856,6 +1119,8 @@ function withContext(
 ): RequirementDraft {
   return {
     ...draft,
+    requestedAction: draft.requestedAction ?? context.requestedAction,
+    presentationStyle: draft.presentationStyle ?? context.presentationStyle,
     ignoredDirectiveText: optionalUnique([
       ...(draft.ignoredDirectiveText ?? []),
       ...(context.ignoredDirectiveText ?? []),
@@ -892,6 +1157,7 @@ function assignRequirementId(
     targetConcepts: uniqueStrings(draft.targetConcepts),
     baseConcept: semantic.baseConcept,
     requestedAction: draft.requestedAction,
+    presentationStyle: draft.presentationStyle,
     requestedFacet: draft.requestedFacet ?? semantic.requestedFacet,
     constraints: optionalUnique([...(draft.constraints ?? []), ...semantic.constraints]),
     ignoredDirectiveText: optionalUnique(draft.ignoredDirectiveText),
@@ -1177,22 +1443,31 @@ function isContextualFollowUp(question: string): boolean {
   ) || /\b(equivalent forms?|these forms?|those forms?)\b/i.test(question);
 }
 
-function hasExplicitCurrentConcept(question: string): boolean {
-  const lower = question.toLowerCase();
-  if (/\b(it|its|that|this|this quantity|that quantity|that process|that formula)\b/.test(lower)) {
-    return false;
-  }
-
-  return Boolean(
-    extractFormulaConcept(question) ||
-      extractPrimarySymbolRequest(question) ||
-      extractLikelyConcept(question)
+function isPronounOnlyFollowUp(question: string): boolean {
+  return /\b(?:it|its|that|this|this quantity|that quantity|that process|that formula)\b/i.test(
+    question
   );
+}
+
+function hasNamedPossessiveFacetTarget(question: string): boolean {
+  return /\b(?:teach|explain|tell\s+me|define|what\s+is)\s+(?:me\s+)?(?:the\s+)?(?!it\b|its\b|this\b|that\b)([a-z][a-z0-9 -]+?)\s+(?:and|including|with)\s+(?:its\s+|the\s+)?(?:units?|formula)\b/i.test(
+    question
+  );
+}
+
+function hasExplicitCurrentConcept(question: string): boolean {
+  const candidates = compactStrings([
+    extractFormulaConcept(question),
+    extractPrimarySymbolRequest(question),
+    extractLikelyConcept(question),
+  ]).filter((candidate) => !isContextOnlyConceptCandidate(candidate));
+  return candidates.length > 0;
 }
 
 function extractLikelyConcept(question: string): string | undefined {
   const normalized = normalizeQuestion(question);
   const candidates = [
+    firstMatch(normalized, /\b(?:teach|explain|tell\s+me|define|what\s+is)\s+(?:me\s+)?(?:the\s+)?(.+?)\s+(?:and|including|with)\s+(?:its\s+|the\s+)?units?(?:[?.]|$)/i),
     firstMatch(normalized, /\bwhat\s+(?:is|are)\s+(.+?)(?:[?.]|$)/i),
     firstMatch(normalized, /\bdefine\s+(.+?)(?:[?.]|$)/i),
     firstMatch(normalized, /\bformula\s+(?:for|of)\s+(.+?)(?:[?.]|$)/i),
@@ -1201,6 +1476,42 @@ function extractLikelyConcept(question: string): string | undefined {
   ];
 
   return compactStrings(candidates.map((candidate) => cleanConcept(candidate ?? "")))[0];
+}
+
+function isContextOnlyConceptCandidate(value: string): boolean {
+  return /^(?:it|its|s|that|this|formula|unit|units|the formula|its formula|s formula|its unit|s unit|its units|s units)$/i.test(
+    normalizeQuestion(value)
+  );
+}
+
+function detectRequestedAction(question: string): string | undefined {
+  if (/\bwhen\s+(?:should|would|do)\b.+\b(?:instead\s+of|rather\s+than)\b/i.test(question)) {
+    return "SELECT_METHOD";
+  }
+  if (/\b(?:work\s+through|walk\s+(?:me\s+)?through|go\s+through)\b/i.test(question)) {
+    return "WORK_THROUGH";
+  }
+  if (/\bcompare|distinguish|differentiate|instead\s+of|rather\s+than\b/i.test(question)) {
+    return "COMPARE";
+  }
+  if (/\bdefine\b/i.test(question)) return "DEFINE";
+  if (/\bteach\b/i.test(question)) return "TEACH";
+  if (/\bexplain|show\s+me|show\b/i.test(question)) return "EXPLAIN";
+  if (/\btell\s+me|what\s+is|what\s+are|what\s+does\b/i.test(question)) return "DEFINE";
+  return undefined;
+}
+
+function detectPresentationStyle(question: string): PresentationStyle | undefined {
+  if (/\b(?:step\s+by\s+step|work\s+through|walk\s+(?:me\s+)?through|go\s+through)\b/i.test(question)) {
+    return "STEP_BY_STEP";
+  }
+  if (/\b(?:simple\s+terms|simply|basic|beginner)\b/i.test(question)) {
+    return "SIMPLE";
+  }
+  if (/\b(?:briefly|concise|short)\b/i.test(question)) {
+    return "CONCISE";
+  }
+  return undefined;
 }
 
 function extractFormulaConcept(question: string): string {
@@ -1216,6 +1527,53 @@ function extractFormulaConcept(question: string): string {
     firstMatch(question, /\b(?:give|state|write|what\s+is|teach|explain)\s+(?:the\s+)?(.+?)\s+formula(?:\s+and\b|[?.]|$)/i);
 
   return cleanConcept(direct ?? "");
+}
+
+function inferFormulaUnitTarget(
+  question: string,
+  context: RequirementBuildContext
+): string | undefined {
+  const lower = question.toLowerCase();
+  if (/\bvoltage\b/.test(lower) && /\bcurrent\b/.test(lower) && /\bresistance\b/.test(lower)) {
+    return "ohm's law";
+  }
+  if (/\bdensity\b/.test(lower)) return "density";
+  if (/\bspeed\b/.test(lower)) return "speed";
+  if (/\bforce\b/.test(lower) || /\bf\s*=\s*m\s*(?:x|\*)\s*a\b/i.test(question)) {
+    return "force";
+  }
+  if (/\bpower\b/.test(lower) || /\bp\s*=\s*(?:v\s*(?:x|\*)\s*i|i\s*(?:x|\*)\s*v)\b/i.test(question)) {
+    return "power";
+  }
+  if (/\bohm'?s?\s+law\b/i.test(question) || /\bv\s*=\s*i\s*(?:x|\*)\s*r\b/i.test(question)) {
+    return "ohm's law";
+  }
+
+  const formulaConcept = extractFormulaConcept(question);
+  if (formulaConcept) return formulaConcept;
+
+  const unitConcept =
+    firstMatch(
+      question,
+      /\bwhat\s+(?:is|are)\s+(.+?)\s+and\s+what\s+units?\s+(?:is|are)\s+(?:it|they|this|that)\s+measured\s+in(?:[?.]|$)/i
+    ) ??
+    firstMatch(
+      question,
+      /\b(?:teach|explain|tell\s+me|define|what\s+is)\s+(?:me\s+)?(?:the\s+)?(.+?)\s+(?:and|including|with)\s+(?:its\s+|the\s+)?units?(?:[?.]|$)/i
+    ) ??
+    firstMatch(
+      question,
+      /\bwhat\s+unit\s+(?:is|are)\s+(.+?)\s+measured\s+in(?:[?.]|$)/i
+    );
+  return cleanConcept(unitConcept ?? context.contextConcept ?? "");
+}
+
+function inferUnitFactTarget(question: string, concept: string): string {
+  const lower = question.toLowerCase();
+  if (/\bvoltage\b/.test(lower) && /\bcurrent\b/.test(lower) && /\bresistance\b/.test(lower)) {
+    return "voltage current resistance";
+  }
+  return concept;
 }
 
 function extractPrimarySymbolRequest(question: string): string | undefined {
@@ -1314,6 +1672,13 @@ function splitOnTopLevelAnd(question: string): string[] {
   return question.split(/\s+and\s+/i).map(normalizeQuestion);
 }
 
+function cleanWorkedExampleTarget(value: string): string {
+  return cleanConcept(value)
+    .replace(/\b(?:example|worked example)\b/g, " example")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
 function inferOptionSides(question: string): string[] {
   const explicit = [...question.matchAll(/\b(pack|option|choice)\s+([A-Za-z0-9]+)\b/gi)]
     .map((match) => `${(match[1] ?? "option").toLowerCase()} ${match[2] ?? ""}`.trim());
@@ -1349,8 +1714,10 @@ function cleanConcept(value: string): string {
     .replace(/\s+(?:and|or)$/i, "")
     .replace(/\s+in\s+(?:physics|chemistry|biology|mathematics|maths|english|geography|science)$/i, "")
     .replace(/\s+in\s+simple\s+terms$/i, "")
+    .replace(/\s+for\s+me$/i, "")
+    .replace(/^(?:please\s+)?(?:teach|explain|show\s+me|show|tell\s+me|help\s+me\s+understand|work\s+through|walk\s+(?:me\s+)?through|go\s+through)\s+/i, "")
     .replace(/\s+of\s+(?:a\s+|an\s+|the\s+)?(?:paragraph|passage|text)$/i, "")
-    .replace(/^(?:a|an|the|this|that|its)\s+/i, "")
+    .replace(/^(?:a|an|the|this|that|its)(?:\s+|$)/i, "")
     .replace(/\b(?:formula|process|method|rule|conditions?|ways?|one|two|three|cards?|notes?)\b/gi, " ")
     .replace(/\s+/g, " ")
     .trim()
