@@ -137,7 +137,8 @@ export type ConflictType =
   | "DEFINITION_CONFLICT"
   | "FORMULA_CONFLICT"
   | "NUMERIC_VALUE_CONFLICT"
-  | "RELATION_CONFLICT";
+  | "RELATION_CONFLICT"
+  | "EXPLICIT_FACT_CONFLICT";
 
 export type ConflictCapability = {
   id: string;
