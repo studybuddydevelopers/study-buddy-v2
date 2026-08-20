@@ -263,6 +263,12 @@ function evaluateDirectRequirement(
 
 function canUseSemanticFastMatch(requirement: RequestRequirement): boolean {
   if (requirement.kind === "CALCULATION") return false;
+  if (
+    requirement.kind === "FACT_LOOKUP" &&
+    /\b(?:variables?|symbols?|units?|kinds?)\b/i.test(requirement.requestedFact ?? "")
+  ) {
+    return false;
+  }
   if (requirement.kind === "CONCEPT_DEFINITION" && requirement.targetConcepts.length > 1) {
     return false;
   }
@@ -532,30 +538,6 @@ function findExplicitInputCalculationSupport(
   ]);
 }
 
-function findRelevantFormulaNumerics(
-  formula: FormulaCapability,
-  requirement: RequestRequirement,
-  context: MatchContext
-): NumericCapability[] {
-  const requiredInputs = new Set(formula.requiredInputs.map(normalizedText));
-  const formulaText = normalizedText(formula.expression);
-  const requestedText = normalizedText(
-    `${requirement.targetConcepts.join(" ")} ${requirement.requiredInputs?.join(" ") ?? ""} ${requirement.requestedMethod ?? ""}`
-  );
-  return context.numerics.filter((numeric) => {
-    const quantity = normalizedText(numeric.quantity);
-    const qualifier = normalizedText(numeric.qualifier ?? "");
-    if (requiredInputs.has(quantity)) return true;
-    if (formulaText.includes(quantity)) return true;
-    if (formula.symbolDefinitions.some((symbol) =>
-      symbol.meaning && normalizedText(symbol.meaning) === quantity
-    )) {
-      return true;
-    }
-    return requestedText.length > 0 && (requestedText.includes(quantity) || requestedText.includes(qualifier));
-  });
-}
-
 function evaluateComparisonRequirement(
   requirement: RequestRequirement,
   context: MatchContext
@@ -567,10 +549,11 @@ function evaluateComparisonRequirement(
   const missing: string[] = [];
 
   for (const side of sides) {
-    const sideSupport =
-      findComparisonSide(side, context) ??
-      findDefinitionForConcept(side, context) ??
-      findSemanticComparisonSideSupport(side, requirement, context);
+    const sideSupport = isMethodSelectionRequirement(requirement)
+      ? findMethodSelectionSideSupport(side, requirement, context)
+      : findComparisonSide(side, context) ??
+        findDefinitionForConcept(side, context) ??
+        findSemanticComparisonSideSupport(side, requirement, context);
     if (sideSupport) {
       supportRefs.push(supportRef(requirement.id, sideSupport.id, ["COMPARE"]));
     } else {
@@ -620,6 +603,56 @@ function findSemanticComparisonSideSupport(
     ).id;
     return candidateSideId === sideId && normalizedText(text).length > 0;
   });
+}
+
+function isMethodSelectionRequirement(requirement: RequestRequirement): boolean {
+  return (
+    requirement.requestedAction === "SELECT_METHOD" ||
+    (requirement.constraints ?? []).includes("method selection")
+  );
+}
+
+function findMethodSelectionSideSupport(
+  side: string,
+  requirement: RequestRequirement,
+  context: MatchContext
+): { id: string } | undefined {
+  const sideId = canonicalizeConcept(side, context.request).id;
+  const semanticSupport = context.semanticComponents.find((candidate) => {
+    if (!candidate.sourceCapabilityId || candidate.concept?.baseConcept !== sideId) {
+      return false;
+    }
+    return ["METHOD", "PROCESS", "RELATION", "LIMITATION", "CONSEQUENCE"].includes(
+      candidate.kind
+    );
+  });
+  if (semanticSupport?.sourceCapabilityId) {
+    return { id: semanticSupport.sourceCapabilityId };
+  }
+
+  const method = context.methods.find(
+    (candidate) =>
+      candidate.canonicalConcept?.id === sideId ||
+      canonicalizeConcept(candidate.method, context.request).id === sideId
+  );
+  if (method) return { id: method.id };
+
+  const process = context.processes.find(
+    (candidate) => canonicalizeConcept(candidate.process, context.request).id === sideId
+  );
+  if (process) return { id: process.id };
+
+  const definition = findDefinitionForConcept(side, context);
+  if (
+    definition &&
+    /\b(?:can|used|use|separates?|recover|when|from|by|limitation|cannot|can not)\b/i.test(
+      definition.definitionText
+    )
+  ) {
+    return { id: definition.id };
+  }
+
+  return undefined;
 }
 
 function evaluateMultiOptionRequirement(
@@ -730,6 +763,16 @@ function evaluateFactLookupRequirement(
   requirement: RequestRequirement,
   context: MatchContext
 ): RequirementMatch {
+  const formulaVariableSupport = findFormulaVariableSupport(requirement, context);
+  if (formulaVariableSupport.length > 0) {
+    return buildMatch(requirement.id, "SUPPORTED", formulaVariableSupport);
+  }
+
+  const unitSupport = findUnitFactSupport(requirement, context);
+  if (unitSupport.length > 0) {
+    return buildMatch(requirement.id, "SUPPORTED", unitSupport);
+  }
+
   const event = findEventFact(requirement, context);
   if (event) {
     return buildMatch(requirement.id, "SUPPORTED", [
@@ -782,6 +825,11 @@ function evaluateProcedureMethodRequirement(
     return buildMatch(requirement.id, "SUPPORTED", [
       supportRef(requirement.id, process.id, ["PROCESS"]),
     ]);
+  }
+
+  const workedExampleSupport = findWorkedExampleSupport(requirement, context);
+  if (workedExampleSupport.length > 0) {
+    return buildMatch(requirement.id, "SUPPORTED", workedExampleSupport);
   }
 
   return buildMatch(
@@ -1038,7 +1086,7 @@ function buildCalculationPaths(
       context
     );
     const requiredInputs = requiredInputConcepts.map((concept) =>
-      makeCalculationInputComponent(concept, requirement, context)
+      makeCalculationInputComponent(concept, requirement)
     );
     const availableInputs = requiredInputs
       .map((input) => {
@@ -1175,8 +1223,7 @@ function calculationInputConceptsFromText(text: string): string[] {
 
 function makeCalculationInputComponent(
   conceptId: string,
-  requirement: RequestRequirement,
-  context: MatchContext
+  requirement: RequestRequirement
 ): SemanticComponent {
   return {
     kind: "QUANTITY",
@@ -1194,13 +1241,12 @@ function findNumericForInputComponent(
   input: SemanticComponent,
   context: MatchContext
 ): NumericCapability | undefined {
-  return context.numerics.find((numeric) => numericMatchesInputComponent(numeric, input, context));
+  return context.numerics.find((numeric) => numericMatchesInputComponent(numeric, input));
 }
 
 function numericMatchesInputComponent(
   numeric: NumericCapability,
-  input: SemanticComponent,
-  context: MatchContext
+  input: SemanticComponent
 ): boolean {
   if (input.concept && numeric.canonicalConcept?.id === input.concept.baseConcept) {
     return true;
@@ -1286,6 +1332,9 @@ function formulaMatchesRequirement(
   }
   if (formula.canonicalConcept && targets.includes(formula.canonicalConcept.id)) return true;
   if (formula.outputQuantity && targets.includes(formula.outputQuantity)) return true;
+  if (formula.outputQuantity && formulaOutputImpliesTarget(formula.outputQuantity, targets)) {
+    return true;
+  }
 
   const outputSymbol = formula.outputQuantity;
   if (!outputSymbol) return false;
@@ -1296,6 +1345,35 @@ function formulaMatchesRequirement(
       definition.canonicalConcept &&
       targets.includes(definition.canonicalConcept.id)
   );
+}
+
+function formulaOutputImpliesTarget(outputQuantity: string, targets: string[]): boolean {
+  const aliases: Record<string, string[]> = {
+    f: ["force"],
+    p: ["power", "pressure"],
+    v: ["voltage"],
+    i: ["current"],
+    r: ["resistance"],
+    a: ["acceleration"],
+  };
+  return (aliases[normalizedText(outputQuantity)] ?? []).some((alias) =>
+    targets.includes(alias)
+  );
+}
+
+function formulaVariableTerms(formula: FormulaCapability): string[] {
+  const expressionTerms = toSemanticTokens(formula.expression).filter((token) => {
+    if (/^\d+$/.test(token)) return false;
+    if (["area", "force", "power", "voltage", "density", "speed"].includes(token)) {
+      return false;
+    }
+    return token.length > 1;
+  });
+  const inputTerms = formula.requiredInputs.map(normalizedText).filter(Boolean);
+  const symbolMeaningTerms = formula.symbolDefinitions.flatMap((symbol) =>
+    toSemanticTokens(symbol.meaning ?? "")
+  );
+  return uniqueStrings([...expressionTerms, ...inputTerms, ...symbolMeaningTerms]);
 }
 
 function findPositiveSymbolDefinition(
@@ -1452,6 +1530,93 @@ function findExplicitFact(
   });
 }
 
+function findFormulaVariableSupport(
+  requirement: RequestRequirement,
+  context: MatchContext
+): CapabilitySupportRef[] {
+  const requested = normalizedText(
+    `${requirement.requestedFact ?? ""} ${requirement.targetConcepts.join(" ")}`
+  );
+  if (!/\b(?:variables?|symbols?)\b/.test(requested)) return [];
+
+  const formula = findFormula(requirement, context);
+  if (!formula) return [];
+
+  const formulaTerms = formulaVariableTerms(formula);
+  const supportingFacts = context.explicitFacts.filter((fact) => {
+    if (fact.polarity !== "POSITIVE") return false;
+    const factText = normalizedText(`${fact.factKey} ${fact.factText}`);
+    return formulaTerms.some((term) => factText.includes(term));
+  });
+  const supportingDefinitions = context.definitions.filter((definition) => {
+    if (definition.polarity !== "POSITIVE") return false;
+    const definitionText = normalizedText(
+      `${definition.canonicalConcept.label} ${definition.definitionText} ${definition.evidenceSpan.text}`
+    );
+    return formulaTerms.some((term) => definitionText.includes(term));
+  });
+
+  return uniqueSupportRefs([
+    supportRef(requirement.id, formula.id, ["FORMULA"]),
+    ...supportingDefinitions.map((definition) =>
+      supportRef(requirement.id, definition.id, ["DEFINE"])
+    ),
+    ...supportingFacts.map((fact) => supportRef(requirement.id, fact.id, ["DEFINE"])),
+  ]);
+}
+
+function findUnitFactSupport(
+  requirement: RequestRequirement,
+  context: MatchContext
+): CapabilitySupportRef[] {
+  const requested = normalizedText(
+    `${requirement.requestedFact ?? ""} ${requirement.targetConcepts.join(" ")}`
+  );
+  if (!/\b(unit|units|measured|measure)\b/.test(requested)) return [];
+
+  const targetIds = canonicalTargetIds(requirement, context.request);
+  const targetTexts = uniqueStrings(
+    [
+      ...requirement.targetConcepts,
+      requirement.baseConcept?.aliases?.join(" "),
+      requirement.baseConcept?.baseConcept?.replace(/-/g, " "),
+    ].filter((value): value is string => Boolean(value))
+  ).map(normalizedText);
+  const semanticSupports = context.semanticComponents
+    .filter((component) => {
+      if (component.kind !== "UNIT" || !component.sourceCapabilityId) return false;
+      if (targetIds.length === 0) return true;
+      if (component.concept && targetIds.includes(component.concept.baseConcept)) return true;
+      return semanticTextMatches(component.text ?? "", requested);
+    })
+    .map((component) => component.sourceCapabilityId)
+    .filter((id): id is string => Boolean(id));
+
+  const definitionSupports = context.definitions
+    .filter((candidate) => {
+      if (candidate.polarity !== "POSITIVE") return false;
+      const combined = normalizedText(
+        `${candidate.canonicalConcept.label} ${candidate.canonicalConcept.aliases.join(" ")} ${candidate.definitionText} ${candidate.evidenceSpan.text}`
+      );
+      return (
+        /\b(measured|unit|units|volts?|amperes?|amps?|ohms?|newtons?|metres?|meters?|seconds?|grams?|kilograms?)\b/.test(
+          combined
+        ) &&
+        (targetIds.length === 0 ||
+          targetIds.includes(candidate.canonicalConcept.id) ||
+          targetTexts.some((target) => target.length > 0 && includesTokens(combined, target)) ||
+          semanticTextMatches(combined, requested))
+      );
+    })
+    .map((candidate) => candidate.id);
+
+  return uniqueSupportRefs(
+    uniqueStrings([...semanticSupports, ...definitionSupports]).map((id) =>
+      supportRef(requirement.id, id, ["DEFINE"])
+    )
+  );
+}
+
 function findDefinitionFact(
   requirement: RequestRequirement,
   context: MatchContext
@@ -1492,6 +1657,80 @@ function findMethod(
     }
     return semanticTextMatches(combined, requested);
   });
+}
+
+function findWorkedExampleSupport(
+  requirement: RequestRequirement,
+  context: MatchContext
+): CapabilitySupportRef[] {
+  const requested = normalizedText(
+    `${requirement.requestedMethod ?? ""} ${requirement.targetConcepts.join(" ")}`
+  );
+  if (
+    !/\b(?:worked|example|answer|step)\b/.test(requested) &&
+    !(requirement.constraints ?? []).includes("worked example")
+  ) {
+    return [];
+  }
+
+  const requestedTokens = toSemanticTokens(requested);
+  const scoreText = (value: string) => {
+    const haystack = new Set(toSemanticTokens(value));
+    return requestedTokens.filter((token) => haystack.has(token)).length;
+  };
+
+  const supportIds = new Set<string>();
+  for (const method of context.methods) {
+    if (scoreText(`${method.method} ${method.stepsText} ${method.evidenceSpan.text}`) > 0) {
+      supportIds.add(method.id);
+    }
+  }
+  for (const definition of context.definitions) {
+    const text = `${definition.canonicalConcept.label} ${definition.definitionText} ${definition.evidenceSpan.text}`;
+    if (
+      definition.polarity === "POSITIVE" &&
+      (scoreText(text) > 0 || /\b(?:worked|example|calculate|found|gives?)\b/i.test(text))
+    ) {
+      supportIds.add(definition.id);
+    }
+  }
+  for (const fact of context.explicitFacts) {
+    if (fact.polarity === "POSITIVE" && scoreText(`${fact.factKey} ${fact.factText}`) > 0) {
+      supportIds.add(fact.id);
+    }
+  }
+  for (const formula of context.formulas) {
+    const text = `${formula.canonicalConcept?.label ?? ""} ${formula.expression} ${formula.evidenceSpan.text}`;
+    if (scoreText(text) > 0 || requestedTokens.some((token) => text.toLowerCase().includes(token))) {
+      supportIds.add(formula.id);
+    }
+  }
+  for (const numeric of context.numerics) {
+    const text = `${numeric.quantity} ${numeric.qualifier ?? ""} ${numeric.unit ?? ""} ${numeric.evidenceSpan.text}`;
+    if (scoreText(text) > 0 || /\b(?:example|discount|ratio|answer|part|price|girls?|boys?)\b/i.test(text)) {
+      supportIds.add(numeric.id);
+    }
+  }
+  for (const consequence of context.consequences) {
+    if (
+      consequence.polarity === "POSITIVE" &&
+      scoreText(`${consequence.cause} ${consequence.effect} ${consequence.evidenceSpan.text}`) > 0
+    ) {
+      supportIds.add(consequence.id);
+    }
+  }
+
+  const candidateIds = [...supportIds];
+  const hasCalculationShape =
+    context.numerics.length >= 2 ||
+    candidateIds.some((id) => id.includes(":formula-")) ||
+    candidateIds.some((id) => id.includes(":method-")) ||
+    candidateIds.some((id) => id.includes(":fact-"));
+  if (!hasCalculationShape || candidateIds.length === 0) return [];
+
+  return candidateIds.map((id) =>
+    supportRef(requirement.id, id, ["CALCULATE", "PROCESS"])
+  );
 }
 
 function findEventFact(
