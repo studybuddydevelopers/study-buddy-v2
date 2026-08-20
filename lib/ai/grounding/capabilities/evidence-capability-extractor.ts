@@ -668,6 +668,24 @@ function extractExplicitFacts(
     );
   }
 
+  const conditionMatch = text.match(/\b(.+?)\s+(?:must|should|needs?\s+to)\s+(.+)$/i);
+  if (conditionMatch && !isFormulaLike(text)) {
+    const concept = cleanConcept(conditionMatch[1] ?? "");
+    const factText = text;
+    if (concept && factText) {
+      facts.push(
+        createExplicitFact({
+          state,
+          span: sentence,
+          factKey: `${concept} condition`,
+          factText,
+          concept,
+          polarity: "POSITIVE",
+        })
+      );
+    }
+  }
+
   const patterns: Array<{ match: RegExp; key: (match: RegExpMatchArray) => string; concept?: (match: RegExpMatchArray) => string }> = [
     {
       match: /\bpractice\s+paper\s+identifier\s*:\s*(.+)$/i,
@@ -745,8 +763,12 @@ function extractMethods(
   const text = sentence.text;
   const matches = [
     text.match(/\b(.+?)\s+can\s+be\s+(?:solved|found|calculated|worked\s+out|balanced|separated|prepared|made|done)\s+by\s+(.+)$/i),
+    text.match(/\b(.+?)\s+can\s+((?:recover|separate|remove|filter|extract|collect|produce|form|make)\b.+)$/i),
     text.match(/\bfor\s+(.+?),\s*(.+?\b(?:subtract|add|divide|multiply|balance|filter|heat|cool|apply|remove|separate|mix|measure|solve)\b.+)$/i),
     text.match(/\b(.+?)\s+(?:is|are)\s+made\s+by\s+(.+)$/i),
+    text.match(/\b((?:find|calculate|work\s+out)\s+.+?\bfirst\b.+?\bthen\b.+)$/i)
+      ? ["", state.lastSemanticTarget ?? "worked example", text] as unknown as RegExpMatchArray
+      : null,
   ].filter((match): match is RegExpMatchArray => Boolean(match));
 
   return matches.map((match) => {
@@ -957,7 +979,7 @@ function extractPassageInterpretations(
   }
 
   const explicitDetail = sentence.text.match(
-    /\b(?:supporting\s+details?|stated\s+reason|explicit\s+detail)\s+(?:is|are|explain|show|give)\s+(.+)$/i
+    /\b(?:supporting\s+details?|stated\s+reason|explicit\s+detail)\s+(?:is|are|explain|show|give),?\s+(.+)$/i
   );
   if (explicitDetail) {
     return [
