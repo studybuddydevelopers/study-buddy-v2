@@ -3,6 +3,7 @@ import type {
   CapabilitySupportRef,
   ValidatedEvidenceUnit,
 } from "../evidence-units/validated-evidence-unit";
+import type { SemanticComponent } from "../semantic-concepts";
 
 export type RequirementStatus =
   | "SUPPORTED"
@@ -35,6 +36,7 @@ export type AnswerabilityDecision = {
   validatedEvidenceUnits: ValidatedEvidenceUnit[];
   refusalReason?: AnswerabilityRefusalReason;
   conflictIds?: string[];
+  calculationPaths?: CalculationPath[];
 };
 
 export type RequirementMatch = {
@@ -47,4 +49,13 @@ export type RequirementMatch = {
 
 export type ConflictSet = {
   conflicts: ConflictCapability[];
+};
+
+export type CalculationPath = {
+  requirementId: string;
+  formulaCapabilityId: string;
+  outputConcept: string;
+  requiredInputs: SemanticComponent[];
+  availableInputs: SemanticComponent[];
+  complete: boolean;
 };
