@@ -166,6 +166,7 @@ export function detectCapabilityConflicts(
     ...detectFormulaConflicts(capabilities),
     ...detectNumericConflicts(capabilities),
     ...detectRelationConflicts(capabilities),
+    ...detectExplicitFactConflicts(capabilities),
   ];
 
   return candidates.map((candidate, index) => ({
@@ -331,7 +332,76 @@ function extractFormulas(
     });
   }
 
-  return formulas;
+  formulas.push(...extractNaturalLanguageFormulas(sentence, state, localSymbolDefinitions));
+
+  return dedupeBy(formulas, (formula) =>
+    `${formula.canonicalConcept?.id ?? ""}:${formula.outputQuantity ?? ""}:${formula.normalizedExpression}`
+  );
+}
+
+function extractNaturalLanguageFormulas(
+  sentence: SentenceSpan,
+  state: CapabilityState,
+  localSymbolDefinitions: SymbolCapability[]
+): FormulaCapability[] {
+  if (/\w\s*=\s*\w/.test(sentence.text)) return [];
+  const candidates: Array<{ concept: string; right: string; raw: string; start: number }> = [];
+
+  const formulaStatement = sentence.text.match(/\b(.+?)\s+formula\s+(?:is|equals?)\s+(.+)$/i);
+  if (formulaStatement?.index !== undefined) {
+    candidates.push({
+      concept: cleanFormulaConceptCandidate(formulaStatement[1] ?? ""),
+      right: formulaStatement[2] ?? "",
+      raw: formulaStatement[0] ?? sentence.text,
+      start: formulaStatement.index,
+    });
+  }
+
+  const divided = sentence.text.match(/\b(.+?)\s+(?:is|are)\s+(.+?\b(?:divided by|multiplied by|times|plus|minus|over|per|added to|subtracted from)\b.+)$/i);
+  if (divided?.index !== undefined) {
+    candidates.push({
+      concept: cleanFormulaConceptCandidate(divided[1] ?? ""),
+      right: divided[2] ?? "",
+      raw: divided[0] ?? sentence.text,
+      start: divided.index,
+    });
+  }
+
+  const foundBy = sentence.text.match(/\b(.+?)\s+(?:is|are)\s+found\s+by\s+(.+)$/i);
+  if (foundBy?.index !== undefined) {
+    candidates.push({
+      concept: cleanFormulaConceptCandidate(foundBy[1] ?? ""),
+      right: foundBy[2] ?? "",
+      raw: foundBy[0] ?? sentence.text,
+      start: foundBy.index,
+    });
+  }
+
+  return candidates.flatMap((candidate) => {
+    const concept = candidate.concept;
+    const right = normalizeNaturalFormulaRight(candidate.right);
+    if (!concept || !right || !isFormulaRightSide(right)) return [];
+    const expression = `${concept} = ${right}`;
+    const symbols = extractFormulaSymbols(expression);
+    return [
+      {
+        id: nextCapabilityId(state, "formula"),
+        resourceChunkId: state.chunk.resourceChunkId,
+        sourceLabel: state.chunk.sourceLabel,
+        evidenceSpan: sliceSentenceSpan(sentence, candidate.start, candidate.raw.length),
+        confidence: "HIGH" as const,
+        canonicalConcept: canonicalizeConcept(concept, state.chunk),
+        expression,
+        normalizedExpression: normalizeFormulaExpression(expression),
+        outputQuantity: normalizeFormulaOutput(concept),
+        symbols,
+        symbolDefinitions: localSymbolDefinitions.filter((definition) =>
+          symbols.some((symbol) => symbol.normalized === definition.symbol.normalized)
+        ),
+        requiredInputs: inferNaturalFormulaInputs(right),
+      },
+    ];
+  });
 }
 
 function extractSymbolDefinitions(
@@ -465,7 +535,7 @@ function extractNumericValues(
   }
 
   for (const qualified of sentence.text.matchAll(
-    /\b(?:the\s+)?([A-Za-z][A-Za-z ]{1,40}?)\s+(?:across|in|of|for|through)\s+(?:the\s+)?([A-Za-z][A-Za-z ]{1,40}?)\s+is\s+([-+]?\d+(?:\.\d+)?)\s*([A-Za-z%/²³]+)\b/gi
+    /\b(?:the\s+)?([A-Za-z][A-Za-z ]{1,40}?)\s+(?:across|in|of|for|through)\s+(?:the\s+)?([A-Za-z][A-Za-z ]{1,40}?)\s+is\s+([-+]?\d+(?:\.\d+)?)\s*([A-Za-z%/²³][A-Za-z0-9%/²³]*)\b/gi
   )) {
     values.push(
       createNumericValue({
@@ -474,31 +544,76 @@ function extractNumericValues(
         quantity: cleanConcept(qualified[1] ?? ""),
         qualifier: cleanConcept(qualified[2] ?? ""),
         value: Number(qualified[3]),
-        unit: qualified[4],
+        unit: normalizeExtractedUnit(qualified[4]),
         role: inferNumericRole(qualified[1] ?? "", qualified[4]),
       })
     );
   }
 
   for (const direct of sentence.text.matchAll(
-    /\b(?:the\s+)?([A-Za-z][A-Za-z ]{1,40}?)\s+is\s+([-+]?\d+(?:\.\d+)?)\s*([A-Za-z%/²³]+)\b/gi
+    /\b(?:the\s+)?([A-Za-z][A-Za-z ]{1,40}?)\s+is\s+([-+]?\d+(?:\.\d+)?)\s*([A-Za-z%/²³][A-Za-z0-9%/²³]*)\b/gi
   )) {
     if (isDefinitionVerbContext(sentence.text)) continue;
     values.push(
       createNumericValue({
         state,
         span: sliceSentenceSpan(sentence, direct.index ?? 0, direct[0].length),
-        quantity: cleanConcept(direct[1] ?? ""),
+        quantity: cleanLeadingNumericQuantity(direct[1] ?? ""),
         value: Number(direct[2]),
-        unit: direct[3],
+        unit: normalizeExtractedUnit(direct[3]),
         role: inferNumericRole(direct[1] ?? "", direct[3]),
+      })
+    );
+  }
+
+  for (const ofValue of sentence.text.matchAll(
+    /\b(?:the\s+|an?\s+)?([A-Za-z][A-Za-z ]{1,40}?)\s+of\s+([-+]?\d+(?:\.\d+)?)\b/gi
+  )) {
+    values.push(
+      createNumericValue({
+        state,
+        span: sliceSentenceSpan(sentence, ofValue.index ?? 0, ofValue[0].length),
+        quantity: cleanConcept(ofValue[1] ?? ""),
+        value: Number(ofValue[2]),
+        role: inferNumericRole(ofValue[1] ?? "", undefined),
+      })
+    );
+  }
+
+  for (const noUnit of sentence.text.matchAll(
+    /\b(?:the\s+)?([A-Za-z][A-Za-z ]{0,40}?)\s+is\s+([-+]?\d+(?:\.\d+)?)(?=,|;|\.|\s+and\b|\s+so\b|$)/gi
+  )) {
+    values.push(
+      createNumericValue({
+        state,
+        span: sliceSentenceSpan(sentence, noUnit.index ?? 0, noUnit[0].length),
+        quantity: cleanLeadingNumericQuantity(noUnit[1] ?? ""),
+        value: Number(noUnit[2]),
+        role: inferNumericRole(noUnit[1] ?? "", undefined),
+      })
+    );
+  }
+
+  for (const adjacent of sentence.text.matchAll(
+    /\b(?:the\s+)?([A-Za-z][A-Za-z ]{1,40}?)\s+([-+]?\d+(?:\.\d+)?)\s*([A-Za-z%/²³][A-Za-z0-9%/²³]*)\b/gi
+  )) {
+    const quantity = cleanAdjacentNumericQuantity(adjacent[1] ?? "");
+    if (!quantity || isMostlyVerbPhrase(quantity)) continue;
+    values.push(
+      createNumericValue({
+        state,
+        span: sliceSentenceSpan(sentence, adjacent.index ?? 0, adjacent[0].length),
+        quantity,
+        value: Number(adjacent[2]),
+        unit: normalizeExtractedUnit(adjacent[3]),
+        role: inferNumericRole(quantity, adjacent[3]),
       })
     );
   }
 
   if (isCalculationLikeSentence(sentence.text)) {
     const seen = new Set(values.map((item) => `${item.value}:${item.unit ?? ""}`));
-    for (const match of sentence.text.matchAll(/\b([-+]?\d+(?:\.\d+)?)\s*(percent|%|[A-Za-z/²³]+)?\b/gi)) {
+    for (const match of sentence.text.matchAll(/\b([-+]?\d+(?:\.\d+)?)\s*(percent|%|[A-Za-z0-9/²³]+)?\b/gi)) {
       const value = Number(match[1]);
       const unit = normalizeUnit(match[2]);
       const spanLength = unit || !match[2] ? match[0].length : (match[1] ?? "").length;
@@ -950,6 +1065,7 @@ function detectNumericConflicts(
   const grouped = new Map<string, NumericCapability[]>();
   for (const capability of capabilities) {
     for (const numeric of capability.numericValues) {
+      if (normalizedMeaning(numeric.quantity) === "calculation value") continue;
       const key = `numeric:${numeric.quantity}:${numeric.qualifier ?? ""}:${numeric.unit ?? ""}`;
       grouped.set(key, [...(grouped.get(key) ?? []), numeric]);
     }
@@ -973,6 +1089,23 @@ function detectRelationConflicts(
 
   return buildPairwiseConflicts(grouped, "RELATION_CONFLICT", (left, right) =>
     left.object !== right.object || left.polarity !== right.polarity
+  );
+}
+
+function detectExplicitFactConflicts(
+  capabilities: EvidenceCapability[]
+): Array<Omit<ConflictCapability, "id">> {
+  const grouped = new Map<string, ExplicitFactCapability[]>();
+  for (const capability of capabilities) {
+    for (const fact of capability.explicitFacts) {
+      if (fact.polarity !== "POSITIVE") continue;
+      const key = `fact:${normalizeFactScope(fact.factKey, fact.canonicalConcept?.id)}`;
+      grouped.set(key, [...(grouped.get(key) ?? []), fact]);
+    }
+  }
+
+  return buildPairwiseConflicts(grouped, "EXPLICIT_FACT_CONFLICT", (left, right) =>
+    normalizedMeaning(left.factText) !== normalizedMeaning(right.factText)
   );
 }
 
@@ -1614,6 +1747,45 @@ function normalizeFormulaExpression(expression: string): string {
     .replace(/−/g, "-");
 }
 
+function normalizeNaturalFormulaRight(value: string): string {
+  return cleanMeaning(value)
+    .replace(/\bdivided\s+by\b/gi, " / ")
+    .replace(/\bmultiplied\s+by\b/gi, " x ")
+    .replace(/\bmultiplying\s+(.+?)\s+by\s+(.+)$/i, "$1 x $2")
+    .replace(/\btimes\b/gi, " x ")
+    .replace(/\bplus\b/gi, " + ")
+    .replace(/\bminus\b/gi, " - ")
+    .replace(/\bover\b/gi, " / ")
+    .replace(/\bper\b/gi, " / ")
+    .replace(/\badded\s+to\b/gi, " + ")
+    .replace(/\bsubtracted\s+from\b/gi, " - ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function inferNaturalFormulaInputs(value: string): string[] {
+  const normalized = normalizeConceptText(value);
+  return uniqueStrings(
+    [
+      ["distance", /\bdistance\b/],
+      ["time", /\btime\b/],
+      ["mass", /\bmass\b/],
+      ["volume", /\bvolume\b/],
+      ["force", /\bforce\b/],
+      ["area", /\barea\b/],
+      ["voltage", /\bvoltage\b/],
+      ["current", /\bcurrent\b/],
+      ["acceleration", /\bacceleration\b/],
+      ["principal", /\bprincipal\b|\bp\b/],
+      ["rate", /\brate\b|\br\b/],
+      ["original value", /\boriginal\s+value\b|\boriginal\b/],
+      ["change", /\bchange\b/],
+    ]
+      .filter(([, pattern]) => (pattern as RegExp).test(normalized))
+      .map(([input]) => input as string)
+  );
+}
+
 function cleanFormulaConceptCandidate(value: string): string {
   let cleaned = cleanConcept(value)
     .replace(/^for\s+.+?,\s*/, "")
@@ -1633,6 +1805,27 @@ function normalizeFormulaSide(side: string): string {
     .replace(/\b(?:formula|is|equals?)\b/gi, "")
     .replace(/\s+/g, " ")
     .trim();
+}
+
+function cleanAdjacentNumericQuantity(value: string): string {
+  const cleaned = cleanConcept(value)
+    .replace(/\b(?:with|and|has|have|covers?|for|in|if|then|so)\b/g, " ")
+    .replace(/\b(?:a|an|the|this|that)\b/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+  const tokens = cleaned.split(" ").filter(Boolean);
+  return tokens.slice(-2).join(" ");
+}
+
+function cleanLeadingNumericQuantity(value: string): string {
+  return cleanConcept(value)
+    .replace(/\b(?:if|then|so|and|with|for)\b/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function isMostlyVerbPhrase(value: string): boolean {
+  return /\b(?:covers?|gives?|has|have|with|then|so|if)\b/i.test(value);
 }
 
 function normalizeFormulaLeft(side: string): string {
@@ -1728,6 +1921,13 @@ function normalizeConceptText(value: string): string {
     .trim();
 }
 
+function normalizeFactScope(factKey: string, conceptId?: string): string {
+  const normalized = normalizeConceptText(`${factKey} ${conceptId ?? ""}`);
+  if (/\banswer\b/.test(normalized)) return "answer";
+  if (/\bidentifier\b|\bquestion\b/.test(normalized)) return "identifier";
+  return normalized;
+}
+
 function normalizedMeaning(value: string): string {
   return cleanMeaning(value)
     .toLowerCase()
@@ -1760,7 +1960,8 @@ function dedupeBy<T>(items: T[], getKey: (item: T) => string): T[] {
 }
 
 function isCalculationLikeSentence(text: string): boolean {
-  return /\b(percent|percentage|discount|increase|decrease|sale price|new value|calculate|find|subtract|add)\b/i.test(
+  return /[=/*÷×]/.test(text) ||
+    /\b(percent|percentage|discount|increase|decrease|sale price|new value|calculate|find|found by|subtract|add|divide|divided|multiply|multiplied|times|speed|density|power|force)\b/i.test(
     text
   );
 }
@@ -1772,10 +1973,28 @@ function normalizeUnit(unit: string | undefined): string | undefined {
   return unit.toLowerCase();
 }
 
+function normalizeExtractedUnit(unit: string | undefined): string | undefined {
+  if (!unit) return undefined;
+  if (/^(?:and|but|is|are|give|gives|so|then|from|with|using)$/i.test(unit)) {
+    return undefined;
+  }
+  return unit === "%" ? "percent" : unit;
+}
+
 function inferNumericQuantity(sentenceText: string, index: number, unit?: string): string {
   const before = sentenceText.slice(0, index).toLowerCase();
   const after = sentenceText.slice(index).toLowerCase();
+  const normalizedUnit = normalizeConceptText(unit ?? "");
   if (unit === "percent") return "percentage rate";
+  if (unitMatches(normalizedUnit, ["seconds?", "secs?", "s", "minutes?", "mins?", "hours?", "years?"])) return "time";
+  if (unitMatches(normalizedUnit, ["metres?", "meters?", "m", "km", "kilometres?", "kilometers?"]) && !normalizedUnit.includes("/")) {
+    return "distance";
+  }
+  if (unitMatches(normalizedUnit, ["kg", "kilograms?", "g", "grams?"])) return "mass";
+  if (unitMatches(normalizedUnit, ["cm3", "cm³", "m3", "m³", "litres?", "liters?", "l"])) return "volume";
+  if (unitMatches(normalizedUnit, ["a", "amps?", "amperes?"])) return "current";
+  if (unitMatches(normalizedUnit, ["v", "volts?"])) return "voltage";
+  if (unitMatches(normalizedUnit, ["n", "newtons?"])) return "force";
   if (/\bsale price\s+is\s*$/i.test(before)) return "sale price";
   if (/\bnew value\s+is\s*$/i.test(before)) return "new value";
   if (/\bon\s*$/i.test(before)) return "base amount";
@@ -1784,4 +2003,10 @@ function inferNumericQuantity(sentenceText: string, index: number, unit?: string
   if (/\bincrease\b/.test(before + after)) return "percentage increase input";
   if (/\bpercent(?:age)?\s+of\b/.test(before + after)) return "percentage of input";
   return "calculation value";
+}
+
+function unitMatches(unit: string, alternatives: string[]): boolean {
+  return alternatives.some((alternative) =>
+    new RegExp(`^(?:${alternative})$`, "i").test(unit)
+  );
 }
