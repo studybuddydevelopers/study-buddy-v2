@@ -29,6 +29,11 @@ function expectKind(requirement: RequestRequirement, kind: RequirementKind) {
   expect(requirement.topicId).toBe(TOPIC_ID);
 }
 
+function leafRequirements(requirement: RequestRequirement): RequestRequirement[] {
+  if (!requirement.childRequirements?.length) return [requirement];
+  return requirement.childRequirements.flatMap(leafRequirements);
+}
+
 describe("Stage 4.1 request requirement extraction", () => {
   it("extracts concept definition requests", () => {
     const osmosis = firstRequirement("What is osmosis?");
@@ -98,6 +103,142 @@ describe("Stage 4.1 request requirement extraction", () => {
     expect(requirement.childRequirements?.[1]?.requestedFact).toBe(
       "ohm's law units used"
     );
+  });
+
+  it.each([
+    ["Define a ratio for me in simple terms.", "ratio", "SIMPLE"],
+    ["Please define density for me.", "density", undefined],
+    ["Tell me what a noun means.", "noun", undefined],
+  ])(
+    "normalizes tutoring wording without enlarging the concept: %s",
+    (question, baseConcept, presentationStyle) => {
+      const requirement = firstRequirement(question);
+
+      expectKind(requirement, "CONCEPT_DEFINITION");
+      expect(requirement.baseConcept?.baseConcept).toBe(baseConcept);
+      expect(requirement.presentationStyle).toBe(presentationStyle);
+      expect(requirement.baseConcept?.baseConcept).not.toContain("for-me");
+    }
+  );
+
+  it.each([
+    "How are equivalent ratios made?",
+    "How do I make an equivalent ratio?",
+    "How are equivalent ratios formed?",
+    "Show me how to create an equivalent ratio.",
+    "What do I do to get an equivalent ratio?",
+  ])("maps equivalent-ratio creation to one procedure family: %s", (question) => {
+    const requirement = firstRequirement(question);
+
+    expectKind(requirement, "PROCEDURE_METHOD");
+    expect(requirement.targetConcepts.join(" ")).toMatch(/equivalent ratio/);
+    expect(requirement.requestedMethod).toMatch(/make equivalent ratio/);
+  });
+
+  it.each([
+    "Work through this percentage example.",
+    "Show me the density example step by step.",
+    "Walk me through the probability example.",
+  ])("treats worked-example tutoring as a procedure request: %s", (question) => {
+    const requirement = firstRequirement(question);
+
+    expectKind(requirement, "PROCEDURE_METHOD");
+    expect(requirement.requestedAction).toBe("WORK_THROUGH");
+    expect(requirement.presentationStyle).toBe("STEP_BY_STEP");
+    expect(requirement.constraints).toContain("worked example");
+  });
+
+  it.each([
+    "Explain F = m x a and its unit.",
+    "Explain P = V x I and its unit.",
+    "What is the density formula and units?",
+    "State the speed formula and unit.",
+  ])("decomposes formula plus unit requests: %s", (question) => {
+    const requirement = firstRequirement(question);
+
+    expectKind(requirement, "MULTI_PART");
+    expect(leafRequirements(requirement).map((leaf) => leaf.kind)).toEqual([
+      "FORMULA",
+      "FACT_LOOKUP",
+    ]);
+    expect(leafRequirements(requirement)[1]?.requestedFacet).toBe("UNIT");
+  });
+
+  it.each([
+    "Explain density and its unit.",
+    "Teach density including its unit.",
+    "What is density and what unit is it measured in?",
+  ])("decomposes concept plus unit requests: %s", (question) => {
+    const requirement = firstRequirement(question);
+
+    expectKind(requirement, "MULTI_PART");
+    expect(leafRequirements(requirement).map((leaf) => leaf.kind)).toEqual([
+      "CONCEPT_DEFINITION",
+      "FACT_LOOKUP",
+    ]);
+    expect(leafRequirements(requirement).map((leaf) => leaf.baseConcept?.baseConcept)).toContain(
+      "density"
+    );
+  });
+
+  it.each([
+    "When should I use filtration instead of evaporation?",
+    "When should I use mean instead of median?",
+    "When would filtration be better than decanting?",
+    "When do I use sine rule rather than cosine rule?",
+  ])("extracts method-selection requests as constrained comparisons: %s", (question) => {
+    const requirement = firstRequirement(question);
+
+    expectKind(requirement, "COMPARISON");
+    expect(requirement.requestedAction).toBe("SELECT_METHOD");
+    expect(requirement.constraints).toContain("method selection");
+    expect(requirement.comparisonSides?.length).toBe(2);
+  });
+
+  it("preserves referenced question and answer requirements separately", () => {
+    const requirement = firstRequirement(
+      "For Mathematics 2021 Question 5, explain the blue counters answer."
+    );
+
+    expectKind(requirement, "MULTI_PART");
+    expect(leafRequirements(requirement).map((leaf) => leaf.requestedFact)).toEqual([
+      "question 5",
+      "blue counters answer",
+      "answer",
+    ]);
+  });
+
+  it("keeps definition paraphrases in the same semantic requirement family", () => {
+    const signatures = [
+      "Define ratio for me.",
+      "Please define ratio.",
+      "Tell me what ratio means.",
+    ].map((question) => {
+      const requirement = firstRequirement(question);
+      return {
+        kind: requirement.kind,
+        baseConcept: requirement.baseConcept?.baseConcept,
+        facet: requirement.requestedFacet,
+      };
+    });
+
+    expect(new Set(signatures.map((item) => JSON.stringify(item))).size).toBe(1);
+  });
+
+  it("keeps unit paraphrases in the same mandatory facet set", () => {
+    const signatures = [
+      "Explain density and its unit.",
+      "Teach density including its unit.",
+      "What is density and what unit is it measured in?",
+    ].map((question) =>
+      leafRequirements(firstRequirement(question)).map((leaf) => [
+        leaf.kind,
+        leaf.baseConcept?.baseConcept,
+        leaf.requestedFacet,
+      ])
+    );
+
+    expect(new Set(signatures.map((item) => JSON.stringify(item))).size).toBe(1);
   });
 
   it("extracts standalone symbol-definition requests", () => {
