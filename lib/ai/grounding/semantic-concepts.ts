@@ -196,7 +196,7 @@ export function normalizeSemanticBaseConcept(
     .replace(/\b(?:ignore|bypass|override|disregard)\b.+?\b(?:sources?|evidence|citations?|resources?|context|instructions?)\b/g, " ")
     .replace(/\buse\s+source[_\s-]*\d+\b/g, " ")
     .replace(/\buse only the source label(?: the server gives you)?\b/g, " ")
-    .replace(/\b(?:explain|teach|define|state|give|tell me|what is|what are|what does|why is|why are|how does|how do|how to|show how to|calculate|work out|find|compare|contrast|differentiate|distinguish)\b/g, " ")
+    .replace(/\b(?:explain|teach|define|state|give|tell me|show me|help me understand|work through|walk me through|walk through|go through|what is|what are|what does|why is|why are|how does|how do|how to|show how to|calculate|work out|find|compare|contrast|differentiate|distinguish)\b/g, " ")
     .replace(/\b(?:formula|process|method|rule|rules|definition|meaning|concept|lesson|card|note|notes)\b/g, " ")
     .replace(/\s+and\s+(?:name|define|identify|explain)\s+(?:the\s+)?(?:variables?|symbols?)$/g, " ")
     .replace(/\s+and\s+what\s+(?:do|does|is|are)\s+.+$/g, " ")
@@ -204,6 +204,8 @@ export function normalizeSemanticBaseConcept(
     .replace(/\b(?:purpose|useful|used for|function|role|limitation|caveat|cannot|can not|does not|do not)\b/g, " ")
     .replace(/\b(?:and|or)\s+what\s+(?:do|does|is|are)\b.+$/g, " ")
     .replace(/\b(?:in|for)\s+(?:simple terms|motion|this topic|this card|these cards|the two cards)\b/g, " ")
+    .replace(/\bfor me\b/g, " ")
+    .replace(/\b(?:step by step|simple terms)\b/g, " ")
     .replace(/\b(?:a|an|the|this|that|its)\b/g, " ")
     .replace(/\s+/g, " ")
     .trim();
