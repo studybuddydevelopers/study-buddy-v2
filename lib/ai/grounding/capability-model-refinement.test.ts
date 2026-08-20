@@ -191,6 +191,98 @@ describe("Stage 4.1 capability model refinement", () => {
     ).toBe("SUPPORTED");
   });
 
+  it("keeps manual-quality tutoring language answerable before generation", () => {
+    const supportedCases = [
+      {
+        question: "Define a ratio for me in simple terms.",
+        evidence: "A ratio compares two quantities by division. The ratio 2:3 means two parts to three parts.",
+      },
+      {
+        question: "How are equivalent ratios made?",
+        evidence:
+          "Equivalent ratios are made by multiplying or dividing both terms by the same non-zero number.",
+      },
+      {
+        question: "Work through the boys to girls ratio example.",
+        evidence:
+          "Worked ratio example: if boys:girls = 2:3 and boys = 10, then one part is 5, so girls = 15. Always keep the order of the compared quantities.",
+      },
+      {
+        question: "For Mathematics 2021 Question 5, explain the blue counters answer.",
+        evidence:
+          "Practice paper identifier: Mathematics 2021 Question 5. A club has red and blue counters in the ratio 4:5. If there are 20 red counters, there are 25 blue counters. Answer: 25.",
+      },
+      {
+        question: "Teach the 20 percent discount example.",
+        evidence:
+          "A percentage discount reduces the original price. A 20 percent discount on 500 is 100, so the sale price is 400. Find the discount amount first, then subtract it.",
+      },
+      {
+        question: "Explain F = m x a and its unit.",
+        evidence:
+          "Newton's second law links resultant force, mass and acceleration: F = m x a. Force is measured in newtons when mass is in kilograms and acceleration is in metres per second squared.",
+      },
+      {
+        question: "Teach density and its units.",
+        evidence:
+          "Density is mass divided by volume: density = mass / volume. If mass is in kilograms and volume is in cubic metres, density is measured in kilograms per cubic metre.",
+      },
+      {
+        question: "When should I use filtration instead of evaporation?",
+        evidence:
+          "Filtration separates an insoluble solid from a liquid. Evaporation can recover a dissolved solid from solution when the solvent is removed.",
+      },
+    ];
+
+    for (const item of supportedCases) {
+      const decision = decide(item.question, [chunk(item.evidence)]);
+      expect(decision.classification, item.question).toBe("SUPPORTED");
+      expect(decision.validatedEvidenceUnits.length, item.question).toBeGreaterThan(0);
+    }
+  });
+
+  it("represents all previously omitted answer content as required tasks", () => {
+    const triangle = decide("Teach the triangle area formula and define the variables.", [
+      chunk(
+        "The area of a triangle is one half times base times perpendicular height: Area = 1/2 x base x height. The height must meet the base at a right angle."
+      ),
+    ]);
+    expect(triangle.classification).toBe("SUPPORTED");
+    expect(triangle.validatedEvidenceUnits.map((unit) => unit.quotedEvidence).join(" ")).toMatch(
+      /right angle/
+    );
+
+    const ohms = decide("Connect voltage, current, and resistance in one formula with units.", [
+      chunk(
+        "Ohm's law states that potential difference equals current times resistance: V = I x R. Voltage is measured in volts, current in amperes, and resistance in ohms."
+      ),
+    ]);
+    expect(ohms.classification).toBe("SUPPORTED");
+    expect(ohms.validatedEvidenceUnits.map((unit) => unit.quotedEvidence).join(" ")).toMatch(
+      /volts.*amperes.*ohms/
+    );
+
+    const mainIdea = decide("Teach main idea and supporting details.", [
+      chunk(
+        "The main idea is the central point of a paragraph or passage. Supporting details explain, prove, or give examples for the main idea."
+      ),
+    ]);
+    expect(mainIdea.classification).toBe("SUPPORTED");
+    expect(mainIdea.validatedEvidenceUnits.map((unit) => unit.quotedEvidence).join(" ")).toMatch(
+      /Supporting details/
+    );
+
+    const noun = decide("What is a noun, and what kinds are mentioned?", [
+      chunk(
+        "A noun is a word that names a person, place, thing, or idea. Nouns can be common or proper."
+      ),
+    ]);
+    expect(noun.classification).toBe("SUPPORTED");
+    expect(noun.validatedEvidenceUnits.map((unit) => unit.quotedEvidence).join(" ")).toMatch(
+      /person.*place.*thing.*common.*proper/
+    );
+  });
+
   it("composes comparison sides from cleaned targets and scoped rules", () => {
     expect(
       decide("Compare evaporation with condensation from these water notes.", [
