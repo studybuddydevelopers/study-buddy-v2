@@ -773,6 +773,11 @@ function evaluateFactLookupRequirement(
     return buildMatch(requirement.id, "SUPPORTED", unitSupport);
   }
 
+  const explanationContextSupport = findExplanationContextSupport(requirement, context);
+  if (explanationContextSupport.length > 0) {
+    return buildMatch(requirement.id, "SUPPORTED", explanationContextSupport);
+  }
+
   const event = findEventFact(requirement, context);
   if (event) {
     return buildMatch(requirement.id, "SUPPORTED", [
@@ -1615,6 +1620,62 @@ function findUnitFactSupport(
       supportRef(requirement.id, id, ["DEFINE"])
     )
   );
+}
+
+function findExplanationContextSupport(
+  requirement: RequestRequirement,
+  context: MatchContext
+): CapabilitySupportRef[] {
+  const requested = normalizedText(
+    `${requirement.requestedFact ?? ""} ${requirement.targetConcepts.join(" ")}`
+  );
+  if (
+    !/\b(?:supporting\s+context|explanation\s+context|reasoning|working)\b/.test(
+      requested
+    ) &&
+    !(requirement.constraints ?? []).includes("explanation context")
+  ) {
+    return [];
+  }
+
+  const requestedTokens = toSemanticTokens(requested).filter(
+    (token) =>
+      ![
+        "answer",
+        "context",
+        "explanation",
+        "reasoning",
+        "supporting",
+        "the",
+      ].includes(token)
+  );
+  const hasRequestedToken = (value: string) => {
+    const text = normalizedText(value);
+    return requestedTokens.length === 0 || requestedTokens.some((token) => text.includes(token));
+  };
+  const hasContextShape = (value: string) =>
+    /\b(?:if|given|when|because|there are|there is|from|using|then|so)\b/i.test(value) ||
+    [...value.matchAll(/\b\d+(?:\.\d+)?\b/g)].length >= 2;
+
+  const definitionSupports = context.definitions
+    .filter(
+      (definition) =>
+        definition.polarity === "POSITIVE" &&
+        hasRequestedToken(definition.evidenceSpan.text) &&
+        hasContextShape(definition.evidenceSpan.text)
+    )
+    .map((definition) => supportRef(requirement.id, definition.id, ["DEFINE", "PROCESS"]));
+
+  const factSupports = context.explicitFacts
+    .filter(
+      (fact) =>
+        fact.polarity === "POSITIVE" &&
+        hasRequestedToken(`${fact.factKey} ${fact.factText}`) &&
+        hasContextShape(fact.evidenceSpan.text)
+    )
+    .map((fact) => supportRef(requirement.id, fact.id, ["DEFINE", "PROCESS"]));
+
+  return uniqueSupportRefs([...definitionSupports, ...factSupports]);
 }
 
 function findDefinitionFact(
