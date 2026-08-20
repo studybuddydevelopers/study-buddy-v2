@@ -67,8 +67,13 @@ const CONTROLLED_CONCEPTS: ConceptAliasEntry[] = [
   { id: "circumference", label: "Circumference", aliases: ["circumference", "circle boundary"] },
   { id: "density", label: "Density", aliases: ["density"] },
   { id: "speed", label: "Speed", aliases: ["speed"] },
+  { id: "distance", label: "Distance", aliases: ["distance"] },
+  { id: "time", label: "Time", aliases: ["time", "time period"] },
+  { id: "mass", label: "Mass", aliases: ["mass"] },
+  { id: "volume", label: "Volume", aliases: ["volume"] },
   { id: "acceleration", label: "Acceleration", aliases: ["acceleration"] },
   { id: "pressure", label: "Pressure", aliases: ["pressure"] },
+  { id: "force", label: "Force", aliases: ["force", "resultant force"] },
   { id: "voltage", label: "Voltage", aliases: ["voltage", "potential difference"] },
   { id: "current", label: "Current", aliases: ["current", "electric current"] },
   { id: "resistance", label: "Resistance", aliases: ["resistance"] },
@@ -82,11 +87,17 @@ const CONTROLLED_CONCEPTS: ConceptAliasEntry[] = [
   { id: "sieving", label: "Sieving", aliases: ["sieving"] },
   { id: "photosynthesis", label: "Photosynthesis", aliases: ["photosynthesis"] },
   { id: "respiration", label: "Respiration", aliases: ["respiration"] },
+  { id: "diffusion", label: "Diffusion", aliases: ["diffusion"] },
   { id: "acid", label: "Acid", aliases: ["acid", "acids"] },
   { id: "base", label: "Base", aliases: ["base", "bases", "alkali", "alkalis"] },
   { id: "osmosis", label: "Osmosis", aliases: ["osmosis"] },
   { id: "ratio", label: "Ratio", aliases: ["ratio", "ratios"] },
   { id: "percentage", label: "Percentage", aliases: ["percentage", "percent"] },
+  { id: "percentage-change", label: "Percentage change", aliases: ["percentage change", "percentage increase", "percentage decrease"] },
+  { id: "change", label: "Change", aliases: ["change"] },
+  { id: "original-value", label: "Original value", aliases: ["original value", "original"] },
+  { id: "principal", label: "Principal", aliases: ["principal"] },
+  { id: "rate", label: "Rate", aliases: ["rate", "percentage rate"] },
   { id: "ohms-law", label: "Ohm's law", aliases: ["ohm's law", "ohms law"] },
   { id: "conductor", label: "Conductor", aliases: ["conductor", "conductors"] },
   { id: "insulator", label: "Insulator", aliases: ["insulator", "insulators"] },
@@ -179,6 +190,7 @@ export function normalizeSemanticBaseConcept(
   facet?: SemanticFacet
 ): string {
   let cleaned = normalizeConceptText(rawConcept)
+    .replace(/\baccording\s+to\s+(?:the\s+)?(?:[a-z0-9 -]+?\s+)?(?:cards?|notes?|sources?|evidence)\b/g, " ")
     .replace(/\b(?:using|from|with)\s+(?:these|the|this|two)?\s*(?:[a-z0-9]+\s+){0,3}(?:notes?|cards?|sources?|evidence|formula notes?)\b/g, " ")
     .replace(/\b(?:from memory|general knowledge|outside sources?)\b/g, " ")
     .replace(/\b(?:ignore|bypass|override|disregard)\b.+?\b(?:sources?|evidence|citations?|resources?|context|instructions?)\b/g, " ")
@@ -278,7 +290,7 @@ export function componentKindMatches(
   evidence: SemanticComponentKind
 ): boolean {
   if (required === evidence) return true;
-  if (required === "DEFINITION" && ["EXPLICIT_FACT", "RELATION", "FUNCTION", "PURPOSE"].includes(evidence)) {
+  if (required === "DEFINITION" && evidence === "EXPLICIT_FACT") {
     return true;
   }
   if (required === "PROCESS" && ["PROCESS", "METHOD", "RELATION"].includes(evidence)) return true;
