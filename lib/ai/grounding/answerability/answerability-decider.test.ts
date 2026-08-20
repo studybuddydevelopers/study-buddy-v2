@@ -185,7 +185,7 @@ describe("Stage 4.1 answerability decider golden cases", () => {
       chunk("speed = distance / time. The distance is 120 m."),
     ]);
 
-    expect(decision.requirementResults[0]?.missingComponents).toContain("input:10 s");
+    expect(decision.requirementResults[0]?.missingComponents).toContain("input:time");
   });
 
   it("requires every comparison side", () => {
