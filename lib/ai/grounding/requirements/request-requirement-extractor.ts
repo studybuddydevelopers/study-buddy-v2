@@ -418,6 +418,14 @@ function buildReferencedAnswerRequirement(question: string): RequirementDraft | 
       },
       {
         kind: "FACT_LOOKUP",
+        targetConcepts: compactStrings([`${answerTarget} supporting context`]),
+        requestedFact: `${answerTarget} supporting context`,
+        requestedAction: "EXPLAIN_CONTEXT",
+        requestedFacet: "DEFINITION",
+        constraints: ["explanation context"],
+      },
+      {
+        kind: "FACT_LOOKUP",
         targetConcepts: ["answer"],
         requestedFact: "answer",
         requestedFacet: "DEFINITION",
