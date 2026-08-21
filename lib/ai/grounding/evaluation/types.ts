@@ -221,6 +221,7 @@ export interface GroundedEvaluationReportSourceState {
   diffHash: string;
   treeHash?: string | null;
   behaviorHash?: string | null;
+  behaviorHashAlgorithm?: string | null;
   behaviorFilePaths?: readonly string[];
   dirty: boolean;
 }
