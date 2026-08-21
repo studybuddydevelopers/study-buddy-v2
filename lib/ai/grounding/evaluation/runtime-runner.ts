@@ -87,6 +87,10 @@ import {
   updateHoldoutV6AcceptanceRun,
 } from "./holdout-v6";
 import {
+  STAGE41_CAPABILITY_BEHAVIOR_FILE_PATHS,
+  STAGE41_CAPABILITY_BEHAVIOR_HASH_ALGORITHM,
+} from "./stage41-behavior";
+import {
   assertEvaluationTopology,
   buildEvaluationTopologyReport,
   resolveEvaluationMetadataForCases,
@@ -231,7 +235,7 @@ export async function runRuntimeGroundedEvaluation(
   } = preflight;
   const runId = `grounded-runtime-${Date.now()}`;
   const runTimestamp = new Date().toISOString();
-  const sourceState = await getSourceState();
+  const sourceState = await getSourceState(pipeline);
   const provider = options.provider ?? getChatModelProvider();
   const embeddingProvider = options.embeddingProvider ?? getConfiguredEmbeddingProvider();
   const answers = new Map<string, GroundedEvaluationAnswer>();
@@ -2164,20 +2168,30 @@ function configuredChatModelName() {
   return process.env.AI_CHAT_MODEL ?? "gpt-4o-mini";
 }
 
-async function getSourceState(): Promise<GroundedEvaluationReportSourceState> {
+async function getSourceState(
+  pipeline: GroundedEvaluationPipeline
+): Promise<GroundedEvaluationReportSourceState> {
   const commit = await readGitOutput(["rev-parse", "HEAD"]);
   const treeHash = await readGitOutput(["rev-parse", "HEAD^{tree}"]);
   const diff = await readGitOutput(["diff", "--binary", "HEAD", "--"]);
   const untrackedFiles = await readUntrackedFiles();
-  const behaviorHash = await hashBehaviorFiles();
+  const behaviorFilePaths = behaviorFilePathsForPipeline(pipeline);
+  const behaviorHash = await hashBehaviorFiles(behaviorFilePaths);
   return {
     commit,
     diffHash: await hashWorkingTreeDiff(diff ?? "", untrackedFiles),
     treeHash,
     behaviorHash,
-    behaviorFilePaths: HOLDOUT_V6_BEHAVIOR_FILE_PATHS,
+    behaviorHashAlgorithm: STAGE41_CAPABILITY_BEHAVIOR_HASH_ALGORITHM,
+    behaviorFilePaths,
     dirty: Boolean(diff) || untrackedFiles.length > 0,
   };
+}
+
+function behaviorFilePathsForPipeline(pipeline: GroundedEvaluationPipeline) {
+  return pipeline === "capability"
+    ? STAGE41_CAPABILITY_BEHAVIOR_FILE_PATHS
+    : HOLDOUT_V6_BEHAVIOR_FILE_PATHS;
 }
 
 async function readGitOutput(args: string[]) {
@@ -2223,9 +2237,9 @@ async function hashFixtureFile() {
   return hashText(await fs.readFile(fixturePath, "utf8"));
 }
 
-async function hashBehaviorFiles() {
+async function hashBehaviorFiles(filePaths: readonly string[]) {
   const hash = createHash("sha256");
-  for (const filePath of HOLDOUT_V6_BEHAVIOR_FILE_PATHS) {
+  for (const filePath of [...filePaths].sort((a, b) => a.localeCompare(b))) {
     hash.update(filePath);
     hash.update("\0");
     hash.update(await fs.readFile(path.join(process.cwd(), filePath), "utf8"));
