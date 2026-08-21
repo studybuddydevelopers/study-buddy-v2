@@ -94,4 +94,99 @@ describe("Stage 4.1 validated evidence units", () => {
     );
     expect(units[0]?.quotedEvidence).not.toMatch(/ignore|pressure/i);
   });
+
+  it("extracts semantic quantity bindings from ratio and named values", () => {
+    const capability = extractEvidenceCapability(
+      chunk(
+        "The ratio of boys to girls is 2:3. Boys are 10. One part is 5 and girls are 15."
+      )
+    );
+    const selectedCapability = [
+      ...capability.numericValues,
+      ...capability.explicitFacts,
+      ...capability.methods,
+      ...capability.conceptDefinitions,
+    ][0]!;
+
+    const units = buildValidatedEvidenceUnits({
+      evidenceCapabilities: [capability],
+      supportRefs: [
+        {
+          requirementId: "req-ratio",
+          capabilityId: selectedCapability.id,
+          allowedUses: ["CALCULATE"],
+        },
+      ],
+    });
+
+    expect(units[0]?.semanticQuantityBindings).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          quantityId: "boys",
+          value: 2,
+          role: "ratioPartValue",
+        }),
+        expect.objectContaining({
+          quantityId: "girls",
+          value: 3,
+          role: "ratioPartValue",
+        }),
+        expect.objectContaining({
+          quantityId: "boys",
+          value: 10,
+          role: "quantityValue",
+        }),
+        expect.objectContaining({
+          quantityId: "one part",
+          value: 5,
+          role: "derivedUnitValue",
+        }),
+        expect.objectContaining({
+          quantityId: "girls",
+          value: 15,
+          role: "quantityValue",
+        }),
+      ])
+    );
+  });
+
+  it("extracts shared-noun ratio bindings without over-capturing prose", () => {
+    const capability = extractEvidenceCapability(
+      chunk(
+        "A ratio compares two quantities by division. A club has red and blue counters in ratio 4:5. Red counters are 20."
+      )
+    );
+    const selectedCapability = [
+      ...capability.conceptDefinitions,
+      ...capability.numericValues,
+      ...capability.explicitFacts,
+      ...capability.methods,
+    ][0]!;
+
+    const units = buildValidatedEvidenceUnits({
+      evidenceCapabilities: [capability],
+      supportRefs: [
+        {
+          requirementId: "req-counter-ratio",
+          capabilityId: selectedCapability.id,
+          allowedUses: ["CALCULATE"],
+        },
+      ],
+    });
+
+    expect(units[0]?.semanticQuantityBindings).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          quantityId: "red counters",
+          value: 4,
+          role: "ratioPartValue",
+        }),
+        expect.objectContaining({
+          quantityId: "blue counters",
+          value: 5,
+          role: "ratioPartValue",
+        }),
+      ])
+    );
+  });
 });
