@@ -7,6 +7,10 @@ import {
   runRuntimeGroundedEvaluationPreflight,
 } from "./runtime-runner";
 import { getSelectedGroundingPipeline, isGroundedChatEnabled } from "../config";
+import {
+  STAGE41_CAPABILITY_BEHAVIOR_FILE_PATHS,
+  STAGE41_CAPABILITY_BEHAVIOR_HASH_ALGORITHM,
+} from "./stage41-behavior";
 
 describe("Stage 4.1 evaluator pipeline selection", () => {
   afterEach(() => {
@@ -83,5 +87,32 @@ describe("Stage 4.1 evaluator pipeline selection", () => {
     } finally {
       await rm(reportDir, { recursive: true, force: true });
     }
+  });
+
+  it("defines a capability-specific behavior hash surface", () => {
+    expect(STAGE41_CAPABILITY_BEHAVIOR_HASH_ALGORITHM).toBe(
+      "sha256:path-nul-utf8-nul-v1"
+    );
+    expect(STAGE41_CAPABILITY_BEHAVIOR_FILE_PATHS).toContain(
+      "lib/ai/grounding/requirements/request-requirement-extractor.ts"
+    );
+    expect(STAGE41_CAPABILITY_BEHAVIOR_FILE_PATHS).toContain(
+      "lib/ai/grounding/capabilities/evidence-capability-extractor.ts"
+    );
+    expect(STAGE41_CAPABILITY_BEHAVIOR_FILE_PATHS).toContain(
+      "lib/ai/grounding/answerability/answerability-decider.ts"
+    );
+    expect(STAGE41_CAPABILITY_BEHAVIOR_FILE_PATHS).toContain(
+      "lib/ai/grounding/evidence-units/validated-evidence-unit.ts"
+    );
+    expect(STAGE41_CAPABILITY_BEHAVIOR_FILE_PATHS).toContain(
+      "lib/ai/grounding/validation/narrow-grounding-validator.ts"
+    );
+    expect(STAGE41_CAPABILITY_BEHAVIOR_FILE_PATHS).not.toContain(
+      "lib/ai/grounding/evaluation/fixtures.ts"
+    );
+    expect(STAGE41_CAPABILITY_BEHAVIOR_FILE_PATHS).not.toContain(
+      "lib/ai/grounding/evaluation/holdout-v6.ts"
+    );
   });
 });
