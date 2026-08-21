@@ -86,6 +86,7 @@ export function extractEvidenceCapability(chunk: AuthorizedEvidenceChunk): Evide
     sourceLabel: chunk.sourceLabel,
     subjectId: chunk.subjectId,
     topicId: chunk.topicId,
+    sourceContent: chunk.content,
     conceptDefinitions: [],
     formulas: [],
     symbolDefinitions: [],
