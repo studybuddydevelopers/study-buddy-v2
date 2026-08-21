@@ -1,5 +1,9 @@
 import { z } from "zod";
-import type { ValidatedEvidenceUnit } from "../evidence-units/validated-evidence-unit";
+import {
+  normalizeSemanticQuantityId,
+  type SemanticQuantityBinding,
+  type ValidatedEvidenceUnit,
+} from "../evidence-units/validated-evidence-unit";
 import type { RequestRequirement, RequestRequirements } from "../requirements/types";
 import { renderGroundedAnswerSegments } from "../structured-output";
 
@@ -220,6 +224,9 @@ function validateArithmeticInSegment(
   const citedEvidence = citedUnits.map((unit) => unit.quotedEvidence).join(" ");
   const arithmeticSteps = extractCalculationSteps(segment.text);
   const quantityAssignments = extractQuantityAssignments(segment.text);
+  const semanticQuantityBindings = citedUnits.flatMap(
+    (unit) => unit.semanticQuantityBindings ?? []
+  );
 
   if (arithmeticSteps.length === 0 && containsUnresolvedAlgebra(segment.text)) {
     return true;
@@ -227,19 +234,32 @@ function validateArithmeticInSegment(
 
   if (!quantityAssignmentsConsistent(quantityAssignments)) return false;
 
-  const derivedValues: string[] = [];
+  const derivedValues: DerivedValue[] = [];
   for (const step of arithmeticSteps) {
-    if (!calculationStepSupported(step, citedUnits, citedEvidence, derivedValues)) {
+    if (
+      !calculationStepSupported(
+        step,
+        citedUnits,
+        citedEvidence,
+        derivedValues,
+        semanticQuantityBindings
+      )
+    ) {
       return false;
     }
-    derivedValues.push(String(step.result));
+    derivedValues.push({
+      valueText: String(step.result),
+      targetQuantity: step.targetQuantity,
+    });
   }
 
   for (const assignment of quantityAssignments) {
-    if (
-      !numericTextSupportedByEvidence(assignment.valueText, citedEvidence) &&
-      !derivedValues.some((value) => numericValuesEqual(value, assignment.valueText))
-    ) {
+    if (!quantityAssignmentSupported(
+      assignment,
+      semanticQuantityBindings,
+      citedEvidence,
+      derivedValues
+    )) {
       return false;
     }
   }
@@ -254,24 +274,33 @@ type CalculationStep = {
   operation: string;
   result: number;
   resultText: string;
+  targetQuantity?: string;
   supportedByEvidenceUnitIds: string[];
   derivedFromStepIds?: string[];
 };
 
 type QuantityAssignment = {
   quantity: string;
+  rawQuantity: string;
   value: number;
   valueText: string;
 };
 
+type DerivedValue = {
+  valueText: string;
+  targetQuantity?: string;
+};
+
 function extractCalculationSteps(text: string): CalculationStep[] {
   const steps: CalculationStep[] = [];
+  const expressions = new Set<string>();
   const addStep = (
     expression: string,
     leftText: string | undefined,
     operator: string,
     rightText: string | undefined,
-    resultText: string | undefined
+    resultText: string | undefined,
+    targetQuantity?: string
   ) => {
     const left = Number(leftText);
     const right = Number(rightText);
@@ -279,16 +308,34 @@ function extractCalculationSteps(text: string): CalculationStep[] {
     if (!Number.isFinite(left) || !Number.isFinite(right) || !Number.isFinite(result)) {
       return;
     }
+    const normalizedExpression = normalizeText(expression);
+    const key = `${normalizeQuantityLabel(targetQuantity ?? "")}:${normalizedExpression}`;
+    if (expressions.has(key)) return;
+    expressions.add(key);
     steps.push({
       id: `step-${steps.length + 1}`,
-      expression: normalizeText(expression),
+      expression: normalizedExpression,
       operands: [left, right],
       operation: normalizeOperator(operator),
       result,
       resultText: resultText ?? String(result),
+      targetQuantity: targetQuantity ? normalizeQuantityLabel(targetQuantity) : undefined,
       supportedByEvidenceUnitIds: [],
     });
   };
+
+  for (const match of text.matchAll(
+    /\b([A-Za-z][A-Za-z\s-]{1,36}?)\s*(?:=|is|are|equals?)\s*([-+]?\d+(?:\.\d+)?)\s*([/+*×x÷-])\s*([-+]?\d+(?:\.\d+)?)\s*(?:=|equals?|is)\s*(?:approximately|about|around)?\s*([-+]?\d+(?:\.\d+)?)/gi
+  )) {
+    addStep(
+      match[0] ?? "",
+      match[2],
+      match[3] ?? "",
+      match[4],
+      match[5],
+      match[1]
+    );
+  }
 
   for (const match of text.matchAll(
     /([-+]?\d+(?:\.\d+)?)\s*([/+*×x÷-])\s*([-+]?\d+(?:\.\d+)?)\s*(?:=|equals?|is)\s*(?:approximately|about|around)?\s*([-+]?\d+(?:\.\d+)?)/gi
@@ -315,14 +362,15 @@ function calculationStepSupported(
   step: CalculationStep,
   citedUnits: ValidatedEvidenceUnit[],
   citedEvidence: string,
-  derivedValues: string[]
+  derivedValues: DerivedValue[],
+  semanticQuantityBindings: SemanticQuantityBinding[]
 ) {
   const [left, right] = step.operands;
   const leftText = numberToComparableText(left);
   const rightText = numberToComparableText(right);
   const operandsSupported = [leftText, rightText].every((value) =>
     numericTextSupportedByEvidence(value, citedEvidence) ||
-    derivedValues.some((derived) => numericValuesEqual(derived, value))
+    derivedValues.some((derived) => numericValuesEqual(derived.valueText, value))
   );
   if (!operandsSupported) return false;
 
@@ -333,23 +381,69 @@ function calculationStepSupported(
   const hasCalculationEvidence = citedUnits.some((unit) =>
     unit.allowedUses.includes("CALCULATE")
   );
+  const targetSupported = calculationTargetSupported(step, semanticQuantityBindings);
+  if (!targetSupported) return false;
+
   if (resultSupported && hasCalculationEvidence) return true;
 
   return operationPermittedByEvidence(step.operation, citedEvidence);
 }
 
+function calculationTargetSupported(
+  step: CalculationStep,
+  semanticQuantityBindings: SemanticQuantityBinding[]
+) {
+  if (!step.targetQuantity) return true;
+  const targetBindings = bindingsForQuantity(
+    semanticQuantityBindings,
+    step.targetQuantity
+  );
+  if (targetBindings.length === 0) return true;
+
+  const finalBindings = targetBindings.filter(
+    (binding) => binding.role !== "ratioPartValue" && binding.value !== undefined
+  );
+  if (
+    finalBindings.length > 0 &&
+    !finalBindings.some((binding) => numbersClose(binding.value!, step.result))
+  ) {
+    return false;
+  }
+
+  const ratioPartBindings = targetBindings.filter(
+    (binding) => binding.role === "ratioPartValue" && binding.value !== undefined
+  );
+  if (ratioPartBindings.length > 0 && step.operation === "*") {
+    return step.operands.some((operand) =>
+      ratioPartBindings.some((binding) => numbersClose(binding.value!, operand))
+    );
+  }
+
+  return true;
+}
+
 function extractQuantityAssignments(text: string): QuantityAssignment[] {
   const assignments: QuantityAssignment[] = [];
   for (const match of text.matchAll(
-    /\b([A-Za-z][A-Za-z\s-]{1,36}?)\b(?:\s+(?:is|equals?)|(?:\s+[^.]{0,24}?\s+equals?))\s+(?:approximately|about|around)?\s*([-+]?\d+(?:\.\d+)?)/gi
+    /\b([A-Za-z][A-Za-z\s-]{1,36}?)\b(?:\s*=|\s+(?:is|are|equals?))\s*(?:approximately|about|around)?\s*([-+]?\d+(?:\.\d+)?)(?!\d)(?!\.\d)(?!\s*[/*×x÷+\-])/gi
   )) {
-    const quantity = normalizeQuantityLabel(match[1] ?? "");
+    if (isRatioAssignmentFragment(text, match.index ?? 0, match[0] ?? "")) {
+      continue;
+    }
+    const rawQuantity = match[1] ?? "";
+    const quantity = normalizeQuantityLabel(rawQuantity);
     const valueText = match[2] ?? "";
     const value = Number(valueText);
     if (!quantity || !Number.isFinite(value)) continue;
-    assignments.push({ quantity, value, valueText });
+    assignments.push({ quantity, rawQuantity, value, valueText });
   }
   return assignments;
+}
+
+function isRatioAssignmentFragment(text: string, index: number, fullMatch: string) {
+  const previous = text.slice(Math.max(0, index - 3), index);
+  const next = text.slice(index + fullMatch.length, index + fullMatch.length + 3);
+  return /:\s*$/.test(previous) || /^\s*:/.test(next);
 }
 
 function quantityAssignmentsConsistent(assignments: QuantityAssignment[]) {
@@ -362,6 +456,57 @@ function quantityAssignmentsConsistent(assignments: QuantityAssignment[]) {
     seen.set(assignment.quantity, assignment.value);
   }
   return true;
+}
+
+function quantityAssignmentSupported(
+  assignment: QuantityAssignment,
+  semanticQuantityBindings: SemanticQuantityBinding[],
+  citedEvidence: string,
+  derivedValues: DerivedValue[]
+) {
+  const sameQuantityBindings = bindingsForQuantity(
+    semanticQuantityBindings,
+    assignment.quantity
+  ).filter((binding) => binding.value !== undefined);
+  const finalQuantityBindings = sameQuantityBindings.filter(
+    (binding) => binding.role !== "ratioPartValue"
+  );
+  const requiredBindings =
+    finalQuantityBindings.length > 0 ? finalQuantityBindings : sameQuantityBindings;
+
+  if (
+    requiredBindings.length > 0 &&
+    !requiredBindings.some((binding) => numbersClose(binding.value!, assignment.value))
+  ) {
+    return false;
+  }
+
+  if (requiredBindings.length > 0) return true;
+
+  return (
+    numericTextSupportedByEvidence(assignment.valueText, citedEvidence) ||
+    derivedValues.some((derived) => {
+      if (!numericValuesEqual(derived.valueText, assignment.valueText)) return false;
+      return (
+        !derived.targetQuantity ||
+        normalizeQuantityLabel(derived.targetQuantity) === assignment.quantity
+      );
+    })
+  );
+}
+
+function bindingsForQuantity(
+  bindings: SemanticQuantityBinding[],
+  quantity: string
+) {
+  const normalized = normalizeQuantityLabel(quantity);
+  const semanticId = normalizeSemanticQuantityId(quantity);
+  return bindings.filter(
+    (binding) =>
+      normalizeQuantityLabel(binding.quantityId) === normalized ||
+      normalizeQuantityLabel(binding.label) === normalized ||
+      binding.quantityId === semanticId
+  );
 }
 
 function validateBoundedTaskCompleteness(input: {
@@ -597,7 +742,7 @@ function numbersClose(left: number, right: number) {
 
 function normalizeQuantityLabel(value: string) {
   return normalizeForCompleteness(value)
-    .replace(/\b(?:the|a|an|we|can|find|calculate|value|of|for|as|follows|since|total|parts?)\b/g, " ")
+    .replace(/\b(?:the|a|an|and|then|so|therefore|we|can|find|calculate|value|of|for|as|follows|since|total|parts?)\b/g, " ")
     .replace(/\s+/g, " ")
     .trim();
 }
