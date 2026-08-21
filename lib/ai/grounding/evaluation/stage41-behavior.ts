@@ -1,0 +1,32 @@
+export const STAGE41_CAPABILITY_BEHAVIOR_HASH_ALGORITHM =
+  "sha256:path-nul-utf8-nul-v1";
+
+export const STAGE41_CAPABILITY_BEHAVIOR_FILE_PATHS = [
+  "lib/ai/chat/openai-provider.ts",
+  "lib/ai/chat/provider.ts",
+  "lib/ai/chat/types.ts",
+  "lib/ai/embeddings/openai-provider.ts",
+  "lib/ai/embeddings/provider.ts",
+  "lib/ai/embeddings/types.ts",
+  "lib/ai/grounding/answerability/answerability-decider.ts",
+  "lib/ai/grounding/answerability/types.ts",
+  "lib/ai/grounding/capabilities/evidence-capability-extractor.ts",
+  "lib/ai/grounding/capabilities/types.ts",
+  "lib/ai/grounding/config.ts",
+  "lib/ai/grounding/evidence-units/validated-evidence-unit.ts",
+  "lib/ai/grounding/pipelines/capability-grounding-pipeline.ts",
+  "lib/ai/grounding/pipelines/select-grounding-pipeline.ts",
+  "lib/ai/grounding/pipelines/types.ts",
+  "lib/ai/grounding/query-builder.ts",
+  "lib/ai/grounding/requirements/request-requirement-extractor.ts",
+  "lib/ai/grounding/requirements/types.ts",
+  "lib/ai/grounding/semantic-concepts.ts",
+  "lib/ai/grounding/structured-output.ts",
+  "lib/ai/grounding/validation/narrow-grounding-validator.ts",
+  "lib/resources/retrieval/filters.ts",
+  "lib/resources/retrieval/postgres-resource-search-repository.ts",
+  "lib/resources/retrieval/ranking.ts",
+  "lib/resources/retrieval/resource-embedding-repository.ts",
+  "lib/resources/retrieval/search-text.ts",
+  "lib/resources/retrieval/types.ts",
+] as const;
