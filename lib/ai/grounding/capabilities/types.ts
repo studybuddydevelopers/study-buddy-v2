@@ -155,6 +155,7 @@ export type EvidenceCapability = {
   sourceLabel: string;
   subjectId: string;
   topicId?: string;
+  sourceContent?: string;
   conceptDefinitions: CapabilityFact[];
   formulas: FormulaCapability[];
   symbolDefinitions: SymbolCapability[];
