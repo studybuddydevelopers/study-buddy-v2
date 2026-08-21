@@ -688,6 +688,119 @@ describe("Stage 4.1 capability grounding pipeline", () => {
     expect(provider.structuredInputs).toHaveLength(1);
   });
 
+  it("repairs fake-provider output that uses a correct number in the wrong semantic ratio role", async () => {
+    const provider = new RecordingStructuredProvider("unused", [
+      {
+        answerSegments: [
+          {
+            text:
+              "Boys:girls is 2:3. One part is 5. Girls are 2 x 5 = 10, then girls are 15.",
+            sourceLabels: ["SOURCE_1"],
+          },
+        ],
+        insufficientContext: false,
+        suggestedQuestions: [],
+      },
+      {
+        answerSegments: [
+          {
+            text:
+              "Boys:girls is 2:3. Since boys are 10, one part is 10 / 2 = 5, so girls are 3 x 5 = 15.",
+            sourceLabels: ["SOURCE_1"],
+          },
+        ],
+        insufficientContext: false,
+        suggestedQuestions: [],
+      },
+    ]);
+    const { outcome } = await runPipeline({
+      message: "Work through the boys to girls ratio example.",
+      chunks: [
+        retrievedChunk(
+          "Worked ratio example: if boys:girls = 2:3 and boys = 10, then one part is 5, so girls = 15. Always keep the order of the compared quantities."
+        ),
+      ],
+      provider,
+    });
+
+    expect(outcome.kind).toBe("COMPLETED");
+    expect(provider.structuredInputs).toHaveLength(2);
+    expect(outcome.diagnostics?.repairResult).toEqual({
+      attempted: true,
+      successful: true,
+    });
+  });
+
+  it("fails fake-provider output with contradictory semantic quantity assignments", async () => {
+    const provider = new RecordingStructuredProvider("unused", {
+      answerSegments: [
+        {
+          text: "Boys:girls is 2:3. Girls are 10. Girls are 15.",
+          sourceLabels: ["SOURCE_1"],
+        },
+      ],
+      insufficientContext: false,
+      suggestedQuestions: [],
+    });
+    const { outcome } = await runPipeline({
+      message: "Work through the boys to girls ratio example.",
+      chunks: [
+        retrievedChunk(
+          "Worked ratio example: if boys:girls = 2:3 and boys = 10, then one part is 5, so girls = 15. Always keep the order of the compared quantities."
+        ),
+      ],
+      provider,
+    });
+
+    expect(outcome.kind).toBe("FAILED");
+    expect(outcome.diagnostics?.narrowValidatorResult?.errors.map((error) => error.code)).toContain(
+      "INVALID_ARITHMETIC"
+    );
+    expect(outcome.diagnostics?.repairResult).toEqual({
+      attempted: true,
+      successful: false,
+    });
+  });
+
+  it("repairs fake-provider output that swaps named calculation quantities", async () => {
+    const provider = new RecordingStructuredProvider("unused", [
+      {
+        answerSegments: [
+          {
+            text: "The distance is 10 and the time is 120, so speed is 120 / 10 = 12.",
+            sourceLabels: ["SOURCE_1"],
+          },
+        ],
+        insufficientContext: false,
+        suggestedQuestions: [],
+      },
+      {
+        answerSegments: [
+          {
+            text: "The distance is 120 m and the time is 10 s, so speed is 120 / 10 = 12.",
+            sourceLabels: ["SOURCE_1"],
+          },
+        ],
+        insufficientContext: false,
+        suggestedQuestions: [],
+      },
+    ]);
+    const { outcome } = await runPipeline({
+      message: "Calculate speed from 120 m in 10 s.",
+      chunks: [
+        retrievedChunk("speed = distance / time. The distance is 120 m. The time is 10 s."),
+      ],
+      provider,
+    });
+
+    expect(outcome.kind).toBe("COMPLETED");
+    expect(provider.structuredInputs).toHaveLength(2);
+    expect(outcome.diagnostics?.repairResult).toEqual({
+      attempted: true,
+      successful: true,
+    });
+  });
+
   it("fails a past-question explanation that gives only the result", async () => {
     const provider = new RecordingStructuredProvider("unused", {
       answerSegments: [
@@ -732,6 +845,55 @@ describe("Stage 4.1 capability grounding pipeline", () => {
       chunks: [
         retrievedChunk(
           "Practice paper identifier: Mathematics 2021 Question 5. A club has red and blue counters in the ratio 4:5. If there are 20 red counters, there are 25 blue counters. Answer: 25."
+        ),
+      ],
+      provider,
+    });
+
+    expect(outcome.kind).toBe("COMPLETED");
+  });
+
+  it("passes the percentage-discount control without unsupported elaboration", async () => {
+    const provider = new RecordingStructuredProvider("unused", {
+      answerSegments: [
+        {
+          text: "A 20 percent discount on 500 is 20 percent of 500 = 100, so the new price is 400.",
+          sourceLabels: ["SOURCE_1"],
+        },
+      ],
+      insufficientContext: false,
+      suggestedQuestions: [],
+    });
+    const { outcome } = await runPipeline({
+      message: "Work through the percentage discount example.",
+      chunks: [
+        retrievedChunk(
+          "A 20 percent discount on 500 is 100. The new price after the discount is 400."
+        ),
+      ],
+      provider,
+    });
+
+    expect(outcome.kind).toBe("COMPLETED");
+  });
+
+  it("passes the Ohm's law units control without adding extra proportionality claims", async () => {
+    const provider = new RecordingStructuredProvider("unused", {
+      answerSegments: [
+        {
+          text:
+            "Ohm's law is V = I x R. V is measured in volts, I is measured in amperes, and R is measured in ohms.",
+          sourceLabels: ["SOURCE_1"],
+        },
+      ],
+      insufficientContext: false,
+      suggestedQuestions: [],
+    });
+    const { outcome } = await runPipeline({
+      message: "Connect voltage, current, and resistance in one formula with units.",
+      chunks: [
+        retrievedChunk(
+          "Ohm's law states that potential difference equals current times resistance: V = I x R. Voltage is measured in volts, current in amperes, and resistance in ohms."
         ),
       ],
       provider,
