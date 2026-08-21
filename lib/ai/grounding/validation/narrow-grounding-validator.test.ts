@@ -17,6 +17,8 @@ function unit(overrides: Partial<ValidatedEvidenceUnit> = {}): ValidatedEvidence
       overrides.evidenceSpans ??
       [{ text: overrides.quotedEvidence ?? "speed = distance / time", startOffset: 0, endOffset: 23 }],
     allowedUses: overrides.allowedUses ?? ["CALCULATE", "FORMULA"],
+    semanticComponents: overrides.semanticComponents,
+    semanticQuantityBindings: overrides.semanticQuantityBindings,
   };
 }
 
@@ -250,6 +252,218 @@ describe("Stage 4.1 narrow grounding validator", () => {
     });
 
     expect(result.supported).toBe(true);
+  });
+
+  it("rejects ratio calculations that use a ratio part for the wrong named quantity", () => {
+    const ratioUnit = unit({
+      quotedEvidence:
+        "The ratio of boys to girls is 2:3. Boys are 10. One part is 5 and girls are 15.",
+      allowedUses: ["CALCULATE", "PROCESS"],
+      semanticQuantityBindings: [
+        {
+          quantityId: "boys",
+          label: "boys",
+          value: 2,
+          role: "ratioPartValue",
+          sourceCapabilityIds: ["capability-1"],
+        },
+        {
+          quantityId: "girls",
+          label: "girls",
+          value: 3,
+          role: "ratioPartValue",
+          sourceCapabilityIds: ["capability-1"],
+        },
+        {
+          quantityId: "boys",
+          label: "boys",
+          value: 10,
+          role: "quantityValue",
+          sourceCapabilityIds: ["capability-1"],
+        },
+        {
+          quantityId: "one part",
+          label: "one part",
+          value: 5,
+          role: "derivedUnitValue",
+          sourceCapabilityIds: ["capability-1"],
+        },
+        {
+          quantityId: "girls",
+          label: "girls",
+          value: 15,
+          role: "quantityValue",
+          sourceCapabilityIds: ["capability-1"],
+        },
+      ],
+    });
+
+    const invalidGirls = validateNarrowGroundedOutput({
+      value: response({ text: "Girls are 2 * 5 = 10, then girls are 15." }),
+      validatedEvidenceUnits: [ratioUnit],
+    });
+    expect(invalidGirls.supported).toBe(false);
+    expect(invalidGirls.errors.map((error) => error.code)).toContain("INVALID_ARITHMETIC");
+
+    const validGirls = validateNarrowGroundedOutput({
+      value: response({ text: "Girls are 3 * 5 = 15." }),
+      validatedEvidenceUnits: [ratioUnit],
+    });
+    expect(validGirls.supported).toBe(true);
+
+    const validBoys = validateNarrowGroundedOutput({
+      value: response({ text: "Boys are 2 * 5 = 10." }),
+      validatedEvidenceUnits: [ratioUnit],
+    });
+    expect(validBoys.supported).toBe(true);
+  });
+
+  it("rejects swapped named quantities even when both numbers are authorised", () => {
+    const priceUnit = unit({
+      quotedEvidence: "The original price is 100. The new price is 80.",
+      allowedUses: ["CALCULATE"],
+      semanticQuantityBindings: [
+        {
+          quantityId: "original price",
+          label: "original price",
+          value: 100,
+          role: "originalValue",
+          sourceCapabilityIds: ["capability-1"],
+        },
+        {
+          quantityId: "new price",
+          label: "new price",
+          value: 80,
+          role: "newValue",
+          sourceCapabilityIds: ["capability-1"],
+        },
+      ],
+    });
+    const swappedPrice = validateNarrowGroundedOutput({
+      value: response({ text: "The original price is 80 and the new price is 100." }),
+      validatedEvidenceUnits: [priceUnit],
+    });
+    expect(swappedPrice.supported).toBe(false);
+    expect(swappedPrice.errors.map((error) => error.code)).toContain("INVALID_ARITHMETIC");
+
+    const speedUnit = unit({
+      quotedEvidence: "The distance is 120 m. The time is 10 s.",
+      allowedUses: ["CALCULATE"],
+      semanticQuantityBindings: [
+        {
+          quantityId: "distance",
+          label: "distance",
+          value: 120,
+          unit: "m",
+          role: "distanceValue",
+          sourceCapabilityIds: ["capability-1"],
+        },
+        {
+          quantityId: "time",
+          label: "time",
+          value: 10,
+          unit: "s",
+          role: "timeValue",
+          sourceCapabilityIds: ["capability-1"],
+        },
+      ],
+    });
+    const swappedSpeed = validateNarrowGroundedOutput({
+      value: response({ text: "The distance is 10 and time is 120." }),
+      validatedEvidenceUnits: [speedUnit],
+    });
+    expect(swappedSpeed.supported).toBe(false);
+    expect(swappedSpeed.errors.map((error) => error.code)).toContain("INVALID_ARITHMETIC");
+  });
+
+  it("keeps role binding generic for unit-rate, interest, and algebra quantities", () => {
+    const unitRate = validateNarrowGroundedOutput({
+      value: response({ text: "Distance is 50 * 3 = 150." }),
+      validatedEvidenceUnits: [
+        unit({
+          quotedEvidence: "Speed is 50 km per hour and time is 3 hours, so distance is 150 km.",
+          allowedUses: ["CALCULATE"],
+          semanticQuantityBindings: [
+            {
+              quantityId: "speed",
+              label: "speed",
+              value: 50,
+              role: "speedValue",
+              sourceCapabilityIds: ["capability-1"],
+            },
+            {
+              quantityId: "time",
+              label: "time",
+              value: 3,
+              role: "timeValue",
+              sourceCapabilityIds: ["capability-1"],
+            },
+            {
+              quantityId: "distance",
+              label: "distance",
+              value: 150,
+              role: "distanceValue",
+              sourceCapabilityIds: ["capability-1"],
+            },
+          ],
+        }),
+      ],
+    });
+    expect(unitRate.supported).toBe(true);
+
+    const simpleInterest = validateNarrowGroundedOutput({
+      value: response({ text: "Interest is 1000 * 5 = 5000." }),
+      validatedEvidenceUnits: [
+        unit({
+          quotedEvidence: "Principal is 1000, rate is 5, and interest is 5000.",
+          allowedUses: ["CALCULATE"],
+          semanticQuantityBindings: [
+            {
+              quantityId: "principal",
+              label: "principal",
+              value: 1000,
+              role: "principalValue",
+              sourceCapabilityIds: ["capability-1"],
+            },
+            {
+              quantityId: "rate",
+              label: "rate",
+              value: 5,
+              role: "rateValue",
+              sourceCapabilityIds: ["capability-1"],
+            },
+            {
+              quantityId: "interest",
+              label: "interest",
+              value: 5000,
+              role: "interestValue",
+              sourceCapabilityIds: ["capability-1"],
+            },
+          ],
+        }),
+      ],
+    });
+    expect(simpleInterest.supported).toBe(true);
+
+    const algebra = validateNarrowGroundedOutput({
+      value: response({ text: "For x + 5 = 12, subtract 5 from both sides to get x = 7." }),
+      validatedEvidenceUnits: [
+        unit({
+          quotedEvidence: "For x + 5 = 12, subtract 5 from both sides to get x = 7.",
+          allowedUses: ["PROCESS", "CALCULATE"],
+          semanticQuantityBindings: [
+            {
+              quantityId: "x",
+              label: "x",
+              value: 7,
+              role: "quantityValue",
+              sourceCapabilityIds: ["capability-1"],
+            },
+          ],
+        }),
+      ],
+    });
+    expect(algebra.supported).toBe(true);
   });
 
   it("accepts supported percentage, unit-rate, simple-interest, and algebra calculations", () => {
@@ -509,6 +723,27 @@ describe("Stage 4.1 narrow grounding validator", () => {
       requestRequirements: requirements,
     });
     expect(explicit.supported).toBe(true);
+
+    const mentionsOnly = validateNarrowGroundedOutput({
+      value: response({
+        text: "The area of a triangle is A = 1/2 x b x h. The variables are b and h.",
+      }),
+      validatedEvidenceUnits: [triangleUnit],
+      requestRequirements: requirements,
+    });
+    expect(mentionsOnly.supported).toBe(false);
+    expect(mentionsOnly.errors.map((error) => error.code)).toContain("MISSING_REQUIRED_TASK");
+
+    const oneMissing = validateNarrowGroundedOutput({
+      value: response({
+        text:
+          "The area of a triangle is A = 1/2 x b x h, where b means base and h is used in the formula.",
+      }),
+      validatedEvidenceUnits: [triangleUnit],
+      requestRequirements: requirements,
+    });
+    expect(oneMissing.supported).toBe(false);
+    expect(oneMissing.errors.map((error) => error.code)).toContain("MISSING_REQUIRED_TASK");
   });
 
   it("does not require variable meanings for formula-only tasks", () => {
