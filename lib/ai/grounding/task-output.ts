@@ -27,6 +27,9 @@ export type StructuredTaskValidationErrorCode =
   | "DUPLICATE_VARIABLE"
   | "UNSUPPORTED_SYMBOL"
   | "INCORRECT_VARIABLE_MEANING"
+  | "MISSING_REQUIRED_UNIT"
+  | "UNSUPPORTED_UNIT"
+  | "INCORRECT_UNIT"
   | "MISSING_REQUIRED_CONDITION"
   | "UNSUPPORTED_RELATION"
   | "UNSUPPORTED_EXPRESSION";
@@ -107,6 +110,7 @@ export const structuredFormulaOutputSchema: StructuredOutputSchema = {
     required: [
       "expression",
       "variables",
+      "units",
       "conditions",
       "sourceLabels",
       "suggestedQuestions",
@@ -123,6 +127,25 @@ export const structuredFormulaOutputSchema: StructuredOutputSchema = {
           properties: {
             symbol: { type: "string", minLength: 1, maxLength: 40 },
             meaning: { type: "string", minLength: 1, maxLength: 100 },
+            sourceLabels: {
+              type: "array",
+              minItems: 1,
+              maxItems: 8,
+              items: { type: "string", pattern: "^SOURCE_[1-9][0-9]*$" },
+            },
+          },
+        },
+      },
+      units: {
+        type: "array",
+        maxItems: 12,
+        items: {
+          type: "object",
+          additionalProperties: false,
+          required: ["quantity", "unit", "sourceLabels"],
+          properties: {
+            quantity: { type: "string", minLength: 1, maxLength: 80 },
+            unit: { type: "string", minLength: 1, maxLength: 60 },
             sourceLabels: {
               type: "array",
               minItems: 1,
@@ -203,6 +226,20 @@ const structuredFormulaSchema = z
           .strict()
       )
       .max(12),
+    units: z
+      .array(
+        z
+          .object({
+            quantity: z.string().trim().min(1).max(80),
+            unit: z.string().trim().min(1).max(60),
+            sourceLabels: z
+              .array(z.string().regex(/^SOURCE_[1-9][0-9]*$/))
+              .min(1)
+              .max(8),
+          })
+          .strict()
+      )
+      .max(12),
     conditions: z
       .array(
         z
@@ -255,6 +292,11 @@ export type FormulaContract = {
     text: string;
     sourceLabels: string[];
   }>;
+  requiredUnits: Array<{
+    quantity: string;
+    unit: string;
+    sourceLabels: string[];
+  }>;
   sourceLabels: string[];
 };
 
@@ -277,17 +319,7 @@ export function selectTaskOutputMode(input: {
     return "STRUCTURED_CALCULATION";
   }
 
-  if (
-    requirements.some((requirement) =>
-      ["FORMULA_WITH_SYMBOLS", "SYMBOL_DEFINITION"].includes(requirement.kind)
-    ) ||
-    (requirements.some((requirement) => requirement.kind === "FORMULA") &&
-      requirements.some(
-        (requirement) =>
-          requirement.requestedAction === "DEFINE_VARIABLES" ||
-          /\bvariables?|symbols?\b/i.test(requirement.requestedFact ?? "")
-      ))
-  ) {
+  if (requirements.some(requiresFormulaOutput)) {
     return "STRUCTURED_FORMULA";
   }
 
@@ -330,7 +362,12 @@ export function buildFormulaContract(units: ValidatedEvidenceUnit[]): FormulaCon
         .map((component) => component.text!)
     )
   ).filter(isFormulaExpressionForContract);
-  const requiredVariables = deriveRequiredFormulaVariables(units, formulaExpressions);
+  const requiredUnits = deriveRequiredFormulaUnits(units);
+  const requiredVariables = deriveRequiredFormulaVariables(
+    units,
+    formulaExpressions,
+    requiredUnits
+  );
   const requiredConditions = uniqueBy(
     units
       .flatMap((unit) =>
@@ -349,6 +386,7 @@ export function buildFormulaContract(units: ValidatedEvidenceUnit[]): FormulaCon
     expressions: formulaExpressions,
     requiredVariables,
     requiredConditions,
+    requiredUnits,
     sourceLabels,
   };
 }
@@ -391,7 +429,7 @@ export function buildStructuredFormulaPrompt(input: {
     "Return only the requested strict JSON object.",
     "Use the supplied formula contract as a closed world.",
     "Do not invent conventional symbols or geometric relations that are not in the contract.",
-    "Every variable meaning and condition must use authorised source labels.",
+    "Every variable meaning, unit, and condition must use authorised source labels.",
     input.subjectName ? `Subject: ${input.subjectName}` : null,
     input.topicTitle ? `Topic: ${input.topicTitle}` : null,
     `<formula_contract>\n${JSON.stringify(input.contract, null, 2)}\n</formula_contract>`,
@@ -635,6 +673,40 @@ export function validateStructuredFormulaOutput(input: {
     }
   }
 
+  const seenUnits = new Set<string>();
+  for (const [index, unit] of parsed.data.units.entries()) {
+    checkLabels(unit.sourceLabels, `units.${index}.sourceLabels`);
+    const quantity = normalizeQuantity(unit.quantity);
+    const expected = input.contract.requiredUnits.find(
+      (item) => normalizeQuantity(item.quantity) === quantity
+    );
+    if (!expected) {
+      errors.push({
+        code: "UNSUPPORTED_UNIT",
+        message: "Unit quantity is not authorised by the selected evidence.",
+        path: `units.${index}.quantity`,
+      });
+      continue;
+    }
+    if (!unitMatches(unit.unit, expected.unit)) {
+      errors.push({
+        code: "INCORRECT_UNIT",
+        message: "Unit does not match authorised evidence.",
+        path: `units.${index}.unit`,
+      });
+    }
+    seenUnits.add(quantity);
+  }
+
+  for (const required of input.contract.requiredUnits) {
+    if (!seenUnits.has(normalizeQuantity(required.quantity))) {
+      errors.push({
+        code: "MISSING_REQUIRED_UNIT",
+        message: `Missing required unit: ${required.quantity}.`,
+      });
+    }
+  }
+
   for (const [index, condition] of parsed.data.conditions.entries()) {
     checkLabels(condition.sourceLabels, `conditions.${index}.sourceLabels`);
     if (/opposite\s+vertex/i.test(condition.text) && !contractText(input.contract).includes("opposite vertex")) {
@@ -694,10 +766,14 @@ export function renderStructuredFormulaAnswer(output: StructuredFormulaOutput): 
   const variableLines = output.variables.map(
     (variable) => `- ${variable.symbol} means ${variable.meaning}.`
   );
+  const unitLines = output.units.map(
+    (unit) => `- ${unit.quantity} is measured in ${unit.unit}.`
+  );
   const conditionLines = output.conditions.map((condition) => `- ${condition.text}.`);
   const text = [
     `The formula is ${output.expression}.`,
     variableLines.length > 0 ? variableLines.join("\n") : null,
+    unitLines.length > 0 ? unitLines.join("\n") : null,
     conditionLines.length > 0 ? conditionLines.join("\n") : null,
   ]
     .filter(Boolean)
@@ -729,7 +805,7 @@ export function structuredRepairInstruction(input: {
   }
   return [
     ...shared,
-    "Fix missing variable definitions, incorrect meanings, unsupported symbols, missing required conditions, or unsupported relations/entities.",
+    "Fix missing variable definitions, incorrect meanings, unsupported symbols, missing required units, incorrect units, missing required conditions, or unsupported relations/entities.",
     "Do not invent conventional symbols or relations that are not in the formula contract.",
   ].join(" ");
 }
@@ -849,10 +925,16 @@ function deriveFormulaCalculationMethods(
 
 function deriveRequiredFormulaVariables(
   units: ValidatedEvidenceUnit[],
-  formulaExpressions: string[]
+  formulaExpressions: string[],
+  requiredUnits: FormulaContract["requiredUnits"] = []
 ): FormulaContract["requiredVariables"] {
   const sourceLabels = uniqueStrings(units.map((unit) => unit.sourceLabel));
   const combinedEvidence = units.map((unit) => unit.quotedEvidence).join(" ");
+  const termMeanings = deriveFormulaTermMeanings(
+    formulaExpressions,
+    combinedEvidence,
+    requiredUnits
+  );
   const explicitSymbols = units.flatMap((unit) =>
     !unit.allowedUses.includes("SYMBOL")
       ? []
@@ -862,6 +944,7 @@ function deriveRequiredFormulaVariables(
       .map((component) => ({
         symbol: component.symbol!,
         meaning:
+          termMeanings.get(normalizeQuantity(component.symbol!)) ??
           component.concept?.aliases?.[0] ??
           component.text?.replace(component.symbol!, "").trim() ??
           component.symbol!,
@@ -873,9 +956,15 @@ function deriveRequiredFormulaVariables(
   ).filter((term) => !["area"].includes(normalizeQuantity(term)));
   const inferred = expressionTerms.map((term) => ({
     symbol: term,
-    meaning: inferFormulaTermMeaning(term, combinedEvidence),
+    meaning:
+      termMeanings.get(normalizeQuantity(term)) ??
+      inferFormulaTermMeaning(term, combinedEvidence),
     sourceLabels,
-  }));
+  })).filter((item) => {
+    const symbol = normalizeQuantity(item.symbol);
+    const meaning = normalizeQuantity(item.meaning);
+    return symbol.length > 1 || meaning !== symbol;
+  });
 
   return uniqueBy(
     [...explicitSymbols, ...inferred].filter(
@@ -885,12 +974,37 @@ function deriveRequiredFormulaVariables(
   );
 }
 
+function deriveRequiredFormulaUnits(
+  units: ValidatedEvidenceUnit[]
+): FormulaContract["requiredUnits"] {
+  return uniqueBy(
+    units.flatMap((unit) =>
+      (unit.semanticComponents ?? [])
+        .filter((component) => component.kind === "UNIT" && component.text)
+        .flatMap((component) =>
+          extractUnitMappings(component.text!).map((mapping) => {
+            const quantity =
+              normalizeQuantity(mapping.quantity) === "measured"
+                ? component.concept?.aliases?.[0] ?? mapping.quantity
+                : mapping.quantity;
+            return {
+              ...mapping,
+              quantity,
+              sourceLabels: [unit.sourceLabel],
+            };
+          })
+        )
+    ),
+    (unit) => `${normalizeQuantity(unit.quantity)}:${normalizeUnit(unit.unit)}`
+  );
+}
+
 function extractFormulaTerms(expression: string) {
-  const rightSide = expression.includes("=") ? expression.split("=").slice(1).join("=") : expression;
-  return rightSide
+  return expression
     .replace(/\bone\s+half\b/gi, " ")
     .replace(/\bpi\b/gi, " ")
-    .replace(/[0-9=/*+\-.()×÷]/g, " ")
+    .replace(/[0-9/*+\-.()×÷]/g, " ")
+    .replace(/=/g, " ")
     .split(/\s+/)
     .map((term) => normalizeQuantity(term))
     .filter(
@@ -898,6 +1012,92 @@ function extractFormulaTerms(expression: string) {
         term &&
         !["x", "times", "one", "half", "perpendicular"].includes(term)
     );
+}
+
+function deriveFormulaTermMeanings(
+  formulaExpressions: string[],
+  evidence: string,
+  requiredUnits: FormulaContract["requiredUnits"] = []
+) {
+  const result = new Map<string, string>();
+  const expressionTerms = new Set(
+    formulaExpressions.flatMap(extractFormulaTerms).map(normalizeQuantity)
+  );
+  for (const match of evidence.matchAll(
+    /\b([A-Za-z])\s+(?:is|means|represents)\s+([A-Za-z][A-Za-z\s-]{1,60})(?=,|\.|\band\b|$)/gi
+  )) {
+    const symbol = normalizeQuantity(match[1] ?? "");
+    const meaning = cleanMeaningPhrase(match[2] ?? "");
+    if (symbol && meaning && expressionTerms.has(symbol)) {
+      result.set(symbol, meaning);
+    }
+  }
+  for (const expression of formulaExpressions) {
+    const parsed = parseBinaryFormulaExpression(expression);
+    if (!parsed) continue;
+    if (requiredUnits.length >= 3) {
+      const [target, left, right] = requiredUnits;
+      if (target?.quantity) {
+        result.set(normalizeQuantity(parsed.targetQuantity), target.quantity);
+      }
+      if (left?.quantity) {
+        result.set(normalizeQuantity(parsed.leftInput), left.quantity);
+      }
+      if (right?.quantity) {
+        result.set(normalizeQuantity(parsed.rightInput), right.quantity);
+      }
+    }
+    const index = evidence.toLowerCase().indexOf(expression.toLowerCase());
+    if (index < 0) continue;
+    const prefix = evidence.slice(Math.max(0, index - 180), index);
+    const afterThat = prefix.match(
+      /\bthat\s+([A-Za-z][A-Za-z\s-]{1,80})\s+equals\s+([A-Za-z][A-Za-z\s-]{1,80})\s+(?:times|multiplied by|x)\s+([A-Za-z][A-Za-z\s-]{1,80})\s*:?$/i
+    );
+    if (afterThat) {
+      const target = cleanMeaningPhrase(afterThat[1] ?? "");
+      const left = cleanMeaningPhrase(afterThat[2] ?? "");
+      const right = cleanMeaningPhrase(afterThat[3] ?? "");
+      if (target) result.set(normalizeQuantity(parsed.targetQuantity), target);
+      if (left) result.set(normalizeQuantity(parsed.leftInput), left);
+      if (right) result.set(normalizeQuantity(parsed.rightInput), right);
+      continue;
+    }
+    const relationMatches = [
+      ...prefix.matchAll(
+        /(?:^|[.;:]\s*|\bthat\s+)([A-Za-z][A-Za-z\s-]{1,80})\s+equals\s+([A-Za-z][A-Za-z\s-]{1,80})\s+(?:times|multiplied by|x)\s+([A-Za-z][A-Za-z\s-]{1,80})\s*:?$/gi
+      ),
+    ];
+    const relation = relationMatches.at(-1);
+    if (!relation) continue;
+    const target = cleanMeaningPhrase(relation[1] ?? "");
+    const left = cleanMeaningPhrase(relation[2] ?? "");
+    const right = cleanMeaningPhrase(relation[3] ?? "");
+    if (target) result.set(normalizeQuantity(parsed.targetQuantity), target);
+    if (left) result.set(normalizeQuantity(parsed.leftInput), left);
+    if (right) result.set(normalizeQuantity(parsed.rightInput), right);
+  }
+  return result;
+}
+
+function cleanMeaningPhrase(value: string) {
+  return normalizeText(value)
+    .replace(/\b(?:and|states?|that|formula|law)\b/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function extractUnitMappings(text: string) {
+  const mappings: Array<{ quantity: string; unit: string }> = [];
+  const unitPattern =
+    /(?:^|[,.]\s*|\band\s+)([A-Za-z][A-Za-z\s-]{1,60}?)\s+(?:is\s+)?(?:measured\s+)?in\s+([A-Za-zΩΩµμ][A-Za-zΩΩµμ-]*)/gi;
+  for (const match of text.matchAll(unitPattern)) {
+    const quantity = cleanMeaningPhrase(match[1] ?? "");
+    const unit = normalizeUnitDisplay(match[2] ?? "");
+    if (quantity && unit) {
+      mappings.push({ quantity, unit });
+    }
+  }
+  return mappings;
 }
 
 function parseBinaryFormulaExpression(expression: string) {
@@ -1205,6 +1405,12 @@ function conditionMatches(actual: string, expected: string) {
     .every((token) => actualText.includes(token));
 }
 
+function unitMatches(actual: string, expected: string) {
+  const actualText = normalizeUnit(actual);
+  const expectedText = normalizeUnit(expected);
+  return actualText === expectedText || actualText.includes(expectedText);
+}
+
 function bindingsForQuantity(
   bindings: Array<SemanticQuantityBinding & { sourceLabels: string[] }>,
   quantity: string
@@ -1266,11 +1472,29 @@ function normalizeText(value: string) {
     .trim();
 }
 
+function normalizeUnit(value: string) {
+  return normalizeText(value)
+    .replace(/\bohms\b/g, "ohm")
+    .replace(/\bvolts\b/g, "volt")
+    .replace(/\bamperes\b/g, "ampere")
+    .replace(/\bamps\b/g, "ampere")
+    .replace(/\bnewtons\b/g, "newton")
+    .replace(/\bmetres\b/g, "metre")
+    .replace(/\bmeters\b/g, "meter")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function normalizeUnitDisplay(value: string) {
+  return value.trim().replace(/Ω/g, "Ω").replace(/μ/g, "µ");
+}
+
 function contractText(contract: FormulaContract) {
   return normalizeText(
     [
       ...contract.expressions,
       ...contract.requiredVariables.map((item) => item.meaning),
+      ...contract.requiredUnits.map((item) => `${item.quantity} ${item.unit}`),
       ...contract.requiredConditions.map((item) => item.text),
     ].join(" ")
   );
@@ -1281,6 +1505,18 @@ function flattenRequirements(requirements: RequestRequirement[]): RequestRequire
     requirement,
     ...flattenRequirements(requirement.childRequirements ?? []),
   ]);
+}
+
+function requiresFormulaOutput(requirement: RequestRequirement) {
+  return (
+    requirement.kind === "FORMULA" ||
+    requirement.kind === "FORMULA_WITH_SYMBOLS" ||
+    requirement.kind === "SYMBOL_DEFINITION" ||
+    requirement.requestedFacet === "FORMULA" ||
+    (requirement.requiredSemanticComponents ?? []).some(
+      (component) => component.kind === "FORMULA"
+    )
+  );
 }
 
 function uniqueStrings(values: string[]): string[] {
