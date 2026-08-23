@@ -143,6 +143,7 @@ function formulaOutput(overrides: Record<string, unknown> = {}) {
       { symbol: "base", meaning: "base", sourceLabels: ["SOURCE_1"] },
       { symbol: "height", meaning: "perpendicular height", sourceLabels: ["SOURCE_1"] },
     ],
+    units: [],
     conditions: [
       { text: "height meets the base at a right angle", sourceLabels: ["SOURCE_1"] },
     ],
@@ -486,6 +487,7 @@ describe("Stage 4.1 structured task output", () => {
           { symbol: "b", meaning: "base", sourceLabels: ["SOURCE_1"] },
           { symbol: "h", meaning: "perpendicular height", sourceLabels: ["SOURCE_1"] },
         ],
+        units: [],
         conditions: [
           { text: "height meets the base at a right angle", sourceLabels: ["SOURCE_1"] },
         ],
@@ -499,7 +501,7 @@ describe("Stage 4.1 structured task output", () => {
     expect(result.supported).toBe(true);
   });
 
-  it("keeps formula-only requests in general prose mode", () => {
+  it("routes formula-only requests to structured formula mode", () => {
     const capability = extractEvidenceCapability(
       chunk("The area of a triangle is Area = 1/2 x base x height.", {
         topicId: geometryTopicId,
@@ -517,7 +519,93 @@ describe("Stage 4.1 structured task output", () => {
       conflicts: [],
     });
     expect(selectTaskOutputMode({ requestRequirements, answerabilityDecision: decision })).toBe(
-      "GENERAL_PROSE"
+      "STRUCTURED_FORMULA"
+    );
+  });
+
+  it.each([
+    {
+      question: "Teach me Ohm's law and the units used.",
+      subjectId: "eval-subject-physics",
+      topicId: "eval-topic-electricity",
+      content:
+        "Ohm's law states that potential difference equals current times resistance: V = I x R. Voltage is measured in volts, current in amperes, and resistance in ohms.",
+      expectedMode: "STRUCTURED_FORMULA",
+    },
+    {
+      question: "Explain F = m x a and its unit.",
+      subjectId: "eval-subject-physics",
+      topicId: "eval-topic-force",
+      content:
+        "Force equals mass times acceleration: F = m x a. Force is measured in newtons.",
+      expectedMode: "STRUCTURED_FORMULA",
+    },
+    {
+      question: "What is the density formula and units?",
+      subjectId,
+      topicId: "eval-topic-density",
+      content:
+        "Density equals mass divided by volume: density = mass / volume. Density is measured in kilograms.",
+      expectedMode: "STRUCTURED_FORMULA",
+    },
+    {
+      question: "Teach the triangle area formula and define the variables.",
+      subjectId,
+      topicId: geometryTopicId,
+      content:
+        "The area of a triangle is one half times base times perpendicular height: Area = 1/2 x base x height. The height must meet the base at a right angle.",
+      expectedMode: "STRUCTURED_FORMULA",
+    },
+    {
+      question: "Using voltage 12 and current 2, calculate power.",
+      subjectId: "eval-subject-physics",
+      topicId: "eval-topic-electricity",
+      content:
+        "Power equals voltage times current: power = voltage x current. Voltage is 12 and current is 2, so power is 24.",
+      expectedMode: "STRUCTURED_CALCULATION",
+    },
+    {
+      question: "What unit is voltage measured in?",
+      subjectId: "eval-subject-physics",
+      topicId: "eval-topic-electricity",
+      content: "Voltage is measured in volts.",
+      expectedMode: "GENERAL_PROSE",
+    },
+    {
+      question: "Define voltage.",
+      subjectId: "eval-subject-physics",
+      topicId: "eval-topic-electricity",
+      content: "Voltage is the potential difference between two points.",
+      expectedMode: "GENERAL_PROSE",
+    },
+    {
+      question: "Explain electric current.",
+      subjectId: "eval-subject-physics",
+      topicId: "eval-topic-electricity",
+      content: "Electric current is the flow of electric charge.",
+      expectedMode: "GENERAL_PROSE",
+    },
+  ])("selects task output mode from semantic requirements: $question", (item) => {
+    const capability = extractEvidenceCapability(
+      chunk(item.content, {
+        subjectId: item.subjectId,
+        topicId: item.topicId,
+      })
+    );
+    const requestRequirements = extractRequestRequirements({
+      requestId: "request-1",
+      question: item.question,
+      subjectId: item.subjectId,
+      topicId: item.topicId,
+    });
+    const decision = decideAnswerability({
+      requestRequirements,
+      evidenceCapabilities: [capability],
+      conflicts: [],
+    });
+
+    expect(selectTaskOutputMode({ requestRequirements, answerabilityDecision: decision })).toBe(
+      item.expectedMode
     );
   });
 
@@ -574,7 +662,7 @@ describe("Stage 4.1 structured task output", () => {
         subjectId: "eval-subject-physics",
         content:
           "Ohm's law is V = I x R, where V is voltage, I is current, and R is resistance. Voltage is measured in volts, current in amperes, and resistance in ohms.",
-        expectedMode: "GENERAL_PROSE",
+        expectedMode: "STRUCTURED_FORMULA",
         expectedText: "voltage",
       },
     ] as const;
