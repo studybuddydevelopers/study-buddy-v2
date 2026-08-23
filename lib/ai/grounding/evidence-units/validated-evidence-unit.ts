@@ -220,6 +220,7 @@ function extractSemanticQuantityBindingsFromText(
 ) {
   return uniqueQuantityBindings([
     ...extractRatioQuantityBindings(text, sourceCapabilityIds),
+    ...extractDiscountQuantityBindings(text, sourceCapabilityIds),
     ...extractNamedQuantityBindings(text, sourceCapabilityIds),
   ]);
 }
@@ -323,6 +324,61 @@ function extractNamedQuantityBindings(
       sourceCapabilityIds,
     });
   }
+  return bindings;
+}
+
+function extractDiscountQuantityBindings(
+  text: string,
+  sourceCapabilityIds: string[]
+): SemanticQuantityBinding[] {
+  const bindings: SemanticQuantityBinding[] = [];
+  for (const match of text.matchAll(
+    /\b([-+]?\d+(?:\.\d+)?)\s*(percent|%)\s+discount\s+on\s+([-+]?\d+(?:\.\d+)?)\s+(?:is|=|equals?)\s+([-+]?\d+(?:\.\d+)?)/gi
+  )) {
+    const rate = Number(match[1]);
+    const original = Number(match[3]);
+    const discount = Number(match[4]);
+    if (![rate, original, discount].every(Number.isFinite)) continue;
+    bindings.push(
+      {
+        quantityId: "discount-rate",
+        label: "discount rate",
+        value: rate,
+        unit: "percent",
+        role: "rateValue",
+        sourceCapabilityIds,
+      },
+      {
+        quantityId: "original-price",
+        label: "original price",
+        value: original,
+        role: "originalValue",
+        sourceCapabilityIds,
+      },
+      {
+        quantityId: "discount",
+        label: "discount",
+        value: discount,
+        role: "discountValue",
+        sourceCapabilityIds,
+      }
+    );
+  }
+
+  for (const match of text.matchAll(
+    /\b(?:sale|new)\s+price(?:\s+after\s+the\s+discount)?\s+(?:is|=|of)\s+([-+]?\d+(?:\.\d+)?)/gi
+  )) {
+    const salePrice = Number(match[1]);
+    if (!Number.isFinite(salePrice)) continue;
+    bindings.push({
+      quantityId: "sale-price",
+      label: "sale price",
+      value: salePrice,
+      role: "salePriceValue",
+      sourceCapabilityIds,
+    });
+  }
+
   return bindings;
 }
 
