@@ -171,6 +171,11 @@ function extractJsonBlock(input: StructuredGenerateInput, tagName: string) {
         sourceLabels?: string[];
       }>;
       requiredConditions?: Array<{ text?: string; sourceLabels?: string[] }>;
+      requiredUnits?: Array<{
+        quantity?: string;
+        unit?: string;
+        sourceLabels?: string[];
+      }>;
     };
   } catch {
     return {};
@@ -213,6 +218,11 @@ function buildStructuredFormulaValue(input: StructuredGenerateInput) {
       symbol: variable.symbol ?? "base",
       meaning: variable.meaning ?? "base",
       sourceLabels: variable.sourceLabels ?? labels,
+    })),
+    units: (contract.requiredUnits ?? []).map((unit) => ({
+      quantity: unit.quantity ?? "quantity",
+      unit: unit.unit ?? "unit",
+      sourceLabels: unit.sourceLabels ?? labels,
     })),
     conditions: (contract.requiredConditions ?? []).map((condition) => ({
       text: condition.text ?? "height meets the base at a right angle",
@@ -277,6 +287,7 @@ function triangleFormulaValue(overrides: Record<string, unknown> = {}) {
       { symbol: "base", meaning: "base", sourceLabels: ["SOURCE_1"] },
       { symbol: "height", meaning: "perpendicular height", sourceLabels: ["SOURCE_1"] },
     ],
+    units: [],
     conditions: [
       { text: "height meets the base at a right angle", sourceLabels: ["SOURCE_1"] },
     ],
@@ -619,7 +630,7 @@ describe("Stage 4.1 capability grounding pipeline", () => {
       answerSegments: [
         {
           text:
-            "The formula is V = I x R, and current is directly proportional to voltage.",
+            "Voltage is potential difference, and current is directly proportional to voltage.",
           sourceLabels: ["SOURCE_1"],
         },
       ],
@@ -627,10 +638,10 @@ describe("Stage 4.1 capability grounding pipeline", () => {
       suggestedQuestions: [],
     });
     const { outcome } = await runPipeline({
-      message: "Teach me Ohm's law.",
+      message: "Define voltage.",
       chunks: [
         retrievedChunk(
-          "Ohm's law states that potential difference equals current times resistance: V = I x R."
+          "Voltage is potential difference."
         ),
       ],
       provider,
@@ -652,7 +663,7 @@ describe("Stage 4.1 capability grounding pipeline", () => {
         answerSegments: [
           {
             text:
-              "The formula is V = I x R, and current is directly proportional to voltage.",
+              "Voltage is potential difference, and current is directly proportional to voltage.",
             sourceLabels: ["SOURCE_1"],
           },
         ],
@@ -662,7 +673,7 @@ describe("Stage 4.1 capability grounding pipeline", () => {
       {
         answerSegments: [
           {
-            text: "The formula is V = I x R.",
+            text: "Voltage is potential difference.",
             sourceLabels: ["SOURCE_1"],
           },
         ],
@@ -671,10 +682,10 @@ describe("Stage 4.1 capability grounding pipeline", () => {
       },
     ]);
     const { outcome } = await runPipeline({
-      message: "Teach me Ohm's law.",
+      message: "Define voltage.",
       chunks: [
         retrievedChunk(
-          "Ohm's law states that potential difference equals current times resistance: V = I x R."
+          "Voltage is potential difference."
         ),
       ],
       provider,
@@ -981,17 +992,7 @@ describe("Stage 4.1 capability grounding pipeline", () => {
   });
 
   it("passes the Ohm's law units control without adding extra proportionality claims", async () => {
-    const provider = new RecordingStructuredProvider("unused", {
-      answerSegments: [
-        {
-          text:
-            "Ohm's law is V = I x R. V is measured in volts, I is measured in amperes, and R is measured in ohms.",
-          sourceLabels: ["SOURCE_1"],
-        },
-      ],
-      insufficientContext: false,
-      suggestedQuestions: [],
-    });
+    const provider = new RecordingStructuredProvider();
     const { outcome } = await runPipeline({
       message: "Connect voltage, current, and resistance in one formula with units.",
       chunks: [
@@ -1003,6 +1004,13 @@ describe("Stage 4.1 capability grounding pipeline", () => {
     });
 
     expect(outcome.kind).toBe("COMPLETED");
+    expect(outcome.diagnostics?.taskOutputMode).toBe("STRUCTURED_FORMULA");
+    expect(outcome.kind === "COMPLETED" ? outcome.content : "").toContain(
+      "voltage is measured in volts"
+    );
+    expect(outcome.kind === "COMPLETED" ? outcome.content : "").not.toMatch(
+      /directly proportional/i
+    );
   });
 
   it("fails a triangle formula answer that omits requested variable meanings", async () => {
