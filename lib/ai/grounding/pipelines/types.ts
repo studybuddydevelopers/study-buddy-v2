@@ -9,6 +9,10 @@ import type { ValidatedEvidenceUnit } from "../evidence-units/validated-evidence
 import type { NarrowGroundingValidationResult } from "../validation/narrow-grounding-validator";
 import type { GroundedTeachAnswerSegment } from "../structured-output";
 import type { GroundedGenerationOutcome } from "../grounded-generation-service";
+import type {
+  StructuredTaskValidationError,
+  TaskOutputMode,
+} from "../task-output";
 
 export type GroundingPipelineContext = {
   chatId: string;
@@ -34,8 +38,14 @@ export type CapabilityPipelineDiagnostics = {
   detectedConflicts: EvidenceCapability["conflicts"];
   answerabilityDecision: AnswerabilityDecision;
   validatedEvidenceUnits: ValidatedEvidenceUnit[];
+  taskOutputMode?: TaskOutputMode;
   providerCalled?: boolean;
   generationOutput?: unknown;
+  structuredOutput?: unknown;
+  structuredValidationResult?: {
+    supported: boolean;
+    errors: StructuredTaskValidationError[];
+  };
   narrowValidatorResult?: NarrowGroundingValidationResult;
   repairResult?: {
     attempted: boolean;
