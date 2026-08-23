@@ -24,6 +24,22 @@ import type { AuthorizedEvidenceChunk, EvidenceCapability } from "../capabilitie
 import { validateNarrowGroundedOutput } from "../validation/narrow-grounding-validator";
 import { extractRequestRequirements } from "../requirements/request-requirement-extractor";
 import { buildStandaloneRetrievalQuery } from "../query-builder";
+import {
+  buildCalculationContract,
+  buildFormulaContract,
+  buildStructuredCalculationPrompt,
+  buildStructuredFormulaPrompt,
+  renderStructuredCalculationAnswer,
+  renderStructuredFormulaAnswer,
+  selectTaskOutputMode,
+  structuredCalculationOutputSchema,
+  structuredFormulaOutputSchema,
+  structuredRepairInstruction,
+  validateStructuredCalculationOutput,
+  validateStructuredFormulaOutput,
+  type StructuredTaskValidationError,
+  type TaskOutputMode,
+} from "../task-output";
 import type {
   CapabilityGroundingCitation,
   CapabilityGroundingOutcome,
@@ -110,11 +126,16 @@ export class CapabilityGroundingPipeline implements GroundingPipeline {
       evidenceCapabilities,
       conflicts,
     });
+    const taskOutputMode = selectTaskOutputMode({
+      requestRequirements,
+      answerabilityDecision,
+    });
     const diagnosticsBase = buildDiagnostics({
       retrievalQuery,
       requestRequirements,
       evidenceCapabilities,
       answerabilityDecision,
+      taskOutputMode,
     });
 
     if (answerabilityDecision.classification === "INSUFFICIENT_CONTEXT") {
@@ -136,6 +157,24 @@ export class CapabilityGroundingPipeline implements GroundingPipeline {
           providerCalled: false,
         },
       };
+    }
+
+    if (taskOutputMode === "STRUCTURED_CALCULATION") {
+      return this.generateStructuredCalculation({
+        context: input.context,
+        provider: input.provider,
+        diagnosticsBase,
+        validatedEvidenceUnits: answerabilityDecision.validatedEvidenceUnits,
+      });
+    }
+
+    if (taskOutputMode === "STRUCTURED_FORMULA") {
+      return this.generateStructuredFormula({
+        context: input.context,
+        provider: input.provider,
+        diagnosticsBase,
+        validatedEvidenceUnits: answerabilityDecision.validatedEvidenceUnits,
+      });
     }
 
     const prompt = buildCapabilityGroundedTeachPrompt({
@@ -256,6 +295,214 @@ export class CapabilityGroundingPipeline implements GroundingPipeline {
       vectorLimit: BRANCH_CANDIDATE_LIMIT,
       limit: RETRIEVAL_CANDIDATE_LIMIT,
     });
+  }
+
+  private async generateStructuredCalculation(input: {
+    context: GroundingPipelineContext;
+    provider: StructuredChatModelProvider;
+    diagnosticsBase: CapabilityPipelineDiagnostics;
+    validatedEvidenceUnits: CapabilityPipelineDiagnostics["validatedEvidenceUnits"];
+  }): Promise<CapabilityGroundingOutcome> {
+    const contract = buildCalculationContract(input.validatedEvidenceUnits);
+    const prompt = buildStructuredCalculationPrompt({
+      question: input.context.userMessage,
+      subjectName: input.context.subjectName,
+      topicTitle: input.context.topicTitle,
+      contract,
+    });
+
+    try {
+      const result = await input.provider.generateStructured({
+        messages: prompt.messages,
+        temperature: 0.2,
+        maxOutputTokens: CAPABILITY_MAX_OUTPUT_TOKENS,
+        outputSchema: structuredCalculationOutputSchema,
+      });
+      const validation = validateStructuredCalculationOutput({
+        value: result.value,
+        contract,
+        validatedEvidenceUnits: input.validatedEvidenceUnits,
+      });
+      let finalResult = result;
+      let finalValidation = validation;
+      let repairResult = { attempted: false, successful: false };
+
+      if (!validation.supported) {
+        const repaired = await input.provider.generateStructured({
+          messages: [
+            ...prompt.messages,
+            {
+              role: "user" as const,
+              content: structuredRepairInstruction({
+                mode: "STRUCTURED_CALCULATION",
+                errors: validation.errors,
+              }),
+            },
+          ],
+          temperature: 0.2,
+          maxOutputTokens: CAPABILITY_MAX_OUTPUT_TOKENS,
+          outputSchema: structuredCalculationOutputSchema,
+        });
+        finalResult = repaired;
+        finalValidation = validateStructuredCalculationOutput({
+          value: repaired.value,
+          contract,
+          validatedEvidenceUnits: input.validatedEvidenceUnits,
+        });
+        repairResult = {
+          attempted: true,
+          successful: finalValidation.supported,
+        };
+      }
+
+      const diagnostics = structuredDiagnostics({
+        diagnosticsBase: input.diagnosticsBase,
+        mode: "STRUCTURED_CALCULATION",
+        generationOutput: repairResult.attempted
+          ? { initial: result.value, repaired: finalResult.value }
+          : result.value,
+        structuredOutput: finalResult.value,
+        validation: finalValidation,
+        repairResult,
+      });
+
+      if (!finalValidation.supported) {
+        return {
+          kind: "FAILED",
+          failureCode: AiGenerationFailureCode.INVALID_PROVIDER_RESPONSE,
+          diagnostics,
+        };
+      }
+
+      const rendered = renderStructuredCalculationAnswer(finalValidation.output, contract);
+      return {
+        kind: "COMPLETED",
+        content: rendered.content,
+        provider: finalResult.provider,
+        model: finalResult.model,
+        usage: finalResult.usage,
+        insufficientContext: false,
+        answerSegments: rendered.answerSegments,
+        diagnostics,
+        citations: buildStructuredCitations({
+          sourceLabels: finalValidation.output.sourceLabels,
+          diagnostics,
+        }),
+      };
+    } catch (error) {
+      return {
+        kind: "FAILED",
+        failureCode: getSafeProviderFailureCode(error),
+        diagnostics: {
+          ...input.diagnosticsBase,
+          providerCalled: true,
+        },
+      };
+    }
+  }
+
+  private async generateStructuredFormula(input: {
+    context: GroundingPipelineContext;
+    provider: StructuredChatModelProvider;
+    diagnosticsBase: CapabilityPipelineDiagnostics;
+    validatedEvidenceUnits: CapabilityPipelineDiagnostics["validatedEvidenceUnits"];
+  }): Promise<CapabilityGroundingOutcome> {
+    const contract = buildFormulaContract(input.validatedEvidenceUnits);
+    const prompt = buildStructuredFormulaPrompt({
+      question: input.context.userMessage,
+      subjectName: input.context.subjectName,
+      topicTitle: input.context.topicTitle,
+      contract,
+    });
+
+    try {
+      const result = await input.provider.generateStructured({
+        messages: prompt.messages,
+        temperature: 0.2,
+        maxOutputTokens: CAPABILITY_MAX_OUTPUT_TOKENS,
+        outputSchema: structuredFormulaOutputSchema,
+      });
+      const validation = validateStructuredFormulaOutput({
+        value: result.value,
+        contract,
+        validatedEvidenceUnits: input.validatedEvidenceUnits,
+      });
+      let finalResult = result;
+      let finalValidation = validation;
+      let repairResult = { attempted: false, successful: false };
+
+      if (!validation.supported) {
+        const repaired = await input.provider.generateStructured({
+          messages: [
+            ...prompt.messages,
+            {
+              role: "user" as const,
+              content: structuredRepairInstruction({
+                mode: "STRUCTURED_FORMULA",
+                errors: validation.errors,
+              }),
+            },
+          ],
+          temperature: 0.2,
+          maxOutputTokens: CAPABILITY_MAX_OUTPUT_TOKENS,
+          outputSchema: structuredFormulaOutputSchema,
+        });
+        finalResult = repaired;
+        finalValidation = validateStructuredFormulaOutput({
+          value: repaired.value,
+          contract,
+          validatedEvidenceUnits: input.validatedEvidenceUnits,
+        });
+        repairResult = {
+          attempted: true,
+          successful: finalValidation.supported,
+        };
+      }
+
+      const diagnostics = structuredDiagnostics({
+        diagnosticsBase: input.diagnosticsBase,
+        mode: "STRUCTURED_FORMULA",
+        generationOutput: repairResult.attempted
+          ? { initial: result.value, repaired: finalResult.value }
+          : result.value,
+        structuredOutput: finalResult.value,
+        validation: finalValidation,
+        repairResult,
+      });
+
+      if (!finalValidation.supported) {
+        return {
+          kind: "FAILED",
+          failureCode: AiGenerationFailureCode.INVALID_PROVIDER_RESPONSE,
+          diagnostics,
+        };
+      }
+
+      const rendered = renderStructuredFormulaAnswer(finalValidation.output);
+      return {
+        kind: "COMPLETED",
+        content: rendered.content,
+        provider: finalResult.provider,
+        model: finalResult.model,
+        usage: finalResult.usage,
+        insufficientContext: false,
+        answerSegments: rendered.answerSegments,
+        diagnostics,
+        citations: buildStructuredCitations({
+          sourceLabels: finalValidation.output.sourceLabels,
+          diagnostics,
+        }),
+      };
+    } catch (error) {
+      return {
+        kind: "FAILED",
+        failureCode: getSafeProviderFailureCode(error),
+        diagnostics: {
+          ...input.diagnosticsBase,
+          providerCalled: true,
+        },
+      };
+    }
   }
 }
 
@@ -494,6 +741,7 @@ function buildDiagnostics(input: {
   requestRequirements: CapabilityPipelineDiagnostics["requestRequirements"];
   evidenceCapabilities: EvidenceCapability[];
   answerabilityDecision: CapabilityPipelineDiagnostics["answerabilityDecision"];
+  taskOutputMode: TaskOutputMode;
 }): CapabilityPipelineDiagnostics {
   return {
     pipelineVersion: CAPABILITY_GROUNDING_VERSION,
@@ -506,6 +754,7 @@ function buildDiagnostics(input: {
     ),
     answerabilityDecision: input.answerabilityDecision,
     validatedEvidenceUnits: input.answerabilityDecision.validatedEvidenceUnits,
+    taskOutputMode: input.taskOutputMode,
     providerCalled: false,
     repairResult: { attempted: false, successful: false },
   };
@@ -531,6 +780,40 @@ function buildCitations(
         .map((unit) => unit.id),
     }));
   });
+}
+
+function structuredDiagnostics<T>(input: {
+  diagnosticsBase: CapabilityPipelineDiagnostics;
+  mode: TaskOutputMode;
+  generationOutput: unknown;
+  structuredOutput: unknown;
+  validation:
+    | { supported: true; output: T; errors: [] }
+    | { supported: false; errors: StructuredTaskValidationError[] };
+  repairResult: { attempted: boolean; successful: boolean };
+}): CapabilityPipelineDiagnostics {
+  return {
+    ...input.diagnosticsBase,
+    taskOutputMode: input.mode,
+    providerCalled: true,
+    generationOutput: input.generationOutput,
+    structuredOutput: input.structuredOutput,
+    structuredValidationResult: {
+      supported: input.validation.supported,
+      errors: input.validation.errors,
+    },
+    repairResult: input.repairResult,
+  };
+}
+
+function buildStructuredCitations(input: {
+  sourceLabels: string[];
+  diagnostics: CapabilityPipelineDiagnostics;
+}): CapabilityGroundingCitation[] {
+  return buildCitations(
+    input.sourceLabels.map((sourceLabel) => ({ sourceLabel, evidenceUnitIds: [] })),
+    input.diagnostics
+  );
 }
 
 function refusalMessage(reason: CapabilityPipelineDiagnostics["answerabilityDecision"]["refusalReason"]) {
