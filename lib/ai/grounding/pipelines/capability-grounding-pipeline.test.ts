@@ -804,6 +804,56 @@ describe("Stage 4.1 capability grounding pipeline", () => {
     });
   });
 
+  it("repairs a ratio answer that uses the final result to derive an earlier intermediate", async () => {
+    const provider = new RecordingStructuredProvider("unused", [
+      ratioStructuredValue({
+        steps: [
+          {
+            targetQuantity: "one part",
+            expression: "10 / 2",
+            result: "5",
+            unit: "",
+            sourceLabels: ["SOURCE_1"],
+          },
+          {
+            targetQuantity: "girls",
+            expression: "3 * 5",
+            result: "15",
+            unit: "",
+            sourceLabels: ["SOURCE_1"],
+          },
+          {
+            targetQuantity: "one part",
+            expression: "15 / 3",
+            result: "5",
+            unit: "",
+            sourceLabels: ["SOURCE_1"],
+          },
+        ],
+      }),
+      ratioStructuredValue(),
+    ]);
+    const { outcome } = await runPipeline({
+      message: "Work through the boys to girls ratio example.",
+      chunks: [
+        retrievedChunk(
+          "Worked ratio example: if boys:girls = 2:3 and boys = 10, then one part is 5, so girls = 15. Always keep the order of the compared quantities."
+        ),
+      ],
+      provider,
+    });
+
+    expect(outcome.kind).toBe("COMPLETED");
+    expect(provider.structuredInputs).toHaveLength(2);
+    expect(outcome.diagnostics?.repairResult).toEqual({
+      attempted: true,
+      successful: true,
+    });
+    expect(outcome.kind === "COMPLETED" ? outcome.content : "").not.toContain(
+      "15 / 3"
+    );
+  });
+
   it("passes a ratio answer that follows the supported one-part method", async () => {
     const provider = new RecordingStructuredProvider("unused", ratioStructuredValue());
     const { outcome } = await runPipeline({
