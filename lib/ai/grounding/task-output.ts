@@ -23,6 +23,8 @@ export type StructuredTaskValidationErrorCode =
   | "INCORRECT_RESULT"
   | "WRONG_SEMANTIC_BINDING"
   | "CONTRADICTORY_ASSIGNMENT"
+  | "UNAUTHORISED_DEPENDENCY"
+  | "CIRCULAR_DEPENDENCY"
   | "MISSING_REQUIRED_VARIABLE"
   | "DUPLICATE_VARIABLE"
   | "UNSUPPORTED_SYMBOL"
@@ -265,19 +267,51 @@ export type StructuredTaskValidationResult<T> =
   | { supported: true; output: T; errors: [] }
   | { supported: false; errors: StructuredTaskValidationError[]; output?: undefined };
 
+export type CalculationValueOrigin =
+  | "GIVEN_INPUT"
+  | "DERIVED_INTERMEDIATE"
+  | "FINAL_RESULT"
+  | "REFERENCE_RESULT";
+
 export type CalculationContract = {
   quantities: Array<{
     quantity: string;
+    calculationKey: string;
     value: string;
     role: string;
+    origin: CalculationValueOrigin;
     sourceLabels: string[];
   }>;
   authorisedMethods: Array<{
     targetQuantity: string;
+    outputQuantity: string;
+    outputQuantityKey: string;
+    inputQuantities: string[];
+    inputQuantityKeys: string[];
+    operation: string;
     expression: string;
     result: string;
     sourceLabels: string[];
   }>;
+  calculationPlan: {
+    nodes: Array<{
+      quantity: string;
+      calculationKey: string;
+      value: string;
+      role: string;
+      origin: CalculationValueOrigin;
+    }>;
+    steps: Array<{
+      outputQuantity: string;
+      outputQuantityKey: string;
+      inputQuantities: string[];
+      inputQuantityKeys: string[];
+      operation: string;
+      expression: string;
+      result: string;
+    }>;
+    finalTarget?: string;
+  };
   sourceLabels: string[];
 };
 
@@ -327,7 +361,11 @@ export function selectTaskOutputMode(input: {
 }
 
 export function buildCalculationContract(
-  units: ValidatedEvidenceUnit[]
+  units: ValidatedEvidenceUnit[],
+  options: {
+    requestRequirements?: RequestRequirements;
+    requestedFinalQuantity?: string;
+  } = {}
 ): CalculationContract {
   const sourceLabels = uniqueStrings(units.map((unit) => unit.sourceLabel));
   const bindings = uniqueQuantityBindings(
@@ -338,17 +376,48 @@ export function buildCalculationContract(
       }))
     )
   );
+  const requestedFinalQuantity =
+    options.requestedFinalQuantity ??
+    inferRequestedFinalQuantity(options.requestRequirements);
+  const origins = inferCalculationValueOrigins(bindings, requestedFinalQuantity);
   const quantities = bindings
     .filter((binding) => binding.value !== undefined)
     .map((binding) => ({
       quantity: binding.label || binding.quantityId,
+      calculationKey: calculationKeyForBinding(binding),
       value: numberToText(binding.value!),
       role: binding.role ?? "quantityValue",
+      origin: originForBinding(binding, origins),
       sourceLabels: binding.sourceLabels,
     }));
+  const authorisedMethods = deriveCalculationMethods(bindings, units, {
+    origins,
+    requestedFinalQuantity,
+  });
   return {
     quantities,
-    authorisedMethods: deriveCalculationMethods(bindings, units),
+    authorisedMethods,
+    calculationPlan: {
+      nodes: quantities.map(({ quantity, calculationKey, value, role, origin }) => ({
+        quantity,
+        calculationKey,
+        value,
+        role,
+        origin,
+      })),
+      steps: authorisedMethods.map(
+        ({ outputQuantity, outputQuantityKey, inputQuantities, inputQuantityKeys, operation, expression, result }) => ({
+          outputQuantity,
+          outputQuantityKey,
+          inputQuantities,
+          inputQuantityKeys,
+          operation,
+          expression,
+          result,
+        })
+      ),
+      finalTarget: inferFinalTargetFromMethods(authorisedMethods, requestedFinalQuantity),
+    },
     sourceLabels,
   };
 }
@@ -403,6 +472,8 @@ export function buildStructuredCalculationPrompt(input: {
     "Use the supplied calculation contract as a closed world.",
     "Do not invent alternate methods, operands, quantities, or source labels.",
     "Every step must use an authorised semantic quantity role.",
+    "Follow the calculationPlan direction only: do not use final/reference results as upstream operands.",
+    "Do not add backwards verification steps unless they are explicit authorised plan steps.",
     input.subjectName ? `Subject: ${input.subjectName}` : null,
     input.topicTitle ? `Topic: ${input.topicTitle}` : null,
     `<calculation_contract>\n${JSON.stringify(input.contract, null, 2)}\n</calculation_contract>`,
@@ -467,6 +538,11 @@ export function validateStructuredCalculationOutput(input: {
   );
   const assigned = new Map<string, number>();
   const derivedValues: Array<{ quantity: string; value: number }> = [];
+  const availableQuantities = new Set(
+    input.contract.quantities
+      .filter((quantity) => quantity.origin === "GIVEN_INPUT")
+      .map((quantity) => normalizeQuantity(quantity.calculationKey))
+  );
 
   const checkLabels = (labels: string[], path: string) => {
     for (const label of labels) {
@@ -496,12 +572,13 @@ export function validateStructuredCalculationOutput(input: {
       return;
     }
 
-    const hasAuthorisedMethod = authorisedMethodMatchesStep(
+    const authorisedMethod = findAuthorisedMethodForStep(
       input.contract,
       step.targetQuantity,
       step.expression,
       step.result
     );
+    const hasAuthorisedMethod = Boolean(authorisedMethod);
     if (targetBindings.length === 0 && !hasAuthorisedMethod) {
       errors.push({
         code: "UNAUTHORISED_TARGET_QUANTITY",
@@ -518,6 +595,15 @@ export function validateStructuredCalculationOutput(input: {
       });
     }
 
+    if (authorisedMethod) {
+      const dependencyErrors = validateStepDependencies({
+        method: authorisedMethod,
+        availableQuantities,
+        path: `steps.${index}`,
+      });
+      errors.push(...dependencyErrors);
+    }
+
     if (!numbersClose(expression.result, result)) {
       errors.push({
         code: "INCORRECT_RESULT",
@@ -531,6 +617,7 @@ export function validateStructuredCalculationOutput(input: {
         operands: expression.operands,
         bindings,
         derivedValues,
+        contract: input.contract,
       })
     ) {
       errors.push({
@@ -560,6 +647,9 @@ export function validateStructuredCalculationOutput(input: {
       });
     }
     assigned.set(target, result);
+    if (authorisedMethod) {
+      availableQuantities.add(normalizeQuantity(authorisedMethod.outputQuantityKey));
+    }
     derivedValues.push({ quantity: target, value: result });
   });
 
@@ -589,6 +679,18 @@ export function validateStructuredCalculationOutput(input: {
         path: "finalResult",
       })
     );
+    const planFinalTarget = input.contract.calculationPlan.finalTarget;
+    if (
+      planFinalTarget &&
+      normalizeQuantity(planFinalTarget) === finalTarget &&
+      previous === undefined
+    ) {
+      errors.push({
+        code: "MISSING_REQUIRED_STEP",
+        message: "Final result was not derived through the authorised calculation path.",
+        path: "steps",
+      });
+    }
   }
 
   return errors.length > 0 ? { supported: false, errors } : {
@@ -801,6 +903,7 @@ export function structuredRepairInstruction(input: {
       ...shared,
       "Fix wrong semantic quantity bindings, unsupported operands, unsupported operations, contradictory assignments, incorrect results, or missing required steps.",
       "Every step target and operand must match its authorised semantic role.",
+      "If an error mentions dependencies, remove backwards/circular steps and follow only the calculationPlan direction.",
     ].join(" ");
   }
   return [
@@ -812,7 +915,11 @@ export function structuredRepairInstruction(input: {
 
 function deriveCalculationMethods(
   bindings: Array<SemanticQuantityBinding & { sourceLabels: string[] }>,
-  units: ValidatedEvidenceUnit[]
+  units: ValidatedEvidenceUnit[],
+  options: {
+    origins: Map<string, CalculationValueOrigin>;
+    requestedFinalQuantity?: string;
+  }
 ) {
   const methods: CalculationContract["authorisedMethods"] = [];
   const ratioParts = bindings.filter(
@@ -823,24 +930,51 @@ function deriveCalculationMethods(
   );
   if (onePart) {
     for (const quantity of bindings.filter(
-      (binding) => binding.role === "quantityValue" && binding.value !== undefined
+      (binding) =>
+        binding.role === "quantityValue" &&
+        binding.value !== undefined &&
+        originForBinding(binding, options.origins) === "GIVEN_INPUT"
     )) {
       const part = ratioParts.find(
         (binding) => normalizeQuantity(binding.quantityId) === normalizeQuantity(quantity.quantityId)
       );
       if (!part?.value) continue;
-      methods.push({
+      methods.push(createCalculationMethod({
         targetQuantity: onePart.label,
+        outputQuantityKey: calculationKeyForBinding(onePart),
+        inputQuantities: [quantity.label, part.label],
+        inputQuantityKeys: [
+          calculationKeyForBinding(quantity),
+          calculationKeyForBinding(part),
+        ],
+        operation: "/",
         expression: `${numberToText(quantity.value!)} / ${numberToText(part.value)}`,
         result: numberToText(onePart.value!),
         sourceLabels: uniqueStrings([...onePart.sourceLabels, ...quantity.sourceLabels, ...part.sourceLabels]),
-      });
-      methods.push({
+      }));
+    }
+    for (const part of ratioParts) {
+      const quantity = bindings.find(
+        (binding) =>
+          binding.role === "quantityValue" &&
+          binding.value !== undefined &&
+          normalizeQuantity(binding.quantityId) === normalizeQuantity(part.quantityId) &&
+          originForBinding(binding, options.origins) !== "GIVEN_INPUT"
+      );
+      if (!quantity?.value || !part.value) continue;
+      methods.push(createCalculationMethod({
         targetQuantity: quantity.label,
+        outputQuantityKey: calculationKeyForBinding(quantity),
+        inputQuantities: [part.label, onePart.label],
+        inputQuantityKeys: [
+          calculationKeyForBinding(part),
+          calculationKeyForBinding(onePart),
+        ],
+        operation: "*",
         expression: `${numberToText(part.value)} * ${numberToText(onePart.value!)}`,
         result: numberToText(quantity.value!),
         sourceLabels: uniqueStrings([...onePart.sourceLabels, ...quantity.sourceLabels, ...part.sourceLabels]),
-      });
+      }));
     }
   }
 
@@ -857,8 +991,15 @@ function deriveCalculationMethods(
     (binding) => binding.role === "salePriceValue" && binding.value !== undefined
   );
   if (rate?.value !== undefined && original?.value !== undefined && discount?.value !== undefined) {
-    methods.push({
+    methods.push(createCalculationMethod({
       targetQuantity: discount.label,
+      outputQuantityKey: calculationKeyForBinding(discount),
+      inputQuantities: [rate.label, original.label],
+      inputQuantityKeys: [
+        calculationKeyForBinding(rate),
+        calculationKeyForBinding(original),
+      ],
+      operation: "*",
       expression: `${numberToText(rate.value)} / 100 * ${numberToText(original.value)}`,
       result: numberToText(discount.value),
       sourceLabels: uniqueStrings([
@@ -866,11 +1007,18 @@ function deriveCalculationMethods(
         ...original.sourceLabels,
         ...discount.sourceLabels,
       ]),
-    });
+    }));
   }
   if (original?.value !== undefined && discount?.value !== undefined && salePrice?.value !== undefined) {
-    methods.push({
+    methods.push(createCalculationMethod({
       targetQuantity: salePrice.label,
+      outputQuantityKey: calculationKeyForBinding(salePrice),
+      inputQuantities: [original.label, discount.label],
+      inputQuantityKeys: [
+        calculationKeyForBinding(original),
+        calculationKeyForBinding(discount),
+      ],
+      operation: "-",
       expression: `${numberToText(original.value)} - ${numberToText(discount.value)}`,
       result: numberToText(salePrice.value),
       sourceLabels: uniqueStrings([
@@ -878,13 +1026,192 @@ function deriveCalculationMethods(
         ...discount.sourceLabels,
         ...salePrice.sourceLabels,
       ]),
-    });
+    }));
   }
+  methods.push(...deriveSimpleInterestCalculationMethods(bindings));
+  methods.push(...deriveUnitRateCalculationMethods(bindings));
+  methods.push(...deriveSpeedCalculationMethods(bindings, options.requestedFinalQuantity));
   methods.push(...deriveFormulaCalculationMethods(bindings, units));
 
   return uniqueBy(methods, (method) =>
     `${normalizeQuantity(method.targetQuantity)}:${method.expression}:${method.result}`
   );
+}
+
+function createCalculationMethod(input: {
+  targetQuantity: string;
+  outputQuantityKey?: string;
+  inputQuantities: string[];
+  inputQuantityKeys?: string[];
+  operation: string;
+  expression: string;
+  result: string;
+  sourceLabels: string[];
+}): CalculationContract["authorisedMethods"][number] {
+  return {
+    targetQuantity: input.targetQuantity,
+    outputQuantity: input.targetQuantity,
+    outputQuantityKey: input.outputQuantityKey ?? input.targetQuantity,
+    inputQuantities: input.inputQuantities,
+    inputQuantityKeys: input.inputQuantityKeys ?? input.inputQuantities,
+    operation: input.operation,
+    expression: input.expression,
+    result: input.result,
+    sourceLabels: input.sourceLabels,
+  };
+}
+
+function deriveSimpleInterestCalculationMethods(
+  bindings: Array<SemanticQuantityBinding & { sourceLabels: string[] }>
+): CalculationContract["authorisedMethods"] {
+  const principal = findBindingByRole(bindings, "principalValue");
+  const rate = findBindingByRole(bindings, "rateValue");
+  const time = findBindingByRole(bindings, "timeValue");
+  const interest = findBindingByRole(bindings, "interestValue");
+  const total = bindings.find(
+    (binding) =>
+      binding.value !== undefined &&
+      /^(?:total|final|amount|total amount|final amount|new value)$/i.test(
+        normalizeQuantity(binding.label)
+      )
+  );
+  const methods: CalculationContract["authorisedMethods"] = [];
+  if (
+    principal?.value !== undefined &&
+    rate?.value !== undefined &&
+    time?.value !== undefined &&
+    interest?.value !== undefined
+  ) {
+    methods.push(createCalculationMethod({
+      targetQuantity: interest.label,
+      outputQuantityKey: calculationKeyForBinding(interest),
+      inputQuantities: [principal.label, rate.label, time.label],
+      inputQuantityKeys: [
+        calculationKeyForBinding(principal),
+        calculationKeyForBinding(rate),
+        calculationKeyForBinding(time),
+      ],
+      operation: "*",
+      expression: `${numberToText(principal.value)} * ${numberToText(rate.value)} * ${numberToText(time.value)} / 100`,
+      result: numberToText(interest.value),
+      sourceLabels: uniqueStrings([
+        ...principal.sourceLabels,
+        ...rate.sourceLabels,
+        ...time.sourceLabels,
+        ...interest.sourceLabels,
+      ]),
+    }));
+  }
+  if (principal?.value !== undefined && interest?.value !== undefined && total?.value !== undefined) {
+    methods.push(createCalculationMethod({
+      targetQuantity: total.label,
+      outputQuantityKey: calculationKeyForBinding(total),
+      inputQuantities: [principal.label, interest.label],
+      inputQuantityKeys: [
+        calculationKeyForBinding(principal),
+        calculationKeyForBinding(interest),
+      ],
+      operation: "+",
+      expression: `${numberToText(principal.value)} + ${numberToText(interest.value)}`,
+      result: numberToText(total.value),
+      sourceLabels: uniqueStrings([
+        ...principal.sourceLabels,
+        ...interest.sourceLabels,
+        ...total.sourceLabels,
+      ]),
+    }));
+  }
+  return methods;
+}
+
+function deriveUnitRateCalculationMethods(
+  bindings: Array<SemanticQuantityBinding & { sourceLabels: string[] }>
+): CalculationContract["authorisedMethods"] {
+  const price = findBindingByRole(bindings, "priceValue");
+  const quantity = findBindingByRole(bindings, "quantityCount");
+  const rate = findBindingByRole(bindings, "unitRateValue");
+  if (price?.value === undefined || quantity?.value === undefined || rate?.value === undefined) {
+    return [];
+  }
+  return [
+    createCalculationMethod({
+      targetQuantity: rate.label,
+      outputQuantityKey: calculationKeyForBinding(rate),
+      inputQuantities: [price.label, quantity.label],
+      inputQuantityKeys: [
+        calculationKeyForBinding(price),
+        calculationKeyForBinding(quantity),
+      ],
+      operation: "/",
+      expression: `${numberToText(price.value)} / ${numberToText(quantity.value)}`,
+      result: numberToText(rate.value),
+      sourceLabels: uniqueStrings([
+        ...price.sourceLabels,
+        ...quantity.sourceLabels,
+        ...rate.sourceLabels,
+      ]),
+    }),
+  ];
+}
+
+function deriveSpeedCalculationMethods(
+  bindings: Array<SemanticQuantityBinding & { sourceLabels: string[] }>,
+  requestedFinalQuantity?: string
+): CalculationContract["authorisedMethods"] {
+  const distance = findBindingByRole(bindings, "distanceValue");
+  const time = findBindingByRole(bindings, "timeValue");
+  const speed = findBindingByRole(bindings, "speedValue");
+  const requested = normalizeQuantity(requestedFinalQuantity ?? "speed");
+  const methods: CalculationContract["authorisedMethods"] = [];
+  if (
+    distance?.value !== undefined &&
+    time?.value !== undefined &&
+    speed?.value !== undefined &&
+    (!requested || requested === normalizeQuantity(speed.label))
+  ) {
+    methods.push(createCalculationMethod({
+      targetQuantity: speed.label,
+      outputQuantityKey: calculationKeyForBinding(speed),
+      inputQuantities: [distance.label, time.label],
+      inputQuantityKeys: [
+        calculationKeyForBinding(distance),
+        calculationKeyForBinding(time),
+      ],
+      operation: "/",
+      expression: `${numberToText(distance.value)} / ${numberToText(time.value)}`,
+      result: numberToText(speed.value),
+      sourceLabels: uniqueStrings([
+        ...distance.sourceLabels,
+        ...time.sourceLabels,
+        ...speed.sourceLabels,
+      ]),
+    }));
+  }
+  if (
+    distance?.value !== undefined &&
+    time?.value !== undefined &&
+    speed?.value !== undefined &&
+    requested === normalizeQuantity(distance.label)
+  ) {
+    methods.push(createCalculationMethod({
+      targetQuantity: distance.label,
+      outputQuantityKey: calculationKeyForBinding(distance),
+      inputQuantities: [speed.label, time.label],
+      inputQuantityKeys: [
+        calculationKeyForBinding(speed),
+        calculationKeyForBinding(time),
+      ],
+      operation: "*",
+      expression: `${numberToText(speed.value)} * ${numberToText(time.value)}`,
+      result: numberToText(distance.value),
+      sourceLabels: uniqueStrings([
+        ...speed.sourceLabels,
+        ...time.sourceLabels,
+        ...distance.sourceLabels,
+      ]),
+    }));
+  }
+  return methods;
 }
 
 function deriveFormulaCalculationMethods(
@@ -908,8 +1235,15 @@ function deriveFormulaCalculationMethods(
     const expression = `${numberToText(leftInput.value)} ${parsed.operator} ${numberToText(rightInput.value)}`;
     const result = evaluateArithmetic(expression);
     if (result === undefined) continue;
-    methods.push({
+    methods.push(createCalculationMethod({
       targetQuantity: parsed.targetQuantity,
+      outputQuantityKey: parsed.targetQuantity,
+      inputQuantities: [leftInput.label, rightInput.label],
+      inputQuantityKeys: [
+        calculationKeyForBinding(leftInput),
+        calculationKeyForBinding(rightInput),
+      ],
+      operation: parsed.operator,
       expression,
       result: numberToText(result),
       sourceLabels: uniqueStrings([
@@ -917,10 +1251,120 @@ function deriveFormulaCalculationMethods(
         ...leftInput.sourceLabels,
         ...rightInput.sourceLabels,
       ]),
-    });
+    }));
   }
 
   return methods;
+}
+
+function inferCalculationValueOrigins(
+  bindings: Array<SemanticQuantityBinding & { sourceLabels: string[] }>,
+  requestedFinalQuantity?: string
+) {
+  const origins = new Map<string, CalculationValueOrigin>();
+  const firstDerivedIndex = bindings.findIndex(
+    (binding) => binding.role === "derivedUnitValue" && binding.value !== undefined
+  );
+  const ratioQuantityIds = new Set(
+    bindings
+      .filter((binding) => binding.role === "ratioPartValue")
+      .map((binding) => normalizeQuantity(binding.quantityId))
+  );
+  const requested = normalizeQuantity(requestedFinalQuantity ?? "");
+  for (const [index, binding] of bindings.entries()) {
+    const key = bindingKey(binding);
+    const role = binding.role ?? "quantityValue";
+    const quantity = normalizeQuantity(binding.label || binding.quantityId);
+    let origin: CalculationValueOrigin;
+    if (
+      [
+        "ratioPartValue",
+        "rateValue",
+        "originalValue",
+        "principalValue",
+        "timeValue",
+        "distanceValue",
+        "priceValue",
+        "quantityCount",
+      ].includes(role)
+    ) {
+      origin = "GIVEN_INPUT";
+    } else if (role === "derivedUnitValue" || role === "discountValue" || role === "interestValue" || role === "unitRateValue") {
+      origin = "DERIVED_INTERMEDIATE";
+    } else if (role === "salePriceValue" || role === "newValue" || role === "totalAmountValue") {
+      origin = "FINAL_RESULT";
+    } else if (requested && quantity === requested) {
+      origin = "FINAL_RESULT";
+    } else if (
+      role === "quantityValue" &&
+      ratioQuantityIds.has(normalizeQuantity(binding.quantityId)) &&
+      firstDerivedIndex >= 0
+    ) {
+      origin = index < firstDerivedIndex ? "GIVEN_INPUT" : "REFERENCE_RESULT";
+    } else {
+      origin = "GIVEN_INPUT";
+    }
+    origins.set(key, origin);
+  }
+  return origins;
+}
+
+function originForBinding(
+  binding: SemanticQuantityBinding,
+  origins: Map<string, CalculationValueOrigin>
+) {
+  return origins.get(bindingKey(binding)) ?? "GIVEN_INPUT";
+}
+
+function bindingKey(binding: SemanticQuantityBinding) {
+  return [
+    normalizeQuantity(binding.quantityId),
+    normalizeQuantity(binding.label),
+    binding.role ?? "",
+    binding.value ?? "",
+  ].join(":");
+}
+
+function findBindingByRole(
+  bindings: Array<SemanticQuantityBinding & { sourceLabels: string[] }>,
+  role: string
+) {
+  return bindings.find(
+    (binding) => binding.role === role && binding.value !== undefined
+  );
+}
+
+function inferRequestedFinalQuantity(requestRequirements?: RequestRequirements) {
+  if (!requestRequirements) return undefined;
+  const requirements = flattenRequirements(requestRequirements.requirements);
+  const candidate = requirements
+    .map((requirement) => requirement.requestedFact ?? "")
+    .find((value) => value && /\b(?:speed|distance|time|interest|amount|price|discount|girls|boys)\b/i.test(value));
+  if (!candidate) return undefined;
+  if (/\bdistance\b/i.test(candidate)) return "distance";
+  if (/\bspeed|velocity\b/i.test(candidate)) return "speed";
+  if (/\btime\b/i.test(candidate)) return "time";
+  if (/\binterest\b/i.test(candidate)) return "interest";
+  if (/\bamount|total\b/i.test(candidate)) return "total amount";
+  if (/\bprice\b/i.test(candidate)) return "sale price";
+  if (/\bdiscount\b/i.test(candidate)) return "discount";
+  if (/\bgirls\b/i.test(candidate)) return "girls";
+  if (/\bboys\b/i.test(candidate)) return "boys";
+  return undefined;
+}
+
+function inferFinalTargetFromMethods(
+  methods: CalculationContract["authorisedMethods"],
+  requestedFinalQuantity?: string
+) {
+  const requested = normalizeQuantity(requestedFinalQuantity ?? "");
+  if (requested) {
+    const match = methods.find(
+      (method) => normalizeQuantity(method.outputQuantity) === requested
+    );
+    if (match) return match.outputQuantity;
+  }
+  return methods.at(-1)?.outputQuantity;
 }
 
 function deriveRequiredFormulaVariables(
@@ -1253,11 +1697,17 @@ function operandsSupportedByEvidence(input: {
   operands: number[];
   bindings: Array<SemanticQuantityBinding & { sourceLabels: string[] }>;
   derivedValues: Array<{ quantity: string; value: number }>;
+  contract: CalculationContract;
 }) {
+  const inputValues = input.contract.quantities
+    .filter((quantity) => quantity.origin === "GIVEN_INPUT")
+    .map((quantity) => parseNumber(quantity.value))
+    .filter((value): value is number => value !== undefined);
+  const arithmeticConstants = [0, 1, 100];
   return input.operands.every((operand) =>
-    input.bindings.some(
-      (binding) => binding.value !== undefined && numbersClose(binding.value, operand)
-    ) || input.derivedValues.some((derived) => numbersClose(derived.value, operand))
+    inputValues.some((value) => numbersClose(value, operand)) ||
+    input.derivedValues.some((derived) => numbersClose(derived.value, operand)) ||
+    arithmeticConstants.some((value) => numbersClose(value, operand))
   );
 }
 
@@ -1327,19 +1777,46 @@ function formulaExpressionMatches(expression: string, authorised: string[]) {
   );
 }
 
-function authorisedMethodMatchesStep(
+function findAuthorisedMethodForStep(
   contract: CalculationContract,
   targetQuantity: string,
   expression: string,
   result: string
 ) {
-  return contract.authorisedMethods.some((method) => {
+  return contract.authorisedMethods.find((method) => {
     if (normalizeQuantity(method.targetQuantity) !== normalizeQuantity(targetQuantity)) {
       return false;
     }
     if (!numbersClose(Number(method.result), Number(result))) return false;
     return expressionsEquivalent(method.expression, expression);
   });
+}
+
+function validateStepDependencies(input: {
+  method: CalculationContract["authorisedMethods"][number];
+  availableQuantities: Set<string>;
+  path: string;
+}) {
+  const errors: StructuredTaskValidationError[] = [];
+  const output = normalizeQuantity(input.method.outputQuantityKey);
+  const normalizedInputs = input.method.inputQuantityKeys.map(normalizeQuantity);
+  if (normalizedInputs.includes(output)) {
+    errors.push({
+      code: "CIRCULAR_DEPENDENCY",
+      message: "Calculation step uses its own output as an input.",
+      path: `${input.path}.expression`,
+    });
+  }
+  for (const quantity of normalizedInputs) {
+    if (!input.availableQuantities.has(quantity)) {
+      errors.push({
+        code: "UNAUTHORISED_DEPENDENCY",
+        message: "Calculation step uses a value before it is available in the authorised derivation.",
+        path: `${input.path}.expression`,
+      });
+    }
+  }
+  return errors;
 }
 
 function expressionsEquivalent(left: string, right: string) {
@@ -1421,6 +1898,45 @@ function bindingsForQuantity(
       normalizeQuantity(binding.quantityId) === normalized ||
       normalizeQuantity(binding.label) === normalized
   );
+}
+
+function calculationKeyForBinding(binding: SemanticQuantityBinding) {
+  const label = binding.label || binding.quantityId;
+  switch (binding.role) {
+    case "ratioPartValue":
+      return `${label} ratio part`;
+    case "quantityValue":
+      return `${label} count`;
+    case "derivedUnitValue":
+      return label;
+    case "rateValue":
+      return /rate/i.test(label) ? label : `${label} rate`;
+    case "originalValue":
+      return label;
+    case "discountValue":
+      return label;
+    case "salePriceValue":
+    case "newValue":
+      return label;
+    case "principalValue":
+      return label;
+    case "timeValue":
+      return label;
+    case "distanceValue":
+      return label;
+    case "speedValue":
+      return label;
+    case "interestValue":
+      return label;
+    case "unitRateValue":
+      return label;
+    case "priceValue":
+      return label;
+    case "quantityCount":
+      return label;
+    default:
+      return label;
+  }
 }
 
 function renderQuantitySummary(contract: CalculationContract) {
