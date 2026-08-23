@@ -1560,11 +1560,25 @@ function findFormulaVariableSupport(
     );
     return formulaTerms.some((term) => definitionText.includes(term));
   });
+  const supportingSymbols = context.symbols.filter((symbol) => {
+    if (symbol.polarity !== "POSITIVE") return false;
+    const symbolText = normalizedText(
+      `${symbol.symbol.display} ${symbol.symbol.normalized} ${symbol.meaning ?? ""} ${symbol.evidenceSpan.text}`
+    );
+    return formulaTerms.some(
+      (term) =>
+        symbol.symbol.normalized === normalizeSymbol(term)?.normalized ||
+        symbolText.includes(term)
+    );
+  });
 
   return uniqueSupportRefs([
     supportRef(requirement.id, formula.id, ["FORMULA"]),
     ...supportingDefinitions.map((definition) =>
       supportRef(requirement.id, definition.id, ["DEFINE"])
+    ),
+    ...supportingSymbols.map((symbol) =>
+      supportRef(requirement.id, symbol.id, ["SYMBOL"])
     ),
     ...supportingFacts.map((fact) => supportRef(requirement.id, fact.id, ["DEFINE"])),
   ]);
