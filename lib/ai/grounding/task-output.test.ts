@@ -20,6 +20,7 @@ import {
   buildFormulaContract,
   buildStructuredCalculationPrompt,
   buildStructuredFormulaPrompt,
+  renderStructuredCalculationAnswer,
   structuredCalculationOutputSchema,
   structuredFormulaOutputSchema,
   selectTaskOutputMode,
@@ -249,15 +250,105 @@ describe("Stage 4.1 structured task output", () => {
       expect.arrayContaining([
         expect.objectContaining({
           targetQuantity: "one part",
+          inputQuantities: ["boys", "boys"],
+          inputQuantityKeys: ["boys count", "boys ratio part"],
           expression: "10 / 2",
           result: "5",
         }),
         expect.objectContaining({
           targetQuantity: "girls",
+          inputQuantities: ["girls", "one part"],
+          inputQuantityKeys: ["girls ratio part", "one part"],
           expression: "3 * 5",
           result: "15",
         }),
       ])
+    );
+    expect(contract.quantities).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          quantity: "boys",
+          calculationKey: "boys count",
+          origin: "GIVEN_INPUT",
+        }),
+        expect.objectContaining({
+          quantity: "girls",
+          calculationKey: "girls count",
+          origin: "REFERENCE_RESULT",
+        }),
+      ])
+    );
+    if (!result.supported) {
+      throw new Error("Expected ratio calculation output to be supported.");
+    }
+    const rendered = renderStructuredCalculationAnswer(result.output, contract).content;
+    expect(rendered).toContain("one part = 10 / 2 = 5");
+    expect(rendered).toContain("girls = 3 * 5 = 15");
+    expect(rendered).not.toContain("15 / 3");
+  });
+
+  it("rejects circular or backwards ratio dependency paths even with correct final values", () => {
+    const { decision } = ratioDecision();
+    const contract = buildCalculationContract(decision.validatedEvidenceUnits);
+    const backwardsIntermediate = validateStructuredCalculationOutput({
+      value: calculationOutput({
+        steps: [
+          {
+            targetQuantity: "one part",
+            expression: "10 / 2",
+            result: "5",
+            unit: "",
+            sourceLabels: ["SOURCE_1"],
+          },
+          {
+            targetQuantity: "girls",
+            expression: "3 * 5",
+            result: "15",
+            unit: "",
+            sourceLabels: ["SOURCE_1"],
+          },
+          {
+            targetQuantity: "one part",
+            expression: "15 / 3",
+            result: "5",
+            unit: "",
+            sourceLabels: ["SOURCE_1"],
+          },
+        ],
+      }),
+      contract,
+      validatedEvidenceUnits: decision.validatedEvidenceUnits,
+    });
+    expect(backwardsIntermediate.supported).toBe(false);
+    expect(backwardsIntermediate.errors.map((error) => error.code)).toEqual(
+      expect.arrayContaining(["UNSUPPORTED_OPERATION"])
+    );
+
+    const referenceAsInput = validateStructuredCalculationOutput({
+      value: calculationOutput({
+        steps: [
+          {
+            targetQuantity: "one part",
+            expression: "15 / 3",
+            result: "5",
+            unit: "",
+            sourceLabels: ["SOURCE_1"],
+          },
+          {
+            targetQuantity: "girls",
+            expression: "3 * 5",
+            result: "15",
+            unit: "",
+            sourceLabels: ["SOURCE_1"],
+          },
+        ],
+      }),
+      contract,
+      validatedEvidenceUnits: decision.validatedEvidenceUnits,
+    });
+    expect(referenceAsInput.supported).toBe(false);
+    expect(referenceAsInput.errors.map((error) => error.code)).toContain(
+      "UNSUPPORTED_OPERATION"
     );
   });
 
@@ -402,6 +493,131 @@ describe("Stage 4.1 structured task output", () => {
         "WRONG_SEMANTIC_BINDING"
       );
     }
+  });
+
+  it("enforces directed calculation plans across common domains", () => {
+    const percentageUnit = bindingUnit([
+      { quantityId: "discount-rate", label: "discount rate", value: 20, role: "rateValue" },
+      { quantityId: "original-price", label: "original price", value: 500, role: "originalValue" },
+      { quantityId: "discount", label: "discount", value: 100, role: "discountValue" },
+      { quantityId: "sale-price", label: "sale price", value: 400, role: "salePriceValue" },
+    ]);
+    const percentageContract = buildCalculationContract([percentageUnit]);
+    expect(
+      validateStructuredCalculationOutput({
+        value: calculationOutput({
+          steps: [
+            { targetQuantity: "discount", expression: "20 / 100 * 500", result: "100", unit: "", sourceLabels: ["SOURCE_1"] },
+            { targetQuantity: "sale price", expression: "500 - 100", result: "400", unit: "", sourceLabels: ["SOURCE_1"] },
+          ],
+          finalQuantity: "sale price",
+          finalResult: "400",
+        }),
+        contract: percentageContract,
+        validatedEvidenceUnits: [percentageUnit],
+      }).supported
+    ).toBe(true);
+    expect(
+      validateStructuredCalculationOutput({
+        value: calculationOutput({
+          steps: [{ targetQuantity: "discount", expression: "500 - 400", result: "100", unit: "", sourceLabels: ["SOURCE_1"] }],
+          finalQuantity: "discount",
+          finalResult: "100",
+        }),
+        contract: percentageContract,
+        validatedEvidenceUnits: [percentageUnit],
+      }).supported
+    ).toBe(false);
+
+    const interestUnit = bindingUnit([
+      { quantityId: "principal", label: "principal", value: 800, role: "principalValue" },
+      { quantityId: "rate", label: "rate", value: 6, role: "rateValue" },
+      { quantityId: "time", label: "time", value: 2, role: "timeValue" },
+      { quantityId: "interest", label: "interest", value: 96, role: "interestValue" },
+      { quantityId: "total-amount", label: "total amount", value: 896, role: "totalAmountValue" },
+    ]);
+    const interestContract = buildCalculationContract([interestUnit]);
+    expect(
+      validateStructuredCalculationOutput({
+        value: calculationOutput({
+          steps: [
+            { targetQuantity: "interest", expression: "800 * 6 * 2 / 100", result: "96", unit: "", sourceLabels: ["SOURCE_1"] },
+            { targetQuantity: "total amount", expression: "800 + 96", result: "896", unit: "", sourceLabels: ["SOURCE_1"] },
+          ],
+          finalQuantity: "total amount",
+          finalResult: "896",
+        }),
+        contract: interestContract,
+        validatedEvidenceUnits: [interestUnit],
+      }).supported
+    ).toBe(true);
+    expect(
+      validateStructuredCalculationOutput({
+        value: calculationOutput({
+          steps: [{ targetQuantity: "interest", expression: "896 - 800", result: "96", unit: "", sourceLabels: ["SOURCE_1"] }],
+          finalQuantity: "interest",
+          finalResult: "96",
+        }),
+        contract: interestContract,
+        validatedEvidenceUnits: [interestUnit],
+      }).supported
+    ).toBe(false);
+
+    const unitRateUnit = bindingUnit([
+      { quantityId: "price", label: "price", value: 300, role: "priceValue" },
+      { quantityId: "quantity", label: "quantity", value: 5, role: "quantityCount" },
+      { quantityId: "unit-rate", label: "unit rate", value: 60, role: "unitRateValue" },
+    ]);
+    expect(
+      validateStructuredCalculationOutput({
+        value: calculationOutput({
+          steps: [{ targetQuantity: "unit rate", expression: "300 / 5", result: "60", unit: "", sourceLabels: ["SOURCE_1"] }],
+          finalQuantity: "unit rate",
+          finalResult: "60",
+        }),
+        contract: buildCalculationContract([unitRateUnit]),
+        validatedEvidenceUnits: [unitRateUnit],
+      }).supported
+    ).toBe(true);
+
+    const speedUnit = bindingUnit([
+      { quantityId: "distance", label: "distance", value: 120, role: "distanceValue" },
+      { quantityId: "time", label: "time", value: 10, role: "timeValue" },
+      { quantityId: "speed", label: "speed", value: 12, role: "speedValue" },
+    ]);
+    expect(
+      validateStructuredCalculationOutput({
+        value: calculationOutput({
+          steps: [{ targetQuantity: "speed", expression: "120 / 10", result: "12", unit: "", sourceLabels: ["SOURCE_1"] }],
+          finalQuantity: "speed",
+          finalResult: "12",
+        }),
+        contract: buildCalculationContract([speedUnit], { requestedFinalQuantity: "speed" }),
+        validatedEvidenceUnits: [speedUnit],
+      }).supported
+    ).toBe(true);
+    expect(
+      validateStructuredCalculationOutput({
+        value: calculationOutput({
+          steps: [{ targetQuantity: "distance", expression: "12 * 10", result: "120", unit: "", sourceLabels: ["SOURCE_1"] }],
+          finalQuantity: "distance",
+          finalResult: "120",
+        }),
+        contract: buildCalculationContract([speedUnit], { requestedFinalQuantity: "distance" }),
+        validatedEvidenceUnits: [speedUnit],
+      }).supported
+    ).toBe(true);
+    expect(
+      validateStructuredCalculationOutput({
+        value: calculationOutput({
+          steps: [{ targetQuantity: "distance", expression: "12 * 10", result: "120", unit: "", sourceLabels: ["SOURCE_1"] }],
+          finalQuantity: "distance",
+          finalResult: "120",
+        }),
+        contract: buildCalculationContract([speedUnit], { requestedFinalQuantity: "speed" }),
+        validatedEvidenceUnits: [speedUnit],
+      }).supported
+    ).toBe(false);
   });
 
   it("validates structured formula variables and conditions", () => {
