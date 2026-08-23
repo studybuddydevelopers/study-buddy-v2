@@ -153,12 +153,15 @@ export interface GroundedEvaluationCapabilityDiagnostics {
   detectedConflicts: unknown[];
   answerabilityDecision: unknown;
   validatedEvidenceUnits: unknown[];
+  taskOutputMode?: string;
   providerCalled: boolean;
   generationResult: {
     present: boolean;
     insufficientContext?: boolean;
     answerSegmentCount?: number;
   };
+  structuredOutput?: unknown;
+  structuredValidationResult?: unknown;
   narrowValidatorResult: unknown | null;
   repairResult: {
     attempted: boolean;
