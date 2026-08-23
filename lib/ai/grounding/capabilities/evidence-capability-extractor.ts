@@ -294,12 +294,18 @@ function extractFormulas(
   state: CapabilityState,
   localSymbolDefinitions: SymbolCapability[]
 ): FormulaCapability[] {
-  const formulas: FormulaCapability[] = [];
+  const formulas: FormulaCapability[] = [
+    ...extractWorkedRatioFormulas(sentence, state),
+    ...extractColonFormulas(sentence, state, localSymbolDefinitions),
+  ];
   const formulaPattern =
     /\b([A-Za-z][A-Za-z ]{1,40}?|[A-Za-z\u0370-\u03ff][A-Za-z0-9_\u0370-\u03ff]*)\s*=\s*([^.;]+?)(?=,?\s+where\b|[.;]|$)/gi;
   let match: RegExpExecArray | null;
   while ((match = formulaPattern.exec(sentence.text)) !== null) {
     const rawLeft = match[1] ?? "";
+    const rawLeftStart = match.index + match[0].indexOf(rawLeft);
+    if (isInsideRatioLabel(sentence.text, rawLeftStart)) continue;
+    if (/[:=]/.test(match[2] ?? "")) continue;
     const left = normalizeFormulaLeft(rawLeft);
     const right = normalizeFormulaSide(match[2] ?? "");
     if (!left || !right || !isFormulaRightSide(right)) continue;
@@ -338,6 +344,115 @@ function extractFormulas(
   return dedupeBy(formulas, (formula) =>
     `${formula.canonicalConcept?.id ?? ""}:${formula.outputQuantity ?? ""}:${formula.normalizedExpression}`
   );
+}
+
+function extractColonFormulas(
+  sentence: SentenceSpan,
+  state: CapabilityState,
+  localSymbolDefinitions: SymbolCapability[]
+): FormulaCapability[] {
+  const formulas: FormulaCapability[] = [];
+  const formulaPattern =
+    /:\s*([A-Za-z][A-Za-z ]{0,40}?|[A-Za-z\u0370-\u03ff][A-Za-z0-9_\u0370-\u03ff]*)\s*=\s*([^.;]+?)(?=,?\s+where\b|[.;]|$)/gi;
+  let match: RegExpExecArray | null;
+  while ((match = formulaPattern.exec(sentence.text)) !== null) {
+    const rawLeft = match[1] ?? "";
+    const left = normalizeFormulaLeft(rawLeft);
+    const right = normalizeFormulaSide(match[2] ?? "");
+    if (/[:=]/.test(match[2] ?? "")) continue;
+    if (!left || !right || !isFormulaRightSide(right)) continue;
+
+    const expression = `${left} = ${right}`;
+    const symbols = extractFormulaSymbols(expression);
+    formulas.push({
+      id: nextCapabilityId(state, "formula"),
+      resourceChunkId: state.chunk.resourceChunkId,
+      sourceLabel: state.chunk.sourceLabel,
+      evidenceSpan: sliceSentenceSpan(
+        sentence,
+        match.index + match[0].indexOf(rawLeft),
+        `${rawLeft} = ${match[2] ?? ""}`.length
+      ),
+      confidence: "HIGH",
+      canonicalConcept:
+        inferFormulaConcept(sentence.text, match.index, rawLeft, left, state) ??
+        canonicalizeFormulaConcept(left, state),
+      expression,
+      normalizedExpression: normalizeFormulaExpression(expression),
+      outputQuantity: normalizeFormulaOutput(left),
+      symbols,
+      symbolDefinitions: localSymbolDefinitions.filter((definition) =>
+        symbols.some((symbol) => symbol.normalized === definition.symbol.normalized)
+      ),
+      requiredInputs: symbols
+        .filter((symbol) => symbol.normalized !== normalizeSymbol(left)?.normalized)
+        .map((symbol) => symbol.normalized),
+    });
+  }
+
+  return formulas;
+}
+
+function extractWorkedRatioFormulas(
+  sentence: SentenceSpan,
+  state: CapabilityState
+): FormulaCapability[] {
+  const formulas: FormulaCapability[] = [];
+  const ratioPattern =
+    /\b(?:worked\s+ratio\s+example:\s*)?if\s+([A-Za-z][A-Za-z\s-]{0,30}?):([A-Za-z][A-Za-z\s-]{0,30}?)\s*=\s*([-+]?\d+(?:\.\d+)?)\s*:\s*([-+]?\d+(?:\.\d+)?)(?:\s+and\s+([A-Za-z][A-Za-z\s-]{0,30}?)\s*=\s*([-+]?\d+(?:\.\d+)?))?(?:,\s*)?then\s+one\s+part\s+is\s+([-+]?\d+(?:\.\d+)?),\s*so\s+([A-Za-z][A-Za-z\s-]{0,30}?)\s*=\s*([-+]?\d+(?:\.\d+)?)/i;
+  const match = sentence.text.match(ratioPattern);
+  if (!match || match.index === undefined) return formulas;
+
+  const leftQuantity = cleanQuantityText(match[1] ?? "");
+  const rightQuantity = cleanQuantityText(match[2] ?? "");
+  const leftPart = match[3] ?? "";
+  const rightPart = match[4] ?? "";
+  const knownQuantity = cleanQuantityText(match[5] ?? "");
+  const knownValue = match[6] ?? "";
+  const onePart = match[7] ?? "";
+  const targetQuantity = cleanQuantityText(match[8] ?? "");
+  const targetValue = match[9] ?? "";
+  const expression = [
+    `${leftQuantity}:${rightQuantity} = ${leftPart}:${rightPart}`,
+    knownQuantity && knownValue ? `${knownQuantity} = ${knownValue}` : null,
+    `one part = ${onePart}`,
+    `${targetQuantity} = ${targetValue}`,
+  ]
+    .filter(Boolean)
+    .join("; ");
+  const spanText = match[0] ?? sentence.text;
+
+  formulas.push({
+    id: nextCapabilityId(state, "formula"),
+    resourceChunkId: state.chunk.resourceChunkId,
+    sourceLabel: state.chunk.sourceLabel,
+    evidenceSpan: sliceSentenceSpan(sentence, match.index, spanText.length),
+    confidence: "HIGH",
+    canonicalConcept: canonicalizeConcept(
+      `worked ratio example ${leftQuantity} to ${rightQuantity}`,
+      state.chunk
+    ),
+    expression,
+    normalizedExpression: normalizeFormulaExpression(expression),
+    outputQuantity: normalizeFormulaOutput(targetQuantity || rightQuantity),
+    symbols: [],
+    symbolDefinitions: [],
+    requiredInputs: [],
+  });
+
+  return formulas;
+}
+
+function isInsideRatioLabel(text: string, index: number) {
+  const previous = text.slice(0, index);
+  return /[A-Za-z][A-Za-z\s-]{0,30}:\s*$/.test(previous);
+}
+
+function cleanQuantityText(value: string) {
+  return value
+    .replace(/\b(?:if|then|so|therefore|and|where|given|answer)\b/gi, " ")
+    .replace(/\s+/g, " ")
+    .trim();
 }
 
 function extractNaturalLanguageFormulas(
