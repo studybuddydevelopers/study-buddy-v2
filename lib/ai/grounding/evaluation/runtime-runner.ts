@@ -1609,8 +1609,17 @@ function redactCapabilityDiagnostics(input: {
           redactDiagnosticValue(unit)
         )
       : [],
+    taskOutputMode: diagnostics.taskOutputMode,
     providerCalled: diagnostics.providerCalled === true,
     generationResult: summarizeGenerationOutput(diagnostics.generationOutput),
+    structuredOutput:
+      diagnostics.structuredOutput === undefined
+        ? undefined
+        : redactDiagnosticValue(diagnostics.structuredOutput),
+    structuredValidationResult:
+      diagnostics.structuredValidationResult === undefined
+        ? undefined
+        : redactDiagnosticValue(diagnostics.structuredValidationResult),
     narrowValidatorResult: diagnostics.narrowValidatorResult
       ? redactDiagnosticValue({
           supported: diagnostics.narrowValidatorResult.supported,
