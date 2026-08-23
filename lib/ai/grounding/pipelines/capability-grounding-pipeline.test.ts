@@ -91,6 +91,22 @@ class RecordingStructuredProvider implements StructuredChatModelProvider {
     const contract = extractPromptContract(
       input.messages.map((message) => message.content).join("\n")
     );
+    if (input.outputSchema.name === "capability_structured_calculation_response") {
+      return {
+        value: buildStructuredCalculationValue(input),
+        provider: result.provider,
+        model: result.model,
+        usage: result.usage,
+      };
+    }
+    if (input.outputSchema.name === "capability_structured_formula_response") {
+      return {
+        value: buildStructuredFormulaValue(input),
+        provider: result.provider,
+        model: result.model,
+        usage: result.usage,
+      };
+    }
     return {
       value: {
         answerSegments: [
@@ -131,6 +147,142 @@ function extractPromptContract(text: string) {
     sourceLabels: uniqueStrings(
       [...text.matchAll(/\bSOURCE_[1-9][0-9]*\b/g)].map((match) => match[0] ?? "")
     ),
+  };
+}
+
+function extractJsonBlock(input: StructuredGenerateInput, tagName: string) {
+  const text = input.messages.map((message) => message.content).join("\n");
+  const pattern = new RegExp(`<${tagName}>\\n([\\s\\S]*?)\\n<\\/${tagName}>`);
+  const raw = text.match(pattern)?.[1];
+  if (!raw) return {};
+  try {
+    return JSON.parse(raw) as {
+      sourceLabels?: string[];
+      authorisedMethods?: Array<{
+        targetQuantity?: string;
+        expression?: string;
+        result?: string;
+        sourceLabels?: string[];
+      }>;
+      expressions?: string[];
+      requiredVariables?: Array<{
+        symbol?: string;
+        meaning?: string;
+        sourceLabels?: string[];
+      }>;
+      requiredConditions?: Array<{ text?: string; sourceLabels?: string[] }>;
+    };
+  } catch {
+    return {};
+  }
+}
+
+function buildStructuredCalculationValue(input: StructuredGenerateInput) {
+  const contract = extractJsonBlock(input, "calculation_contract");
+  const labels = contract.sourceLabels ?? ["SOURCE_1"];
+  const steps = (contract.authorisedMethods ?? []).map((method) => ({
+    targetQuantity: method.targetQuantity ?? "result",
+    expression: method.expression ?? "1 + 1",
+    result: method.result ?? "2",
+    unit: "",
+    sourceLabels: method.sourceLabels ?? labels,
+  }));
+  const finalStep = steps[steps.length - 1] ?? {
+    targetQuantity: "result",
+    expression: "1 + 1",
+    result: "2",
+    unit: "",
+    sourceLabels: labels,
+  };
+  return {
+    steps: steps.length > 0 ? steps : [finalStep],
+    finalQuantity: finalStep.targetQuantity,
+    finalResult: finalStep.result,
+    finalUnit: "",
+    sourceLabels: labels,
+    suggestedQuestions: [],
+  };
+}
+
+function buildStructuredFormulaValue(input: StructuredGenerateInput) {
+  const contract = extractJsonBlock(input, "formula_contract");
+  const labels = contract.sourceLabels ?? ["SOURCE_1"];
+  return {
+    expression: contract.expressions?.[0] ?? "Area = 1/2 * base * height",
+    variables: (contract.requiredVariables ?? []).map((variable) => ({
+      symbol: variable.symbol ?? "base",
+      meaning: variable.meaning ?? "base",
+      sourceLabels: variable.sourceLabels ?? labels,
+    })),
+    conditions: (contract.requiredConditions ?? []).map((condition) => ({
+      text: condition.text ?? "height meets the base at a right angle",
+      sourceLabels: condition.sourceLabels ?? labels,
+    })),
+    sourceLabels: labels,
+    suggestedQuestions: [],
+  };
+}
+
+function ratioStructuredValue(overrides: Record<string, unknown> = {}) {
+  return {
+    steps: [
+      {
+        targetQuantity: "one part",
+        expression: "10 / 2",
+        result: "5",
+        unit: "",
+        sourceLabels: ["SOURCE_1"],
+      },
+      {
+        targetQuantity: "girls",
+        expression: "3 * 5",
+        result: "15",
+        unit: "",
+        sourceLabels: ["SOURCE_1"],
+      },
+    ],
+    finalQuantity: "girls",
+    finalResult: "15",
+    finalUnit: "",
+    sourceLabels: ["SOURCE_1"],
+    suggestedQuestions: [],
+    ...overrides,
+  };
+}
+
+function speedStructuredValue(overrides: Record<string, unknown> = {}) {
+  return {
+    steps: [
+      {
+        targetQuantity: "speed",
+        expression: "120 / 10",
+        result: "12",
+        unit: "",
+        sourceLabels: ["SOURCE_1"],
+      },
+    ],
+    finalQuantity: "speed",
+    finalResult: "12",
+    finalUnit: "",
+    sourceLabels: ["SOURCE_1"],
+    suggestedQuestions: [],
+    ...overrides,
+  };
+}
+
+function triangleFormulaValue(overrides: Record<string, unknown> = {}) {
+  return {
+    expression: "Area = 1/2 * base * height",
+    variables: [
+      { symbol: "base", meaning: "base", sourceLabels: ["SOURCE_1"] },
+      { symbol: "height", meaning: "perpendicular height", sourceLabels: ["SOURCE_1"] },
+    ],
+    conditions: [
+      { text: "height meets the base at a right angle", sourceLabels: ["SOURCE_1"] },
+    ],
+    sourceLabels: ["SOURCE_1"],
+    suggestedQuestions: [],
+    ...overrides,
   };
 }
 
@@ -321,20 +473,7 @@ describe("Stage 4.1 capability grounding pipeline", () => {
           resourceId: "resource-symbol",
         }),
       ],
-      provider: new RecordingStructuredProvider("unused", {
-        answerSegments: [
-          {
-            text: "The pressure formula is P = F / A.",
-            sourceLabels: ["SOURCE_1"],
-          },
-          {
-            text: "P means pressure.",
-            sourceLabels: ["SOURCE_2"],
-          },
-        ],
-        insufficientContext: false,
-        suggestedQuestions: [],
-      }),
+      provider: new RecordingStructuredProvider(),
     });
 
     expect(outcome.kind).toBe("COMPLETED");
@@ -600,49 +739,41 @@ describe("Stage 4.1 capability grounding pipeline", () => {
       chunks: [
         retrievedChunk("speed = distance / time. The distance is 120 m. The time is 10 s."),
       ],
-      provider: new RecordingStructuredProvider("unused", {
-        answerSegments: [
+      provider: new RecordingStructuredProvider("unused", speedStructuredValue({
+        steps: [
           {
-            text: "Using the cited values, 120 / 10 = 13.",
+            targetQuantity: "speed",
+            expression: "120 / 10",
+            result: "13",
+            unit: "",
             sourceLabels: ["SOURCE_1"],
           },
         ],
-        insufficientContext: false,
-        suggestedQuestions: [],
-      }),
+        finalResult: "13",
+      })),
     });
     expect(wrongArithmetic.outcome.kind).toBe("FAILED");
     expect(
-      wrongArithmetic.outcome.diagnostics?.narrowValidatorResult?.errors.map(
+      wrongArithmetic.outcome.diagnostics?.structuredValidationResult?.errors.map(
         (error) => error.code
       )
-    ).toContain("INVALID_ARITHMETIC");
+    ).toContain("INCORRECT_RESULT");
   });
 
   it("repairs a ratio answer that invents an unsupported alternate calculation path", async () => {
     const provider = new RecordingStructuredProvider("unused", [
-      {
-        answerSegments: [
+      ratioStructuredValue({
+        steps: [
           {
-            text:
-              "10 divided by 3 parts equals approximately 3.33. One part is 5, so girls are 15.",
+            targetQuantity: "one part",
+            expression: "10 / 3",
+            result: "3.33",
+            unit: "",
             sourceLabels: ["SOURCE_1"],
           },
         ],
-        insufficientContext: false,
-        suggestedQuestions: [],
-      },
-      {
-        answerSegments: [
-          {
-            text:
-              "Boys:girls is 2:3. Since boys are 10, one part is 10 / 2 = 5, so girls are 5 x 3 = 15. Keep the order of the compared quantities.",
-            sourceLabels: ["SOURCE_1"],
-          },
-        ],
-        insufficientContext: false,
-        suggestedQuestions: [],
-      },
+      }),
+      ratioStructuredValue(),
     ]);
     const { outcome } = await runPipeline({
       message: "Work through the boys to girls ratio example.",
@@ -663,17 +794,7 @@ describe("Stage 4.1 capability grounding pipeline", () => {
   });
 
   it("passes a ratio answer that follows the supported one-part method", async () => {
-    const provider = new RecordingStructuredProvider("unused", {
-      answerSegments: [
-        {
-          text:
-            "Boys:girls is 2:3. Since boys are 10, one part is 10 / 2 = 5, so girls are 5 x 3 = 15. Keep the order of the compared quantities.",
-          sourceLabels: ["SOURCE_1"],
-        },
-      ],
-      insufficientContext: false,
-      suggestedQuestions: [],
-    });
+    const provider = new RecordingStructuredProvider("unused", ratioStructuredValue());
     const { outcome } = await runPipeline({
       message: "Work through the boys to girls ratio example.",
       chunks: [
@@ -690,28 +811,19 @@ describe("Stage 4.1 capability grounding pipeline", () => {
 
   it("repairs fake-provider output that uses a correct number in the wrong semantic ratio role", async () => {
     const provider = new RecordingStructuredProvider("unused", [
-      {
-        answerSegments: [
+      ratioStructuredValue({
+        steps: [
           {
-            text:
-              "Boys:girls is 2:3. One part is 5. Girls are 2 x 5 = 10, then girls are 15.",
+            targetQuantity: "girls",
+            expression: "2 * 5",
+            result: "10",
+            unit: "",
             sourceLabels: ["SOURCE_1"],
           },
         ],
-        insufficientContext: false,
-        suggestedQuestions: [],
-      },
-      {
-        answerSegments: [
-          {
-            text:
-              "Boys:girls is 2:3. Since boys are 10, one part is 10 / 2 = 5, so girls are 3 x 5 = 15.",
-            sourceLabels: ["SOURCE_1"],
-          },
-        ],
-        insufficientContext: false,
-        suggestedQuestions: [],
-      },
+        finalResult: "10",
+      }),
+      ratioStructuredValue(),
     ]);
     const { outcome } = await runPipeline({
       message: "Work through the boys to girls ratio example.",
@@ -732,16 +844,24 @@ describe("Stage 4.1 capability grounding pipeline", () => {
   });
 
   it("fails fake-provider output with contradictory semantic quantity assignments", async () => {
-    const provider = new RecordingStructuredProvider("unused", {
-      answerSegments: [
+    const provider = new RecordingStructuredProvider("unused", ratioStructuredValue({
+      steps: [
         {
-          text: "Boys:girls is 2:3. Girls are 10. Girls are 15.",
+          targetQuantity: "girls",
+          expression: "3 * 5",
+          result: "15",
+          unit: "",
+          sourceLabels: ["SOURCE_1"],
+        },
+        {
+          targetQuantity: "girls",
+          expression: "2 * 5",
+          result: "10",
+          unit: "",
           sourceLabels: ["SOURCE_1"],
         },
       ],
-      insufficientContext: false,
-      suggestedQuestions: [],
-    });
+    }));
     const { outcome } = await runPipeline({
       message: "Work through the boys to girls ratio example.",
       chunks: [
@@ -753,8 +873,8 @@ describe("Stage 4.1 capability grounding pipeline", () => {
     });
 
     expect(outcome.kind).toBe("FAILED");
-    expect(outcome.diagnostics?.narrowValidatorResult?.errors.map((error) => error.code)).toContain(
-      "INVALID_ARITHMETIC"
+    expect(outcome.diagnostics?.structuredValidationResult?.errors.map((error) => error.code)).toContain(
+      "CONTRADICTORY_ASSIGNMENT"
     );
     expect(outcome.diagnostics?.repairResult).toEqual({
       attempted: true,
@@ -764,26 +884,18 @@ describe("Stage 4.1 capability grounding pipeline", () => {
 
   it("repairs fake-provider output that swaps named calculation quantities", async () => {
     const provider = new RecordingStructuredProvider("unused", [
-      {
-        answerSegments: [
+      speedStructuredValue({
+        steps: [
           {
-            text: "The distance is 10 and the time is 120, so speed is 120 / 10 = 12.",
+            targetQuantity: "time",
+            expression: "120 / 10",
+            result: "12",
+            unit: "",
             sourceLabels: ["SOURCE_1"],
           },
         ],
-        insufficientContext: false,
-        suggestedQuestions: [],
-      },
-      {
-        answerSegments: [
-          {
-            text: "The distance is 120 m and the time is 10 s, so speed is 120 / 10 = 12.",
-            sourceLabels: ["SOURCE_1"],
-          },
-        ],
-        insufficientContext: false,
-        suggestedQuestions: [],
-      },
+      }),
+      speedStructuredValue(),
     ]);
     const { outcome } = await runPipeline({
       message: "Calculate speed from 120 m in 10 s.",
@@ -854,16 +966,7 @@ describe("Stage 4.1 capability grounding pipeline", () => {
   });
 
   it("passes the percentage-discount control without unsupported elaboration", async () => {
-    const provider = new RecordingStructuredProvider("unused", {
-      answerSegments: [
-        {
-          text: "A 20 percent discount on 500 is 20 percent of 500 = 100, so the new price is 400.",
-          sourceLabels: ["SOURCE_1"],
-        },
-      ],
-      insufficientContext: false,
-      suggestedQuestions: [],
-    });
+    const provider = new RecordingStructuredProvider();
     const { outcome } = await runPipeline({
       message: "Work through the percentage discount example.",
       chunks: [
@@ -903,16 +1006,9 @@ describe("Stage 4.1 capability grounding pipeline", () => {
   });
 
   it("fails a triangle formula answer that omits requested variable meanings", async () => {
-    const provider = new RecordingStructuredProvider("unused", {
-      answerSegments: [
-        {
-          text: "The triangle area formula is Area = 1/2 x b x h.",
-          sourceLabels: ["SOURCE_1"],
-        },
-      ],
-      insufficientContext: false,
-      suggestedQuestions: [],
-    });
+    const provider = new RecordingStructuredProvider("unused", triangleFormulaValue({
+      variables: [{ symbol: "base", meaning: "base", sourceLabels: ["SOURCE_1"] }],
+    }));
     const { outcome } = await runPipeline({
       message: "Teach the triangle area formula and define the variables.",
       chunks: [
@@ -924,23 +1020,13 @@ describe("Stage 4.1 capability grounding pipeline", () => {
     });
 
     expect(outcome.kind).toBe("FAILED");
-    expect(outcome.diagnostics?.narrowValidatorResult?.errors.map((error) => error.code)).toContain(
-      "MISSING_REQUIRED_TASK"
+    expect(outcome.diagnostics?.structuredValidationResult?.errors.map((error) => error.code)).toContain(
+      "MISSING_REQUIRED_VARIABLE"
     );
   });
 
   it("passes a triangle formula answer with explicit variable meanings", async () => {
-    const provider = new RecordingStructuredProvider("unused", {
-      answerSegments: [
-        {
-          text:
-            "The triangle area formula is Area = 1/2 x base x perpendicular height. The base is the side used, and the perpendicular height meets the base at a right angle.",
-          sourceLabels: ["SOURCE_1"],
-        },
-      ],
-      insufficientContext: false,
-      suggestedQuestions: [],
-    });
+    const provider = new RecordingStructuredProvider("unused", triangleFormulaValue());
     const { outcome } = await runPipeline({
       message: "Teach the triangle area formula and define the variables.",
       chunks: [
