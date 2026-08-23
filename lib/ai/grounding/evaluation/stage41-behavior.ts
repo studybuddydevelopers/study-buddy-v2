@@ -22,6 +22,7 @@ export const STAGE41_CAPABILITY_BEHAVIOR_FILE_PATHS = [
   "lib/ai/grounding/requirements/types.ts",
   "lib/ai/grounding/semantic-concepts.ts",
   "lib/ai/grounding/structured-output.ts",
+  "lib/ai/grounding/task-output.ts",
   "lib/ai/grounding/validation/narrow-grounding-validator.ts",
   "lib/resources/retrieval/filters.ts",
   "lib/resources/retrieval/postgres-resource-search-repository.ts",
