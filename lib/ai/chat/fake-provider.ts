@@ -77,6 +77,11 @@ type FakeStructuredContract = {
     text?: string;
     sourceLabels?: string[];
   }>;
+  requiredUnits?: Array<{
+    quantity?: string;
+    unit?: string;
+    sourceLabels?: string[];
+  }>;
 };
 
 function isFakeChatMode(value: unknown): value is FakeChatMode {
@@ -548,6 +553,7 @@ function buildStructuredFormulaValue(
       variables: [
         { symbol: "b", meaning: "base", sourceLabels: labels },
       ],
+      units: [],
       conditions: [],
       sourceLabels: labels,
       suggestedQuestions: [],
@@ -557,6 +563,7 @@ function buildStructuredFormulaValue(
     return {
       expression: "Area = 1/2 * base * height",
       variables: [{ symbol: "base", meaning: "base", sourceLabels: labels }],
+      units: [],
       conditions: [{ text: "height meets the base at a right angle", sourceLabels: labels }],
       sourceLabels: labels,
       suggestedQuestions: [],
@@ -569,6 +576,7 @@ function buildStructuredFormulaValue(
         { symbol: "b", meaning: "base", sourceLabels: labels },
         { symbol: "h", meaning: "perpendicular height", sourceLabels: labels },
       ],
+      units: [],
       conditions: [{ text: "h meets b at a right angle", sourceLabels: labels }],
       sourceLabels: labels,
       suggestedQuestions: [],
@@ -581,6 +589,7 @@ function buildStructuredFormulaValue(
         { symbol: "base", meaning: "base", sourceLabels: labels },
         { symbol: "height", meaning: "perpendicular height", sourceLabels: labels },
       ],
+      units: [],
       conditions: [
         { text: "height is drawn from the opposite vertex to the base", sourceLabels: labels },
       ],
@@ -603,6 +612,19 @@ function buildStructuredFormulaValue(
           sourceLabels: variable.sourceLabels ?? labels,
         })
       ),
+      units: Array.isArray(contract.requiredUnits)
+        ? contract.requiredUnits.map(
+            (unit: {
+              quantity?: string;
+              unit?: string;
+              sourceLabels?: string[];
+            }) => ({
+              quantity: unit.quantity ?? "quantity",
+              unit: unit.unit ?? "unit",
+              sourceLabels: unit.sourceLabels ?? labels,
+            })
+          )
+        : [],
       conditions: Array.isArray(contract.requiredConditions)
         ? contract.requiredConditions.map(
             (condition: { text?: string; sourceLabels?: string[] }) => ({
@@ -622,6 +644,7 @@ function buildStructuredFormulaValue(
       { symbol: "base", meaning: "base", sourceLabels: labels },
       { symbol: "height", meaning: "perpendicular height", sourceLabels: labels },
     ],
+    units: [],
     conditions: [{ text: "height meets the base at a right angle", sourceLabels: labels }],
     sourceLabels: labels,
     suggestedQuestions: [],
