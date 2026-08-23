@@ -29,6 +29,13 @@ const FAKE_STRUCTURED_CHAT_MODES = [
   "INSUFFICIENT_FACTUAL",
   "EXCESSIVE_SUGGESTIONS",
   "FAKE_LINK_CITATION",
+  "WRONG_SEMANTIC_QUANTITY",
+  "CONTRADICTORY_CALCULATION",
+  "INVENTED_CALCULATION_PATH",
+  "FORMULA_OMIT_VARIABLE",
+  "FORMULA_INVENTED_SYMBOL",
+  "FORMULA_UNSUPPORTED_RELATION",
+  "VALID_REPAIRED",
 ] as const;
 
 type FakeChatMode = (typeof FAKE_CHAT_MODES)[number];
@@ -51,6 +58,26 @@ interface FakeChatRuntimeControl {
   delayMs?: number;
   failureCode?: AiGenerationFailureCode;
 }
+
+type FakeStructuredContract = {
+  sourceLabels?: string[];
+  authorisedMethods?: Array<{
+    targetQuantity?: string;
+    expression?: string;
+    result?: string;
+    sourceLabels?: string[];
+  }>;
+  expressions?: string[];
+  requiredVariables?: Array<{
+    symbol?: string;
+    meaning?: string;
+    sourceLabels?: string[];
+  }>;
+  requiredConditions?: Array<{
+    text?: string;
+    sourceLabels?: string[];
+  }>;
+};
 
 function isFakeChatMode(value: unknown): value is FakeChatMode {
   return (
@@ -281,9 +308,18 @@ function buildStructuredValue(
   mode: FakeStructuredChatMode,
   text: string
 ) {
+  if (input.outputSchema.name === "capability_structured_calculation_response") {
+    return buildStructuredCalculationValue(input, mode);
+  }
+  if (input.outputSchema.name === "capability_structured_formula_response") {
+    return buildStructuredFormulaValue(input, mode);
+  }
   const contract = extractStructuredPromptContract(input);
   const validSegment = {
-    text,
+    text:
+      text === "Fake tutor response."
+        ? buildDefaultGroundedText(contract.evidenceText) ?? contract.evidenceText ?? text
+        : text,
     sourceLabels: contract.sourceLabels,
   };
   switch (mode) {
@@ -357,6 +393,253 @@ function buildStructuredValue(
   }
 }
 
+function buildStructuredCalculationValue(
+  input: StructuredGenerateInput,
+  mode: FakeStructuredChatMode
+) {
+  const contract = extractJsonBlock(input, "calculation_contract");
+  const labels = contract.sourceLabels ?? ["SOURCE_1"];
+  const repaired = input.messages.some((message) =>
+    /Repair the previous JSON object/i.test(message.content)
+  );
+  if (mode === "VALID_REPAIRED" && !repaired) {
+    return {
+      steps: [
+        {
+          targetQuantity: "girls",
+          expression: "2 * 5",
+          result: "10",
+          unit: "",
+          sourceLabels: labels,
+        },
+      ],
+      finalQuantity: "girls",
+      finalResult: "10",
+      finalUnit: "",
+      sourceLabels: labels,
+      suggestedQuestions: [],
+    };
+  }
+  if (mode === "WRONG_SEMANTIC_QUANTITY") {
+    return {
+      steps: [
+        {
+          targetQuantity: "girls",
+          expression: "2 * 5",
+          result: "10",
+          unit: "",
+          sourceLabels: labels,
+        },
+      ],
+      finalQuantity: "girls",
+      finalResult: "10",
+      finalUnit: "",
+      sourceLabels: labels,
+      suggestedQuestions: [],
+    };
+  }
+  if (mode === "CONTRADICTORY_CALCULATION") {
+    return {
+      steps: [
+        {
+          targetQuantity: "girls",
+          expression: "3 * 5",
+          result: "15",
+          unit: "",
+          sourceLabels: labels,
+        },
+        {
+          targetQuantity: "girls",
+          expression: "2 * 5",
+          result: "10",
+          unit: "",
+          sourceLabels: labels,
+        },
+      ],
+      finalQuantity: "girls",
+      finalResult: "15",
+      finalUnit: "",
+      sourceLabels: labels,
+      suggestedQuestions: [],
+    };
+  }
+  if (mode === "INVENTED_CALCULATION_PATH") {
+    return {
+      steps: [
+        {
+          targetQuantity: "one part",
+          expression: "10 / 3",
+          result: "3.33",
+          unit: "",
+          sourceLabels: labels,
+        },
+      ],
+      finalQuantity: "girls",
+      finalResult: "15",
+      finalUnit: "",
+      sourceLabels: labels,
+      suggestedQuestions: [],
+    };
+  }
+
+  if (Array.isArray(contract.authorisedMethods) && contract.authorisedMethods.length > 0) {
+    const steps = contract.authorisedMethods.map(
+      (method: {
+        targetQuantity?: string;
+        expression?: string;
+        result?: string;
+        sourceLabels?: string[];
+      }) => ({
+        targetQuantity: method.targetQuantity ?? "result",
+        expression: method.expression ?? "1 + 1",
+        result: method.result ?? "2",
+        unit: "",
+        sourceLabels: method.sourceLabels ?? labels,
+      })
+    );
+    const finalStep = steps[steps.length - 1];
+    return {
+      steps,
+      finalQuantity: finalStep?.targetQuantity ?? "result",
+      finalResult: finalStep?.result ?? "2",
+      finalUnit: "",
+      sourceLabels: labels,
+      suggestedQuestions: [],
+    };
+  }
+
+  return {
+    steps: [
+      {
+        targetQuantity: "one part",
+        expression: "10 / 2",
+        result: "5",
+        unit: "",
+        sourceLabels: labels,
+      },
+      {
+        targetQuantity: "girls",
+        expression: "3 * 5",
+        result: "15",
+        unit: "",
+        sourceLabels: labels,
+      },
+    ],
+    finalQuantity: "girls",
+    finalResult: "15",
+    finalUnit: "",
+    sourceLabels: labels,
+    suggestedQuestions: [],
+  };
+}
+
+function buildStructuredFormulaValue(
+  input: StructuredGenerateInput,
+  mode: FakeStructuredChatMode
+) {
+  const contract = extractJsonBlock(input, "formula_contract");
+  const labels = contract.sourceLabels ?? ["SOURCE_1"];
+  const repaired = input.messages.some((message) =>
+    /Repair the previous JSON object/i.test(message.content)
+  );
+  if (mode === "VALID_REPAIRED" && !repaired) {
+    return {
+      expression: "Area = 1/2 * b * h",
+      variables: [
+        { symbol: "b", meaning: "base", sourceLabels: labels },
+      ],
+      conditions: [],
+      sourceLabels: labels,
+      suggestedQuestions: [],
+    };
+  }
+  if (mode === "FORMULA_OMIT_VARIABLE") {
+    return {
+      expression: "Area = 1/2 * base * height",
+      variables: [{ symbol: "base", meaning: "base", sourceLabels: labels }],
+      conditions: [{ text: "height meets the base at a right angle", sourceLabels: labels }],
+      sourceLabels: labels,
+      suggestedQuestions: [],
+    };
+  }
+  if (mode === "FORMULA_INVENTED_SYMBOL") {
+    return {
+      expression: "Area = 1/2 * b * h",
+      variables: [
+        { symbol: "b", meaning: "base", sourceLabels: labels },
+        { symbol: "h", meaning: "perpendicular height", sourceLabels: labels },
+      ],
+      conditions: [{ text: "h meets b at a right angle", sourceLabels: labels }],
+      sourceLabels: labels,
+      suggestedQuestions: [],
+    };
+  }
+  if (mode === "FORMULA_UNSUPPORTED_RELATION") {
+    return {
+      expression: "Area = 1/2 * base * height",
+      variables: [
+        { symbol: "base", meaning: "base", sourceLabels: labels },
+        { symbol: "height", meaning: "perpendicular height", sourceLabels: labels },
+      ],
+      conditions: [
+        { text: "height is drawn from the opposite vertex to the base", sourceLabels: labels },
+      ],
+      sourceLabels: labels,
+      suggestedQuestions: [],
+    };
+  }
+
+  if (Array.isArray(contract.expressions) && Array.isArray(contract.requiredVariables)) {
+    return {
+      expression: contract.expressions[0] ?? "Area = 1/2 * base * height",
+      variables: contract.requiredVariables.map(
+        (variable: {
+          symbol?: string;
+          meaning?: string;
+          sourceLabels?: string[];
+        }) => ({
+          symbol: variable.symbol ?? "base",
+          meaning: variable.meaning ?? "base",
+          sourceLabels: variable.sourceLabels ?? labels,
+        })
+      ),
+      conditions: Array.isArray(contract.requiredConditions)
+        ? contract.requiredConditions.map(
+            (condition: { text?: string; sourceLabels?: string[] }) => ({
+              text: condition.text ?? "height meets the base at a right angle",
+              sourceLabels: condition.sourceLabels ?? labels,
+            })
+          )
+        : [],
+      sourceLabels: labels,
+      suggestedQuestions: [],
+    };
+  }
+
+  return {
+    expression: "Area = 1/2 * base * height",
+    variables: [
+      { symbol: "base", meaning: "base", sourceLabels: labels },
+      { symbol: "height", meaning: "perpendicular height", sourceLabels: labels },
+    ],
+    conditions: [{ text: "height meets the base at a right angle", sourceLabels: labels }],
+    sourceLabels: labels,
+    suggestedQuestions: [],
+  };
+}
+
+function extractJsonBlock(input: StructuredGenerateInput, tagName: string) {
+  const text = input.messages.map((message) => message.content).join("\n");
+  const pattern = new RegExp(`<${tagName}>\\n([\\s\\S]*?)\\n<\\/${tagName}>`);
+  const raw = text.match(pattern)?.[1];
+  if (!raw) return { sourceLabels: ["SOURCE_1"] };
+  try {
+    return JSON.parse(raw) as FakeStructuredContract;
+  } catch {
+    return { sourceLabels: ["SOURCE_1"] };
+  }
+}
+
 function extractStructuredPromptContract(input: StructuredGenerateInput) {
   const text = input.messages.map((message) => message.content).join("\n");
   const sourceLabels = uniqueStrings(
@@ -365,7 +648,26 @@ function extractStructuredPromptContract(input: StructuredGenerateInput) {
 
   return {
     sourceLabels: sourceLabels.length > 0 ? sourceLabels : ["SOURCE_1"],
+    evidenceText:
+      [...text.matchAll(/—\s*"([^"]+)"/g)]
+        .map((match) => match[1])
+        .filter(Boolean)
+        .join(" ") || undefined,
   };
+}
+
+function buildDefaultGroundedText(evidenceText: string | undefined) {
+  if (!evidenceText) return undefined;
+  if (/blue counters/i.test(evidenceText) && /red counters/i.test(evidenceText)) {
+    return "Mathematics 2021 Question 5 asks about counters. The evidence gives 20 red counters and 25 blue counters, so the answer is 25 blue counters.";
+  }
+  if (/discount/i.test(evidenceText) && /\bsale price\b/i.test(evidenceText)) {
+    return "A 20 percent discount on 500 is 100, so the sale price is 400.";
+  }
+  if (/ohm'?s law/i.test(evidenceText)) {
+    return "Ohm's law is V = I x R. V means voltage, I means current, and R means resistance. Voltage is measured in volts, current in amperes, and resistance in ohms.";
+  }
+  return evidenceText;
 }
 
 function uniqueStrings(values: string[]) {
