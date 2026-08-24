@@ -221,6 +221,7 @@ function extractSemanticQuantityBindingsFromText(
   return uniqueQuantityBindings([
     ...extractRatioQuantityBindings(text, sourceCapabilityIds),
     ...extractDiscountQuantityBindings(text, sourceCapabilityIds),
+    ...extractCostPerQuantityBindings(text, sourceCapabilityIds),
     ...extractNamedQuantityBindings(text, sourceCapabilityIds),
   ]);
 }
@@ -314,6 +315,7 @@ function extractNamedQuantityBindings(
     const unit = match[3]?.trim();
     if (!label || !Number.isFinite(value)) continue;
     if (isRatioPartFragment(text, match.index ?? 0, fullMatch)) continue;
+    if (isArithmeticOperatorUnit(unit)) continue;
 
     bindings.push({
       quantityId: normalizeQuantityId(label),
@@ -382,8 +384,59 @@ function extractDiscountQuantityBindings(
   return bindings;
 }
 
+function extractCostPerQuantityBindings(
+  text: string,
+  sourceCapabilityIds: string[]
+): SemanticQuantityBinding[] {
+  const bindings: SemanticQuantityBinding[] = [];
+  for (const match of text.matchAll(
+    /\b([A-Za-z][A-Za-z0-9 ]{0,40}?)\s+costs?\s+([-+]?\d+(?:\.\d+)?)\s*(naira|ngn|₦|£|\$|dollars?|pounds?)\s+for\s+([-+]?\d+(?:\.\d+)?)\s*([A-Za-z][A-Za-z0-9/ ]{0,24})\b/gi
+  )) {
+    const option = cleanQuantityLabel(match[1] ?? "");
+    const price = Number(match[2]);
+    const priceUnit = match[3]?.trim();
+    const count = Number(match[4]);
+    const countUnit = cleanQuantityLabel(match[5] ?? "items");
+    if (!option || !Number.isFinite(price) || !Number.isFinite(count) || count === 0) {
+      continue;
+    }
+    const optionId = normalizeQuantityId(option);
+    bindings.push(
+      {
+        quantityId: `${optionId} total cost`,
+        label: `${option} total cost`,
+        value: price,
+        unit: priceUnit,
+        role: "priceValue",
+        sourceCapabilityIds,
+      },
+      {
+        quantityId: `${optionId} bottle count`,
+        label: `${option} bottle count`,
+        value: count,
+        unit: countUnit,
+        role: "quantityCount",
+        sourceCapabilityIds,
+      },
+      {
+        quantityId: `${optionId} unit rate`,
+        label: `${option} unit rate`,
+        value: price / count,
+        unit: `${priceUnit ?? "cost"} per ${countUnit.replace(/s$/, "")}`,
+        role: "unitRateValue",
+        sourceCapabilityIds,
+      }
+    );
+  }
+  return bindings;
+}
+
 function isConnectorWord(value: string | undefined) {
   return !value || /^(?:and|then|so|therefore|if|where)$/i.test(value);
+}
+
+function isArithmeticOperatorUnit(value: string | undefined) {
+  return /^(?:x|×|\*|\/|÷)$/i.test(value ?? "");
 }
 
 function isRatioPartFragment(text: string, index: number, fullMatch: string) {
@@ -395,6 +448,10 @@ function isRatioPartFragment(text: string, index: number, fullMatch: string) {
 function inferQuantityRole(label: string) {
   const normalized = normalizeQuantityId(label);
   if (/\bone\s+part\b/.test(normalized)) return "derivedUnitValue";
+  if (normalized === "p") return "principalValue";
+  if (normalized === "r") return "rateValue";
+  if (normalized === "t") return "timeValue";
+  if (normalized === "i") return "interestValue";
   if (/\boriginal|old|marked\b/.test(normalized)) return "originalValue";
   if (/\bnew|sale|selling|final\b/.test(normalized)) return "newValue";
   if (/\bprincipal\b/.test(normalized)) return "principalValue";
