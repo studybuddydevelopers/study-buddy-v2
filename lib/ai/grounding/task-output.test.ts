@@ -847,6 +847,7 @@ describe("Stage 4.1 structured task output", () => {
           "Worked ratio example: if boys:girls = 2:3 and boys = 10, then one part is 5, so girls = 15. Always keep the order of the compared quantities.",
         expectedMode: "STRUCTURED_CALCULATION",
         expectedText: "girls = 3 * 5 = 15",
+        expectedProviderCalls: 0,
       },
       {
         question: "Teach the triangle area formula and define the variables.",
@@ -855,6 +856,7 @@ describe("Stage 4.1 structured task output", () => {
           "The area of a triangle is one half times base times perpendicular height: Area = 1/2 x base x height. The height must meet the base at a right angle.",
         expectedMode: "STRUCTURED_FORMULA",
         expectedText: "perpendicular height",
+        expectedProviderCalls: 1,
       },
       {
         question: "For Mathematics 2021 Question 5, explain the blue counters answer.",
@@ -863,6 +865,7 @@ describe("Stage 4.1 structured task output", () => {
           "Practice paper identifier: Mathematics 2021 Question 5. A club has red and blue counters in the ratio 4:5. If there are 20 red counters, there are 25 blue counters. Answer: 25.",
         expectedMode: "GENERAL_PROSE",
         expectedText: "25 blue",
+        expectedProviderCalls: 1,
       },
       {
         question: "Teach the 20 percent discount example.",
@@ -871,6 +874,34 @@ describe("Stage 4.1 structured task output", () => {
           "A 20 percent discount on 500 is 100. Subtract the discount from 500 to get a sale price of 400.",
         expectedMode: "STRUCTURED_CALCULATION",
         expectedText: "400",
+        expectedProviderCalls: 0,
+      },
+      {
+        question: "Calculate the simple interest.",
+        topicId: "eval-topic-simple-interest",
+        content:
+          "Simple interest formula: I = P x R x T / 100. For the loan example, P is 600, R is 5 percent, and T is 2 years, so I = 600 x 5 x 2 / 100 = 60.",
+        expectedMode: "STRUCTURED_CALCULATION",
+        expectedText: "interest = 600 * 5 * 2 / 100 = 60",
+        expectedProviderCalls: 0,
+      },
+      {
+        question: "Which crate is better value per bottle?",
+        topicId: "eval-topic-unit-rate",
+        content:
+          "Cost per bottle is total cost divided by bottles. Crate A costs 720 naira for 12 bottles. Crate B costs 500 naira for 5 bottles.",
+        expectedMode: "STRUCTURED_CALCULATION",
+        expectedText: "better value = crate a",
+        expectedProviderCalls: 0,
+      },
+      {
+        question: "Calculate speed from 120 metres in 10 seconds.",
+        topicId: "eval-topic-speed",
+        content:
+          "Speed is distance divided by time. A runner covers 120 metres in 10 seconds, so speed = 120 / 10 = 12 m/s.",
+        expectedMode: "STRUCTURED_CALCULATION",
+        expectedText: "speed = 120 / 10 = 12",
+        expectedProviderCalls: 0,
       },
       {
         question: "Connect voltage, current, and resistance in one formula with units.",
@@ -880,11 +911,13 @@ describe("Stage 4.1 structured task output", () => {
           "Ohm's law is V = I x R, where V is voltage, I is current, and R is resistance. Voltage is measured in volts, current in amperes, and resistance in ohms.",
         expectedMode: "STRUCTURED_FORMULA",
         expectedText: "voltage",
+        expectedProviderCalls: 1,
       },
     ] as const;
 
     for (const item of cases) {
       const caseSubjectId = "subjectId" in item ? item.subjectId : undefined;
+      const provider = new FakeChatModelProvider();
       const pipeline = new CapabilityGroundingPipeline({
         searchRepository: new StaticSearchRepository([
           retrievedChunk("chunk-1", item.content, {
@@ -895,7 +928,7 @@ describe("Stage 4.1 structured task output", () => {
         embeddingProvider: noEmbeddingProvider,
       });
       const result = await pipeline.generate({
-        provider: new FakeChatModelProvider(),
+        provider,
         context: {
           chatId: "chat-1",
           userMessageId: "user-message-1",
@@ -915,6 +948,7 @@ describe("Stage 4.1 structured task output", () => {
       if (result.kind !== "COMPLETED") continue;
       expect(result.diagnostics.taskOutputMode).toBe(item.expectedMode);
       expect(result.content.toLowerCase()).toContain(item.expectedText.toLowerCase());
+      expect(provider.invocationCount).toBe(item.expectedProviderCalls);
     }
   });
 
