@@ -10,6 +10,8 @@ export const STAGE41_CAPABILITY_BEHAVIOR_FILE_PATHS = [
   "lib/ai/embeddings/types.ts",
   "lib/ai/grounding/answerability/answerability-decider.ts",
   "lib/ai/grounding/answerability/types.ts",
+  "lib/ai/grounding/calculation/deterministic-calculation-executor.ts",
+  "lib/ai/grounding/calculation/types.ts",
   "lib/ai/grounding/capabilities/evidence-capability-extractor.ts",
   "lib/ai/grounding/capabilities/types.ts",
   "lib/ai/grounding/config.ts",
