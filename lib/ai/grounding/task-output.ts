@@ -348,7 +348,50 @@ export type CalculationContract = {
       candidateOutputKeys: string[];
     };
   };
+  presentationRequirements: CalculationPresentationRequirements;
   sourceLabels: string[];
+};
+
+export type CalculationPresentationRequirements = {
+  showFormula: boolean;
+  formula?: {
+    expression: string;
+    sourceLabels: string[];
+  };
+  requestedSymbols: Array<{
+    symbol: string;
+    quantityKey: string;
+    meaning: string;
+    sourceLabels: string[];
+  }>;
+  requestedUnits: string[];
+};
+
+export type CalculationAnswerViewModel = {
+  formula?: {
+    expression: string;
+    sourceLabels: string[];
+  };
+  symbolDefinitions: Array<{
+    symbol: string;
+    quantityKey: string;
+    meaning: string;
+    sourceLabels: string[];
+  }>;
+  givenValues: Array<{
+    symbol: string;
+    quantityKey: string;
+    value: string;
+    unit?: string;
+    sourceLabels: string[];
+  }>;
+  steps: StructuredCalculationOutput["steps"];
+  finalResult: {
+    quantity: string;
+    result: string;
+    unit: string;
+    sourceLabels: string[];
+  };
 };
 
 export type FormulaContract = {
@@ -463,6 +506,12 @@ export function buildCalculationContract(
           normalizeCalculationKey(finalTarget)
       )?.outputQuantityKey
     : undefined;
+  const presentationRequirements = deriveCalculationPresentationRequirements({
+    requestRequirements: options.requestRequirements,
+    answerabilityDecision: options.answerabilityDecision,
+    evidenceCapabilities: options.evidenceCapabilities ?? [],
+    authorisedMethods: dedupedMethods,
+  });
   return {
     quantities,
     authorisedMethods: dedupedMethods,
@@ -492,6 +541,7 @@ export function buildCalculationContract(
       finalTargetKey,
       comparison,
     },
+    presentationRequirements,
     sourceLabels,
   };
 }
@@ -920,19 +970,206 @@ export function renderStructuredCalculationAnswer(
 ): {
   content: string;
   answerSegments: GroundedTeachAnswerSegment[];
+  validation: StructuredTaskValidationResult<CalculationAnswerViewModel>;
 } {
-  const quantitySummary = renderQuantitySummary(contract);
-  const stepLines = output.steps.map(
-    (step) =>
-      `${step.targetQuantity} = ${step.expression} = ${step.result}${formatUnit(step.unit)}`
-  );
-  const finalLine = `Therefore, ${output.finalQuantity} = ${output.finalResult}${formatUnit(output.finalUnit)}.`;
-  const text = [quantitySummary, ...stepLines, finalLine].filter(Boolean).join("\n");
+  const viewModel = buildCalculationAnswerViewModel(output, contract);
+  const text = renderCalculationAnswerViewModel(viewModel);
+  const validation = validateCalculationAnswerViewModel(viewModel, contract, text);
   const sourceLabels = uniqueStrings(output.sourceLabels);
   return {
     content: renderSegment({ text, sourceLabels }),
     answerSegments: [{ text, sourceLabels }],
+    validation,
   };
+}
+
+export function buildCalculationAnswerViewModel(
+  output: StructuredCalculationOutput,
+  contract: CalculationContract
+): CalculationAnswerViewModel {
+  const presentation = contract.presentationRequirements;
+  const formula = presentation.showFormula && presentation.formula
+    ? presentation.formula
+    : undefined;
+  const givenByKey = new Map(
+    contract.quantities
+      .filter((quantity) => quantity.origin === "GIVEN_INPUT")
+      .map((quantity) => [normalizeCalculationKey(quantity.calculationKey), quantity])
+  );
+  const symbolByQuantityKey = new Map(
+    presentation.requestedSymbols.map((symbol) => [
+      normalizeCalculationKey(symbol.quantityKey),
+      symbol.symbol,
+    ])
+  );
+  const givenValues = presentation.requestedSymbols
+    .flatMap((symbol) => {
+      const quantity = givenByKey.get(normalizeCalculationKey(symbol.quantityKey));
+      if (!quantity) return [];
+      return [
+        {
+          symbol: symbol.symbol,
+          quantityKey: symbol.quantityKey,
+          value: quantity.value,
+          unit: quantity.unit,
+          sourceLabels: quantity.sourceLabels,
+        },
+      ];
+    });
+  const steps = output.steps.map((step) => ({
+    ...step,
+    targetQuantity:
+      symbolByQuantityKey.get(normalizeCalculationKey(step.targetQuantity)) ??
+      step.targetQuantity,
+    expression: renderDisplayExpression(step.expression),
+  }));
+
+  return {
+    formula: formula
+      ? {
+          ...formula,
+          expression: renderDisplayExpression(formula.expression),
+        }
+      : undefined,
+    symbolDefinitions: presentation.requestedSymbols,
+    givenValues,
+    steps,
+    finalResult: {
+      quantity: output.finalQuantity,
+      result: output.finalResult,
+      unit: output.finalUnit,
+      sourceLabels: output.sourceLabels,
+    },
+  };
+}
+
+export function validateCalculationAnswerViewModel(
+  viewModel: CalculationAnswerViewModel,
+  contract: CalculationContract,
+  renderedText = renderCalculationAnswerViewModel(viewModel)
+): StructuredTaskValidationResult<CalculationAnswerViewModel> {
+  const errors: StructuredTaskValidationError[] = [];
+  const presentation = contract.presentationRequirements;
+  const normalizedRendered = normalizeText(renderedText);
+
+  if (presentation.showFormula && !viewModel.formula?.expression) {
+    errors.push({
+      code: "MISSING_REQUIRED_STEP",
+      message: "Requested calculation formula was omitted.",
+      path: "formula",
+    });
+  }
+
+  for (const requested of presentation.requestedSymbols) {
+    const actual = viewModel.symbolDefinitions.find(
+      (symbol) => normalizeQuantity(symbol.symbol) === normalizeQuantity(requested.symbol)
+    );
+    if (!actual) {
+      errors.push({
+        code: "MISSING_REQUIRED_VARIABLE",
+        message: `Missing requested calculation variable: ${requested.symbol}.`,
+        path: "symbolDefinitions",
+      });
+      continue;
+    }
+    if (
+      normalizeQuantity(actual.quantityKey) !== normalizeQuantity(requested.quantityKey) ||
+      !meaningMatches(actual.meaning, requested.meaning)
+    ) {
+      errors.push({
+        code: "INCORRECT_VARIABLE_MEANING",
+        message: `Incorrect meaning for requested calculation variable: ${requested.symbol}.`,
+        path: "symbolDefinitions",
+      });
+    }
+    if (
+      !renderedTextHasToken(renderedText, requested.symbol) ||
+      !normalizedRendered.includes(normalizeText(requested.meaning))
+    ) {
+      errors.push({
+        code: "MISSING_REQUIRED_VARIABLE",
+        message: `Rendered answer omitted the requested calculation variable meaning: ${requested.symbol}.`,
+        path: "content",
+      });
+    }
+  }
+
+  for (const requestedUnit of presentation.requestedUnits) {
+    const renderedUnits = [
+      ...viewModel.givenValues.map((value) => value.unit ?? ""),
+      ...viewModel.steps.map((step) => step.unit),
+      viewModel.finalResult.unit,
+    ];
+    if (!renderedUnits.some((unit) => normalizeUnit(unit) === normalizeUnit(requestedUnit))) {
+      errors.push({
+        code: "MISSING_REQUIRED_UNIT",
+        message: `Requested calculation unit was omitted: ${requestedUnit}.`,
+        path: "units",
+      });
+    }
+  }
+
+  if (viewModel.steps.length === 0) {
+    errors.push({
+      code: "MISSING_REQUIRED_STEP",
+      message: "Calculation trace was omitted.",
+      path: "steps",
+    });
+  }
+
+  if (!viewModel.finalResult.result) {
+    errors.push({
+      code: "MISSING_REQUIRED_STEP",
+      message: "Final calculation result was omitted.",
+      path: "finalResult",
+    });
+  }
+
+  return errors.length > 0
+    ? { supported: false, errors }
+    : { supported: true, output: viewModel, errors: [] };
+}
+
+function renderCalculationAnswerViewModel(viewModel: CalculationAnswerViewModel) {
+  const symbolLine = renderSymbolDefinitionLine(viewModel.symbolDefinitions);
+  const formulaLine = viewModel.formula
+    ? `The formula is ${viewModel.formula.expression}.`
+    : null;
+  const givenLines =
+    viewModel.givenValues.length > 0
+      ? [
+          "Here:",
+          ...viewModel.givenValues.map(
+            (value) => `${value.symbol} = ${value.value}${formatUnit(value.unit ?? "")}`
+          ),
+        ].join("\n")
+      : null;
+  const stepLines = viewModel.steps.map(
+    (step) =>
+      `${step.targetQuantity} = ${step.expression} = ${step.result}${formatUnit(step.unit)}`
+  );
+  const finalLine = `Therefore, ${viewModel.finalResult.quantity} = ${viewModel.finalResult.result}${formatUnit(viewModel.finalResult.unit)}.`;
+  return [symbolLine, formulaLine, givenLines, ...stepLines, finalLine]
+    .filter(Boolean)
+    .join("\n");
+}
+
+function renderSymbolDefinitionLine(
+  symbols: CalculationAnswerViewModel["symbolDefinitions"]
+) {
+  if (symbols.length === 0) return null;
+  const parts = symbols.map((symbol) => `${symbol.symbol} means ${symbol.meaning}`);
+  if (parts.length === 1) return `${parts[0]}.`;
+  if (parts.length === 2) return `${parts[0]}, and ${parts[1]}.`;
+  return `${parts.slice(0, -1).join(", ")}, and ${parts.at(-1)}.`;
+}
+
+function renderDisplayExpression(expression: string) {
+  return expression
+    .replace(/\s+x\s+/gi, " × ")
+    .replace(/\*/g, "×")
+    .replace(/\s+/g, " ")
+    .trim();
 }
 
 export function structuredCalculationOutputFromTrace(
@@ -1009,6 +1246,257 @@ export function structuredRepairInstruction(input: {
     "Fix missing variable definitions, incorrect meanings, unsupported symbols, missing required units, incorrect units, missing required conditions, or unsupported relations/entities.",
     "Do not invent conventional symbols or relations that are not in the formula contract.",
   ].join(" ");
+}
+
+function deriveCalculationPresentationRequirements(input: {
+  requestRequirements?: RequestRequirements;
+  answerabilityDecision?: AnswerabilityDecision;
+  evidenceCapabilities: EvidenceCapability[];
+  authorisedMethods: CalculationContract["authorisedMethods"];
+}): CalculationPresentationRequirements {
+  const requestAsksForVariables = calculationRequestAsksForVariableDefinitions(
+    input.requestRequirements
+  );
+  const selectedFormula = selectedCalculationFormula(input);
+  const requestedSymbols =
+    requestAsksForVariables && selectedFormula
+      ? requestedCalculationSymbols({
+          formula: selectedFormula.formula,
+          path: selectedFormula.path,
+          evidenceCapabilities: input.evidenceCapabilities,
+          authorisedMethods: input.authorisedMethods,
+        })
+      : [];
+
+  return {
+    showFormula:
+      Boolean(selectedFormula) &&
+      (calculationRequestAsksForFormula(input.requestRequirements) ||
+        requestedSymbols.length > 0),
+    formula: selectedFormula
+      ? {
+          expression: selectedFormula.formula.expression,
+          sourceLabels: [selectedFormula.formula.sourceLabel],
+        }
+      : undefined,
+    requestedSymbols,
+    requestedUnits: calculationRequestAsksForUnits(input.requestRequirements)
+      ? requestedCalculationUnits(input.answerabilityDecision)
+      : [],
+  };
+}
+
+function calculationRequestAsksForFormula(requestRequirements?: RequestRequirements) {
+  if (!requestRequirements) return false;
+  const requirements = flattenRequirements(requestRequirements.requirements);
+  return (
+    /\b(?:formula|equation|law)\b/i.test(requestRequirements.normalizedQuestion) ||
+    requirements.some((requirement) =>
+      ["FORMULA", "FORMULA_WITH_SYMBOLS"].includes(requirement.kind)
+    )
+  );
+}
+
+function calculationRequestAsksForVariableDefinitions(
+  requestRequirements?: RequestRequirements
+) {
+  if (!requestRequirements) return false;
+  const requirements = flattenRequirements(requestRequirements.requirements);
+  return (
+    /\b(?:define|explain|name|identify|state|list)\b.{0,100}\b(?:variables?|symbols?)\b/i.test(
+      requestRequirements.normalizedQuestion
+    ) ||
+    /\bwhat\s+(?:does|do)\b.{0,80}\b(?:mean|represent|stand\s+for)\b/i.test(
+      requestRequirements.normalizedQuestion
+    ) ||
+    requirements.some(
+      (requirement) =>
+        requirement.kind === "FORMULA_WITH_SYMBOLS" ||
+        requirement.kind === "SYMBOL_DEFINITION" ||
+        requirement.requestedAction === "DEFINE_VARIABLES" ||
+        /\b(?:variables?|symbols?)\b/i.test(requirement.requestedFact ?? "") ||
+        (requirement.requiredSymbols ?? []).length > 0
+    )
+  );
+}
+
+function calculationRequestAsksForUnits(requestRequirements?: RequestRequirements) {
+  if (!requestRequirements) return false;
+  const requirements = flattenRequirements(requestRequirements.requirements);
+  return (
+    /\b(?:units?|measured\s+in)\b/i.test(requestRequirements.normalizedQuestion) ||
+    requirements.some(
+      (requirement) =>
+        requirement.requestedFacet === "UNIT" ||
+        requirement.requestedAction === "STATE_UNIT"
+    )
+  );
+}
+
+function selectedCalculationFormula(input: {
+  answerabilityDecision?: AnswerabilityDecision;
+  evidenceCapabilities: EvidenceCapability[];
+}) {
+  const formulas = formulaCapabilitiesById(input.evidenceCapabilities);
+  const completePath = (input.answerabilityDecision?.calculationPaths ?? []).find(
+    (path) => path.complete
+  );
+  const formula = completePath
+    ? formulas.get(completePath.formulaCapabilityId)
+    : input.evidenceCapabilities.flatMap((capability) => capability.formulas)[0];
+  return formula ? { formula, path: completePath } : undefined;
+}
+
+function requestedCalculationSymbols(input: {
+  formula: EvidenceCapability["formulas"][number];
+  path?: NonNullable<AnswerabilityDecision["calculationPaths"]>[number];
+  evidenceCapabilities: EvidenceCapability[];
+  authorisedMethods: CalculationContract["authorisedMethods"];
+}): CalculationPresentationRequirements["requestedSymbols"] {
+  const outputQuantity = input.path
+    ? calculationOutputQuantityForPath(input.path.outputConcept, input.formula.expression)
+    : calculationConceptDisplay(input.formula.outputQuantity ?? "");
+  const inputByFormulaSymbol = new Map(
+    (input.path?.availableInputs ?? [])
+      .map((available) => {
+        const symbol = leadingFormulaSymbol(available.text ?? "");
+        const quantityKey = available.concept?.baseConcept;
+        if (!symbol || !quantityKey || quantityKey.startsWith("concept:")) return undefined;
+        return [
+          normalizeQuantity(symbol),
+          {
+            quantityKey,
+            meaning: calculationConceptDisplay(quantityKey),
+            sourceLabels: uniqueStrings([
+              available.sourceLabel,
+              ...sourceLabelsForCapability(
+                input.evidenceCapabilities,
+                available.sourceCapabilityId
+              ),
+            ].filter((label): label is string => Boolean(label))),
+          },
+        ] as const;
+      })
+      .filter((item): item is NonNullable<typeof item> => Boolean(item))
+  );
+  const directDefinitions = new Map(
+    [
+      ...input.formula.symbolDefinitions,
+      ...input.evidenceCapabilities.flatMap((capability) => capability.symbolDefinitions),
+    ]
+      .filter(
+        (definition) =>
+          definition.meaning &&
+          !looksLikeAssignedValue(definition.meaning) &&
+          definition.polarity === "POSITIVE"
+      )
+      .map((definition) => [
+        definition.symbol.normalized,
+        {
+          quantityKey:
+            definition.canonicalConcept?.id && !definition.canonicalConcept.id.startsWith("concept:")
+              ? definition.canonicalConcept.id
+              : normalizeQuantity(definition.meaning ?? definition.symbol.display),
+          meaning: definition.meaning!,
+          sourceLabels: [definition.sourceLabel],
+        },
+      ] as const)
+  );
+  const outputSymbol = normalizeQuantity(input.formula.outputQuantity ?? "");
+  const symbols = input.formula.symbols.length > 0
+    ? input.formula.symbols
+    : extractFormulaTerms(input.formula.expression).map((term) => ({
+        display: term,
+        normalized: normalizeQuantity(term),
+      }));
+
+  const requestedSymbols = uniqueBy(
+    symbols.flatMap((symbol) => {
+      const normalized = normalizeQuantity(symbol.normalized || symbol.display);
+      const inputBinding = inputByFormulaSymbol.get(normalized);
+      const direct = directDefinitions.get(normalized);
+      const outputBinding =
+        outputSymbol &&
+        normalized === outputSymbol &&
+        outputQuantity &&
+        !normalizeQuantity(outputQuantity).startsWith("concept")
+          ? {
+              quantityKey: outputQuantity,
+              meaning: calculationConceptDisplay(outputQuantity),
+              sourceLabels: [input.formula.sourceLabel],
+            }
+          : undefined;
+      const resolved = inputBinding ?? outputBinding ?? direct;
+      if (!resolved) return [];
+      if (!symbol.display || normalizeQuantity(resolved.meaning) === normalized) {
+        return [];
+      }
+      return [
+        {
+          symbol: symbol.display,
+          quantityKey: resolved.quantityKey,
+          meaning: resolved.meaning,
+          sourceLabels: uniqueStrings([input.formula.sourceLabel, ...resolved.sourceLabels]),
+        },
+      ];
+    }),
+    (symbol) => normalizeQuantity(symbol.symbol)
+  );
+  const normalizedOutputQuantity = normalizeCalculationKey(outputQuantity);
+  return requestedSymbols.sort((left, right) => {
+    const leftIsOutput =
+      normalizeCalculationKey(left.quantityKey) === normalizedOutputQuantity;
+    const rightIsOutput =
+      normalizeCalculationKey(right.quantityKey) === normalizedOutputQuantity;
+    if (leftIsOutput === rightIsOutput) return 0;
+    return leftIsOutput ? 1 : -1;
+  });
+}
+
+function requestedCalculationUnits(
+  answerabilityDecision?: AnswerabilityDecision
+): string[] {
+  return uniqueStrings(
+    (answerabilityDecision?.calculationPaths ?? [])
+      .flatMap((path) => path.availableInputs)
+      .map((input) => input.unit)
+      .filter((unit): unit is string => Boolean(unit))
+  );
+}
+
+function leadingFormulaSymbol(value: string) {
+  return value.match(/^\s*(?:and\s+)?([A-Za-z])\s+(?:is|=)\b/i)?.[1];
+}
+
+function sourceLabelsForCapability(
+  evidenceCapabilities: EvidenceCapability[],
+  capabilityId?: string
+) {
+  if (!capabilityId) return [];
+  return evidenceCapabilities.flatMap((capability) =>
+    [
+      ...capability.conceptDefinitions,
+      ...capability.formulas,
+      ...capability.symbolDefinitions,
+      ...capability.numericValues,
+      ...capability.explicitFacts,
+      ...capability.methods,
+      ...capability.eventFacts,
+      ...capability.relations,
+      ...capability.comparisonSides,
+      ...capability.processFacts,
+      ...capability.consequences,
+      ...capability.passageInterpretations,
+    ]
+      .filter((item) => item.id === capabilityId)
+      .map((item) => item.sourceLabel)
+  );
+}
+
+function looksLikeAssignedValue(value: string) {
+  return /^\s*\d+(?:\.\d+)?(?:\s*(?:%|percent|years?|seconds?|met(?:er|re)s?|naira))?\s*$/i.test(
+    value
+  );
 }
 
 function deriveCalculationMethods(
@@ -2623,16 +3111,13 @@ function calculationKeyForBinding(binding: SemanticQuantityBinding) {
   }
 }
 
-function renderQuantitySummary(contract: CalculationContract) {
-  const ratioParts = contract.quantities.filter((quantity) => quantity.role === "ratioPartValue");
-  if (ratioParts.length >= 2) {
-    return `${ratioParts.map((quantity) => `${quantity.quantity} ratio part = ${quantity.value}`).join("; ")}.`;
-  }
-  return "";
-}
-
 function renderSegment(input: GroundedTeachAnswerSegment) {
   return `${input.text} ${uniqueStrings(input.sourceLabels).map((label) => `[${label}]`).join(" ")}`.trim();
+}
+
+function renderedTextHasToken(text: string, token: string) {
+  const escaped = escapeRegExp(token);
+  return new RegExp(`(^|[^A-Za-z0-9])${escaped}([^A-Za-z0-9]|$)`, "i").test(text);
 }
 
 function formatUnit(unit: string) {
