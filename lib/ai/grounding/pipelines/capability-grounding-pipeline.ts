@@ -27,19 +27,18 @@ import { buildStandaloneRetrievalQuery } from "../query-builder";
 import {
   buildCalculationContract,
   buildFormulaContract,
-  buildStructuredCalculationPrompt,
   buildStructuredFormulaPrompt,
   renderStructuredCalculationAnswer,
   renderStructuredFormulaAnswer,
   selectTaskOutputMode,
-  structuredCalculationOutputSchema,
+  structuredCalculationOutputFromTrace,
   structuredFormulaOutputSchema,
   structuredRepairInstruction,
-  validateStructuredCalculationOutput,
   validateStructuredFormulaOutput,
   type StructuredTaskValidationError,
   type TaskOutputMode,
 } from "../task-output";
+import { executeCalculationPlan } from "../calculation/deterministic-calculation-executor";
 import type {
   CapabilityGroundingCitation,
   CapabilityGroundingOutcome,
@@ -148,6 +147,14 @@ export class CapabilityGroundingPipeline implements GroundingPipeline {
       };
     }
 
+    if (taskOutputMode === "STRUCTURED_CALCULATION") {
+      return this.generateStructuredCalculation({
+        context: input.context,
+        diagnosticsBase,
+        validatedEvidenceUnits: answerabilityDecision.validatedEvidenceUnits,
+      });
+    }
+
     if (!supportsStructuredGeneration(input.provider)) {
       return {
         kind: "FAILED",
@@ -157,15 +164,6 @@ export class CapabilityGroundingPipeline implements GroundingPipeline {
           providerCalled: false,
         },
       };
-    }
-
-    if (taskOutputMode === "STRUCTURED_CALCULATION") {
-      return this.generateStructuredCalculation({
-        context: input.context,
-        provider: input.provider,
-        diagnosticsBase,
-        validatedEvidenceUnits: answerabilityDecision.validatedEvidenceUnits,
-      });
     }
 
     if (taskOutputMode === "STRUCTURED_FORMULA") {
@@ -299,108 +297,67 @@ export class CapabilityGroundingPipeline implements GroundingPipeline {
 
   private async generateStructuredCalculation(input: {
     context: GroundingPipelineContext;
-    provider: StructuredChatModelProvider;
     diagnosticsBase: CapabilityPipelineDiagnostics;
     validatedEvidenceUnits: CapabilityPipelineDiagnostics["validatedEvidenceUnits"];
   }): Promise<CapabilityGroundingOutcome> {
     const contract = buildCalculationContract(input.validatedEvidenceUnits, {
       requestRequirements: input.diagnosticsBase.requestRequirements,
+      answerabilityDecision: input.diagnosticsBase.answerabilityDecision,
+      evidenceCapabilities: input.diagnosticsBase.evidenceCapabilities,
     });
-    const prompt = buildStructuredCalculationPrompt({
-      question: input.context.userMessage,
-      subjectName: input.context.subjectName,
-      topicTitle: input.context.topicTitle,
-      contract,
-    });
-
-    try {
-      const result = await input.provider.generateStructured({
-        messages: prompt.messages,
-        temperature: 0.2,
-        maxOutputTokens: CAPABILITY_MAX_OUTPUT_TOKENS,
-        outputSchema: structuredCalculationOutputSchema,
-      });
-      const validation = validateStructuredCalculationOutput({
-        value: result.value,
-        contract,
-        validatedEvidenceUnits: input.validatedEvidenceUnits,
-      });
-      let finalResult = result;
-      let finalValidation = validation;
-      let repairResult = { attempted: false, successful: false };
-
-      if (!validation.supported) {
-        const repaired = await input.provider.generateStructured({
-          messages: [
-            ...prompt.messages,
-            {
-              role: "user" as const,
-              content: structuredRepairInstruction({
-                mode: "STRUCTURED_CALCULATION",
-                errors: validation.errors,
-              }),
-            },
-          ],
-          temperature: 0.2,
-          maxOutputTokens: CAPABILITY_MAX_OUTPUT_TOKENS,
-          outputSchema: structuredCalculationOutputSchema,
-        });
-        finalResult = repaired;
-        finalValidation = validateStructuredCalculationOutput({
-          value: repaired.value,
-          contract,
-          validatedEvidenceUnits: input.validatedEvidenceUnits,
-        });
-        repairResult = {
-          attempted: true,
-          successful: finalValidation.supported,
-        };
-      }
-
+    const execution = executeCalculationPlan(contract);
+    if (!execution.ok) {
       const diagnostics = structuredDiagnostics({
         diagnosticsBase: input.diagnosticsBase,
         mode: "STRUCTURED_CALCULATION",
-        generationOutput: repairResult.attempted
-          ? { initial: result.value, repaired: finalResult.value }
-          : result.value,
-        structuredOutput: finalResult.value,
-        validation: finalValidation,
-        repairResult,
+        providerCalled: false,
+        generationOutput: undefined,
+        structuredOutput: { contract },
+        validation: {
+          supported: false,
+          errors: execution.failure.reasons.map((reason) => ({
+            code: reason,
+            message: "The server could not construct a complete executable calculation plan.",
+          })),
+        },
+        repairResult: { attempted: false, successful: false },
       });
-
-      if (!finalValidation.supported) {
-        return {
-          kind: "FAILED",
-          failureCode: AiGenerationFailureCode.INVALID_PROVIDER_RESPONSE,
-          diagnostics,
-        };
-      }
-
-      const rendered = renderStructuredCalculationAnswer(finalValidation.output, contract);
-      return {
-        kind: "COMPLETED",
-        content: rendered.content,
-        provider: finalResult.provider,
-        model: finalResult.model,
-        usage: finalResult.usage,
-        insufficientContext: false,
-        answerSegments: rendered.answerSegments,
-        diagnostics,
-        citations: buildStructuredCitations({
-          sourceLabels: finalValidation.output.sourceLabels,
-          diagnostics,
-        }),
-      };
-    } catch (error) {
       return {
         kind: "FAILED",
-        failureCode: getSafeProviderFailureCode(error),
-        diagnostics: {
-          ...input.diagnosticsBase,
-          providerCalled: true,
-        },
+        failureCode: AiGenerationFailureCode.INVALID_PROVIDER_RESPONSE,
+        diagnostics,
       };
     }
+
+    const output = structuredCalculationOutputFromTrace(execution.trace);
+    const diagnostics = structuredDiagnostics({
+      diagnosticsBase: input.diagnosticsBase,
+      mode: "STRUCTURED_CALCULATION",
+      providerCalled: false,
+      generationOutput: undefined,
+      structuredOutput: output,
+      validation: {
+        supported: true,
+        output,
+        errors: [],
+      },
+      repairResult: { attempted: false, successful: false },
+    });
+    const rendered = renderStructuredCalculationAnswer(output, contract);
+    return {
+      kind: "COMPLETED",
+      content: rendered.content,
+      provider: "deterministic",
+      model: "stage4.1-calculation-executor",
+      usage: undefined,
+      insufficientContext: false,
+      answerSegments: rendered.answerSegments,
+      diagnostics,
+      citations: buildStructuredCitations({
+        sourceLabels: output.sourceLabels,
+        diagnostics,
+      }),
+    };
   }
 
   private async generateStructuredFormula(input: {
@@ -787,6 +744,7 @@ function buildCitations(
 function structuredDiagnostics<T>(input: {
   diagnosticsBase: CapabilityPipelineDiagnostics;
   mode: TaskOutputMode;
+  providerCalled?: boolean;
   generationOutput: unknown;
   structuredOutput: unknown;
   validation:
@@ -797,7 +755,7 @@ function structuredDiagnostics<T>(input: {
   return {
     ...input.diagnosticsBase,
     taskOutputMode: input.mode,
-    providerCalled: true,
+    providerCalled: input.providerCalled ?? true,
     generationOutput: input.generationOutput,
     structuredOutput: input.structuredOutput,
     structuredValidationResult: {
