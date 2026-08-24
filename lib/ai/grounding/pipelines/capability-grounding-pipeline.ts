@@ -330,20 +330,23 @@ export class CapabilityGroundingPipeline implements GroundingPipeline {
     }
 
     const output = structuredCalculationOutputFromTrace(execution.trace);
+    const rendered = renderStructuredCalculationAnswer(output, contract);
     const diagnostics = structuredDiagnostics({
       diagnosticsBase: input.diagnosticsBase,
       mode: "STRUCTURED_CALCULATION",
       providerCalled: false,
       generationOutput: undefined,
       structuredOutput: output,
-      validation: {
-        supported: true,
-        output,
-        errors: [],
-      },
+      validation: rendered.validation,
       repairResult: { attempted: false, successful: false },
     });
-    const rendered = renderStructuredCalculationAnswer(output, contract);
+    if (!rendered.validation.supported) {
+      return {
+        kind: "FAILED",
+        failureCode: AiGenerationFailureCode.INVALID_PROVIDER_RESPONSE,
+        diagnostics,
+      };
+    }
     return {
       kind: "COMPLETED",
       content: rendered.content,
