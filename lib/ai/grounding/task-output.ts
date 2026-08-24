@@ -5,8 +5,18 @@ import type {
   SemanticQuantityBinding,
   ValidatedEvidenceUnit,
 } from "./evidence-units/validated-evidence-unit";
+import type { EvidenceCapability } from "./capabilities/types";
 import type { RequestRequirement, RequestRequirements } from "./requirements/types";
 import type { GroundedTeachAnswerSegment } from "./structured-output";
+import type {
+  CalculationExpression,
+  ValidatedCalculationTrace,
+} from "./calculation/types";
+import {
+  binaryExpression,
+  constantExpression,
+  valueExpression,
+} from "./calculation/deterministic-calculation-executor";
 
 export type TaskOutputMode =
   | "GENERAL_PROSE"
@@ -34,7 +44,17 @@ export type StructuredTaskValidationErrorCode =
   | "INCORRECT_UNIT"
   | "MISSING_REQUIRED_CONDITION"
   | "UNSUPPORTED_RELATION"
-  | "UNSUPPORTED_EXPRESSION";
+  | "UNSUPPORTED_EXPRESSION"
+  | "INCOMPLETE_CALCULATION_PLAN"
+  | "MISSING_INPUT_BINDING"
+  | "MISSING_AUTHORISED_METHOD"
+  | "UNREACHABLE_FINAL_TARGET"
+  | "AMBIGUOUS_QUANTITY_BINDING"
+  | "INVALID_CALCULATION_GRAPH"
+  | "REFERENCE_RESULT_MISMATCH"
+  | "DIVISION_BY_ZERO"
+  | "NON_FINITE_RESULT"
+  | "INCOMPATIBLE_UNITS";
 
 export type StructuredTaskValidationError = {
   code: StructuredTaskValidationErrorCode;
@@ -280,6 +300,7 @@ export type CalculationContract = {
     value: string;
     role: string;
     origin: CalculationValueOrigin;
+    unit?: string;
     sourceLabels: string[];
   }>;
   authorisedMethods: Array<{
@@ -289,8 +310,14 @@ export type CalculationContract = {
     inputQuantities: string[];
     inputQuantityKeys: string[];
     operation: string;
+    expressionAst: CalculationExpression;
     expression: string;
     result: string;
+    resultUnit?: string;
+    referenceResult?: {
+      value: number;
+      unit?: string;
+    };
     sourceLabels: string[];
   }>;
   calculationPlan: {
@@ -300,6 +327,7 @@ export type CalculationContract = {
       value: string;
       role: string;
       origin: CalculationValueOrigin;
+      unit?: string;
     }>;
     steps: Array<{
       outputQuantity: string;
@@ -307,10 +335,18 @@ export type CalculationContract = {
       inputQuantities: string[];
       inputQuantityKeys: string[];
       operation: string;
+      expressionAst: CalculationExpression;
       expression: string;
       result: string;
+      resultUnit?: string;
     }>;
     finalTarget?: string;
+    finalTargetKey?: string;
+    comparison?: {
+      kind: "LOWER_IS_BETTER" | "HIGHER_IS_BETTER";
+      label: string;
+      candidateOutputKeys: string[];
+    };
   };
   sourceLabels: string[];
 };
@@ -364,6 +400,8 @@ export function buildCalculationContract(
   units: ValidatedEvidenceUnit[],
   options: {
     requestRequirements?: RequestRequirements;
+    answerabilityDecision?: AnswerabilityDecision;
+    evidenceCapabilities?: EvidenceCapability[];
     requestedFinalQuantity?: string;
   } = {}
 ): CalculationContract {
@@ -380,7 +418,10 @@ export function buildCalculationContract(
     options.requestedFinalQuantity ??
     inferRequestedFinalQuantity(options.requestRequirements);
   const origins = inferCalculationValueOrigins(bindings, requestedFinalQuantity);
-  const quantities = bindings
+  const quantities = uniqueBy([
+    ...pathInputQuantities(options.answerabilityDecision, options.evidenceCapabilities),
+    ...unitRateInputQuantitiesFromEvidenceCapabilities(options.evidenceCapabilities ?? []),
+    ...bindings
     .filter((binding) => binding.value !== undefined)
     .map((binding) => ({
       quantity: binding.label || binding.quantityId,
@@ -388,35 +429,68 @@ export function buildCalculationContract(
       value: numberToText(binding.value!),
       role: binding.role ?? "quantityValue",
       origin: originForBinding(binding, origins),
+      unit: binding.unit,
       sourceLabels: binding.sourceLabels,
-    }));
-  const authorisedMethods = deriveCalculationMethods(bindings, units, {
+    })),
+  ], (quantity) => normalizeCalculationKey(quantity.calculationKey));
+  const authorisedMethods = [
+    ...deriveCalculationMethodsFromAnswerabilityPaths({
+      answerabilityDecision: options.answerabilityDecision,
+      evidenceCapabilities: options.evidenceCapabilities,
+      units,
+    }),
+    ...deriveUnitRateCalculationMethodsFromEvidenceCapabilities(
+      options.evidenceCapabilities ?? []
+    ),
+    ...deriveCalculationMethods(bindings, units, {
     origins,
     requestedFinalQuantity,
-  });
+    }),
+  ];
+  const dedupedMethods = uniqueBy(authorisedMethods, (method) =>
+    `${normalizeCalculationKey(method.outputQuantityKey)}:${renderExpressionSignature(method.expressionAst)}:${method.result}`
+  );
+  const comparison = inferCalculationComparisonPlan(dedupedMethods, options.requestRequirements);
+  const finalTarget = inferFinalTargetFromMethods(
+    dedupedMethods,
+    requestedFinalQuantity,
+    comparison
+  );
+  const finalTargetKey = finalTarget
+    ? dedupedMethods.find(
+        (method) =>
+          normalizeCalculationKey(method.outputQuantity) ===
+          normalizeCalculationKey(finalTarget)
+      )?.outputQuantityKey
+    : undefined;
   return {
     quantities,
-    authorisedMethods,
+    authorisedMethods: dedupedMethods,
     calculationPlan: {
-      nodes: quantities.map(({ quantity, calculationKey, value, role, origin }) => ({
+      nodes: quantities.map(({ quantity, calculationKey, value, role, origin, unit }) => ({
         quantity,
         calculationKey,
         value,
         role,
         origin,
+        unit,
       })),
-      steps: authorisedMethods.map(
-        ({ outputQuantity, outputQuantityKey, inputQuantities, inputQuantityKeys, operation, expression, result }) => ({
+      steps: dedupedMethods.map(
+        ({ outputQuantity, outputQuantityKey, inputQuantities, inputQuantityKeys, operation, expressionAst, expression, result, resultUnit }) => ({
           outputQuantity,
           outputQuantityKey,
           inputQuantities,
           inputQuantityKeys,
           operation,
+          expressionAst,
           expression,
           result,
+          resultUnit,
         })
       ),
-      finalTarget: inferFinalTargetFromMethods(authorisedMethods, requestedFinalQuantity),
+      finalTarget,
+      finalTargetKey,
+      comparison,
     },
     sourceLabels,
   };
@@ -861,6 +935,30 @@ export function renderStructuredCalculationAnswer(
   };
 }
 
+export function structuredCalculationOutputFromTrace(
+  trace: ValidatedCalculationTrace
+): StructuredCalculationOutput {
+  const steps = trace.steps.map((step) => ({
+    targetQuantity: step.outputQuantity,
+    expression: step.renderedExpression,
+    result: numberToText(step.result),
+    unit: step.unit ?? "",
+    sourceLabels: step.sourceLabels,
+  }));
+  const finalSourceLabels =
+    trace.comparisonResult?.sourceLabels ??
+    trace.steps.at(-1)?.sourceLabels ??
+    trace.sourceLabels;
+  return {
+    steps,
+    finalQuantity: trace.comparisonResult?.label ?? trace.finalTarget,
+    finalResult: trace.comparisonResult?.result ?? numberToText(trace.finalResult),
+    finalUnit: trace.comparisonResult ? "" : trace.finalUnit ?? "",
+    sourceLabels: uniqueStrings(finalSourceLabels),
+    suggestedQuestions: [],
+  };
+}
+
 export function renderStructuredFormulaAnswer(output: StructuredFormulaOutput): {
   content: string;
   answerSegments: GroundedTeachAnswerSegment[];
@@ -1000,6 +1098,15 @@ function deriveCalculationMethods(
         calculationKeyForBinding(original),
       ],
       operation: "*",
+      expressionAst: binaryExpression(
+        "MULTIPLY",
+        binaryExpression(
+          "DIVIDE",
+          valueExpression(calculationKeyForBinding(rate)),
+          constantExpression(100)
+        ),
+        valueExpression(calculationKeyForBinding(original))
+      ),
       expression: `${numberToText(rate.value)} / 100 * ${numberToText(original.value)}`,
       result: numberToText(discount.value),
       sourceLabels: uniqueStrings([
@@ -1044,21 +1151,169 @@ function createCalculationMethod(input: {
   inputQuantities: string[];
   inputQuantityKeys?: string[];
   operation: string;
+  expressionAst?: CalculationExpression;
   expression: string;
   result: string;
+  resultUnit?: string;
+  referenceResult?: {
+    value: number;
+    unit?: string;
+  };
   sourceLabels: string[];
 }): CalculationContract["authorisedMethods"][number] {
+  const inputQuantityKeys = input.inputQuantityKeys ?? input.inputQuantities;
   return {
     targetQuantity: input.targetQuantity,
     outputQuantity: input.targetQuantity,
     outputQuantityKey: input.outputQuantityKey ?? input.targetQuantity,
     inputQuantities: input.inputQuantities,
-    inputQuantityKeys: input.inputQuantityKeys ?? input.inputQuantities,
+    inputQuantityKeys,
     operation: input.operation,
+    expressionAst:
+      input.expressionAst ??
+      buildOperationExpression(input.operation, inputQuantityKeys),
     expression: input.expression,
     result: input.result,
+    resultUnit: input.resultUnit,
+    referenceResult: input.referenceResult,
     sourceLabels: input.sourceLabels,
   };
+}
+
+function buildOperationExpression(
+  operation: string,
+  inputQuantityKeys: string[]
+): CalculationExpression {
+  const [left, right] = inputQuantityKeys;
+  if (!left || !right) {
+    return valueExpression(left ?? "missing-input");
+  }
+  const leftExpression = valueExpression(left);
+  const rightExpression = valueExpression(right);
+  switch (operation) {
+    case "+":
+      return binaryExpression("ADD", leftExpression, rightExpression);
+    case "-":
+      return binaryExpression("SUBTRACT", leftExpression, rightExpression);
+    case "*":
+      return binaryExpression("MULTIPLY", leftExpression, rightExpression);
+    case "/":
+      return binaryExpression("DIVIDE", leftExpression, rightExpression);
+    default:
+      return valueExpression(left);
+  }
+}
+
+function pathInputQuantities(
+  answerabilityDecision: AnswerabilityDecision | undefined,
+  evidenceCapabilities: EvidenceCapability[] | undefined
+): CalculationContract["quantities"] {
+  const sourceLabelsByCapabilityId = sourceLabelsByCapability(evidenceCapabilities ?? []);
+  return uniqueBy(
+    (answerabilityDecision?.calculationPaths ?? [])
+      .filter((path) => path.complete)
+      .flatMap((path) =>
+        path.availableInputs.map((input) => {
+          const conceptKey = input.concept?.baseConcept ?? normalizeQuantity(input.text ?? "");
+          return {
+            quantity: calculationConceptDisplay(conceptKey),
+            calculationKey: conceptKey,
+            value: numberToText(input.value ?? NaN),
+            role: `${conceptKey}Value`,
+            origin: "GIVEN_INPUT" as const,
+            unit: input.unit,
+            sourceLabels: uniqueStrings([
+              input.sourceLabel,
+              ...(input.sourceCapabilityId
+                ? sourceLabelsByCapabilityId.get(input.sourceCapabilityId) ?? []
+                : []),
+            ].filter((label): label is string => Boolean(label))),
+          };
+        })
+      )
+      .filter((quantity) => Number.isFinite(Number(quantity.value))),
+    (quantity) => quantity.calculationKey
+  );
+}
+
+function deriveCalculationMethodsFromAnswerabilityPaths(input: {
+  answerabilityDecision?: AnswerabilityDecision;
+  evidenceCapabilities?: EvidenceCapability[];
+  units: ValidatedEvidenceUnit[];
+}): CalculationContract["authorisedMethods"] {
+  const completePaths = (input.answerabilityDecision?.calculationPaths ?? []).filter(
+    (path) => path.complete
+  );
+  if (completePaths.length === 0) return [];
+  const formulas = formulaCapabilitiesById(input.evidenceCapabilities ?? []);
+  const sourceTexts = (input.evidenceCapabilities ?? [])
+    .map((capability) => capability.sourceContent ?? "")
+    .filter(Boolean);
+
+  return completePaths.flatMap((path) => {
+    const formula = formulas.get(path.formulaCapabilityId);
+    const formulaText =
+      formula?.expression ??
+      input.units
+        .flatMap((unit) => unit.semanticComponents ?? [])
+        .find(
+          (component) =>
+            component.kind === "FORMULA" &&
+            component.sourceCapabilityId === path.formulaCapabilityId
+        )?.text;
+    if (!formulaText) return [];
+
+    const outputQuantity = calculationOutputQuantityForPath(path.outputConcept, formulaText);
+    const outputKey = normalizeQuantity(outputQuantity);
+    const values = new Map<string, number>();
+    const sourceLabels = uniqueStrings([
+      formula?.sourceLabel,
+      ...path.availableInputs.map((input) => input.sourceLabel),
+    ].filter((label): label is string => Boolean(label)));
+    for (const available of path.availableInputs) {
+      const conceptKey = available.concept?.baseConcept ?? normalizeQuantity(available.text ?? "");
+      if (available.value !== undefined) {
+        values.set(conceptKey, available.value);
+      }
+    }
+
+    const expressionAst = parseFormulaExpressionForPath({
+      formulaText,
+      outputConcept: path.outputConcept,
+      availableInputKeys: [...values.keys()],
+    });
+    if (!expressionAst) return [];
+    const result = evaluateExpressionForContract(expressionAst, values);
+    if (result === undefined) return [];
+    const referenceResult = findReferenceResult({
+      outputQuantity,
+      formulaText,
+      sourceTexts,
+    });
+
+    return [
+      createCalculationMethod({
+        targetQuantity: outputQuantity,
+        outputQuantityKey: outputKey,
+        inputQuantities: path.availableInputs.map((input) =>
+          calculationConceptDisplay(input.concept?.baseConcept ?? input.text ?? "")
+        ),
+        inputQuantityKeys: path.availableInputs.map((input) =>
+          input.concept?.baseConcept ?? normalizeQuantity(input.text ?? "")
+        ),
+        operation: operationForExpression(expressionAst),
+        expressionAst,
+        expression: renderFormulaExpressionTemplate(expressionAst, values),
+        result: numberToText(result),
+        resultUnit: inferResultUnit({
+          outputQuantity,
+          inputUnits: path.availableInputs.map((input) => input.unit),
+        }),
+        referenceResult,
+        sourceLabels,
+      }),
+    ];
+  });
 }
 
 function deriveSimpleInterestCalculationMethods(
@@ -1092,6 +1347,19 @@ function deriveSimpleInterestCalculationMethods(
         calculationKeyForBinding(time),
       ],
       operation: "*",
+      expressionAst: binaryExpression(
+        "DIVIDE",
+        binaryExpression(
+          "MULTIPLY",
+          binaryExpression(
+            "MULTIPLY",
+            valueExpression(calculationKeyForBinding(principal)),
+            valueExpression(calculationKeyForBinding(rate))
+          ),
+          valueExpression(calculationKeyForBinding(time))
+        ),
+        constantExpression(100)
+      ),
       expression: `${numberToText(principal.value)} * ${numberToText(rate.value)} * ${numberToText(time.value)} / 100`,
       result: numberToText(interest.value),
       sourceLabels: uniqueStrings([
@@ -1127,31 +1395,142 @@ function deriveSimpleInterestCalculationMethods(
 function deriveUnitRateCalculationMethods(
   bindings: Array<SemanticQuantityBinding & { sourceLabels: string[] }>
 ): CalculationContract["authorisedMethods"] {
-  const price = findBindingByRole(bindings, "priceValue");
-  const quantity = findBindingByRole(bindings, "quantityCount");
-  const rate = findBindingByRole(bindings, "unitRateValue");
-  if (price?.value === undefined || quantity?.value === undefined || rate?.value === undefined) {
-    return [];
+  const groups = groupUnitRateBindings(bindings);
+  const methods: CalculationContract["authorisedMethods"] = [];
+  for (const group of groups) {
+    const price = group.price;
+    const quantity = group.quantity;
+    const rate = group.rate;
+    if (price?.value === undefined || quantity?.value === undefined || quantity.value === 0) {
+      continue;
+    }
+    const result = rate?.value ?? price.value / quantity.value;
+    const rateLabel = rate?.label ?? `${group.optionLabel ? `${group.optionLabel} ` : ""}unit rate`;
+    const rateKey = rate ? calculationKeyForBinding(rate) : normalizeCalculationKey(rateLabel);
+    methods.push(
+      createCalculationMethod({
+        targetQuantity: rateLabel,
+        outputQuantityKey: rateKey,
+        inputQuantities: [price.label, quantity.label],
+        inputQuantityKeys: [
+          calculationKeyForBinding(price),
+          calculationKeyForBinding(quantity),
+        ],
+        operation: "/",
+        expression: `${numberToText(price.value)} / ${numberToText(quantity.value)}`,
+        result: numberToText(result),
+        resultUnit: unitRateUnit(price.unit, quantity.unit),
+        sourceLabels: uniqueStrings([
+          ...price.sourceLabels,
+          ...quantity.sourceLabels,
+          ...(rate?.sourceLabels ?? []),
+        ]),
+      })
+    );
   }
-  return [
-    createCalculationMethod({
-      targetQuantity: rate.label,
-      outputQuantityKey: calculationKeyForBinding(rate),
-      inputQuantities: [price.label, quantity.label],
-      inputQuantityKeys: [
-        calculationKeyForBinding(price),
-        calculationKeyForBinding(quantity),
-      ],
-      operation: "/",
-      expression: `${numberToText(price.value)} / ${numberToText(quantity.value)}`,
-      result: numberToText(rate.value),
-      sourceLabels: uniqueStrings([
-        ...price.sourceLabels,
-        ...quantity.sourceLabels,
-        ...rate.sourceLabels,
-      ]),
-    }),
-  ];
+  return methods;
+}
+
+function deriveUnitRateCalculationMethodsFromEvidenceCapabilities(
+  evidenceCapabilities: EvidenceCapability[]
+): CalculationContract["authorisedMethods"] {
+  const bindings: Array<SemanticQuantityBinding & { sourceLabels: string[] }> =
+    [];
+  for (const capability of evidenceCapabilities) {
+    for (const numeric of capability.numericValues) {
+      const option = normalizeCalculationKey(numeric.qualifier ?? "");
+      if (!option) continue;
+      if (numeric.role === "PRICE") {
+        bindings.push({
+          quantityId: `${option} total cost`,
+          label: `${numeric.qualifier} total cost`,
+          value: numeric.value,
+          unit: numeric.unit,
+          role: "priceValue",
+          sourceLabels: [numeric.sourceLabel],
+          sourceCapabilityIds: [numeric.id],
+        });
+      }
+      if (numeric.role === "QUANTITY") {
+        bindings.push({
+          quantityId: `${option} bottle count`,
+          label: `${numeric.qualifier} bottle count`,
+          value: numeric.value,
+          unit: numeric.unit,
+          role: "quantityCount",
+          sourceLabels: [numeric.sourceLabel],
+          sourceCapabilityIds: [numeric.id],
+        });
+      }
+    }
+  }
+  return deriveUnitRateCalculationMethods(bindings);
+}
+
+function unitRateInputQuantitiesFromEvidenceCapabilities(
+  evidenceCapabilities: EvidenceCapability[]
+): CalculationContract["quantities"] {
+  return evidenceCapabilities.flatMap((capability) =>
+    capability.numericValues.flatMap((numeric) => {
+      const option = normalizeCalculationKey(numeric.qualifier ?? "");
+      if (!option || !["PRICE", "QUANTITY"].includes(numeric.role ?? "")) return [];
+      const optionLabel = numeric.qualifier ?? option;
+      const isPrice = numeric.role === "PRICE";
+      return [
+        {
+          quantity: isPrice
+            ? `${optionLabel} total cost`
+            : `${optionLabel} bottle count`,
+          calculationKey: isPrice
+            ? `${option} total cost`
+            : `${option} bottle count`,
+          value: numberToText(numeric.value),
+          role: isPrice ? "priceValue" : "quantityCount",
+          origin: "GIVEN_INPUT" as const,
+          unit: numeric.unit,
+          sourceLabels: [numeric.sourceLabel],
+        },
+      ];
+    })
+  );
+}
+
+function groupUnitRateBindings(
+  bindings: Array<SemanticQuantityBinding & { sourceLabels: string[] }>
+) {
+  const groups = new Map<
+    string,
+    {
+      optionLabel: string;
+      price?: SemanticQuantityBinding & { sourceLabels: string[] };
+      quantity?: SemanticQuantityBinding & { sourceLabels: string[] };
+      rate?: SemanticQuantityBinding & { sourceLabels: string[] };
+    }
+  >();
+  for (const binding of bindings) {
+    if (!["priceValue", "quantityCount", "unitRateValue"].includes(binding.role ?? "")) {
+      continue;
+    }
+    const option = unitRateOptionKey(binding);
+    const group = groups.get(option.key) ?? { optionLabel: option.label };
+    if (binding.role === "priceValue") group.price = binding;
+    if (binding.role === "quantityCount") group.quantity = binding;
+    if (binding.role === "unitRateValue") group.rate = binding;
+    groups.set(option.key, group);
+  }
+  return [...groups.values()].sort((left, right) =>
+    left.optionLabel.localeCompare(right.optionLabel)
+  );
+}
+
+function unitRateOptionKey(binding: SemanticQuantityBinding) {
+  const label = `${binding.label} ${binding.quantityId}`;
+  const match = label.match(/\b((?:crate|option|pack|plan|shop|bundle|ticket)\s+[A-Za-z0-9]+)\b/i);
+  const optionLabel = match?.[1] ?? "default";
+  return {
+    key: normalizeCalculationKey(optionLabel),
+    label: optionLabel === "default" ? "" : optionLabel,
+  };
 }
 
 function deriveSpeedCalculationMethods(
@@ -1355,8 +1734,10 @@ function inferRequestedFinalQuantity(requestRequirements?: RequestRequirements) 
 
 function inferFinalTargetFromMethods(
   methods: CalculationContract["authorisedMethods"],
-  requestedFinalQuantity?: string
+  requestedFinalQuantity?: string,
+  comparison?: CalculationContract["calculationPlan"]["comparison"]
 ) {
+  void comparison;
   const requested = normalizeQuantity(requestedFinalQuantity ?? "");
   if (requested) {
     const match = methods.find(
@@ -1365,6 +1746,309 @@ function inferFinalTargetFromMethods(
     if (match) return match.outputQuantity;
   }
   return methods.at(-1)?.outputQuantity;
+}
+
+function inferCalculationComparisonPlan(
+  methods: CalculationContract["authorisedMethods"],
+  requestRequirements?: RequestRequirements
+): CalculationContract["calculationPlan"]["comparison"] | undefined {
+  const requirements = requestRequirements
+    ? flattenRequirements(requestRequirements.requirements)
+    : [];
+  if (!requirements.some((requirement) => requirement.kind === "MULTI_OPTION_COMPARISON")) {
+    return undefined;
+  }
+  const unitRateMethods = methods.filter((method) =>
+    /\bunit\s+rate|cost\s+per\s+(?:bottle|item|unit)|per\s+(?:bottle|item|unit)\b/i.test(
+      `${method.outputQuantity} ${method.resultUnit ?? ""}`
+    )
+  );
+  if (unitRateMethods.length < 2) return undefined;
+  return {
+    kind: "LOWER_IS_BETTER",
+    label: "better value",
+    candidateOutputKeys: unitRateMethods.map((method) => method.outputQuantityKey),
+  };
+}
+
+function formulaCapabilitiesById(evidenceCapabilities: EvidenceCapability[]) {
+  return new Map(
+    evidenceCapabilities
+      .flatMap((capability) => capability.formulas)
+      .map((formula) => [formula.id, formula] as const)
+  );
+}
+
+function sourceLabelsByCapability(evidenceCapabilities: EvidenceCapability[]) {
+  return new Map(
+    evidenceCapabilities
+      .flatMap((capability) => [
+        ...capability.conceptDefinitions,
+        ...capability.formulas,
+        ...capability.symbolDefinitions,
+        ...capability.numericValues,
+        ...capability.explicitFacts,
+        ...capability.methods,
+        ...capability.eventFacts,
+        ...capability.relations,
+        ...capability.comparisonSides,
+        ...capability.processFacts,
+        ...capability.consequences,
+        ...capability.passageInterpretations,
+      ])
+      .map((capability) => [capability.id, [capability.sourceLabel]] as const)
+  );
+}
+
+function calculationOutputQuantityForPath(outputConcept: string, formulaText: string) {
+  const normalizedOutput = normalizeQuantity(outputConcept);
+  if (normalizedOutput === "simple interest") return "interest";
+  const left = formulaText.split("=")[0]?.trim();
+  if (left) {
+    const mapped = formulaTermToQuantityKey(left, normalizedOutput, []);
+    if (mapped && !mapped.startsWith("concept ")) return calculationConceptDisplay(mapped);
+  }
+  return calculationConceptDisplay(normalizedOutput);
+}
+
+function parseFormulaExpressionForPath(input: {
+  formulaText: string;
+  outputConcept: string;
+  availableInputKeys: string[];
+}): CalculationExpression | undefined {
+  const [, ...rightParts] = input.formulaText.split("=");
+  const right = rightParts.join("=");
+  if (!right.trim()) return undefined;
+  const tokens = tokenizeFormulaRightSide(right);
+  if (tokens.length === 0) return undefined;
+  let index = 0;
+
+  const parseFactor = (): CalculationExpression | undefined => {
+    const token = tokens[index++];
+    if (!token) return undefined;
+    if (token === "(") {
+      const nested = parseExpression();
+      if (tokens[index++] !== ")") return undefined;
+      return nested;
+    }
+    if (/^-?\d+(?:\.\d+)?$/.test(token)) {
+      return constantExpression(Number(token));
+    }
+    const mapped = formulaTermToQuantityKey(
+      token,
+      input.outputConcept,
+      input.availableInputKeys
+    );
+    return mapped ? valueExpression(mapped) : undefined;
+  };
+
+  const parseTerm = (): CalculationExpression | undefined => {
+    let expression = parseFactor();
+    while (expression && (tokens[index] === "*" || tokens[index] === "/")) {
+      const operator = tokens[index++];
+      const rightExpression = parseFactor();
+      if (!rightExpression) return undefined;
+      expression = binaryExpression(
+        operator === "*" ? "MULTIPLY" : "DIVIDE",
+        expression,
+        rightExpression
+      );
+    }
+    return expression;
+  };
+
+  const parseExpression = (): CalculationExpression | undefined => {
+    let expression = parseTerm();
+    while (expression && (tokens[index] === "+" || tokens[index] === "-")) {
+      const operator = tokens[index++];
+      const rightExpression = parseTerm();
+      if (!rightExpression) return undefined;
+      expression = binaryExpression(
+        operator === "+" ? "ADD" : "SUBTRACT",
+        expression,
+        rightExpression
+      );
+    }
+    return expression;
+  };
+
+  const expression = parseExpression();
+  return expression && index === tokens.length ? expression : undefined;
+}
+
+function tokenizeFormulaRightSide(value: string) {
+  return value
+    .replace(/×/g, "*")
+    .replace(/÷/g, "/")
+    .replace(/\btimes\b/gi, "*")
+    .replace(/\bmultiplied\s+by\b/gi, "*")
+    .replace(/\bdivided\s+by\b/gi, "/")
+    .replace(/\bover\b/gi, "/")
+    .replace(/\bplus\b/gi, "+")
+    .replace(/\bminus\b/gi, "-")
+    .replace(/\s+x\s+/gi, " * ")
+    .match(/-?\d+(?:\.\d+)?|[A-Za-z][A-Za-z-]*|[()+*/-]/g) ?? [];
+}
+
+function formulaTermToQuantityKey(
+  term: string,
+  outputConcept: string,
+  availableInputKeys: string[]
+) {
+  const normalized = normalizeQuantity(term);
+  const output = normalizeQuantity(outputConcept);
+  const symbolMap: Record<string, string> = {
+    p: "principal",
+    r: "rate",
+    t: "time",
+    i: output === "simple interest" ? "interest" : "current",
+    d: "distance",
+    s: "speed",
+  };
+  const mapped = symbolMap[normalized] ?? normalized;
+  if (availableInputKeys.map(normalizeQuantity).includes(mapped)) return mapped;
+  if (["principal", "rate", "time", "distance", "speed"].includes(mapped)) {
+    return mapped;
+  }
+  return mapped;
+}
+
+function evaluateExpressionForContract(
+  expression: CalculationExpression,
+  values: Map<string, number>
+): number | undefined {
+  switch (expression.kind) {
+    case "VALUE":
+      return values.get(normalizeQuantity(expression.quantityKey));
+    case "CONSTANT":
+      return Number.isFinite(expression.value) ? expression.value : undefined;
+    case "ADD":
+    case "SUBTRACT":
+    case "MULTIPLY":
+    case "DIVIDE": {
+      const left = evaluateExpressionForContract(expression.left, values);
+      const right = evaluateExpressionForContract(expression.right, values);
+      if (left === undefined || right === undefined) return undefined;
+      if (expression.kind === "DIVIDE" && numbersClose(right, 0)) return undefined;
+      const result =
+        expression.kind === "ADD"
+          ? left + right
+          : expression.kind === "SUBTRACT"
+            ? left - right
+            : expression.kind === "MULTIPLY"
+              ? left * right
+              : left / right;
+      return Number.isFinite(result) ? result : undefined;
+    }
+  }
+}
+
+function renderFormulaExpressionTemplate(
+  expression: CalculationExpression,
+  values: Map<string, number>
+): string {
+  switch (expression.kind) {
+    case "VALUE":
+      return numberToText(values.get(normalizeQuantity(expression.quantityKey)) ?? NaN);
+    case "CONSTANT":
+      return numberToText(expression.value);
+    case "ADD":
+      return `${renderFormulaExpressionTemplate(expression.left, values)} + ${renderFormulaExpressionTemplate(expression.right, values)}`;
+    case "SUBTRACT":
+      return `${renderFormulaExpressionTemplate(expression.left, values)} - ${renderFormulaExpressionTemplate(expression.right, values)}`;
+    case "MULTIPLY":
+      return `${renderFormulaExpressionTemplate(expression.left, values)} * ${renderFormulaExpressionTemplate(expression.right, values)}`;
+    case "DIVIDE":
+      return `${renderFormulaExpressionTemplate(expression.left, values)} / ${renderFormulaExpressionTemplate(expression.right, values)}`;
+  }
+}
+
+function operationForExpression(expression: CalculationExpression): string {
+  switch (expression.kind) {
+    case "ADD":
+      return "+";
+    case "SUBTRACT":
+      return "-";
+    case "MULTIPLY":
+      return "*";
+    case "DIVIDE":
+      return "/";
+    default:
+      return "value";
+  }
+}
+
+function renderExpressionSignature(expression: CalculationExpression): string {
+  switch (expression.kind) {
+    case "VALUE":
+      return `value:${normalizeCalculationKey(expression.quantityKey)}`;
+    case "CONSTANT":
+      return `constant:${numberToText(expression.value)}`;
+    case "ADD":
+    case "SUBTRACT":
+    case "MULTIPLY":
+    case "DIVIDE":
+      return `${expression.kind}(${renderExpressionSignature(expression.left)},${renderExpressionSignature(expression.right)})`;
+  }
+}
+
+function inferResultUnit(input: {
+  outputQuantity: string;
+  inputUnits: Array<string | undefined>;
+}) {
+  const output = normalizeQuantity(input.outputQuantity);
+  if (output === "speed") {
+    const [distanceUnit, timeUnit] = input.inputUnits;
+    if (distanceUnit && timeUnit) return `${distanceUnit}/${timeUnit}`;
+  }
+  return undefined;
+}
+
+function unitRateUnit(priceUnit: string | undefined, quantityUnit: string | undefined) {
+  if (priceUnit && quantityUnit) return `${priceUnit} per ${quantityUnit.replace(/s$/, "")}`;
+  if (priceUnit) return `${priceUnit} per unit`;
+  return undefined;
+}
+
+function findReferenceResult(input: {
+  outputQuantity: string;
+  formulaText: string;
+  sourceTexts: string[];
+}) {
+  const outputTokens = uniqueStrings([
+    input.outputQuantity,
+    input.formulaText.split("=")[0]?.trim() ?? "",
+  ]).map(escapeRegExp);
+  for (const sourceText of input.sourceTexts) {
+    for (const outputToken of outputTokens) {
+      const pattern = new RegExp(
+        `\\b${outputToken}\\b\\s*=\\s*[^.;]*=\\s*([-+]?\\d+(?:\\.\\d+)?)(?:\\s*([A-Za-z/%²³]+))?`,
+        "i"
+      );
+      const match = sourceText.match(pattern);
+      const value = Number(match?.[1]);
+      if (Number.isFinite(value)) {
+        return {
+          value,
+          unit: match?.[2],
+        };
+      }
+    }
+  }
+  return undefined;
+}
+
+function calculationConceptDisplay(value: string) {
+  const normalized = normalizeQuantity(value);
+  const labels: Record<string, string> = {
+    "simple interest": "interest",
+    "original value": "original value",
+  };
+  return labels[normalized] ?? normalized.replace(/\b\w/g, (char) => char.toLowerCase());
+}
+
+function escapeRegExp(value: string) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
 function deriveRequiredFormulaVariables(
@@ -1975,6 +2659,16 @@ function normalizeQuantity(value: string) {
     .replace(/[’']/g, "")
     .replace(/[^a-z0-9.%/]+/g, " ")
     .replace(/\b(?:the|a|an|value|number|amount|of|for|as|is|are|equals?|parts?)\b/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function normalizeCalculationKey(value: string) {
+  return value
+    .toLowerCase()
+    .replace(/[’']/g, "")
+    .replace(/[^a-z0-9.%/]+/g, " ")
+    .replace(/\b(?:the|value|number|amount|of|for|as|is|are|equals?|parts?)\b/g, " ")
     .replace(/\s+/g, " ")
     .trim();
 }
