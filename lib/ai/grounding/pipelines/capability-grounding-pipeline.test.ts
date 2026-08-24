@@ -810,7 +810,7 @@ describe("Stage 4.1 capability grounding pipeline", () => {
       attempted: false,
       successful: false,
     });
-    expect(outcome.kind === "COMPLETED" ? outcome.content : "").toContain("girls = 3 * 5 = 15");
+    expect(outcome.kind === "COMPLETED" ? outcome.content : "").toContain("girls = 3 × 5 = 15");
   });
 
   it("bypasses provider output that uses the final result to derive an earlier intermediate", async () => {
@@ -912,7 +912,7 @@ describe("Stage 4.1 capability grounding pipeline", () => {
       attempted: false,
       successful: false,
     });
-    expect(outcome.kind === "COMPLETED" ? outcome.content : "").toContain("girls = 3 * 5 = 15");
+    expect(outcome.kind === "COMPLETED" ? outcome.content : "").toContain("girls = 3 × 5 = 15");
   });
 
   it("bypasses fake-provider output with contradictory semantic quantity assignments", async () => {
@@ -946,7 +946,7 @@ describe("Stage 4.1 capability grounding pipeline", () => {
 
     expect(outcome.kind).toBe("COMPLETED");
     expect(provider.structuredInputs).toHaveLength(0);
-    expect(outcome.kind === "COMPLETED" ? outcome.content : "").toContain("girls = 3 * 5 = 15");
+    expect(outcome.kind === "COMPLETED" ? outcome.content : "").toContain("girls = 3 × 5 = 15");
     expect(outcome.diagnostics?.repairResult).toEqual({
       attempted: false,
       successful: false,
