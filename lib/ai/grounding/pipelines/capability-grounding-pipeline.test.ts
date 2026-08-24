@@ -352,11 +352,13 @@ describe("Stage 4.1 capability grounding pipeline", () => {
       label: "supported definition",
       message: "What is osmosis?",
       chunks: [retrievedChunk("Osmosis is movement of water across a membrane.")],
+      expectedProviderCalls: 1,
     },
     {
       label: "formula-only",
       message: "What is the formula for density?",
       chunks: [retrievedChunk("density = mass / volume.")],
+      expectedProviderCalls: 1,
     },
     {
       label: "complete calculation",
@@ -364,6 +366,7 @@ describe("Stage 4.1 capability grounding pipeline", () => {
       chunks: [
         retrievedChunk("speed = distance / time. The distance is 120 m. The time is 10 s."),
       ],
+      expectedProviderCalls: 0,
     },
     {
       label: "comparison both sides",
@@ -371,11 +374,13 @@ describe("Stage 4.1 capability grounding pipeline", () => {
       chunks: [
         retrievedChunk("Evaporation occurs at the surface. Boiling occurs throughout the liquid."),
       ],
+      expectedProviderCalls: 1,
     },
     {
       label: "multi-part complete",
       message: "State the conditions for rusting and one prevention method.",
       chunks: [retrievedChunk("Water causes rusting. Painting reduces rusting.")],
+      expectedProviderCalls: 1,
     },
     {
       label: "multi-resource composition",
@@ -390,13 +395,14 @@ describe("Stage 4.1 capability grounding pipeline", () => {
           resourceId: "resource-base",
         }),
       ],
+      expectedProviderCalls: 1,
     },
-  ])("calls provider exactly once for $label", async ({ message, chunks }) => {
+  ])("uses the expected provider boundary for $label", async ({ message, chunks, expectedProviderCalls }) => {
     const { outcome, provider } = await runPipeline({ message, chunks });
 
     expect(outcome.kind).toBe("COMPLETED");
-    expect(provider.structuredInputs).toHaveLength(1);
-    expect(provider.generateInputs).toHaveLength(1);
+    expect(provider.structuredInputs).toHaveLength(expectedProviderCalls);
+    expect(provider.generateInputs).toHaveLength(expectedProviderCalls);
   });
 
   it.each([
@@ -724,7 +730,7 @@ describe("Stage 4.1 capability grounding pipeline", () => {
     expect(outcome.kind).toBe("COMPLETED");
   });
 
-  it("accepts algebraic equation steps but rejects wrong numeric arithmetic", async () => {
+  it("accepts algebraic equation steps and ignores provider arithmetic for deterministic calculations", async () => {
     const algebra = await runPipeline({
       message: "Explain how to find x in x + 5 = 12.",
       chunks: [
@@ -763,15 +769,17 @@ describe("Stage 4.1 capability grounding pipeline", () => {
         finalResult: "13",
       })),
     });
-    expect(wrongArithmetic.outcome.kind).toBe("FAILED");
-    expect(
-      wrongArithmetic.outcome.diagnostics?.structuredValidationResult?.errors.map(
-        (error) => error.code
-      )
-    ).toContain("INCORRECT_RESULT");
+    expect(wrongArithmetic.outcome.kind).toBe("COMPLETED");
+    expect(wrongArithmetic.provider.structuredInputs).toHaveLength(0);
+    expect(wrongArithmetic.outcome.kind === "COMPLETED" ? wrongArithmetic.outcome.content : "").toContain(
+      "speed = 120 / 10 = 12"
+    );
+    expect(wrongArithmetic.outcome.kind === "COMPLETED" ? wrongArithmetic.outcome.content : "").not.toContain(
+      "13"
+    );
   });
 
-  it("repairs a ratio answer that invents an unsupported alternate calculation path", async () => {
+  it("bypasses provider output that would invent an unsupported alternate ratio path", async () => {
     const provider = new RecordingStructuredProvider("unused", [
       ratioStructuredValue({
         steps: [
@@ -797,14 +805,15 @@ describe("Stage 4.1 capability grounding pipeline", () => {
     });
 
     expect(outcome.kind).toBe("COMPLETED");
-    expect(provider.structuredInputs).toHaveLength(2);
+    expect(provider.structuredInputs).toHaveLength(0);
     expect(outcome.diagnostics?.repairResult).toEqual({
-      attempted: true,
-      successful: true,
+      attempted: false,
+      successful: false,
     });
+    expect(outcome.kind === "COMPLETED" ? outcome.content : "").toContain("girls = 3 * 5 = 15");
   });
 
-  it("repairs a ratio answer that uses the final result to derive an earlier intermediate", async () => {
+  it("bypasses provider output that uses the final result to derive an earlier intermediate", async () => {
     const provider = new RecordingStructuredProvider("unused", [
       ratioStructuredValue({
         steps: [
@@ -844,17 +853,17 @@ describe("Stage 4.1 capability grounding pipeline", () => {
     });
 
     expect(outcome.kind).toBe("COMPLETED");
-    expect(provider.structuredInputs).toHaveLength(2);
+    expect(provider.structuredInputs).toHaveLength(0);
     expect(outcome.diagnostics?.repairResult).toEqual({
-      attempted: true,
-      successful: true,
+      attempted: false,
+      successful: false,
     });
     expect(outcome.kind === "COMPLETED" ? outcome.content : "").not.toContain(
       "15 / 3"
     );
   });
 
-  it("passes a ratio answer that follows the supported one-part method", async () => {
+  it("executes a ratio answer that follows the supported one-part method without provider generation", async () => {
     const provider = new RecordingStructuredProvider("unused", ratioStructuredValue());
     const { outcome } = await runPipeline({
       message: "Work through the boys to girls ratio example.",
@@ -867,10 +876,11 @@ describe("Stage 4.1 capability grounding pipeline", () => {
     });
 
     expect(outcome.kind).toBe("COMPLETED");
-    expect(provider.structuredInputs).toHaveLength(1);
+    expect(provider.structuredInputs).toHaveLength(0);
+    expect(provider.generateInputs).toHaveLength(0);
   });
 
-  it("repairs fake-provider output that uses a correct number in the wrong semantic ratio role", async () => {
+  it("bypasses fake-provider output that uses a correct number in the wrong semantic ratio role", async () => {
     const provider = new RecordingStructuredProvider("unused", [
       ratioStructuredValue({
         steps: [
@@ -897,14 +907,15 @@ describe("Stage 4.1 capability grounding pipeline", () => {
     });
 
     expect(outcome.kind).toBe("COMPLETED");
-    expect(provider.structuredInputs).toHaveLength(2);
+    expect(provider.structuredInputs).toHaveLength(0);
     expect(outcome.diagnostics?.repairResult).toEqual({
-      attempted: true,
-      successful: true,
+      attempted: false,
+      successful: false,
     });
+    expect(outcome.kind === "COMPLETED" ? outcome.content : "").toContain("girls = 3 * 5 = 15");
   });
 
-  it("fails fake-provider output with contradictory semantic quantity assignments", async () => {
+  it("bypasses fake-provider output with contradictory semantic quantity assignments", async () => {
     const provider = new RecordingStructuredProvider("unused", ratioStructuredValue({
       steps: [
         {
@@ -933,17 +944,16 @@ describe("Stage 4.1 capability grounding pipeline", () => {
       provider,
     });
 
-    expect(outcome.kind).toBe("FAILED");
-    expect(outcome.diagnostics?.structuredValidationResult?.errors.map((error) => error.code)).toContain(
-      "CONTRADICTORY_ASSIGNMENT"
-    );
+    expect(outcome.kind).toBe("COMPLETED");
+    expect(provider.structuredInputs).toHaveLength(0);
+    expect(outcome.kind === "COMPLETED" ? outcome.content : "").toContain("girls = 3 * 5 = 15");
     expect(outcome.diagnostics?.repairResult).toEqual({
-      attempted: true,
+      attempted: false,
       successful: false,
     });
   });
 
-  it("repairs fake-provider output that swaps named calculation quantities", async () => {
+  it("bypasses fake-provider output that swaps named calculation quantities", async () => {
     const provider = new RecordingStructuredProvider("unused", [
       speedStructuredValue({
         steps: [
@@ -967,11 +977,12 @@ describe("Stage 4.1 capability grounding pipeline", () => {
     });
 
     expect(outcome.kind).toBe("COMPLETED");
-    expect(provider.structuredInputs).toHaveLength(2);
+    expect(provider.structuredInputs).toHaveLength(0);
     expect(outcome.diagnostics?.repairResult).toEqual({
-      attempted: true,
-      successful: true,
+      attempted: false,
+      successful: false,
     });
+    expect(outcome.kind === "COMPLETED" ? outcome.content : "").toContain("speed = 120 / 10 = 12");
   });
 
   it("fails a past-question explanation that gives only the result", async () => {
