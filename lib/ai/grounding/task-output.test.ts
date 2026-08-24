@@ -20,6 +20,7 @@ import {
   buildFormulaContract,
   buildStructuredCalculationPrompt,
   buildStructuredFormulaPrompt,
+  validateCalculationAnswerViewModel,
   renderStructuredCalculationAnswer,
   structuredCalculationOutputSchema,
   structuredFormulaOutputSchema,
@@ -57,6 +58,37 @@ function unitForCalculation(content: string) {
     conflicts: [],
   });
   return { capability, requestRequirements, decision };
+}
+
+function calculationDecision(input: {
+  question: string;
+  content: string;
+  topicId?: string;
+  subjectId?: string;
+}) {
+  const capability = extractEvidenceCapability(
+    chunk(input.content, {
+      subjectId: input.subjectId ?? subjectId,
+      topicId: input.topicId ?? ratioTopicId,
+    })
+  );
+  const requestRequirements = extractRequestRequirements({
+    requestId: "request-1",
+    question: input.question,
+    subjectId: input.subjectId ?? subjectId,
+    topicId: input.topicId ?? ratioTopicId,
+  });
+  const decision = decideAnswerability({
+    requestRequirements,
+    evidenceCapabilities: [capability],
+    conflicts: [],
+  });
+  const contract = buildCalculationContract(decision.validatedEvidenceUnits, {
+    requestRequirements,
+    answerabilityDecision: decision,
+    evidenceCapabilities: [capability],
+  });
+  return { capability, requestRequirements, decision, contract };
 }
 
 function ratioDecision() {
@@ -283,8 +315,144 @@ describe("Stage 4.1 structured task output", () => {
     }
     const rendered = renderStructuredCalculationAnswer(result.output, contract).content;
     expect(rendered).toContain("one part = 10 / 2 = 5");
-    expect(rendered).toContain("girls = 3 * 5 = 15");
+    expect(rendered).toContain("girls = 3 × 5 = 15");
     expect(rendered).not.toContain("15 / 3");
+  });
+
+  it("renders requested simple-interest formula and variable meanings from authorised evidence", () => {
+    const { requestRequirements, decision, contract } = calculationDecision({
+      question: "Use the loan card to calculate the simple interest and name the variables.",
+      topicId: "eval-topic-commercial-arithmetic",
+      content:
+        "Simple interest formula: I = P x R x T / 100. For the loan example, P is 600, R is 5 percent, and T is 2 years, so I = 600 x 5 x 2 / 100 = 60.",
+    });
+
+    expect(requestRequirements.requirements[0]).toEqual(
+      expect.objectContaining({
+        kind: "CALCULATION",
+        targetConcepts: ["simple interest"],
+      })
+    );
+    expect(requestRequirements.normalizedQuestion).toMatch(/name the variables/i);
+    expect(decision.calculationPaths?.[0]).toEqual(
+      expect.objectContaining({
+        complete: true,
+        outputConcept: "simple-interest",
+      })
+    );
+    expect(contract.presentationRequirements).toEqual(
+      expect.objectContaining({
+        showFormula: true,
+        formula: expect.objectContaining({ expression: "I = P x R x T / 100" }),
+        requestedSymbols: expect.arrayContaining([
+          expect.objectContaining({ symbol: "I", quantityKey: "interest", meaning: "interest" }),
+          expect.objectContaining({ symbol: "P", quantityKey: "principal", meaning: "principal" }),
+          expect.objectContaining({ symbol: "R", quantityKey: "rate", meaning: "rate" }),
+          expect.objectContaining({ symbol: "T", quantityKey: "time", meaning: "time" }),
+        ]),
+      })
+    );
+
+    const output = calculationOutput({
+      steps: [
+        {
+          targetQuantity: "interest",
+          expression: "600 * 5 * 2 / 100",
+          result: "60",
+          unit: "",
+          sourceLabels: ["SOURCE_1"],
+        },
+      ],
+      finalQuantity: "interest",
+      finalResult: "60",
+    });
+    const result = validateStructuredCalculationOutput({
+      value: output,
+      contract,
+      validatedEvidenceUnits: decision.validatedEvidenceUnits,
+    });
+    expect(result.supported).toBe(true);
+    if (!result.supported) throw new Error("Expected simple-interest output to validate.");
+
+    const rendered = renderStructuredCalculationAnswer(result.output, contract);
+    expect(rendered.validation.supported).toBe(true);
+    expect(rendered.content).toContain(
+      "P means principal, R means rate, T means time, and I means interest."
+    );
+    expect(rendered.content).toContain("The formula is I = P × R × T / 100.");
+    expect(rendered.content).toContain("P = 600");
+    expect(rendered.content).toContain("R = 5 percent");
+    expect(rendered.content).toContain("T = 2 years");
+    expect(rendered.content).toContain("I = 600 × 5 × 2 / 100 = 60");
+    expect(rendered.content).toContain("Therefore, interest = 60.");
+  });
+
+  it("does not invent conventional symbols when calculation evidence uses named quantities only", () => {
+    const { contract, decision } = calculationDecision({
+      question: "Calculate speed from the card and name the variables.",
+      topicId: "eval-topic-speed",
+      content:
+        "Speed is distance divided by time. A runner covers 120 metres in 10 seconds, so speed = 120 / 10 = 12 m/s.",
+    });
+    const result = validateStructuredCalculationOutput({
+      value: calculationOutput({
+        steps: [
+          {
+            targetQuantity: "speed",
+            expression: "120 / 10",
+            result: "12",
+            unit: "metres/seconds",
+            sourceLabels: ["SOURCE_1"],
+          },
+        ],
+        finalQuantity: "speed",
+        finalResult: "12",
+        finalUnit: "metres/seconds",
+      }),
+      contract,
+      validatedEvidenceUnits: decision.validatedEvidenceUnits,
+    });
+    expect(result.supported).toBe(true);
+    if (!result.supported) throw new Error("Expected speed output to validate.");
+
+    const rendered = renderStructuredCalculationAnswer(result.output, contract).content;
+    expect(rendered).not.toMatch(/\bv means speed\b/i);
+    expect(rendered).not.toMatch(/\bd means distance\b/i);
+    expect(rendered).not.toMatch(/\bt means time\b/i);
+  });
+
+  it("fails presentation validation when a requested formula is not renderable", () => {
+    const { contract } = calculationDecision({
+      question: "Use the loan card to calculate the simple interest and name the variables.",
+      topicId: "eval-topic-commercial-arithmetic",
+      content:
+        "Simple interest formula: I = P x R x T / 100. For the loan example, P is 600, R is 5 percent, and T is 2 years, so I = 600 x 5 x 2 / 100 = 60.",
+    });
+    const validation = validateCalculationAnswerViewModel(
+      {
+        symbolDefinitions: contract.presentationRequirements.requestedSymbols,
+        givenValues: [],
+        steps: [],
+        finalResult: {
+          quantity: "interest",
+          result: "60",
+          unit: "",
+          sourceLabels: ["SOURCE_1"],
+        },
+      },
+      {
+        ...contract,
+        presentationRequirements: {
+          ...contract.presentationRequirements,
+          showFormula: true,
+          formula: undefined,
+        },
+      },
+      "P means principal."
+    );
+
+    expect(validation.supported).toBe(false);
+    expect(validation.errors.map((error) => error.code)).toContain("MISSING_REQUIRED_STEP");
   });
 
   it("rejects circular or backwards ratio dependency paths even with correct final values", () => {
@@ -846,7 +1014,7 @@ describe("Stage 4.1 structured task output", () => {
         content:
           "Worked ratio example: if boys:girls = 2:3 and boys = 10, then one part is 5, so girls = 15. Always keep the order of the compared quantities.",
         expectedMode: "STRUCTURED_CALCULATION",
-        expectedText: "girls = 3 * 5 = 15",
+        expectedText: "girls = 3 × 5 = 15",
         expectedProviderCalls: 0,
       },
       {
@@ -882,7 +1050,7 @@ describe("Stage 4.1 structured task output", () => {
         content:
           "Simple interest formula: I = P x R x T / 100. For the loan example, P is 600, R is 5 percent, and T is 2 years, so I = 600 x 5 x 2 / 100 = 60.",
         expectedMode: "STRUCTURED_CALCULATION",
-        expectedText: "interest = 600 * 5 * 2 / 100 = 60",
+        expectedText: "interest = 600 × 5 × 2 / 100 = 60",
         expectedProviderCalls: 0,
       },
       {
