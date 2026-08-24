@@ -116,6 +116,11 @@ function simpleContract(overrides: Partial<CalculationContract> = {}): Calculati
       finalTarget: "result",
       finalTargetKey: "result",
     },
+    presentationRequirements: {
+      showFormula: false,
+      requestedSymbols: [],
+      requestedUnits: [],
+    },
     sourceLabels: ["SOURCE_1"],
   };
   return { ...contract, ...overrides };
