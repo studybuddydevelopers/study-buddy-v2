@@ -584,6 +584,43 @@ export function buildFormulaContract(units: ValidatedEvidenceUnit[]): FormulaCon
   };
 }
 
+export function validateFormulaContractCompleteness(
+  contract: FormulaContract
+): StructuredTaskValidationResult<FormulaContract> {
+  const errors: StructuredTaskValidationError[] = [];
+  if (contract.expressions.length === 0) {
+    errors.push({
+      code: "UNSUPPORTED_EXPRESSION",
+      message: "Formula contract has no authorised source formula expression.",
+      path: "expressions",
+    });
+  }
+
+  const allowedLabels = new Set(contract.sourceLabels);
+  for (const [index, variable] of contract.requiredVariables.entries()) {
+    if (!variable.meaning || variable.sourceLabels.some((label) => !allowedLabels.has(label))) {
+      errors.push({
+        code: "UNKNOWN_SOURCE_LABEL",
+        message: "Formula variable has incomplete or unauthorised provenance.",
+        path: `requiredVariables.${index}`,
+      });
+    }
+  }
+  for (const [index, unit] of contract.requiredUnits.entries()) {
+    if (!unit.unit || unit.sourceLabels.some((label) => !allowedLabels.has(label))) {
+      errors.push({
+        code: "UNKNOWN_SOURCE_LABEL",
+        message: "Formula unit has incomplete or unauthorised provenance.",
+        path: `requiredUnits.${index}`,
+      });
+    }
+  }
+
+  return errors.length > 0
+    ? { supported: false, errors }
+    : { supported: true, output: contract, errors: [] };
+}
+
 export function buildStructuredCalculationPrompt(input: {
   question: string;
   subjectName?: string | null;
@@ -860,7 +897,7 @@ export function validateStructuredFormulaOutput(input: {
   const seenVariables = new Set<string>();
   for (const [index, variable] of parsed.data.variables.entries()) {
     checkLabels(variable.sourceLabels, `variables.${index}.sourceLabels`);
-    const symbol = normalizeQuantity(variable.symbol);
+    const symbol = normalizeFormulaSymbolKey(variable.symbol);
     if (seenVariables.has(symbol)) {
       errors.push({
         code: "DUPLICATE_VARIABLE",
@@ -871,7 +908,7 @@ export function validateStructuredFormulaOutput(input: {
     seenVariables.add(symbol);
 
     const expected = input.contract.requiredVariables.find(
-      (item) => normalizeQuantity(item.symbol) === symbol
+      (item) => normalizeFormulaSymbolKey(item.symbol) === symbol
     );
     if (!expected) {
       errors.push({
@@ -891,7 +928,7 @@ export function validateStructuredFormulaOutput(input: {
   }
 
   for (const required of input.contract.requiredVariables) {
-    if (!seenVariables.has(normalizeQuantity(required.symbol))) {
+    if (!seenVariables.has(normalizeFormulaSymbolKey(required.symbol))) {
       errors.push({
         code: "MISSING_REQUIRED_VARIABLE",
         message: `Missing required variable definition: ${required.symbol}.`,
@@ -1016,13 +1053,28 @@ export function buildCalculationAnswerViewModel(
         },
       ];
     });
+  const referenceResultDisplayByOutputKey = new Map(
+    contract.authorisedMethods.flatMap((method) => {
+      const display = displayReferenceResult(method.referenceResult);
+      return display
+        ? [[normalizeCalculationKey(method.outputQuantityKey), display] as const]
+        : [];
+    })
+  );
   const steps = output.steps.map((step) => ({
     ...step,
     targetQuantity:
       symbolByQuantityKey.get(normalizeCalculationKey(step.targetQuantity)) ??
       step.targetQuantity,
     expression: renderDisplayExpression(step.expression),
+    result:
+      referenceResultDisplayByOutputKey.get(normalizeCalculationKey(step.targetQuantity)) ??
+      step.result,
   }));
+  const finalResultDisplay =
+    referenceResultDisplayByOutputKey.get(
+      normalizeCalculationKey(contract.calculationPlan.finalTargetKey ?? output.finalQuantity)
+    ) ?? output.finalResult;
 
   return {
     formula: formula
@@ -1036,11 +1088,20 @@ export function buildCalculationAnswerViewModel(
     steps,
     finalResult: {
       quantity: output.finalQuantity,
-      result: output.finalResult,
+      result: finalResultDisplay,
       unit: output.finalUnit,
       sourceLabels: output.sourceLabels,
     },
   };
+}
+
+function displayReferenceResult(
+  referenceResult: CalculationContract["authorisedMethods"][number]["referenceResult"]
+): string | undefined {
+  if (!referenceResult?.unit) return undefined;
+  const unit = referenceResult.unit.trim();
+  if (!/^\d+(?:\.\d+)?\s*\/\s*\d+(?:\.\d+)?$/.test(unit)) return undefined;
+  return unit.replace(/\s+/g, "");
 }
 
 export function validateCalculationAnswerViewModel(
@@ -1623,6 +1684,7 @@ function deriveCalculationMethods(
       ]),
     }));
   }
+  methods.push(...deriveProbabilityCalculationMethods(bindings));
   methods.push(...deriveSimpleInterestCalculationMethods(bindings));
   methods.push(...deriveUnitRateCalculationMethods(bindings));
   methods.push(...deriveSpeedCalculationMethods(bindings, options.requestedFinalQuantity));
@@ -1631,6 +1693,54 @@ function deriveCalculationMethods(
   return uniqueBy(methods, (method) =>
     `${normalizeQuantity(method.targetQuantity)}:${method.expression}:${method.result}`
   );
+}
+
+function deriveProbabilityCalculationMethods(
+  bindings: Array<SemanticQuantityBinding & { sourceLabels: string[] }>
+): CalculationContract["authorisedMethods"] {
+  const favourable = findBindingByRole(bindings, "favourableOutcomeCount");
+  const total = findBindingByRole(bindings, "totalOutcomeCount");
+  if (
+    favourable?.value === undefined ||
+    total?.value === undefined ||
+    !Number.isFinite(favourable.value) ||
+    !Number.isFinite(total.value) ||
+    total.value === 0
+  ) {
+    return [];
+  }
+
+  const result = favourable.value / total.value;
+  const reference = findBindingByRole(bindings, "probabilityReferenceResult");
+  const displayResult = fractionDisplayForCountRatio(favourable.value, total.value);
+  return [
+    createCalculationMethod({
+      targetQuantity: "probability",
+      outputQuantityKey: "probability",
+      inputQuantities: [favourable.label, total.label],
+      inputQuantityKeys: [
+        calculationKeyForBinding(favourable),
+        calculationKeyForBinding(total),
+      ],
+      operation: "/",
+      expression: `${numberToText(favourable.value)} / ${numberToText(total.value)}`,
+      result: displayResult,
+      referenceResult: reference?.value !== undefined
+        ? {
+            value: reference.value,
+            unit: reference.unit,
+          }
+        : {
+            value: result,
+            unit: displayResult,
+          },
+      sourceLabels: uniqueStrings([
+        ...favourable.sourceLabels,
+        ...total.sourceLabels,
+        ...(reference?.sourceLabels ?? []),
+      ]),
+    }),
+  ];
 }
 
 function createCalculationMethod(input: {
@@ -2153,11 +2263,17 @@ function inferCalculationValueOrigins(
         "distanceValue",
         "priceValue",
         "quantityCount",
+        "favourableOutcomeCount",
+        "totalOutcomeCount",
       ].includes(role)
     ) {
       origin = "GIVEN_INPUT";
     } else if (role === "derivedUnitValue" || role === "discountValue" || role === "interestValue" || role === "unitRateValue") {
       origin = "DERIVED_INTERMEDIATE";
+    } else if (
+      role === "probabilityReferenceResult"
+    ) {
+      origin = "REFERENCE_RESULT";
     } else if (role === "salePriceValue" || role === "newValue" || role === "totalAmountValue") {
       origin = "FINAL_RESULT";
     } else if (requested && quantity === requested) {
@@ -2215,6 +2331,7 @@ function inferRequestedFinalQuantity(requestRequirements?: RequestRequirements) 
   if (/\bamount|total\b/i.test(candidate)) return "total amount";
   if (/\bprice\b/i.test(candidate)) return "sale price";
   if (/\bdiscount\b/i.test(candidate)) return "discount";
+  if (/\bprobability|chance|likelihood\b/i.test(candidate)) return "probability";
   if (/\bgirls\b/i.test(candidate)) return "girls";
   if (/\bboys\b/i.test(candidate)) return "boys";
   return undefined;
@@ -2560,7 +2677,7 @@ function deriveRequiredFormulaVariables(
       .map((component) => ({
         symbol: component.symbol!,
         meaning:
-          termMeanings.get(normalizeQuantity(component.symbol!)) ??
+          termMeanings.get(normalizeFormulaSymbolKey(component.symbol!)) ??
           component.concept?.aliases?.[0] ??
           component.text?.replace(component.symbol!, "").trim() ??
           component.symbol!,
@@ -2573,11 +2690,11 @@ function deriveRequiredFormulaVariables(
   const inferred = expressionTerms.map((term) => ({
     symbol: term,
     meaning:
-      termMeanings.get(normalizeQuantity(term)) ??
+      termMeanings.get(normalizeFormulaSymbolKey(term)) ??
       inferFormulaTermMeaning(term, combinedEvidence),
     sourceLabels,
   })).filter((item) => {
-    const symbol = normalizeQuantity(item.symbol);
+    const symbol = normalizeFormulaSymbolKey(item.symbol);
     const meaning = normalizeQuantity(item.meaning);
     return symbol.length > 1 || meaning !== symbol;
   });
@@ -2586,7 +2703,7 @@ function deriveRequiredFormulaVariables(
     [...explicitSymbols, ...inferred].filter(
       (item) => item.symbol && item.meaning && !/^(?:area)$/i.test(item.symbol)
     ),
-    (item) => normalizeQuantity(item.symbol)
+    (item) => normalizeFormulaSymbolKey(item.symbol)
   );
 }
 
@@ -2622,12 +2739,11 @@ function extractFormulaTerms(expression: string) {
     .replace(/[0-9/*+\-.()×÷]/g, " ")
     .replace(/=/g, " ")
     .split(/\s+/)
-    .map((term) => normalizeQuantity(term))
-    .filter(
-      (term) =>
-        term &&
-        !["x", "times", "one", "half", "perpendicular"].includes(term)
-    );
+    .map(normalizeFormulaTerm)
+    .filter((term) => {
+      const key = normalizeFormulaSymbolKey(term);
+      return term && !["x", "times", "one", "half", "perpendicular"].includes(key);
+    });
 }
 
 function deriveFormulaTermMeanings(
@@ -2637,12 +2753,12 @@ function deriveFormulaTermMeanings(
 ) {
   const result = new Map<string, string>();
   const expressionTerms = new Set(
-    formulaExpressions.flatMap(extractFormulaTerms).map(normalizeQuantity)
+    formulaExpressions.flatMap(extractFormulaTerms).map(normalizeFormulaSymbolKey)
   );
   for (const match of evidence.matchAll(
     /\b([A-Za-z])\s+(?:is|means|represents)\s+([A-Za-z][A-Za-z\s-]{1,60})(?=,|\.|\band\b|$)/gi
   )) {
-    const symbol = normalizeQuantity(match[1] ?? "");
+    const symbol = normalizeFormulaSymbolKey(match[1] ?? "");
     const meaning = cleanMeaningPhrase(match[2] ?? "");
     if (symbol && meaning && expressionTerms.has(symbol)) {
       result.set(symbol, meaning);
@@ -2654,13 +2770,13 @@ function deriveFormulaTermMeanings(
     if (requiredUnits.length >= 3) {
       const [target, left, right] = requiredUnits;
       if (target?.quantity) {
-        result.set(normalizeQuantity(parsed.targetQuantity), target.quantity);
+        result.set(normalizeFormulaSymbolKey(parsed.targetQuantity), target.quantity);
       }
       if (left?.quantity) {
-        result.set(normalizeQuantity(parsed.leftInput), left.quantity);
+        result.set(normalizeFormulaSymbolKey(parsed.leftInput), left.quantity);
       }
       if (right?.quantity) {
-        result.set(normalizeQuantity(parsed.rightInput), right.quantity);
+        result.set(normalizeFormulaSymbolKey(parsed.rightInput), right.quantity);
       }
     }
     const index = evidence.toLowerCase().indexOf(expression.toLowerCase());
@@ -2673,9 +2789,9 @@ function deriveFormulaTermMeanings(
       const target = cleanMeaningPhrase(afterThat[1] ?? "");
       const left = cleanMeaningPhrase(afterThat[2] ?? "");
       const right = cleanMeaningPhrase(afterThat[3] ?? "");
-      if (target) result.set(normalizeQuantity(parsed.targetQuantity), target);
-      if (left) result.set(normalizeQuantity(parsed.leftInput), left);
-      if (right) result.set(normalizeQuantity(parsed.rightInput), right);
+      if (target) result.set(normalizeFormulaSymbolKey(parsed.targetQuantity), target);
+      if (left) result.set(normalizeFormulaSymbolKey(parsed.leftInput), left);
+      if (right) result.set(normalizeFormulaSymbolKey(parsed.rightInput), right);
       continue;
     }
     const relationMatches = [
@@ -2688,9 +2804,9 @@ function deriveFormulaTermMeanings(
     const target = cleanMeaningPhrase(relation[1] ?? "");
     const left = cleanMeaningPhrase(relation[2] ?? "");
     const right = cleanMeaningPhrase(relation[3] ?? "");
-    if (target) result.set(normalizeQuantity(parsed.targetQuantity), target);
-    if (left) result.set(normalizeQuantity(parsed.leftInput), left);
-    if (right) result.set(normalizeQuantity(parsed.rightInput), right);
+    if (target) result.set(normalizeFormulaSymbolKey(parsed.targetQuantity), target);
+    if (left) result.set(normalizeFormulaSymbolKey(parsed.leftInput), left);
+    if (right) result.set(normalizeFormulaSymbolKey(parsed.rightInput), right);
   }
   return result;
 }
@@ -2705,7 +2821,7 @@ function cleanMeaningPhrase(value: string) {
 function extractUnitMappings(text: string) {
   const mappings: Array<{ quantity: string; unit: string }> = [];
   const unitPattern =
-    /(?:^|[,.]\s*|\band\s+)([A-Za-z][A-Za-z\s-]{1,60}?)\s+(?:is\s+)?(?:measured\s+)?in\s+([A-Za-zΩΩµμ][A-Za-zΩΩµμ-]*)/gi;
+    /(?:^|[,.]\s*|\band\s+|\bwhen\s+)([A-Za-z][A-Za-z\s-]{1,60}?)\s+(?:is\s+)?(?:measured\s+)?in\s+([A-Za-zΩΩµμ][A-Za-zΩΩµμ0-9/%²³-]*(?:\s+per\s+[A-Za-z0-9²³-]+(?:\s+squared)?)?)(?=\s*(?:,|\.|\band\b|\bwhen\b|$))/gi;
   for (const match of text.matchAll(unitPattern)) {
     const quantity = cleanMeaningPhrase(match[1] ?? "");
     const unit = normalizeUnitDisplay(match[2] ?? "");
@@ -2742,7 +2858,7 @@ function normalizeFormulaOperator(operator: string) {
 }
 
 function cleanFormulaTerm(value: string) {
-  return normalizeQuantity(value);
+  return normalizeFormulaTerm(value);
 }
 
 function findCalculationBinding(
@@ -2959,7 +3075,15 @@ function findAuthorisedMethodForStep(
     if (normalizeQuantity(method.targetQuantity) !== normalizeQuantity(targetQuantity)) {
       return false;
     }
-    if (!numbersClose(Number(method.result), Number(result))) return false;
+    const expectedResult = parseNumber(method.result);
+    const actualResult = parseNumber(result);
+    if (
+      expectedResult === undefined ||
+      actualResult === undefined ||
+      !numbersClose(expectedResult, actualResult)
+    ) {
+      return false;
+    }
     return expressionsEquivalent(method.expression, expression);
   });
 }
@@ -3106,6 +3230,12 @@ function calculationKeyForBinding(binding: SemanticQuantityBinding) {
       return label;
     case "quantityCount":
       return label;
+    case "favourableOutcomeCount":
+      return "favourable outcomes";
+    case "totalOutcomeCount":
+      return "total outcomes";
+    case "probabilityReferenceResult":
+      return "probability";
     default:
       return label;
   }
@@ -3126,6 +3256,14 @@ function formatUnit(unit: string) {
 
 function parseNumber(value: string) {
   const normalized = value.replace(/,/g, "").trim();
+  const fraction = normalized.match(/^([-+]?\d+(?:\.\d+)?)\s*\/\s*([-+]?\d+(?:\.\d+)?)$/);
+  if (fraction) {
+    const numerator = Number(fraction[1]);
+    const denominator = Number(fraction[2]);
+    if (Number.isFinite(numerator) && Number.isFinite(denominator) && denominator !== 0) {
+      return numerator / denominator;
+    }
+  }
   const numeric = Number(normalized);
   return Number.isFinite(numeric) ? numeric : undefined;
 }
@@ -3134,8 +3272,39 @@ function numberToText(value: number) {
   return Number.isInteger(value) ? String(value) : String(value).replace(/0+$/, "").replace(/\.$/, "");
 }
 
+function fractionDisplayForCountRatio(numerator: number, denominator: number): string {
+  if (!Number.isInteger(numerator) || !Number.isInteger(denominator)) {
+    return numberToText(numerator / denominator);
+  }
+  const divisor = gcd(Math.abs(numerator), Math.abs(denominator));
+  return `${numberToText(numerator / divisor)}/${numberToText(denominator / divisor)}`;
+}
+
+function gcd(left: number, right: number): number {
+  let a = left;
+  let b = right;
+  while (b !== 0) {
+    const next = a % b;
+    a = b;
+    b = next;
+  }
+  return a || 1;
+}
+
 function numbersClose(left: number, right: number) {
   return Math.abs(left - right) <= 0.01;
+}
+
+function normalizeFormulaTerm(value: string) {
+  const trimmed = value.trim();
+  if (/^[A-Za-z]$/.test(trimmed)) return trimmed;
+  return normalizeQuantity(trimmed);
+}
+
+function normalizeFormulaSymbolKey(value: string) {
+  const trimmed = value.trim();
+  if (/^[A-Za-z]$/.test(trimmed)) return trimmed.toLowerCase();
+  return normalizeQuantity(trimmed);
 }
 
 function normalizeQuantity(value: string) {
