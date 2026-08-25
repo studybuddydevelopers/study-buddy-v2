@@ -688,6 +688,17 @@ function buildProcedureMethodRequirement(
   question: string,
   context: RequirementBuildContext
 ): RequirementDraft | undefined {
+  const methodExplanation = extractMethodExplanationCalculationRequest(question);
+  if (methodExplanation && extractNumericInputs(question).length === 0) {
+    const target = cleanCalculationTarget(methodExplanation.target);
+    return {
+      kind: "PROCEDURE_METHOD",
+      targetConcepts: compactStrings([target]),
+      requestedMethod: cleanMethod(`${methodExplanation.verb} ${methodExplanation.target}`),
+      requestedAction: "EXPLAIN",
+    };
+  }
+
   const madeTarget =
     firstMatch(question, /\bhow\s+do\s+i\s+(?:get|make|create|form)\s+(.+?)(?:[?.]|$)/i) ??
     firstMatch(question, /\bhow\s+(?:is|are)\s+(.+?)\s+(?:made|formed|created|produced)(?:[?.]|$)/i) ??
@@ -723,6 +734,41 @@ function buildProcedureMethodRequirement(
     targetConcepts: compactStrings([cleanConcept(target)]),
     requestedMethod: cleanedMethod,
   };
+}
+
+function extractMethodExplanationCalculationRequest(question: string) {
+  const direct = question.match(
+    /\bhow\s+(?:do|would|can)\s+(?:you|we|i)\s+(find|calculate|work\s+out|compute|determine)\s+(?:the\s+)?(.+?)(?:[?.]|$)/i
+  );
+  if (direct) return { verb: direct[1] ?? "calculate", target: direct[2] ?? "" };
+
+  const passive = question.match(
+    /\bhow\s+(?:is|are)\s+(?:the\s+)?(.+?)\s+(found|calculated|worked\s+out|computed|determined)(?:[?.]|$)/i
+  );
+  if (passive) {
+    return {
+      verb: passiveVerbToActive(passive[2] ?? "calculated"),
+      target: passive[1] ?? "",
+    };
+  }
+
+  const imperative = question.match(
+    /\b(?:explain|show)\s+how\s+to\s+(find|calculate|work\s+out|compute|determine)\s+(?:the\s+)?(.+?)(?:[?.]|$)/i
+  );
+  if (imperative) {
+    return { verb: imperative[1] ?? "calculate", target: imperative[2] ?? "" };
+  }
+  return undefined;
+}
+
+function passiveVerbToActive(value: string) {
+  const normalized = value.toLowerCase();
+  if (normalized === "found") return "find";
+  if (normalized === "calculated") return "calculate";
+  if (normalized === "worked out") return "work out";
+  if (normalized === "computed") return "compute";
+  if (normalized === "determined") return "determine";
+  return "calculate";
 }
 
 function buildComparisonRequirement(question: string): RequirementDraft | undefined {
