@@ -264,6 +264,14 @@ function evaluateDirectRequirement(
 function canUseSemanticFastMatch(requirement: RequestRequirement): boolean {
   if (requirement.kind === "CALCULATION") return false;
   if (
+    requirement.kind === "FORMULA_WITH_SYMBOLS" ||
+    (requirement.kind === "FORMULA" &&
+      ((requirement.requiredSymbols?.length ?? 0) > 0 ||
+        requirement.requestedAction === "STATE_FORMULA"))
+  ) {
+    return false;
+  }
+  if (
     requirement.kind === "FACT_LOOKUP" &&
     /\b(?:variables?|symbols?|units?|kinds?)\b/i.test(requirement.requestedFact ?? "")
   ) {
@@ -480,6 +488,14 @@ function evaluateCalculationRequirement(
   requirement: RequestRequirement,
   context: MatchContext
 ): RequirementMatch {
+  const boundedProbabilitySupport = findBoundedProbabilityCalculationSupport(
+    requirement,
+    context
+  );
+  if (boundedProbabilitySupport.length > 0) {
+    return buildMatch(requirement.id, "SUPPORTED", boundedProbabilitySupport);
+  }
+
   const paths = buildCalculationPaths(requirement, context);
   const completePath = paths.find((path) => path.complete);
   if (!completePath) {
@@ -1200,6 +1216,7 @@ function calculationInputConceptsForOutput(outputConcept: string): string[] {
     "simple-interest": ["principal", "rate", "time"],
     "percentage-change": ["change", "original-value"],
     percentage: ["change", "original-value"],
+    probability: ["favourable-outcomes", "total-outcomes"],
   };
   return map[outputConcept] ?? [];
 }
@@ -1218,6 +1235,8 @@ function calculationInputConceptsFromText(text: string): string[] {
       ["acceleration", /\bacceleration\b|\bm\/s2\b|\bm\/s²\b/],
       ["principal", /\bprincipal\b/],
       ["rate", /\brate\b|\bpercent\b|%/],
+      ["favourable-outcomes", /\bfavou?rable\s+outcomes?\b/],
+      ["total-outcomes", /\btotal\b.{0,30}\boutcomes?\b|\bpossible\s+outcomes?\b/],
       ["change", /\bchange\b/],
       ["original-value", /\boriginal\s+value\b|\boriginal\b/],
     ]
@@ -1826,6 +1845,53 @@ function findEventFact(
       (candidate.canonicalConcept && targets.includes(candidate.canonicalConcept.id));
     return conceptSupported && semanticTextMatches(combined, requested);
   });
+}
+
+function findBoundedProbabilityCalculationSupport(
+  requirement: RequestRequirement,
+  context: MatchContext
+): CapabilitySupportRef[] {
+  if (!isBoundedProbabilityRequirement(requirement)) return [];
+
+  const formula = context.formulas.find((candidate) => {
+    const expression = normalizedText(
+      `${candidate.canonicalConcept?.label ?? ""} ${candidate.outputQuantity ?? ""} ${candidate.expression} ${candidate.evidenceSpan.text}`
+    );
+    return (
+      /\b(?:probability|chance|likelihood)\b/.test(expression) &&
+      /\bfavou?rable\s+outcomes?\b/.test(expression) &&
+      /\btotal\b.{0,30}\boutcomes?\b|\bpossible\s+outcomes?\b/.test(expression) &&
+      /\/|\bdivided\s+by\b|\bover\b/.test(expression)
+    );
+  }) ?? findFormula(requirement, context);
+
+  const event = findEventFact(requirement, context);
+  if (!formula || !event || !hasBoundedProbabilityCountAndTotal(event)) {
+    return [];
+  }
+
+  return uniqueSupportRefs([
+    supportRef(requirement.id, formula.id, ["CALCULATE", "FORMULA"]),
+    supportRef(requirement.id, event.id, ["CALCULATE"]),
+  ]);
+}
+
+function isBoundedProbabilityRequirement(requirement: RequestRequirement): boolean {
+  const targets = uniqueStrings([
+    requirement.baseConcept?.baseConcept ?? "",
+    ...requirement.targetConcepts.map(normalizedText),
+  ].filter(Boolean));
+  return (
+    requirement.kind === "CALCULATION" &&
+    targets.includes("probability") &&
+    (requirement.constraints ?? []).includes("bounded probability")
+  );
+}
+
+function hasBoundedProbabilityCountAndTotal(event: EventCapability): boolean {
+  const text = `${event.outcomeText} ${event.numericValues.join(" ")} ${event.evidenceSpan.text}`;
+  const match = text.match(/\b[-+]?\d+(?:\.\d+)?\s+out\s+of\s+[-+]?\d+(?:\.\d+)?\b/i);
+  return Boolean(match);
 }
 
 function findConsequence(
