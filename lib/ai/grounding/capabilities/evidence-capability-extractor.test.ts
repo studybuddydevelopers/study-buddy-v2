@@ -103,6 +103,23 @@ describe("Stage 4.1 evidence capability extraction", () => {
     ]);
   });
 
+  it("extracts exponent formula syntax without concept-specific rules", () => {
+    const circle = extract("The area relation is A = pi r^2.");
+    expect(circle.formulas[0]?.expression).toBe("A = pi r^2");
+    expect(circle.formulas[0]?.symbols.map((symbol) => symbol.normalized)).toEqual([
+      "a",
+      "r",
+    ]);
+
+    const generic = extract("The growth relation is G = k n^3.");
+    expect(generic.formulas[0]?.expression).toBe("G = k n^3");
+    expect(generic.formulas[0]?.symbols.map((symbol) => symbol.normalized)).toEqual([
+      "g",
+      "k",
+      "n",
+    ]);
+  });
+
   it("extracts formula-local symbol definitions", () => {
     const capability = extract(
       "P = F / A, where P is pressure, F is force, and A is area."
