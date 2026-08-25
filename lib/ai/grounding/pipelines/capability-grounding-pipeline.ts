@@ -21,7 +21,11 @@ import {
   extractEvidenceCapabilities,
 } from "../capabilities/evidence-capability-extractor";
 import type { AuthorizedEvidenceChunk, EvidenceCapability } from "../capabilities/types";
-import { validateNarrowGroundedOutput } from "../validation/narrow-grounding-validator";
+import {
+  validateNarrowGroundedOutput,
+  type NarrowGroundedResponse,
+} from "../validation/narrow-grounding-validator";
+import { renderGroundedAnswerSegments } from "../structured-output";
 import { extractRequestRequirements } from "../requirements/request-requirement-extractor";
 import { buildStandaloneRetrievalQuery } from "../query-builder";
 import {
@@ -34,6 +38,7 @@ import {
   structuredCalculationOutputFromTrace,
   structuredFormulaOutputSchema,
   structuredRepairInstruction,
+  validateFormulaContractCompleteness,
   validateStructuredFormulaOutput,
   type StructuredTaskValidationError,
   type TaskOutputMode,
@@ -243,16 +248,17 @@ export class CapabilityGroundingPipeline implements GroundingPipeline {
         };
       }
 
+      const response = dedupeAdjacentAcceptedSegments(validation.response);
       return {
         kind: "COMPLETED",
-        content: validation.response.answer,
+        content: response.answer,
         provider: finalResult.provider,
         model: finalResult.model,
         usage: finalResult.usage,
         insufficientContext: false,
-        answerSegments: validation.response.answerSegments,
+        answerSegments: response.answerSegments,
         diagnostics,
-        citations: buildCitations(validation.response.citations, diagnostics),
+        citations: buildCitations(response.citations, diagnostics),
       };
     } catch (error) {
       return {
@@ -370,6 +376,23 @@ export class CapabilityGroundingPipeline implements GroundingPipeline {
     validatedEvidenceUnits: CapabilityPipelineDiagnostics["validatedEvidenceUnits"];
   }): Promise<CapabilityGroundingOutcome> {
     const contract = buildFormulaContract(input.validatedEvidenceUnits);
+    const contractValidation = validateFormulaContractCompleteness(contract);
+    if (!contractValidation.supported) {
+      const diagnostics = structuredDiagnostics({
+        diagnosticsBase: input.diagnosticsBase,
+        mode: "STRUCTURED_FORMULA",
+        providerCalled: false,
+        generationOutput: undefined,
+        structuredOutput: { contract },
+        validation: contractValidation,
+        repairResult: { attempted: false, successful: false },
+      });
+      return {
+        kind: "FAILED",
+        failureCode: AiGenerationFailureCode.INVALID_PROVIDER_RESPONSE,
+        diagnostics,
+      };
+    }
     const prompt = buildStructuredFormulaPrompt({
       question: input.context.userMessage,
       subjectName: input.context.subjectName,
@@ -777,6 +800,56 @@ function buildStructuredCitations(input: {
     input.sourceLabels.map((sourceLabel) => ({ sourceLabel, evidenceUnitIds: [] })),
     input.diagnostics
   );
+}
+
+function dedupeAdjacentAcceptedSegments(
+  response: NarrowGroundedResponse
+): NarrowGroundedResponse {
+  const segments: NarrowGroundedResponse["answerSegments"] = [];
+  for (const segment of response.answerSegments) {
+    const previous = segments.at(-1);
+    if (
+      previous &&
+      normalizeAcceptedSegmentText(previous.text) ===
+        normalizeAcceptedSegmentText(segment.text)
+    ) {
+      previous.sourceLabels = uniqueStrings([
+        ...previous.sourceLabels,
+        ...segment.sourceLabels,
+      ]);
+      continue;
+    }
+    segments.push({
+      ...segment,
+      sourceLabels: uniqueStrings(segment.sourceLabels),
+    });
+  }
+
+  const citations = uniqueStrings(
+    segments.flatMap((segment) => segment.sourceLabels)
+  ).map((sourceLabel) => ({
+    sourceLabel,
+    evidenceUnitIds: uniqueStrings(
+      response.citations
+        .filter((citation) => citation.sourceLabel === sourceLabel)
+        .flatMap((citation) => citation.evidenceUnitIds)
+    ),
+  }));
+
+  return {
+    ...response,
+    answerSegments: segments,
+    answer: renderGroundedAnswerSegments(segments),
+    citations,
+  };
+}
+
+function normalizeAcceptedSegmentText(value: string): string {
+  return value.normalize("NFC").trim().replace(/\s+/g, " ");
+}
+
+function uniqueStrings(values: string[]): string[] {
+  return [...new Set(values.filter(Boolean))];
 }
 
 function refusalMessage(reason: CapabilityPipelineDiagnostics["answerabilityDecision"]["refusalReason"]) {
