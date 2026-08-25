@@ -915,6 +915,75 @@ describe("Stage 4.1 structured task output", () => {
     ).toBe(false);
   });
 
+  it("builds generic direct-substitution plans from complete answerability paths", () => {
+    const force = calculationDecision({
+      question: "Calculate force when mass is 5 kg and acceleration is 2 m/s2.",
+      subjectId: "eval-subject-physics",
+      topicId: "eval-topic-force",
+      content:
+        "Force formula is F = m x a. The mass is 5 kg and the acceleration is 2 m/s2.",
+    });
+    expect(force.decision.classification).toBe("SUPPORTED");
+    expect(force.contract.authorisedMethods).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          targetQuantity: "force",
+          expression: "5 * 2",
+          result: "10",
+        }),
+      ])
+    );
+    expect(force.contract.calculationPlan.finalTarget).toBe("force");
+    expect(executeCalculationPlan(force.contract)).toMatchObject({
+      ok: true,
+      trace: expect.objectContaining({ finalResult: 10 }),
+    });
+
+    const percentageChange = calculationDecision({
+      question:
+        "Calculate percentage change when the change is 15 and the original value is 60.",
+      topicId: "eval-topic-percentage",
+      content:
+        "Percentage change formula is percentage change = change / original value x 100. The change is 15 and the original value is 60.",
+    });
+    expect(percentageChange.decision.classification).toBe("SUPPORTED");
+    expect(percentageChange.contract.authorisedMethods).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          targetQuantity: "percentage change",
+          expression: "15 / 60 * 100",
+          result: "25",
+        }),
+      ])
+    );
+    expect(executeCalculationPlan(percentageChange.contract)).toMatchObject({
+      ok: true,
+      trace: expect.objectContaining({ finalResult: 25 }),
+    });
+  });
+
+  it("does not turn direct formula substitution into unauthorised rearrangement", () => {
+    const reverse = calculationDecision({
+      question: "Calculate mass when force is 10 N and acceleration is 2 m/s2.",
+      subjectId: "eval-subject-physics",
+      topicId: "eval-topic-force",
+      content:
+        "Force formula is F = m x a. The force is 10 N and the acceleration is 2 m/s2.",
+    });
+
+    expect(reverse.contract.authorisedMethods).not.toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ targetQuantity: "mass" }),
+      ])
+    );
+    expect(executeCalculationPlan(reverse.contract)).toMatchObject({
+      ok: false,
+      failure: expect.objectContaining({
+        reasons: expect.arrayContaining(["UNREACHABLE_FINAL_TARGET"]),
+      }),
+    });
+  });
+
   it("validates structured formula variables and conditions", () => {
     const { decision } = formulaDecision(
       "The area of a triangle is one half times base times perpendicular height: Area = 1/2 x base x height. The height must meet the base at a right angle."
@@ -1125,9 +1194,139 @@ describe("Stage 4.1 structured task output", () => {
     expect(validateFormulaContractCompleteness(incomplete)).toMatchObject({
       supported: false,
       errors: expect.arrayContaining([
-        expect.objectContaining({ code: "UNSUPPORTED_EXPRESSION" }),
+        expect.objectContaining({ code: "FORMULA_CONTRACT_INCOMPLETE" }),
       ]),
     });
+  });
+
+  it("retains authorised formula capabilities from supported source scope", () => {
+    const capability = extractEvidenceCapability(
+      chunk(
+        "Rectangle area means the space inside a rectangle. The rectangle area formula is rectangle area = length x width.",
+        { topicId: geometryTopicId }
+      )
+    );
+    const formula = capability.formulas[0]!;
+    const definition = capability.conceptDefinitions[0]!;
+    const requestRequirements = extractRequestRequirements({
+      requestId: "request-1",
+      question: "State the rectangle area formula.",
+      subjectId,
+      topicId: geometryTopicId,
+    });
+    const unit = {
+      id: "unit-definition",
+      sourceLabel: definition.sourceLabel,
+      resourceChunkId: definition.resourceChunkId,
+      capabilityIds: [definition.id],
+      supportsRequirementIds: ["request-1-1"],
+      quotedEvidence: definition.evidenceSpan.text,
+      evidenceSpans: [definition.evidenceSpan],
+      allowedUses: ["DEFINE" as const],
+      semanticComponents: definition.semanticComponents,
+      semanticQuantityBindings: [],
+    };
+
+    const contract = buildFormulaContract([unit], {
+      requestRequirements,
+      answerabilityDecision: {
+        classification: "SUPPORTED",
+        requirementResults: [
+          {
+            requirementId: requestRequirements.requirements[0]!.id,
+            status: "SUPPORTED",
+            supportingCapabilityIds: [formula.id],
+            supportingEvidenceUnitIds: [unit.id],
+            missingComponents: [],
+            conflictIds: [],
+          },
+        ],
+        validatedEvidenceUnits: [unit],
+      },
+      evidenceCapabilities: [capability],
+    });
+
+    expect(contract.expressions).toContain("rectangle area = length x width");
+    expect(validateFormulaContractCompleteness(contract).supported).toBe(true);
+  });
+
+  it("does not borrow formula capabilities from unrelated chunks or sibling concepts", () => {
+    const selectedCapability = extractEvidenceCapability(
+      chunk("Triangle area means the space inside a triangle.", {
+        resourceChunkId: "chunk-selected",
+        sourceLabel: "SOURCE_1",
+        topicId: geometryTopicId,
+      })
+    );
+    const unrelatedCapability = extractEvidenceCapability(
+      chunk("The rectangle area formula is rectangle area = length x width.", {
+        resourceChunkId: "chunk-unrelated",
+        sourceLabel: "SOURCE_2",
+        topicId: geometryTopicId,
+      })
+    );
+    const siblingCapability = extractEvidenceCapability(
+      chunk(
+        "Triangle area means the space inside a triangle. The rectangle area formula is rectangle area = length x width. The perimeter formula is perimeter = length + width.",
+        {
+          resourceChunkId: "chunk-sibling",
+          sourceLabel: "SOURCE_3",
+          topicId: geometryTopicId,
+        }
+      )
+    );
+    const selectedDefinition = selectedCapability.conceptDefinitions[0]!;
+    const siblingDefinition = siblingCapability.conceptDefinitions[0]!;
+    const requestRequirements = extractRequestRequirements({
+      requestId: "request-1",
+      question: "State the triangle area formula.",
+      subjectId,
+      topicId: geometryTopicId,
+    });
+
+    const unrelatedContract = buildFormulaContract(
+      [
+        {
+          id: "unit-selected",
+          sourceLabel: selectedDefinition.sourceLabel,
+          resourceChunkId: selectedDefinition.resourceChunkId,
+          capabilityIds: [selectedDefinition.id],
+          supportsRequirementIds: [requestRequirements.requirements[0]!.id],
+          quotedEvidence: selectedDefinition.evidenceSpan.text,
+          evidenceSpans: [selectedDefinition.evidenceSpan],
+          allowedUses: ["DEFINE" as const],
+          semanticComponents: selectedDefinition.semanticComponents,
+          semanticQuantityBindings: [],
+        },
+      ],
+      {
+        requestRequirements,
+        evidenceCapabilities: [selectedCapability, unrelatedCapability],
+      }
+    );
+    const siblingContract = buildFormulaContract(
+      [
+        {
+          id: "unit-sibling",
+          sourceLabel: siblingDefinition.sourceLabel,
+          resourceChunkId: siblingDefinition.resourceChunkId,
+          capabilityIds: [siblingDefinition.id],
+          supportsRequirementIds: [requestRequirements.requirements[0]!.id],
+          quotedEvidence: siblingDefinition.evidenceSpan.text,
+          evidenceSpans: [siblingDefinition.evidenceSpan],
+          allowedUses: ["DEFINE" as const],
+          semanticComponents: siblingDefinition.semanticComponents,
+          semanticQuantityBindings: [],
+        },
+      ],
+      {
+        requestRequirements,
+        evidenceCapabilities: [siblingCapability],
+      }
+    );
+
+    expect(unrelatedContract.expressions).toEqual([]);
+    expect(siblingContract.expressions).toEqual([]);
   });
 
   it("routes formula-only requests to structured formula mode", () => {
