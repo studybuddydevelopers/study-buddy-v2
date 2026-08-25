@@ -1037,6 +1037,96 @@ describe("Stage 4.1 capability grounding pipeline", () => {
     expect(outcome.kind).toBe("COMPLETED");
   });
 
+  it("executes the bounded probability manual-quality target without chat-provider calls", async () => {
+    const provider = new RecordingStructuredProvider();
+    const { outcome } = await runPipeline({
+      message: "What is the probability of rolling an even number on a fair die?",
+      chunks: [
+        retrievedChunk(
+          "Probability is favourable outcomes divided by total equally likely outcomes. For a fair six-sided die, the probability of rolling an even number is 3 out of 6, which simplifies to 1/2."
+        ),
+      ],
+      provider,
+    });
+
+    expect(outcome.kind).toBe("COMPLETED");
+    expect(outcome.diagnostics?.taskOutputMode).toBe("STRUCTURED_CALCULATION");
+    expect(provider.structuredInputs).toHaveLength(0);
+    expect(provider.generateInputs).toHaveLength(0);
+    expect(outcome.kind === "COMPLETED" ? outcome.content : "").toMatch(
+      /probability = 3\s*\/\s*6 = 1\/2/i
+    );
+    expect(outcome.kind === "COMPLETED" ? outcome.content : "").not.toMatch(/\b2,\s*4,\s*6\b/);
+  });
+
+  it("keeps force formula evidence in the structured formula contract", async () => {
+    const provider = new RecordingStructuredProvider();
+    const { outcome } = await runPipeline({
+      message: "Explain F = m x a and its unit.",
+      chunks: [
+        retrievedChunk(
+          "Newton's second law links resultant force, mass and acceleration: F = m x a. Force is measured in newtons when mass is in kilograms and acceleration is in metres per second squared."
+        ),
+      ],
+      provider,
+    });
+
+    expect(outcome.kind).toBe("COMPLETED");
+    expect(outcome.diagnostics?.taskOutputMode).toBe("STRUCTURED_FORMULA");
+    expect(provider.structuredInputs).toHaveLength(1);
+    const prompt = provider.structuredInputs[0]?.messages
+      .map((message) => message.content)
+      .join("\n");
+    expect(prompt).toContain("\"F = m x a\"");
+    expect(prompt).toContain("\"symbol\": \"F\"");
+    expect(prompt).toContain("\"symbol\": \"m\"");
+    expect(prompt).toContain("\"symbol\": \"a\"");
+    expect(prompt).toContain("newtons");
+    expect(prompt).toContain("metres per second squared");
+    const content = outcome.kind === "COMPLETED" ? outcome.content : "";
+    expect(content).toContain("The formula is F = m x a.");
+    expect(content).toContain("F means force");
+    expect(content).toContain("m means mass");
+    expect(content).toContain("a means acceleration");
+    expect(content).toContain("force is measured in newtons");
+  });
+
+  it("deduplicates exact adjacent accepted prose segments without dropping citations", async () => {
+    const provider = new RecordingStructuredProvider("unused", {
+      answerSegments: [
+        {
+          text: "Producers are organisms that make their own food.",
+          sourceLabels: ["SOURCE_1"],
+        },
+        {
+          text: "Producers are organisms that make their own food.",
+          sourceLabels: ["SOURCE_1"],
+        },
+      ],
+      insufficientContext: false,
+      suggestedQuestions: [],
+    });
+    const { outcome } = await runPipeline({
+      message: "What are producers?",
+      chunks: [
+        retrievedChunk("Producers are organisms that make their own food."),
+      ],
+      provider,
+    });
+
+    expect(outcome.kind).toBe("COMPLETED");
+    const content = outcome.kind === "COMPLETED" ? outcome.content : "";
+    expect(content.match(/Producers are organisms that make their own food/g)).toHaveLength(1);
+    expect(outcome.kind === "COMPLETED" ? outcome.answerSegments : []).toHaveLength(1);
+    expect(outcome.kind === "COMPLETED" ? outcome.citations : []).toEqual([
+      {
+        sourceLabel: "SOURCE_1",
+        resourceChunkId: "chunk-1",
+        evidenceUnitIds: ["unit-1"],
+      },
+    ]);
+  });
+
   it("passes the percentage-discount control without unsupported elaboration", async () => {
     const provider = new RecordingStructuredProvider();
     const { outcome } = await runPipeline({
