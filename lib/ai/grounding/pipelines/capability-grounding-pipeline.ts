@@ -375,7 +375,11 @@ export class CapabilityGroundingPipeline implements GroundingPipeline {
     diagnosticsBase: CapabilityPipelineDiagnostics;
     validatedEvidenceUnits: CapabilityPipelineDiagnostics["validatedEvidenceUnits"];
   }): Promise<CapabilityGroundingOutcome> {
-    const contract = buildFormulaContract(input.validatedEvidenceUnits);
+    const contract = buildFormulaContract(input.validatedEvidenceUnits, {
+      requestRequirements: input.diagnosticsBase.requestRequirements,
+      answerabilityDecision: input.diagnosticsBase.answerabilityDecision,
+      evidenceCapabilities: input.diagnosticsBase.evidenceCapabilities,
+    });
     const contractValidation = validateFormulaContractCompleteness(contract);
     if (!contractValidation.supported) {
       const diagnostics = structuredDiagnostics({
