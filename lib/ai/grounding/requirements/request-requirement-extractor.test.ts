@@ -260,6 +260,30 @@ describe("Stage 4.1 request requirement extraction", () => {
     expect(requirement.requiredInputs).toEqual(["120 m", "10 s"]);
   });
 
+  it.each([
+    "How do you find the arithmetic mean?",
+    "Explain how to calculate the arithmetic mean.",
+    "How is percentage change calculated?",
+    "Show how to work out density.",
+  ])("routes calculation-method explanations without operands to procedure: %s", (question) => {
+    const requirement = firstRequirement(question);
+
+    expectKind(requirement, "PROCEDURE_METHOD");
+    expect(requirement.requestedAction).toBe("EXPLAIN");
+    expect(requirement.requiredInputs).toBeUndefined();
+  });
+
+  it.each([
+    "Find the mean of 2, 4 and 6.",
+    "How do you calculate the mean of 2, 4 and 6?",
+    "How do you calculate force from 5 kg and 2 m/s2?",
+  ])("keeps numeric result requests as calculations: %s", (question) => {
+    const requirement = firstRequirement(question);
+
+    expectKind(requirement, "CALCULATION");
+    expect(requirement.requiredInputs?.length).toBeGreaterThan(0);
+  });
+
   it("extracts explicit comparisons structurally", () => {
     const requirement = firstRequirement("Compare evaporation and boiling.");
 
