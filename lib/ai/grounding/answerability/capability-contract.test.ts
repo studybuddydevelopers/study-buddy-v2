@@ -299,16 +299,20 @@ describe("Stage 4.1 capability cross-layer contract", () => {
   it("supports event-condition facts without canonicalising the whole question", () => {
     expectSupported("What is the probability of an even number on a fair die?", [
       chunk(
-        "For a fair six-sided die, the probability of rolling an even number is 3 out of 6, which simplifies to 1/2."
+        "Probability is favourable outcomes divided by total equally likely outcomes. For a fair six-sided die, the probability of rolling an even number is 3 out of 6, which simplifies to 1/2."
       ),
     ]);
 
     expectSupported("What is the probability of heads on a fair coin?", [
-      chunk("For a fair coin, the probability of getting heads is 1 out of 2."),
+      chunk(
+        "Probability is favourable outcomes divided by total equally likely outcomes. For a fair coin, the probability of getting heads is 1 out of 2."
+      ),
     ]);
 
     expectSupported("What is the chance of choosing a vowel from these letters?", [
-      chunk("For the letters A, B, C, the chance of choosing a vowel is 1 out of 3."),
+      chunk(
+        "Probability is favourable outcomes divided by total equally likely outcomes. For the letters A, B, C, the chance of choosing a vowel is 1 out of 3."
+      ),
     ]);
   });
 
