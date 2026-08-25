@@ -342,8 +342,9 @@ function allowedUsesForSemanticComponent(component: SemanticComponent): AllowedE
     case "SYMBOL":
       return ["SYMBOL"];
     case "QUANTITY":
-    case "METHOD":
       return ["CALCULATE"];
+    case "METHOD":
+      return ["PROCESS", "CALCULATE"];
     case "COMPARISON_SIDE":
       return ["COMPARE"];
     case "PROCESS":
