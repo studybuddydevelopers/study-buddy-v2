@@ -5,7 +5,7 @@ import type {
   SemanticQuantityBinding,
   ValidatedEvidenceUnit,
 } from "./evidence-units/validated-evidence-unit";
-import type { EvidenceCapability } from "./capabilities/types";
+import type { EvidenceCapability, FormulaCapability } from "./capabilities/types";
 import type { RequestRequirement, RequestRequirements } from "./requirements/types";
 import type { GroundedTeachAnswerSegment } from "./structured-output";
 import type {
@@ -45,6 +45,7 @@ export type StructuredTaskValidationErrorCode =
   | "MISSING_REQUIRED_CONDITION"
   | "UNSUPPORTED_RELATION"
   | "UNSUPPORTED_EXPRESSION"
+  | "FORMULA_CONTRACT_INCOMPLETE"
   | "INCOMPLETE_CALCULATION_PLAN"
   | "MISSING_INPUT_BINDING"
   | "MISSING_AUTHORISED_METHOD"
@@ -546,20 +547,47 @@ export function buildCalculationContract(
   };
 }
 
-export function buildFormulaContract(units: ValidatedEvidenceUnit[]): FormulaContract {
-  const sourceLabels = uniqueStrings(units.map((unit) => unit.sourceLabel));
+export function buildFormulaContract(
+  units: ValidatedEvidenceUnit[],
+  options: {
+    requestRequirements?: RequestRequirements;
+    answerabilityDecision?: AnswerabilityDecision;
+    evidenceCapabilities?: EvidenceCapability[];
+  } = {}
+): FormulaContract {
+  const authorisedFormulaCapabilities = authorisedFormulaCapabilitiesForContract({
+    units,
+    requestRequirements: options.requestRequirements,
+    answerabilityDecision: options.answerabilityDecision,
+    evidenceCapabilities: options.evidenceCapabilities ?? [],
+  });
+  const sourceLabels = uniqueStrings([
+    ...units.map((unit) => unit.sourceLabel),
+    ...authorisedFormulaCapabilities.map((formula) => formula.sourceLabel),
+  ]);
   const formulaExpressions = uniqueStrings(
-    units.flatMap((unit) =>
-      (unit.semanticComponents ?? [])
-        .filter((component) => component.kind === "FORMULA" && component.text)
-        .map((component) => component.text!)
-    )
+    [
+      ...units.flatMap((unit) =>
+        (unit.semanticComponents ?? [])
+          .filter((component) => component.kind === "FORMULA" && component.text)
+          .map((component) => component.text!)
+      ),
+      ...authorisedFormulaCapabilities.map((formula) => formula.expression),
+    ]
   ).filter(isFormulaExpressionForContract);
   const requiredUnits = deriveRequiredFormulaUnits(units);
   const requiredVariables = deriveRequiredFormulaVariables(
     units,
     formulaExpressions,
-    requiredUnits
+    requiredUnits,
+    {
+      additionalEvidenceTexts: authorisedFormulaCapabilities.map(
+        (formula) => formula.evidenceSpan.text
+      ),
+      additionalSourceLabels: authorisedFormulaCapabilities.map(
+        (formula) => formula.sourceLabel
+      ),
+    }
   );
   const requiredConditions = uniqueBy(
     units
@@ -584,13 +612,150 @@ export function buildFormulaContract(units: ValidatedEvidenceUnit[]): FormulaCon
   };
 }
 
+function authorisedFormulaCapabilitiesForContract(input: {
+  units: ValidatedEvidenceUnit[];
+  requestRequirements?: RequestRequirements;
+  answerabilityDecision?: AnswerabilityDecision;
+  evidenceCapabilities: EvidenceCapability[];
+}): FormulaCapability[] {
+  const allFormulas = input.evidenceCapabilities.flatMap(
+    (capability) => capability.formulas
+  );
+  if (allFormulas.length === 0) return [];
+
+  const selectedCapabilityIds = new Set(
+    input.units.flatMap((unit) => unit.capabilityIds)
+  );
+  const selectedSourceScopes = new Set(
+    input.units.map((unit) => evidenceScopeKey(unit.resourceChunkId, unit.sourceLabel))
+  );
+  const supportedFormulaRequirementIds = new Set(
+    input.requestRequirements
+      ? flattenRequirements(input.requestRequirements.requirements)
+          .filter(isFormulaExpressionRequirement)
+          .map((requirement) => requirement.id)
+      : []
+  );
+  const supportingFormulaCapabilityIds = new Set(
+    (input.answerabilityDecision?.requirementResults ?? [])
+      .filter(
+        (result) =>
+          result.status === "SUPPORTED" &&
+          supportedFormulaRequirementIds.has(result.requirementId)
+      )
+      .flatMap((result) => result.supportingCapabilityIds)
+  );
+  const formulaExpressionRequested = input.requestRequirements
+    ? flattenRequirements(input.requestRequirements.requirements).some(
+        isFormulaExpressionRequirement
+      )
+    : false;
+  const matchingScopedFormulas = allFormulas.filter(
+    (formula) =>
+      selectedSourceScopes.has(evidenceScopeKey(formula.resourceChunkId, formula.sourceLabel)) &&
+      formulaCapabilityMatchesFormulaRequest(formula, input.requestRequirements)
+  );
+  const scopedFormulas =
+    matchingScopedFormulas.length > 0
+      ? matchingScopedFormulas
+      : allFormulas.filter(
+          (formula) =>
+            selectedSourceScopes.has(
+              evidenceScopeKey(formula.resourceChunkId, formula.sourceLabel)
+            ) &&
+            formulaExpressionRequested &&
+            formulasInScope(input.evidenceCapabilities, formula.resourceChunkId, formula.sourceLabel)
+              .length === 1
+        );
+
+  return uniqueBy(
+    allFormulas.filter(
+      (formula) =>
+        selectedCapabilityIds.has(formula.id) ||
+        supportingFormulaCapabilityIds.has(formula.id) ||
+        scopedFormulas.some((scoped) => scoped.id === formula.id)
+    ),
+    (formula) => formula.id
+  );
+}
+
+function isFormulaExpressionRequirement(requirement: RequestRequirement) {
+  return (
+    requirement.kind === "FORMULA" ||
+    requirement.kind === "FORMULA_WITH_SYMBOLS" ||
+    requirement.requestedFacet === "FORMULA" ||
+    requirement.requestedAction === "STATE_FORMULA" ||
+    (requirement.requiredSemanticComponents ?? []).some(
+      (component) => component.kind === "FORMULA"
+    )
+  );
+}
+
+function formulaCapabilityMatchesFormulaRequest(
+  formula: FormulaCapability,
+  requestRequirements?: RequestRequirements
+) {
+  if (!requestRequirements) return true;
+  const formulaRequirements = flattenRequirements(
+    requestRequirements.requirements
+  ).filter(isFormulaExpressionRequirement);
+  if (formulaRequirements.length === 0) return false;
+  const formulaText = normalizeText(
+    [
+      formula.expression,
+      formula.outputQuantity ?? "",
+      formula.canonicalConcept?.id ?? "",
+      formula.canonicalConcept?.label ?? "",
+      ...(formula.canonicalConcept?.aliases ?? []),
+    ].join(" ")
+  );
+  return formulaRequirements.some((requirement) => {
+    const targets = uniqueStrings([
+      ...requirement.targetConcepts,
+      requirement.baseConcept?.baseConcept ?? "",
+      ...(requirement.baseConcept?.aliases ?? []),
+    ]).map(normalizeText);
+    return (
+      targets.length === 0 ||
+      targets.some(
+        (target) =>
+          target &&
+          (formulaText.includes(target) ||
+            targetIncludesAllFormulaConceptTokens(target, formulaText))
+      )
+    );
+  });
+}
+
+function targetIncludesAllFormulaConceptTokens(target: string, formulaText: string) {
+  const tokens = target.split(" ").filter((token) => token.length > 2);
+  return tokens.length > 0 && tokens.every((token) => formulaText.includes(token));
+}
+
+function formulasInScope(
+  evidenceCapabilities: EvidenceCapability[],
+  resourceChunkId: string,
+  sourceLabel: string
+) {
+  return evidenceCapabilities.flatMap((capability) =>
+    capability.resourceChunkId === resourceChunkId &&
+    capability.sourceLabel === sourceLabel
+      ? capability.formulas
+      : []
+  );
+}
+
+function evidenceScopeKey(resourceChunkId: string, sourceLabel: string) {
+  return `${resourceChunkId}:${sourceLabel}`;
+}
+
 export function validateFormulaContractCompleteness(
   contract: FormulaContract
 ): StructuredTaskValidationResult<FormulaContract> {
   const errors: StructuredTaskValidationError[] = [];
   if (contract.expressions.length === 0) {
     errors.push({
-      code: "UNSUPPORTED_EXPRESSION",
+      code: "FORMULA_CONTRACT_INCOMPLETE",
       message: "Formula contract has no authorised source formula expression.",
       path: "expressions",
     });
@@ -1868,17 +2033,22 @@ function deriveCalculationMethodsFromAnswerabilityPaths(input: {
       formula?.sourceLabel,
       ...path.availableInputs.map((input) => input.sourceLabel),
     ].filter((label): label is string => Boolean(label)));
+    const availableInputKeys: string[] = [];
     for (const available of path.availableInputs) {
-      const conceptKey = available.concept?.baseConcept ?? normalizeQuantity(available.text ?? "");
+      const conceptKey = normalizeCalculationKey(
+        available.concept?.baseConcept ?? available.text ?? ""
+      );
       if (available.value !== undefined) {
         values.set(conceptKey, available.value);
+        availableInputKeys.push(conceptKey);
       }
     }
 
     const expressionAst = parseFormulaExpressionForPath({
       formulaText,
       outputConcept: path.outputConcept,
-      availableInputKeys: [...values.keys()],
+      availableInputKeys,
+      inputAliases: formulaInputAliasesForPath(formula, path),
     });
     if (!expressionAst) return [];
     const result = evaluateExpressionForContract(expressionAst, values);
@@ -1897,7 +2067,7 @@ function deriveCalculationMethodsFromAnswerabilityPaths(input: {
           calculationConceptDisplay(input.concept?.baseConcept ?? input.text ?? "")
         ),
         inputQuantityKeys: path.availableInputs.map((input) =>
-          input.concept?.baseConcept ?? normalizeQuantity(input.text ?? "")
+          normalizeCalculationKey(input.concept?.baseConcept ?? input.text ?? "")
         ),
         operation: operationForExpression(expressionAst),
         expressionAst,
@@ -2410,6 +2580,9 @@ function calculationOutputQuantityForPath(outputConcept: string, formulaText: st
   if (normalizedOutput === "simple interest") return "interest";
   const left = formulaText.split("=")[0]?.trim();
   if (left) {
+    if (/^[A-Za-z]$/.test(left.trim()) && normalizedOutput) {
+      return calculationConceptDisplay(normalizedOutput);
+    }
     const mapped = formulaTermToQuantityKey(left, normalizedOutput, []);
     if (mapped && !mapped.startsWith("concept ")) return calculationConceptDisplay(mapped);
   }
@@ -2420,6 +2593,7 @@ function parseFormulaExpressionForPath(input: {
   formulaText: string;
   outputConcept: string;
   availableInputKeys: string[];
+  inputAliases?: Map<string, string>;
 }): CalculationExpression | undefined {
   const [, ...rightParts] = input.formulaText.split("=");
   const right = rightParts.join("=");
@@ -2439,10 +2613,22 @@ function parseFormulaExpressionForPath(input: {
     if (/^-?\d+(?:\.\d+)?$/.test(token)) {
       return constantExpression(Number(token));
     }
+    const phraseMatch = consumeFormulaPhraseAlias({
+      tokens,
+      startIndex: index - 1,
+      aliases: input.inputAliases,
+      outputConcept: input.outputConcept,
+      availableInputKeys: input.availableInputKeys,
+    });
+    if (phraseMatch) {
+      index = phraseMatch.nextIndex;
+      return valueExpression(phraseMatch.quantityKey);
+    }
     const mapped = formulaTermToQuantityKey(
       token,
       input.outputConcept,
-      input.availableInputKeys
+      input.availableInputKeys,
+      input.inputAliases
     );
     return mapped ? valueExpression(mapped) : undefined;
   };
@@ -2481,6 +2667,32 @@ function parseFormulaExpressionForPath(input: {
   return expression && index === tokens.length ? expression : undefined;
 }
 
+function consumeFormulaPhraseAlias(input: {
+  tokens: string[];
+  startIndex: number;
+  aliases?: Map<string, string>;
+  outputConcept: string;
+  availableInputKeys: string[];
+}): { quantityKey: string; nextIndex: number } | undefined {
+  const aliases = input.aliases;
+  if (!aliases || aliases.size === 0) return undefined;
+  for (let end = Math.min(input.tokens.length, input.startIndex + 5); end > input.startIndex; end--) {
+    const segment = input.tokens.slice(input.startIndex, end);
+    if (!segment.every((token) => /^[A-Za-z][A-Za-z-]*$/.test(token))) continue;
+    const key = normalizeCalculationKey(segment.join(" "));
+    const mapped = aliases.get(key);
+    if (
+      mapped &&
+      input.availableInputKeys
+        .map(normalizeCalculationKey)
+        .includes(normalizeCalculationKey(mapped))
+    ) {
+      return { quantityKey: normalizeCalculationKey(mapped), nextIndex: end };
+    }
+  }
+  return undefined;
+}
+
 function tokenizeFormulaRightSide(value: string) {
   return value
     .replace(/×/g, "*")
@@ -2498,10 +2710,18 @@ function tokenizeFormulaRightSide(value: string) {
 function formulaTermToQuantityKey(
   term: string,
   outputConcept: string,
-  availableInputKeys: string[]
+  availableInputKeys: string[],
+  inputAliases?: Map<string, string>
 ) {
   const normalized = normalizeQuantity(term);
   const output = normalizeQuantity(outputConcept);
+  const alias = inputAliases?.get(normalizeCalculationKey(term)) ?? inputAliases?.get(normalized);
+  if (
+    alias &&
+    availableInputKeys.map(normalizeCalculationKey).includes(normalizeCalculationKey(alias))
+  ) {
+    return normalizeCalculationKey(alias);
+  }
   const symbolMap: Record<string, string> = {
     p: "principal",
     r: "rate",
@@ -2511,11 +2731,76 @@ function formulaTermToQuantityKey(
     s: "speed",
   };
   const mapped = symbolMap[normalized] ?? normalized;
-  if (availableInputKeys.map(normalizeQuantity).includes(mapped)) return mapped;
+  if (availableInputKeys.map(normalizeCalculationKey).includes(normalizeCalculationKey(mapped))) {
+    return normalizeCalculationKey(mapped);
+  }
   if (["principal", "rate", "time", "distance", "speed"].includes(mapped)) {
     return mapped;
   }
   return mapped;
+}
+
+function formulaInputAliasesForPath(
+  formula: FormulaCapability | undefined,
+  path: NonNullable<AnswerabilityDecision["calculationPaths"]>[number]
+) {
+  const aliases = new Map<string, string>();
+  const availableKeys = path.availableInputs.map((input) =>
+    normalizeCalculationKey(input.concept?.baseConcept ?? input.text ?? "")
+  );
+  for (const key of availableKeys) {
+    if (key) aliases.set(key, key);
+  }
+  for (const input of path.availableInputs) {
+      const key = normalizeCalculationKey(input.concept?.baseConcept ?? input.text ?? "");
+    if (!key) continue;
+    for (const alias of [
+      input.concept?.baseConcept ?? "",
+      ...(input.concept?.aliases ?? []),
+      input.text ?? "",
+    ]) {
+      const normalized = normalizeCalculationKey(alias);
+      if (normalized) aliases.set(normalized, key);
+    }
+  }
+  if (formula) {
+    for (const definition of formula.symbolDefinitions) {
+      if (!definition.meaning) continue;
+      const meaningKey = normalizeCalculationKey(definition.meaning);
+      const available = availableKeys.find((key) =>
+        semanticQuantityAliasesOverlap(key, meaningKey)
+      );
+      if (available) aliases.set(normalizeCalculationKey(definition.symbol.normalized), available);
+    }
+    const rhsSymbols = formulaRightSideSymbolTerms(formula.expression).filter(
+      (symbol) =>
+        normalizeCalculationKey(symbol) !== normalizeCalculationKey(formula.outputQuantity ?? "") &&
+        normalizeCalculationKey(symbol) !== normalizeCalculationKey(formula.expression.split("=")[0] ?? "")
+    );
+    const unmappedSymbols = rhsSymbols.filter(
+      (symbol) => !aliases.has(normalizeCalculationKey(symbol))
+    );
+    if (unmappedSymbols.length === availableKeys.length) {
+      for (const [index, symbol] of unmappedSymbols.entries()) {
+        const key = availableKeys[index];
+        if (key) aliases.set(normalizeCalculationKey(symbol), key);
+      }
+    }
+  }
+  return aliases;
+}
+
+function semanticQuantityAliasesOverlap(left: string, right: string) {
+  if (!left || !right) return false;
+  return left === right || left.includes(right) || right.includes(left);
+}
+
+function formulaRightSideSymbolTerms(expression: string) {
+  const [, ...rightParts] = expression.split("=");
+  const right = rightParts.join("=");
+  return uniqueStrings(
+    tokenizeFormulaRightSide(right).filter((token) => /^[A-Za-z][A-Za-z-]*$/.test(token))
+  ).filter((token) => !["pi", "π"].includes(token.toLowerCase()));
 }
 
 function evaluateExpressionForContract(
@@ -2524,7 +2809,7 @@ function evaluateExpressionForContract(
 ): number | undefined {
   switch (expression.kind) {
     case "VALUE":
-      return values.get(normalizeQuantity(expression.quantityKey));
+      return values.get(normalizeCalculationKey(expression.quantityKey));
     case "CONSTANT":
       return Number.isFinite(expression.value) ? expression.value : undefined;
     case "ADD":
@@ -2554,7 +2839,7 @@ function renderFormulaExpressionTemplate(
 ): string {
   switch (expression.kind) {
     case "VALUE":
-      return numberToText(values.get(normalizeQuantity(expression.quantityKey)) ?? NaN);
+      return numberToText(values.get(normalizeCalculationKey(expression.quantityKey)) ?? NaN);
     case "CONSTANT":
       return numberToText(expression.value);
     case "ADD":
@@ -2659,10 +2944,20 @@ function escapeRegExp(value: string) {
 function deriveRequiredFormulaVariables(
   units: ValidatedEvidenceUnit[],
   formulaExpressions: string[],
-  requiredUnits: FormulaContract["requiredUnits"] = []
+  requiredUnits: FormulaContract["requiredUnits"] = [],
+  options: {
+    additionalEvidenceTexts?: string[];
+    additionalSourceLabels?: string[];
+  } = {}
 ): FormulaContract["requiredVariables"] {
-  const sourceLabels = uniqueStrings(units.map((unit) => unit.sourceLabel));
-  const combinedEvidence = units.map((unit) => unit.quotedEvidence).join(" ");
+  const sourceLabels = uniqueStrings([
+    ...units.map((unit) => unit.sourceLabel),
+    ...(options.additionalSourceLabels ?? []),
+  ]);
+  const combinedEvidence = [
+    ...units.map((unit) => unit.quotedEvidence),
+    ...(options.additionalEvidenceTexts ?? []),
+  ].join(" ");
   const termMeanings = deriveFormulaTermMeanings(
     formulaExpressions,
     combinedEvidence,
@@ -3322,7 +3617,7 @@ function normalizeCalculationKey(value: string) {
     .toLowerCase()
     .replace(/[’']/g, "")
     .replace(/[^a-z0-9.%/]+/g, " ")
-    .replace(/\b(?:the|value|number|amount|of|for|as|is|are|equals?|parts?)\b/g, " ")
+    .replace(/\b(?:the|number|amount|of|for|as|is|are|equals?|parts?)\b/g, " ")
     .replace(/\s+/g, " ")
     .trim();
 }
