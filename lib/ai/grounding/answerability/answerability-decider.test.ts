@@ -188,6 +188,38 @@ describe("Stage 4.1 answerability decider golden cases", () => {
     expect(decision.requirementResults[0]?.missingComponents).toContain("input:time");
   });
 
+  it("supports calculation-method explanations without requiring executable operands", () => {
+    const first = expectSupported("How do you find the arithmetic mean?", [
+      chunk("The arithmetic mean is found by adding all values and dividing by the number of values."),
+    ]);
+    const second = expectSupported("Explain how to calculate the arithmetic mean.", [
+      chunk("The arithmetic mean is found by adding all values and dividing by the number of values."),
+    ]);
+
+    expect(first.validatedEvidenceUnits[0]?.allowedUses).toContain("PROCESS");
+    expect(second.validatedEvidenceUnits[0]?.allowedUses).toContain("PROCESS");
+  });
+
+  it("keeps numeric mean requests on the calculation path", () => {
+    const requirements = request("How do you calculate the mean of 2, 4 and 6?");
+    const decision = expectSupported("How do you calculate the mean of 2, 4 and 6?", [
+      chunk(
+        "Mean is found by adding all values and dividing by the number of values. The values are 2, 4 and 6, so the mean is 4."
+      ),
+    ]);
+
+    expect(requirements.requirements[0]?.kind).toBe("CALCULATION");
+    expect(decision.classification).toBe("SUPPORTED");
+  });
+
+  it("refuses method requests when method evidence is absent", () => {
+    const decision = expectInsufficient("How do you find the arithmetic mean?", [
+      chunk("Median is the middle value in an ordered list."),
+    ]);
+
+    expect(decision.requirementResults[0]?.missingComponents.length).toBeGreaterThan(0);
+  });
+
   it("requires every comparison side", () => {
     expectSupported("Compare evaporation and boiling.", [
       chunk("Evaporation occurs at the surface. Boiling occurs throughout the liquid."),
