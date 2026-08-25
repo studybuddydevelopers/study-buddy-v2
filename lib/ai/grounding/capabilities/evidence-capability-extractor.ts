@@ -461,6 +461,7 @@ function extractNaturalLanguageFormulas(
   localSymbolDefinitions: SymbolCapability[]
 ): FormulaCapability[] {
   if (/\w\s*=\s*\w/.test(sentence.text)) return [];
+  if (/\bmeasured\s+in\b/i.test(sentence.text)) return [];
   const candidates: Array<{ concept: string; right: string; raw: string; start: number }> = [];
 
   const formulaStatement = sentence.text.match(/\b(.+?)\s+formula\s+(?:is|equals?)\s+(.+)$/i);
@@ -879,6 +880,7 @@ function extractMethods(
   const text = sentence.text;
   const matches = [
     text.match(/\b(.+?)\s+can\s+be\s+(?:solved|found|calculated|worked\s+out|balanced|separated|prepared|made|done)\s+by\s+(.+)$/i),
+    text.match(/\b(.+?)\s+(?:is|are)\s+(?:found|calculated|worked\s+out)\s+by\s+(.+)$/i),
     text.match(/\b(.+?)\s+can\s+((?:recover|separate|remove|filter|extract|collect|produce|form|make)\b.+)$/i),
     text.match(/\bfor\s+(.+?),\s*(.+?\b(?:subtract|add|divide|multiply|balance|filter|heat|cool|apply|remove|separate|mix|measure|solve)\b.+)$/i),
     text.match(/\b(.+?)\s+(?:is|are)\s+made\s+by\s+(.+)$/i),
@@ -1943,6 +1945,8 @@ function cleanFormulaConceptCandidate(value: string): string {
 function normalizeFormulaSide(side: string): string {
   return side
     .replace(/\b(?:formula|is|equals?)\b/gi, "")
+    .replace(/\bsquared\b/gi, "^2")
+    .replace(/\bcubed\b/gi, "^3")
     .replace(/\s+/g, " ")
     .trim();
 }
@@ -1969,13 +1973,27 @@ function isMostlyVerbPhrase(value: string): boolean {
 }
 
 function normalizeFormulaLeft(side: string): string {
-  const cleaned = normalizeFormulaSide(side);
+  const cleaned = collapseRepeatedFormulaPhrase(normalizeFormulaSide(side));
   const tokens = cleaned.split(/\s+/).filter(Boolean);
   const lastToken = tokens[tokens.length - 1];
   if (tokens.length > 1 && lastToken && (normalizeSymbol(lastToken) || /^[A-Z]{2,5}$/.test(lastToken))) {
     return lastToken;
   }
   return cleaned;
+}
+
+function collapseRepeatedFormulaPhrase(value: string) {
+  const tokens = value.split(/\s+/).filter(Boolean);
+  if (tokens.length > 1 && tokens.length % 2 === 0) {
+    const midpoint = tokens.length / 2;
+    const left = tokens.slice(0, midpoint).join(" ").toLowerCase();
+    const right = tokens.slice(midpoint).join(" ").toLowerCase();
+    if (left === right) return tokens.slice(0, midpoint).join(" ");
+  }
+  if (tokens.length > 2 && tokens[0]?.toLowerCase() === tokens[tokens.length - 1]?.toLowerCase()) {
+    return tokens.slice(1).join(" ");
+  }
+  return value;
 }
 
 function normalizeFormulaOutput(output: string): string | undefined {
@@ -1997,7 +2015,7 @@ function inferNumericRole(quantity: string, unit?: string): NumericCapability["r
 }
 
 function isFormulaRightSide(value: string): boolean {
-  return /[+\-*/÷×x()=]|\b(?:over|per)\b/i.test(value) || /\b[A-Za-z]\b.*\b[A-Za-z]\b/.test(value);
+  return /[+\-*/÷×x()=^]|\b(?:over|per|squared|cubed)\b/i.test(value) || /\b[A-Za-z]\b.*\b[A-Za-z]\b/.test(value);
 }
 
 function isFormulaLike(value: string): boolean {
