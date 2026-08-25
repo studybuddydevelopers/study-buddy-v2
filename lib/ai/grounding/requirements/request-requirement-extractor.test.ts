@@ -340,9 +340,13 @@ describe("Stage 4.1 request requirement extraction", () => {
     const probability = firstRequirement(
       "What is the probability of an even number on a fair die?"
     );
-    expectKind(probability, "FACT_LOOKUP");
+    expectKind(probability, "CALCULATION");
     expect(probability.targetConcepts).toEqual(["probability"]);
-    expect(probability.requestedEvent).toBe("even number on a fair die");
+    expect(probability.requestedEvent).toBe("rolling an even number on a fair die");
+    expect(probability.requiredInputConcepts).toEqual([
+      "favourable outcomes",
+      "total outcomes",
+    ]);
 
     const identifier = firstRequirement("Which question is this from?");
     expectKind(identifier, "FACT_LOOKUP");
