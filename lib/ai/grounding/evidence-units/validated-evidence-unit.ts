@@ -220,6 +220,7 @@ function extractSemanticQuantityBindingsFromText(
 ) {
   return uniqueQuantityBindings([
     ...extractRatioQuantityBindings(text, sourceCapabilityIds),
+    ...extractBoundedProbabilityQuantityBindings(text, sourceCapabilityIds),
     ...extractDiscountQuantityBindings(text, sourceCapabilityIds),
     ...extractCostPerQuantityBindings(text, sourceCapabilityIds),
     ...extractNamedQuantityBindings(text, sourceCapabilityIds),
@@ -297,6 +298,66 @@ function extractRatioQuantityBindings(
     /\b([A-Za-z][A-Za-z\s-]{0,30}?)\s+and\s+([A-Za-z][A-Za-z\s-]{0,30}?)\s+(?:are\s+)?in\s+(?:the\s+)?ratio\s+([-+]?\d+(?:\.\d+)?)\s*:\s*([-+]?\d+(?:\.\d+)?)/gi
   )) {
     addRatio(match[1], match[2], match[3], match[4]);
+  }
+  return bindings;
+}
+
+function extractBoundedProbabilityQuantityBindings(
+  text: string,
+  sourceCapabilityIds: string[]
+): SemanticQuantityBinding[] {
+  const bindings: SemanticQuantityBinding[] = [];
+  for (const match of text.matchAll(
+    /\b(?:the\s+)?(?:probability|chance|likelihood)\s+(?:of|for)\s+(.+?)\s+(?:is|=)\s+([-+]?\d+(?:\.\d+)?)\s+out\s+of\s+([-+]?\d+(?:\.\d+)?)(?:[^.;]*?\b(?:simplif(?:ies|y|ied)|equals?|=)\s+(?:to\s+)?([-+]?\d+(?:\.\d+)?)\s*\/\s*([-+]?\d+(?:\.\d+)?))?/gi
+  )) {
+    const favourable = Number(match[2]);
+    const total = Number(match[3]);
+    if (!Number.isFinite(favourable) || !Number.isFinite(total)) continue;
+
+    const referenceNumerator = Number(match[4]);
+    const referenceDenominator = Number(match[5]);
+    const hasReference =
+      Number.isFinite(referenceNumerator) &&
+      Number.isFinite(referenceDenominator) &&
+      referenceDenominator !== 0;
+    const fraction = hasReference
+      ? `${numberToText(referenceNumerator)}/${numberToText(referenceDenominator)}`
+      : total !== 0
+        ? reduceIntegerFraction(favourable, total)
+        : undefined;
+    const referenceValue = hasReference
+      ? referenceNumerator / referenceDenominator
+      : total !== 0
+        ? favourable / total
+        : undefined;
+
+    bindings.push(
+      {
+        quantityId: "favourable outcomes",
+        label: "favourable outcomes",
+        value: favourable,
+        role: "favourableOutcomeCount",
+        sourceCapabilityIds,
+      },
+      {
+        quantityId: "total outcomes",
+        label: "total outcomes",
+        value: total,
+        role: "totalOutcomeCount",
+        sourceCapabilityIds,
+      }
+    );
+
+    if (referenceValue !== undefined && Number.isFinite(referenceValue)) {
+      bindings.push({
+        quantityId: "probability",
+        label: "probability",
+        value: referenceValue,
+        unit: fraction,
+        role: "probabilityReferenceResult",
+        sourceCapabilityIds,
+      });
+    }
   }
   return bindings;
 }
@@ -482,4 +543,29 @@ function normalizeQuantityId(value: string) {
     .replace(/\b(?:the|a|an|value|number|amount|of|for|as|is|are|equals?)\b/g, " ")
     .replace(/\s+/g, " ")
     .trim();
+}
+
+function reduceIntegerFraction(numerator: number, denominator: number): string {
+  if (!Number.isInteger(numerator) || !Number.isInteger(denominator)) {
+    return `${numberToText(numerator)}/${numberToText(denominator)}`;
+  }
+  const divisor = gcd(Math.abs(numerator), Math.abs(denominator));
+  return `${numberToText(numerator / divisor)}/${numberToText(denominator / divisor)}`;
+}
+
+function gcd(left: number, right: number): number {
+  let a = left;
+  let b = right;
+  while (b !== 0) {
+    const next = a % b;
+    a = b;
+    b = next;
+  }
+  return a || 1;
+}
+
+function numberToText(value: number): string {
+  return Number.isInteger(value)
+    ? String(value)
+    : String(value).replace(/0+$/, "").replace(/\.$/, "");
 }
