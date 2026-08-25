@@ -1916,6 +1916,8 @@ function inferNaturalFormulaInputs(value: string): string[] {
       ["acceleration", /\bacceleration\b/],
       ["principal", /\bprincipal\b|\bp\b/],
       ["rate", /\brate\b|\br\b/],
+      ["favourable outcomes", /\bfavou?rable\s+outcomes?\b/],
+      ["total outcomes", /\btotal\b.{0,30}\boutcomes?\b|\bpossible\s+outcomes?\b/],
       ["original value", /\boriginal\s+value\b|\boriginal\b/],
       ["change", /\bchange\b/],
     ]
