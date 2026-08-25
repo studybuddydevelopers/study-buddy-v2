@@ -20,14 +20,17 @@ import {
   buildFormulaContract,
   buildStructuredCalculationPrompt,
   buildStructuredFormulaPrompt,
+  validateFormulaContractCompleteness,
   validateCalculationAnswerViewModel,
   renderStructuredCalculationAnswer,
+  structuredCalculationOutputFromTrace,
   structuredCalculationOutputSchema,
   structuredFormulaOutputSchema,
   selectTaskOutputMode,
   validateStructuredCalculationOutput,
   validateStructuredFormulaOutput,
 } from "./task-output";
+import { executeCalculationPlan } from "./calculation/deterministic-calculation-executor";
 
 const subjectId = "eval-subject-mathematics";
 const ratioTopicId = "eval-topic-ratio";
@@ -317,6 +320,130 @@ describe("Stage 4.1 structured task output", () => {
     expect(rendered).toContain("one part = 10 / 2 = 5");
     expect(rendered).toContain("girls = 3 × 5 = 15");
     expect(rendered).not.toContain("15 / 3");
+  });
+
+  it("executes bounded probability from grounded count and total without provider arithmetic", () => {
+    const { requestRequirements, decision, contract } = calculationDecision({
+      question: "What is the probability of rolling an even number on a fair die?",
+      topicId: "eval-topic-probability",
+      content:
+        "Probability is favourable outcomes divided by total equally likely outcomes. For a fair six-sided die, the probability of rolling an even number is 3 out of 6, which simplifies to 1/2.",
+    });
+
+    expect(requestRequirements.requirements[0]).toEqual(
+      expect.objectContaining({
+        kind: "CALCULATION",
+        targetConcepts: ["probability"],
+        requestedEvent: "rolling an even number on a fair die",
+      })
+    );
+    expect(selectTaskOutputMode({ requestRequirements, answerabilityDecision: decision })).toBe(
+      "STRUCTURED_CALCULATION"
+    );
+    expect(decision.classification).toBe("SUPPORTED");
+    expect(decision.validatedEvidenceUnits.flatMap((unit) => unit.semanticQuantityBindings ?? [])).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          quantityId: "favourable outcomes",
+          value: 3,
+          role: "favourableOutcomeCount",
+        }),
+        expect.objectContaining({
+          quantityId: "total outcomes",
+          value: 6,
+          role: "totalOutcomeCount",
+        }),
+        expect.objectContaining({
+          quantityId: "probability",
+          value: 0.5,
+          unit: "1/2",
+          role: "probabilityReferenceResult",
+        }),
+      ])
+    );
+    expect(contract.authorisedMethods).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          targetQuantity: "probability",
+          inputQuantityKeys: ["favourable outcomes", "total outcomes"],
+          expression: "3 / 6",
+          result: "1/2",
+          referenceResult: { value: 0.5, unit: "1/2" },
+        }),
+      ])
+    );
+
+    const execution = executeCalculationPlan(contract);
+    expect(execution.ok).toBe(true);
+    if (!execution.ok) throw new Error("Expected bounded probability plan to execute.");
+
+    const output = structuredCalculationOutputFromTrace(execution.trace);
+    const rendered = renderStructuredCalculationAnswer(output, contract);
+    expect(rendered.validation.supported).toBe(true);
+    expect(rendered.content).toMatch(/probability = 3\s*\/\s*6 = 1\/2/i);
+    expect(rendered.content).toContain("Therefore, probability = 1/2.");
+  });
+
+  it.each([
+    {
+      label: "missing favourable count",
+      question: "What is the probability of rolling an even number on a fair die?",
+      content:
+        "Probability is favourable outcomes divided by total equally likely outcomes. A fair die has 6 total outcomes.",
+      expectedClassification: "INSUFFICIENT_CONTEXT",
+    },
+    {
+      label: "missing total count",
+      question: "What is the probability of rolling an even number on a fair die?",
+      content:
+        "Probability is favourable outcomes divided by total equally likely outcomes. The favourable outcome count is 3.",
+      expectedClassification: "INSUFFICIENT_CONTEXT",
+    },
+    {
+      label: "requires discovering outcomes",
+      question: "List the favourable outcomes for rolling an even number on a fair die.",
+      content:
+        "Probability is favourable outcomes divided by total equally likely outcomes. For a fair six-sided die, the probability of rolling an even number is 3 out of 6.",
+      expectedClassification: "INSUFFICIENT_CONTEXT",
+    },
+  ])("does not overextend bounded probability when $label", (item) => {
+    const { decision } = calculationDecision({
+      question: item.question,
+      topicId: "eval-topic-probability",
+      content: item.content,
+    });
+
+    expect(decision.classification).toBe(item.expectedClassification);
+  });
+
+  it("fails bounded probability safely for zero total and conflicting reference result", () => {
+    const zeroTotal = calculationDecision({
+      question: "What is the probability of rolling an even number on a fair die?",
+      topicId: "eval-topic-probability",
+      content:
+        "Probability is favourable outcomes divided by total equally likely outcomes. For a fair six-sided die, the probability of rolling an even number is 3 out of 0.",
+    });
+    expect(zeroTotal.decision.classification).toBe("SUPPORTED");
+    expect(executeCalculationPlan(zeroTotal.contract)).toMatchObject({
+      ok: false,
+      failure: expect.objectContaining({
+        reasons: expect.arrayContaining(["MISSING_AUTHORISED_METHOD"]),
+      }),
+    });
+
+    const conflictingReference = calculationDecision({
+      question: "What is the probability of rolling an even number on a fair die?",
+      topicId: "eval-topic-probability",
+      content:
+        "Probability is favourable outcomes divided by total equally likely outcomes. For a fair six-sided die, the probability of rolling an even number is 3 out of 6, which simplifies to 2/3.",
+    });
+    expect(conflictingReference.decision.classification).toBe("SUPPORTED");
+    expect(executeCalculationPlan(conflictingReference.contract)).toMatchObject({
+      ok: false,
+      failure: expect.objectContaining({
+        reasons: expect.arrayContaining(["REFERENCE_RESULT_MISMATCH"]),
+      }),
+    });
   });
 
   it("renders requested simple-interest formula and variable meanings from authorised evidence", () => {
@@ -885,6 +1012,124 @@ describe("Stage 4.1 structured task output", () => {
     expect(result.supported).toBe(true);
   });
 
+  it("retains source formula evidence and units for force formula contracts", () => {
+    const content =
+      "Newton's second law links resultant force, mass and acceleration: F = m x a. Force is measured in newtons when mass is in kilograms and acceleration is in metres per second squared.";
+    const capability = extractEvidenceCapability(
+      chunk(content, {
+        subjectId: "eval-subject-physics",
+        topicId: "eval-topic-force",
+      })
+    );
+    const requestRequirements = extractRequestRequirements({
+      requestId: "request-1",
+      question: "Explain F = m x a and its unit.",
+      subjectId: "eval-subject-physics",
+      topicId: "eval-topic-force",
+    });
+    const decision = decideAnswerability({
+      requestRequirements,
+      evidenceCapabilities: [capability],
+      conflicts: [],
+    });
+    const contract = buildFormulaContract(decision.validatedEvidenceUnits);
+
+    expect(decision.classification).toBe("SUPPORTED");
+    expect(decision.validatedEvidenceUnits.map((unit) => unit.quotedEvidence)).toEqual(
+      expect.arrayContaining([expect.stringMatching(/F = m x a/i)])
+    );
+    expect(contract.expressions).toContain("F = m x a");
+    expect(validateFormulaContractCompleteness(contract).supported).toBe(true);
+    expect(contract.requiredVariables).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ symbol: "F", meaning: "force" }),
+        expect.objectContaining({ symbol: "m", meaning: "mass" }),
+        expect.objectContaining({ symbol: "a", meaning: "acceleration" }),
+      ])
+    );
+    expect(contract.requiredUnits).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ quantity: "force", unit: "newtons" }),
+        expect.objectContaining({ quantity: "mass", unit: "kilograms" }),
+        expect.objectContaining({
+          quantity: "acceleration",
+          unit: "metres per second squared",
+        }),
+      ])
+    );
+
+    const result = validateStructuredFormulaOutput({
+      value: {
+        expression: "F = m x a",
+        variables: [
+          { symbol: "F", meaning: "force", sourceLabels: ["SOURCE_1"] },
+          { symbol: "m", meaning: "mass", sourceLabels: ["SOURCE_1"] },
+          { symbol: "a", meaning: "acceleration", sourceLabels: ["SOURCE_1"] },
+        ],
+        units: [
+          { quantity: "Force", unit: "newtons", sourceLabels: ["SOURCE_1"] },
+          { quantity: "mass", unit: "kilograms", sourceLabels: ["SOURCE_1"] },
+          {
+            quantity: "acceleration",
+            unit: "metres per second squared",
+            sourceLabels: ["SOURCE_1"],
+          },
+        ],
+        conditions: [],
+        sourceLabels: ["SOURCE_1"],
+        suggestedQuestions: [],
+      },
+      contract,
+      validatedEvidenceUnits: decision.validatedEvidenceUnits,
+    });
+    expect(result.supported).toBe(true);
+
+    expect(
+      validateStructuredFormulaOutput({
+        value: {
+          expression: "F = m x a",
+          variables: [
+            { symbol: "F", meaning: "force", sourceLabels: ["SOURCE_1"] },
+            { symbol: "m", meaning: "mass", sourceLabels: ["SOURCE_1"] },
+            { symbol: "a", meaning: "acceleration", sourceLabels: ["SOURCE_1"] },
+            { symbol: "d", meaning: "distance", sourceLabels: ["SOURCE_1"] },
+          ],
+          units: [
+            { quantity: "Force", unit: "newtons", sourceLabels: ["SOURCE_1"] },
+            { quantity: "mass", unit: "kilograms", sourceLabels: ["SOURCE_1"] },
+            {
+              quantity: "acceleration",
+              unit: "metres per second squared",
+              sourceLabels: ["SOURCE_1"],
+            },
+          ],
+          conditions: [],
+          sourceLabels: ["SOURCE_1"],
+          suggestedQuestions: [],
+        },
+        contract,
+        validatedEvidenceUnits: decision.validatedEvidenceUnits,
+      }).supported
+    ).toBe(false);
+  });
+
+  it("fails formula contract completeness before provider repair when formula evidence is absent", () => {
+    const incomplete = {
+      expressions: [],
+      requiredVariables: [],
+      requiredConditions: [],
+      requiredUnits: [{ quantity: "force", unit: "newtons", sourceLabels: ["SOURCE_1"] }],
+      sourceLabels: ["SOURCE_1"],
+    };
+
+    expect(validateFormulaContractCompleteness(incomplete)).toMatchObject({
+      supported: false,
+      errors: expect.arrayContaining([
+        expect.objectContaining({ code: "UNSUPPORTED_EXPRESSION" }),
+      ]),
+    });
+  });
+
   it("routes formula-only requests to structured formula mode", () => {
     const capability = extractEvidenceCapability(
       chunk("The area of a triangle is Area = 1/2 x base x height.", {
@@ -946,6 +1191,14 @@ describe("Stage 4.1 structured task output", () => {
       topicId: "eval-topic-electricity",
       content:
         "Power equals voltage times current: power = voltage x current. Voltage is 12 and current is 2, so power is 24.",
+      expectedMode: "STRUCTURED_CALCULATION",
+    },
+    {
+      question: "What is the probability of rolling an even number on a fair die?",
+      subjectId,
+      topicId: "eval-topic-probability",
+      content:
+        "Probability is favourable outcomes divided by total equally likely outcomes. For a fair six-sided die, the probability of rolling an even number is 3 out of 6, which simplifies to 1/2.",
       expectedMode: "STRUCTURED_CALCULATION",
     },
     {
@@ -1024,6 +1277,34 @@ describe("Stage 4.1 structured task output", () => {
           "The area of a triangle is one half times base times perpendicular height: Area = 1/2 x base x height. The height must meet the base at a right angle.",
         expectedMode: "STRUCTURED_FORMULA",
         expectedText: "perpendicular height",
+        expectedProviderCalls: 1,
+      },
+      {
+        question: "What is the probability of rolling an even number on a fair die?",
+        topicId: "eval-topic-probability",
+        content:
+          "Probability is favourable outcomes divided by total equally likely outcomes. For a fair six-sided die, the probability of rolling an even number is 3 out of 6, which simplifies to 1/2.",
+        expectedMode: "STRUCTURED_CALCULATION",
+        expectedText: "probability = 3 / 6 = 1/2",
+        expectedProviderCalls: 0,
+      },
+      {
+        question: "Explain F = m x a and its unit.",
+        topicId: "eval-topic-force",
+        subjectId: "eval-subject-physics",
+        content:
+          "Newton's second law links resultant force, mass and acceleration: F = m x a. Force is measured in newtons when mass is in kilograms and acceleration is in metres per second squared.",
+        expectedMode: "STRUCTURED_FORMULA",
+        expectedText: "force is measured in newtons",
+        expectedProviderCalls: 1,
+      },
+      {
+        question: "What are producers?",
+        topicId: "eval-topic-food-chain",
+        subjectId: "eval-subject-science",
+        content: "Producers are organisms that make their own food.",
+        expectedMode: "GENERAL_PROSE",
+        expectedText: "Producers are organisms",
         expectedProviderCalls: 1,
       },
       {
