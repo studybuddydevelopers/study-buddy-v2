@@ -149,6 +149,9 @@ function buildRequirementDrafts(
   const procedure = buildProcedureMethodRequirement(question, context);
   if (procedure) return [withContext(procedure, normalizedContext)];
 
+  const boundedProbability = buildBoundedProbabilityCalculationRequirement(question);
+  if (boundedProbability) return [withContext(boundedProbability, normalizedContext)];
+
   const factLookup = buildFactLookupRequirement(question);
   if (factLookup) return [withContext(factLookup, normalizedContext)];
 
@@ -464,6 +467,40 @@ function buildCalculationRequirement(question: string): RequirementDraft | undef
     requiredInputs: extractNumericInputs(question),
     requiredInputConcepts: extractNamedCalculationInputs(question),
   };
+}
+
+function buildBoundedProbabilityCalculationRequirement(
+  question: string
+): RequirementDraft | undefined {
+  if (!/\b(?:probability|chance|likelihood)\b/i.test(question)) return undefined;
+  if (requiresUnboundedProbabilityReasoning(question)) return undefined;
+
+  const probabilityEvent =
+    firstMatch(question, /\b(?:what\s+is\s+)?(?:the\s+)?(?:probability|chance|likelihood)\s+of\s+(.+?)(?:[?.]|$)/i) ??
+    firstMatch(question, /\b(?:probability|chance|likelihood)\s+for\s+(.+?)(?:[?.]|$)/i);
+  if (!probabilityEvent) return undefined;
+
+  const event = normalizeEventPhrase(probabilityEvent);
+  if (!event) return undefined;
+
+  return {
+    kind: "CALCULATION",
+    targetConcepts: ["probability"],
+    requestedAction: "CALCULATE",
+    requestedFact: compactStrings(["probability", event]).join(" "),
+    requestedEvent: event,
+    requiredInputConcepts: ["favourable outcomes", "total outcomes"],
+    constraints: [
+      "bounded probability",
+      "favourable outcomes divided by total outcomes",
+    ],
+  };
+}
+
+function requiresUnboundedProbabilityReasoning(question: string): boolean {
+  return /\b(?:conditional|given\s+that|without\s+replacement|with\s+replacement|permutation|combination|arrangements?|bayes|probability\s+tree|dependent\s+events?|independent\s+events?|at\s+least|exactly|more\s+than|less\s+than|not\s+rolling|two\s+dice|three\s+dice|cards?\s+(?:drawn|selected|chosen)|infer|work\s+out\s+which\s+outcomes?|list\s+(?:the\s+)?(?:outcomes?|favourable\s+outcomes?))\b/i.test(
+    question
+  );
 }
 
 function buildFactLookupRequirement(question: string): RequirementDraft | undefined {
@@ -1774,8 +1811,12 @@ function cleanMethod(value: string): string {
 }
 
 function normalizeEventPhrase(value: string): string {
-  return cleanConcept(value)
-    .replace(/\ban\s+even\s+number\b/i, "rolling an even number")
+  const cleaned = cleanConcept(value);
+  if (/\brolling\s+an\s+even\s+number\b/i.test(cleaned)) {
+    return cleaned.replace(/\s+/g, " ").trim();
+  }
+  return cleaned
+    .replace(/\b(?:an?\s+)?even\s+number\b/i, "rolling an even number")
     .replace(/\ba\s+head\b/i, "getting heads")
     .replace(/\bheads\b/i, "getting heads")
     .replace(/\s+/g, " ")
