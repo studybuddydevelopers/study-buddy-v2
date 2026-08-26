@@ -15,9 +15,8 @@ import {
   isGenerationFailureCode,
 } from "@/components/chatFailureCopy";
 
-const AI_AVATAR = "https://i.pravatar.cc/40?img=32";
-const DEFAULT_USER_AVATAR =
-  "https://img.icons8.com/?size=100&id=HEBTcR9O3uzR&format=png&color=000000";
+const AI_AVATAR = "/images/ai-tutor-avatar.png";
+const DEFAULT_USER_AVATAR = "/images/user-avatar-placeholder.svg";
 const CHAT_PAGE_SIZE = 25;
 const MESSAGE_PAGE_SIZE = 50;
 
@@ -557,7 +556,7 @@ export default function ChatClient() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-[280px_1fr] gap-4">
-        <aside className="border border-accent-200 rounded-2xl bg-white shadow-sm p-3 h-fit lg:max-h-[calc(100vh-190px)] overflow-y-auto">
+        <aside className="max-h-[260px] overflow-y-scroll rounded-2xl border border-accent-200 bg-white p-3 shadow-sm [scrollbar-gutter:stable] lg:max-h-[calc(100vh-190px)]">
           {loadingChats ? (
             <Paragraph variant="muted" gutter="none" className="text-sm">
               Loading chats...
@@ -592,7 +591,7 @@ export default function ChatClient() {
           )}
         </aside>
 
-        <main className="flex flex-col gap-3 min-h-[calc(100vh-190px)]">
+        <main className="flex min-h-[calc(100vh-220px)] flex-col gap-3 lg:h-[calc(100vh-190px)] lg:min-h-0">
           <div className="border border-accent-200 rounded-2xl bg-white shadow-sm p-4 space-y-3">
             {selectedChat ? (
               <>
@@ -686,12 +685,40 @@ export default function ChatClient() {
 
           <div
             ref={listRef}
-            className="flex-1 overflow-y-auto border border-accent-200 rounded-2xl bg-white shadow-sm p-4 min-h-[360px]"
+            className="min-h-[320px] max-h-[52vh] flex-1 overflow-y-scroll rounded-2xl border border-accent-200 bg-white p-4 shadow-sm [scrollbar-gutter:stable] lg:min-h-0 lg:max-h-none"
           >
             {loadingMessages ? (
-              <Paragraph variant="muted" gutter="none">
-                Loading messages...
-              </Paragraph>
+              <div
+                className="flex h-full min-h-[260px] items-center justify-center"
+                role="status"
+                aria-label="Loading chat messages"
+              >
+                <div className="w-full max-w-md space-y-3">
+                  <div className="space-y-3">
+                    <div className="flex items-start gap-3">
+                      <div className="h-10 w-10 shrink-0 animate-pulse rounded-full bg-secondary-100" />
+                      <div className="w-2/3 space-y-2 rounded-2xl bg-gray-100 p-3">
+                        <div className="h-3 w-11/12 animate-pulse rounded-full bg-primary-100" />
+                        <div className="h-3 w-7/12 animate-pulse rounded-full bg-primary-100" />
+                      </div>
+                    </div>
+                    <div className="flex items-start justify-end gap-3">
+                      <div className="w-3/5 space-y-2 rounded-2xl bg-primary-50 p-3">
+                        <div className="ml-auto h-3 w-10/12 animate-pulse rounded-full bg-primary-200" />
+                        <div className="ml-auto h-3 w-6/12 animate-pulse rounded-full bg-primary-200" />
+                      </div>
+                      <div className="h-10 w-10 shrink-0 animate-pulse rounded-full bg-secondary-100" />
+                    </div>
+                    <div className="flex items-start gap-3">
+                      <div className="h-10 w-10 shrink-0 animate-pulse rounded-full bg-primary-100" />
+                      <div className="w-4/5 space-y-2 rounded-2xl bg-gray-100 p-3">
+                        <div className="h-3 w-full animate-pulse rounded-full bg-secondary-100" />
+                        <div className="h-3 w-8/12 animate-pulse rounded-full bg-secondary-100" />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
             ) : messages.length === 0 ? (
               <div className="h-full min-h-[260px] flex items-center justify-center text-center">
                 <Paragraph variant="muted" gutter="none" className="max-w-md">
