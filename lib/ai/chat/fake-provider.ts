@@ -60,6 +60,7 @@ interface FakeChatRuntimeControl {
 }
 
 type FakeStructuredContract = {
+  requiresFormulaExpression?: boolean;
   sourceLabels?: string[];
   authorisedMethods?: Array<{
     targetQuantity?: string;
@@ -600,7 +601,11 @@ function buildStructuredFormulaValue(
 
   if (Array.isArray(contract.expressions) && Array.isArray(contract.requiredVariables)) {
     return {
-      expression: contract.expressions[0] ?? "Area = 1/2 * base * height",
+      expression:
+        contract.expressions[0] ??
+        (contract.requiresFormulaExpression === false
+          ? "NOT_REQUESTED"
+          : "Area = 1/2 * base * height"),
       variables: contract.requiredVariables.map(
         (variable: {
           symbol?: string;
