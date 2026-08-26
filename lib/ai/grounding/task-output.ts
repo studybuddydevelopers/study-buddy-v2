@@ -284,6 +284,8 @@ const structuredFormulaSchema = z
 export type StructuredCalculationOutput = z.infer<typeof structuredCalculationSchema>;
 export type StructuredFormulaOutput = z.infer<typeof structuredFormulaSchema>;
 
+const FORMULA_NOT_REQUESTED_EXPRESSION = "NOT_REQUESTED";
+
 export type StructuredTaskValidationResult<T> =
   | { supported: true; output: T; errors: [] }
   | { supported: false; errors: StructuredTaskValidationError[]; output?: undefined };
@@ -396,6 +398,9 @@ export type CalculationAnswerViewModel = {
 };
 
 export type FormulaContract = {
+  requiresFormulaExpression?: boolean;
+  requiredRequestedSymbols?: string[];
+  requiresUnitEvidence?: boolean;
   expressions: string[];
   expressionSymbols: Array<{
     symbol: string;
@@ -588,6 +593,17 @@ export function buildFormulaContract(
   const requestedSymbolDisplayByKey = requestedFormulaSymbolDisplayByKey(
     options.requestRequirements
   );
+  const flattenedRequirements = options.requestRequirements
+    ? flattenRequirements(options.requestRequirements.requirements)
+    : [];
+  const requiresFormulaExpression = flattenedRequirements.some(isFormulaExpressionRequirement);
+  const requiredRequestedSymbols = [...requestedSymbolDisplayByKey.values()];
+  const requiresUnitEvidence = flattenedRequirements.some((requirement) =>
+    requirement.requestedFacet === "UNIT" ||
+    /\b(?:unit|units|measured)\b/i.test(
+      `${requirement.requestedFact ?? ""} ${requirement.requestedAction ?? ""}`
+    )
+  );
   const requiredVariables = deriveRequiredFormulaVariables(
     units,
     formulaExpressions,
@@ -630,6 +646,9 @@ export function buildFormulaContract(
   );
 
   return {
+    requiresFormulaExpression,
+    requiredRequestedSymbols,
+    requiresUnitEvidence,
     expressions: formulaExpressions,
     expressionSymbols,
     requiredVariables,
@@ -880,11 +899,32 @@ export function validateFormulaContractCompleteness(
   contract: FormulaContract
 ): StructuredTaskValidationResult<FormulaContract> {
   const errors: StructuredTaskValidationError[] = [];
-  if (contract.expressions.length === 0) {
+  if ((contract.requiresFormulaExpression ?? true) && contract.expressions.length === 0) {
     errors.push({
       code: "FORMULA_CONTRACT_INCOMPLETE",
       message: "Formula contract has no authorised source formula expression.",
       path: "expressions",
+    });
+  }
+  const availableRequiredVariables = new Set(
+    contract.requiredVariables.map((variable) =>
+      normalizeFormulaSymbolKey(variable.symbol)
+    )
+  );
+  for (const symbol of contract.requiredRequestedSymbols ?? []) {
+    if (!availableRequiredVariables.has(normalizeFormulaSymbolKey(symbol))) {
+      errors.push({
+        code: "MISSING_REQUIRED_VARIABLE",
+        message: "Formula contract is missing an authorised requested symbol definition.",
+        path: "requiredVariables",
+      });
+    }
+  }
+  if ((contract.requiresUnitEvidence ?? false) && contract.requiredUnits.length === 0) {
+    errors.push({
+      code: "MISSING_REQUIRED_UNIT",
+      message: "Formula contract is missing authorised unit evidence requested by the task.",
+      path: "requiredUnits",
     });
   }
 
@@ -954,6 +994,7 @@ export function buildStructuredFormulaPrompt(input: {
     "Use the supplied formula contract as a closed world.",
     "Do not invent conventional symbols or geometric relations that are not in the contract.",
     "Every variable meaning, unit, and condition must use authorised source labels.",
+    `If requiresFormulaExpression is false and no expression is required, set expression to ${FORMULA_NOT_REQUESTED_EXPRESSION}.`,
     input.subjectName ? `Subject: ${input.subjectName}` : null,
     input.topicTitle ? `Topic: ${input.topicTitle}` : null,
     `<formula_contract>\n${JSON.stringify(input.contract, null, 2)}\n</formula_contract>`,
@@ -1178,7 +1219,7 @@ export function validateStructuredFormulaOutput(input: {
   };
 
   checkLabels(parsed.data.sourceLabels, "sourceLabels");
-  if (!formulaExpressionMatches(parsed.data.expression, input.contract.expressions)) {
+  if (!formulaExpressionAllowedForContract(parsed.data.expression, input.contract)) {
     errors.push({
       code: "UNSUPPORTED_EXPRESSION",
       message: "Formula expression does not match authorised evidence.",
@@ -1562,8 +1603,11 @@ export function renderStructuredFormulaAnswer(output: StructuredFormulaOutput): 
     (unit) => `- ${unit.quantity} is measured in ${unit.unit}.`
   );
   const conditionLines = output.conditions.map((condition) => `- ${condition.text}.`);
+  const formulaLine = isFormulaNotRequestedExpression(output.expression)
+    ? null
+    : `The formula is ${output.expression}.`;
   const text = [
-    `The formula is ${output.expression}.`,
+    formulaLine,
     variableLines.length > 0 ? variableLines.join("\n") : null,
     unitLines.length > 0 ? unitLines.join("\n") : null,
     conditionLines.length > 0 ? conditionLines.join("\n") : null,
@@ -3608,6 +3652,21 @@ function formulaExpressionMatches(expression: string, authorised: string[]) {
     (item) => normalizeFormulaExpression(item) === normalized ||
       normalizeFormulaExpression(item).replace(/\bheight\b/g, "perpendicularheight") === normalized.replace(/\bheight\b/g, "perpendicularheight")
   );
+}
+
+function formulaExpressionAllowedForContract(
+  expression: string,
+  contract: FormulaContract
+) {
+  if (formulaExpressionMatches(expression, contract.expressions)) return true;
+  return (
+    !contract.requiresFormulaExpression &&
+    isFormulaNotRequestedExpression(expression)
+  );
+}
+
+function isFormulaNotRequestedExpression(expression: string) {
+  return normalizeText(expression) === normalizeText(FORMULA_NOT_REQUESTED_EXPRESSION);
 }
 
 function findAuthorisedMethodForStep(
