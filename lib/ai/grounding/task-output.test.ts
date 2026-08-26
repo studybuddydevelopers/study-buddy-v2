@@ -23,6 +23,7 @@ import {
   validateFormulaContractCompleteness,
   validateCalculationAnswerViewModel,
   renderStructuredCalculationAnswer,
+  renderStructuredFormulaAnswer,
   structuredCalculationOutputFromTrace,
   structuredCalculationOutputSchema,
   structuredFormulaOutputSchema,
@@ -1119,6 +1120,60 @@ describe("Stage 4.1 structured task output", () => {
     expect(result.supported).toBe(true);
   });
 
+  it("allows symbol-only formula output to omit the formula without accepting invented expressions", () => {
+    const { decision, contract } = formulaSymbolDecision({
+      question: "What does Y represent in the reaction yield shortcut?",
+      content:
+        "In the reaction yield shortcut Y = product mass / expected mass x 100. Y represents percentage yield.",
+      subjectId: "eval-subject-chemistry",
+      topicId: "eval-topic-calculations",
+    });
+
+    expect(decision.classification).toBe("SUPPORTED");
+    expect(contract).toMatchObject({
+      requiresFormulaExpression: false,
+      requiredRequestedSymbols: ["Y"],
+      requiredVariables: [
+        expect.objectContaining({ symbol: "Y", meaning: "percentage yield" }),
+      ],
+    });
+
+    const supported = validateStructuredFormulaOutput({
+      value: {
+        expression: "NOT_REQUESTED",
+        variables: [{ symbol: "Y", meaning: "percentage yield", sourceLabels: ["SOURCE_1"] }],
+        units: [],
+        conditions: [],
+        sourceLabels: ["SOURCE_1"],
+        suggestedQuestions: [],
+      },
+      contract,
+      validatedEvidenceUnits: decision.validatedEvidenceUnits,
+    });
+
+    expect(supported.supported).toBe(true);
+    if (supported.supported) {
+      expect(renderStructuredFormulaAnswer(supported.output).content).not.toContain(
+        "The formula is"
+      );
+    }
+
+    expect(
+      validateStructuredFormulaOutput({
+        value: {
+          expression: "Area = 1/2 x base x height",
+          variables: [{ symbol: "Y", meaning: "percentage yield", sourceLabels: ["SOURCE_1"] }],
+          units: [],
+          conditions: [],
+          sourceLabels: ["SOURCE_1"],
+          suggestedQuestions: [],
+        },
+        contract,
+        validatedEvidenceUnits: decision.validatedEvidenceUnits,
+      }).supported
+    ).toBe(false);
+  });
+
   it("retains source formula evidence and units for force formula contracts", () => {
     const content =
       "Newton's second law links resultant force, mass and acceleration: F = m x a. Force is measured in newtons when mass is in kilograms and acceleration is in metres per second squared.";
@@ -1554,21 +1609,8 @@ describe("Stage 4.1 structured task output", () => {
       conflicts: [],
     });
 
-    expect(decision.classification).toBe("SUPPORTED");
-    expect(
-      buildFormulaContract(decision.validatedEvidenceUnits, {
-        requestRequirements,
-        answerabilityDecision: decision,
-        evidenceCapabilities: [symbolCapability, otherChunkFormula],
-      }).expressions
-    ).toEqual([]);
-    expect(
-      buildFormulaContract(decision.validatedEvidenceUnits, {
-        requestRequirements,
-        answerabilityDecision: decision,
-        evidenceCapabilities: [symbolCapability, otherSourceFormula],
-      }).expressions
-    ).toEqual([]);
+    expect(decision.classification).toBe("INSUFFICIENT_CONTEXT");
+    expect(decision.validatedEvidenceUnits).toEqual([]);
   });
 
   it("routes formula-only requests to structured formula mode", () => {
