@@ -43,6 +43,7 @@ export type RequestRequirement = {
   targetConcepts: string[];
   baseConcept?: SemanticConcept;
   requestedAction?: string;
+  formulaContext?: string;
   presentationStyle?: PresentationStyle;
   requestedFacet?: SemanticFacet;
   constraints?: string[];
