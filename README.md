@@ -37,6 +37,10 @@ Study Buddy v2 is a Next.js learning platform for exam preparation. It combines 
 - AI tutor/chat UI: make the chat/tutor interface more visually appealing, auto-scroll when new messages arrive, and add a clear visible scrollbar/scroll area for long conversations.
 - AI tutor visual identity: change/update the AI tutor image.
 - AI Q&A threads: fix the thread counting/updating bug; AI Q&A threads seem to not actually count or update correctly.
+- Profile page revamp: redesign the profile page so account details, settings links, avatar, learning preferences, and safety/account actions are clearer.
+- Progress page restructuring: reorganise the progress page so study-materials coverage, mock exam history, practice accuracy, goals, and AI activity are easier to scan.
+- Sheets data integration: integrate data from sheets into the app through a controlled import/sync workflow, with validation and duplicate handling before records are saved.
+- Dashboard page revamp: redesign the dashboard so next actions, weak topics, streaks, recommendations, and last-session entry points are clearer and less cluttered.
 
 ## Bandwidth And Low-Data Improvements
 
