@@ -20,6 +20,7 @@ Study Buddy v2 is a Next.js learning platform for exam preparation. It combines 
 - Progress: subject progress, practice accuracy, and exam history
 - AI: quick chat, saved AI question threads, and study recommendations
 - AI Chat Stage 1: persistent general chat threads with provider-neutral generation, idempotent sends, retry-safe failures, and refresh-safe history. This is not yet resource-grounded RAG.
+- AI Chat launch mode: use the Stage 1 persistent general chatbot as the production-ready chat experience. Keep grounded/resource-backed WAEC tutor mode disabled until the grounding validation gates pass.
 - Resource Ingestion Stage 2: admin-only private resource uploads, extraction, chunking, approval workflows, and legacy past-question migration reports. This is not retrieval or RAG yet.
 - Grounded Chat Stage 4: feature-gated TEACH responses that retrieve approved active StudyBuddy evidence, validate segment-based structured output, persist grounding attempts/citations, and show safe source previews. Disabled by default until evaluations pass.
 - Accounts and billing: auth, profile, subscriptions, and payments
@@ -330,6 +331,10 @@ The app expects environment variables for:
 - Stage 1 AI chat config:
   - `AI_CHAT_PROVIDER=openai`
   - `AI_CHAT_MODEL=gpt-4o-mini`
+- Production ungrounded chatbot config:
+  - `AI_GROUNDED_CHAT_ENABLED=false`
+  - `AI_GROUNDING_PIPELINE=legacy`
+  - Do not market this mode as resource-grounded, citation-backed, or guaranteed WAEC-source-backed. It is the persistent general chatbot.
 - Stage 3 embedding config:
   - `AI_EMBEDDING_PROVIDER=openai`
   - `AI_EMBEDDING_MODEL=text-embedding-3-small`
