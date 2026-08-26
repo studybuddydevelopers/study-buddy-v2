@@ -409,14 +409,54 @@ describe("Stage 4.1 request requirement extraction", () => {
     expect(requirement.targetConcepts).toEqual(["pressure"]);
   });
 
+  it("resolves about-style recent user context", () => {
+    const requirement = firstRequirement("State that equation.", [
+      { role: "USER", content: "Tell me about pressure." },
+    ]);
+
+    expectKind(requirement, "FORMULA");
+    expect(requirement.dependsOnPreviousTurn).toBe(true);
+    expect(requirement.targetConcepts).toEqual(["pressure"]);
+  });
+
   it("does not treat previous assistant factual claims as evidence or referents", () => {
     const requirement = firstRequirement("What is its formula?", [
       { role: "ASSISTANT", content: "Pressure is force per unit area." },
     ]);
 
-    expectKind(requirement, "FORMULA");
+    expectKind(requirement, "CONTEXTUAL_FOLLOW_UP");
     expect(requirement.dependsOnPreviousTurn).toBeUndefined();
     expect(requirement.targetConcepts).toEqual([]);
+  });
+
+  it("does not resolve ambiguous prior user context", () => {
+    const requirement = firstRequirement("What is its formula?", [
+      { role: "USER", content: "Tell me about force and density." },
+    ]);
+
+    expectKind(requirement, "CONTEXTUAL_FOLLOW_UP");
+    expect(requirement.dependsOnPreviousTurn).toBeUndefined();
+    expect(requirement.targetConcepts).toEqual([]);
+  });
+
+  it("resolves explicit symbol follow-ups only from the latest unambiguous user formula", () => {
+    const requirement = firstRequirement("And t?", [
+      { role: "USER", content: "s = d / t." },
+      { role: "ASSISTANT", content: "d means distance." },
+    ]);
+
+    expectKind(requirement, "SYMBOL_DEFINITION");
+    expect(requirement.dependsOnPreviousTurn).toBe(true);
+    expect(requirement.requiredSymbols).toEqual(["t"]);
+    expect(requirement.formulaContext).toBe("s = d / t");
+  });
+
+  it("keeps explicit formula context on current-turn symbol requests", () => {
+    const requirement = firstRequirement("In rho = m / V, what does V mean?");
+
+    expectKind(requirement, "SYMBOL_DEFINITION");
+    expect(requirement.requiredSymbols).toEqual(["V"]);
+    expect(requirement.formulaContext).toBe("rho = m / V");
   });
 
   it("prefers current explicit concepts over older context", () => {
