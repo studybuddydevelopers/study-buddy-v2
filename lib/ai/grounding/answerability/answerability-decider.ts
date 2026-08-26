@@ -265,6 +265,7 @@ function canUseSemanticFastMatch(requirement: RequestRequirement): boolean {
   if (requirement.kind === "CALCULATION") return false;
   if (
     requirement.kind === "FORMULA_WITH_SYMBOLS" ||
+    requirement.kind === "SYMBOL_DEFINITION" ||
     (requirement.kind === "FORMULA" &&
       ((requirement.requiredSymbols?.length ?? 0) > 0 ||
         requirement.requestedAction === "STATE_FORMULA"))
@@ -451,7 +452,7 @@ function evaluateFormulaWithSymbolsRequirement(
   for (const symbol of requirement.requiredSymbols ?? []) {
     const normalized = normalizeSymbol(symbol)?.normalized;
     const symbolDefinition = normalized
-      ? findPositiveSymbolDefinition(normalized, context)
+      ? findPositiveSymbolDefinitionForRequirement(normalized, requirement, formula, context)
       : undefined;
     if (symbolDefinition) {
       supportRefs.push(supportRef(requirement.id, symbolDefinition.id, ["SYMBOL"]));
@@ -469,11 +470,20 @@ function evaluateSymbolRequirement(
 ): RequirementMatch {
   const supportRefs: CapabilitySupportRef[] = [];
   const missing: string[] = [];
+  const formula = requirement.formulaContext ? findFormula(requirement, context) : undefined;
+
+  if (requirement.formulaContext) {
+    if (formula) {
+      supportRefs.push(supportRef(requirement.id, formula.id, ["FORMULA"]));
+    } else {
+      missing.push("formula");
+    }
+  }
 
   for (const symbol of requirement.requiredSymbols ?? []) {
     const normalized = normalizeSymbol(symbol)?.normalized;
     const symbolDefinition = normalized
-      ? findPositiveSymbolDefinition(normalized, context)
+      ? findPositiveSymbolDefinitionForRequirement(normalized, requirement, formula, context)
       : undefined;
     if (symbolDefinition) {
       supportRefs.push(supportRef(requirement.id, symbolDefinition.id, ["SYMBOL"]));
@@ -1062,6 +1072,12 @@ function findFormula(
   requirement: RequestRequirement,
   context: MatchContext
 ): FormulaCapability | undefined {
+  const explicitFormulaContext = requirement.formulaContext;
+  if (explicitFormulaContext) {
+    return context.formulas.find((formula) =>
+      formulaMatchesExplicitContext(formula, explicitFormulaContext)
+    );
+  }
   return context.formulas.find((formula) => formulaMatchesRequirement(formula, requirement, context));
 }
 
@@ -1347,6 +1363,10 @@ function formulaMatchesRequirement(
   requirement: RequestRequirement,
   context: MatchContext
 ): boolean {
+  if (requirement.formulaContext) {
+    return formulaMatchesExplicitContext(formula, requirement.formulaContext);
+  }
+
   const targets = canonicalTargetIds(requirement, context.request);
   if (targets.length === 0) {
     return (
@@ -1401,6 +1421,60 @@ function formulaVariableTerms(formula: FormulaCapability): string[] {
   return uniqueStrings([...expressionTerms, ...inputTerms, ...symbolMeaningTerms]);
 }
 
+function findPositiveSymbolDefinitionForRequirement(
+  normalizedSymbol: string,
+  requirement: RequestRequirement,
+  formula: FormulaCapability | undefined,
+  context: MatchContext
+): SymbolCapability | undefined {
+  if (!requirement.formulaContext) {
+    return findPositiveSymbolDefinition(normalizedSymbol, context);
+  }
+  if (!formula) return undefined;
+  return findPositiveSymbolDefinitionInFormulaContext(normalizedSymbol, formula, context);
+}
+
+function findPositiveSymbolDefinitionInFormulaContext(
+  normalizedSymbol: string,
+  formula: FormulaCapability,
+  context: MatchContext
+): SymbolCapability | undefined {
+  const local = formula.symbolDefinitions.find(
+    (symbol) =>
+      symbol.polarity === "POSITIVE" && symbol.symbol.normalized === normalizedSymbol
+  );
+  if (local) return local;
+
+  const formulaHasSymbol = formula.symbols.some(
+    (symbol) => symbol.normalized === normalizedSymbol
+  );
+  if (!formulaHasSymbol) return undefined;
+
+  const sameScope = context.symbols.filter(
+    (symbol) =>
+      symbol.polarity === "POSITIVE" &&
+      symbol.symbol.normalized === normalizedSymbol &&
+      symbol.resourceChunkId === formula.resourceChunkId &&
+      symbol.sourceLabel === formula.sourceLabel
+  );
+  const explicitlyLinked = sameScope.find(
+    (symbol) =>
+      symbol.formulaContext &&
+      symbol.formulaContext.formulaCapabilityId === formula.id &&
+      symbol.formulaContext.normalizedExpression === formula.normalizedExpression
+  );
+  if (explicitlyLinked) return explicitlyLinked;
+
+  const formulasInScope = context.formulas.filter(
+    (candidate) =>
+      candidate.resourceChunkId === formula.resourceChunkId &&
+      candidate.sourceLabel === formula.sourceLabel
+  );
+  if (formulasInScope.length === 1) return sameScope[0];
+
+  return undefined;
+}
+
 function findPositiveSymbolDefinition(
   normalizedSymbol: string,
   context: MatchContext
@@ -1409,6 +1483,63 @@ function findPositiveSymbolDefinition(
     (symbol) =>
       symbol.polarity === "POSITIVE" && symbol.symbol.normalized === normalizedSymbol
   );
+}
+
+function formulaMatchesExplicitContext(
+  formula: FormulaCapability,
+  formulaContext: string
+): boolean {
+  const requested = normalizeFormulaExpressionForMatch(formulaContext);
+  if (!requested) return false;
+  const candidate = normalizeFormulaExpressionForMatch(formula.expression);
+  if (candidate === requested) return true;
+
+  const [requestedLeft, requestedRight] = requested.split("=");
+  const [candidateLeft, candidateRight] = candidate.split("=");
+  if (!requestedLeft || !requestedRight || !candidateLeft || !candidateRight) {
+    return false;
+  }
+  if (requestedLeft !== candidateLeft) return false;
+
+  const requestedTerms = formulaSideTerms(requestedRight);
+  const candidateTerms = formulaSideTerms(candidateRight);
+  return (
+    requestedTerms.length > 0 &&
+    requestedTerms.length === candidateTerms.length &&
+    requestedTerms.every((term) => candidateTerms.includes(term))
+  );
+}
+
+function normalizeFormulaExpressionForMatch(value: string): string {
+  return value
+    .toLowerCase()
+    .replace(/[’']/g, "'")
+    .replace(/π/g, "pi")
+    .replace(/[×·]/g, " * ")
+    .replace(/[÷]/g, " / ")
+    .replace(/[^a-z0-9\u0370-\u03ff=/*+\-²³\s]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .replace(/\brho\b/g, "ρ")
+    .replace(/\blambda\b/g, "λ")
+    .replace(/\btheta\b/g, "θ")
+    .replace(/\balpha\b/g, "α")
+    .replace(/\bbeta\b/g, "β")
+    .replace(/\bgamma\b/g, "γ")
+    .replace(/\bpi\b/g, "π")
+    .replace(/\bdelta\b/g, "δ")
+    .replace(/\s*\b(?:x|times|multiply|multiplied by)\b\s*/g, "*")
+    .replace(/\s*(?:\b(?:over|divided by)\b|\/)\s*/g, "/")
+    .replace(/\s*=\s*/g, "=")
+    .replace(/\s+/g, "");
+}
+
+function formulaSideTerms(value: string): string[] {
+  return uniqueStrings(
+    [...value.matchAll(/[a-zα-ω]+|\d+(?:\.\d+)?/gi)]
+      .map((match) => normalizedText(match[0] ?? ""))
+      .filter((token) => token.length > 0 && !/^\d/.test(token))
+  ).sort();
 }
 
 function findNumericInput(
@@ -1582,6 +1713,16 @@ function findFormulaVariableSupport(
   });
   const supportingSymbols = context.symbols.filter((symbol) => {
     if (symbol.polarity !== "POSITIVE") return false;
+    if (
+      requirement.formulaContext &&
+      !findPositiveSymbolDefinitionInFormulaContext(
+        symbol.symbol.normalized,
+        formula,
+        context
+      )
+    ) {
+      return false;
+    }
     const symbolText = normalizedText(
       `${symbol.symbol.display} ${symbol.symbol.normalized} ${symbol.meaning ?? ""} ${symbol.evidenceSpan.text}`
     );
