@@ -94,6 +94,9 @@ export interface StudyMaterialsProgress {
 
 export interface AIActivity {
   totalQuestionsAsked: number;
+  threadsStarted: number;
+  legacyThreadsStarted?: number;
+  persistentThreadsStarted?: number;
 }
 
 export interface ProgressFullReport {
