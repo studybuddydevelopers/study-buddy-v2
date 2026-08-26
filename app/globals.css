@@ -156,6 +156,47 @@
   to { opacity: 1; transform: translateY(0); }
 }
 
+.ai-avatar-coin-loader {
+  opacity: 0;
+  transform-style: preserve-3d;
+  animation:
+    aiAvatarCoinSpin 1.1s linear var(--ai-avatar-coin-delay, 0s) infinite,
+    aiAvatarCoinAppear 0.18s ease-out var(--ai-avatar-coin-delay, 0s) forwards;
+}
+
+.ai-avatar-coin-loader--one {
+  --ai-avatar-coin-delay: 0s;
+}
+
+.ai-avatar-coin-loader--two {
+  --ai-avatar-coin-delay: 0.65s;
+}
+
+.ai-avatar-coin-loader--three {
+  --ai-avatar-coin-delay: 1.3s;
+}
+
+@keyframes aiAvatarCoinSpin {
+  0% {
+    transform: perspective(420px) rotateY(0deg);
+  }
+  50% {
+    transform: perspective(420px) rotateY(180deg);
+  }
+  100% {
+    transform: perspective(420px) rotateY(360deg);
+  }
+}
+
+@keyframes aiAvatarCoinAppear {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
 .ripple {
   position: relative;
   overflow: hidden;
