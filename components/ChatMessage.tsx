@@ -56,11 +56,11 @@ export default function ChatMessage({
           dataChatAvatar
           src={avatar}
           alt={name ?? ""}
-          className="!h-9 !w-9 min-w-[36px] max-w-[36px] shrink-0 rounded-full object-cover"
-          sizes="32px"
-          widths={[32, 64]}
-          width={36}
-          height={36}
+          className="!h-12 !w-12 min-w-[48px] max-w-[48px] shrink-0 rounded-full object-cover"
+          sizes="48px"
+          widths={[48, 96]}
+          width={48}
+          height={48}
           rounded="full"
         />
       )}
@@ -80,10 +80,31 @@ export default function ChatMessage({
             }`}
         >
           {isPending ? (
-            <div className="flex min-h-5 items-center gap-2 text-gray-600">
-              <span className="h-2 w-2 rounded-full bg-primary-400 animate-pulse" />
-              <span className="h-2 w-2 rounded-full bg-primary-300 animate-pulse [animation-delay:120ms]" />
-              <span className="h-2 w-2 rounded-full bg-primary-200 animate-pulse [animation-delay:240ms]" />
+            <div
+              className="flex min-h-16 items-center justify-center gap-2 px-2"
+              role="status"
+              aria-label={`${name ?? "AI Tutor"} is responding`}
+            >
+              {avatar &&
+                ["one", "two", "three"].map((coin) => (
+                  <span
+                    key={coin}
+                    aria-hidden="true"
+                    className={`ai-avatar-coin-loader ai-avatar-coin-loader--${coin} inline-flex h-14 w-14 items-center justify-center rounded-full border-2 border-primary-200 bg-white p-1 shadow-sm`}
+                  >
+                    <Image
+                      dataChatAvatar
+                      src={avatar}
+                      alt=""
+                      className="!h-12 !w-12 min-w-[48px] max-w-[48px] shrink-0 rounded-full object-cover"
+                      sizes="48px"
+                      widths={[48, 96]}
+                      width={48}
+                      height={48}
+                      rounded="full"
+                    />
+                  </span>
+                ))}
             </div>
           ) : isFailed ? (
             <div className="space-y-2">
@@ -101,7 +122,7 @@ export default function ChatMessage({
             </div>
           ) : (
             <div className="space-y-2">
-              <div className="prose prose-sm max-w-none break-words prose-p:my-1 prose-pre:max-w-full prose-pre:overflow-x-auto">
+              <div className="max-w-none break-words text-left [&_a]:font-medium [&_a]:text-primary-700 [&_a]:underline [&_code]:rounded [&_code]:bg-black/5 [&_code]:px-1 [&_li]:my-1 [&_li]:pl-1 [&_ol]:my-2 [&_ol]:list-decimal [&_ol]:pl-5 [&_p]:my-1 [&_pre]:max-w-full [&_pre]:overflow-x-auto [&_strong]:font-semibold [&_ul]:my-2 [&_ul]:list-disc [&_ul]:pl-5">
                 <ReactMarkdown skipHtml>{text}</ReactMarkdown>
               </div>
               {showCitations && (
@@ -130,11 +151,11 @@ export default function ChatMessage({
           dataChatAvatar
           src={avatar}
           alt={name ?? ""}
-          className="!h-9 !w-9 min-w-[36px] max-w-[36px] shrink-0 rounded-full object-cover"
-          sizes="32px"
-          widths={[32, 64]}
-          width={36}
-          height={36}
+          className="!h-12 !w-12 min-w-[48px] max-w-[48px] shrink-0 rounded-full object-cover"
+          sizes="48px"
+          widths={[48, 96]}
+          width={48}
+          height={48}
           rounded="full"
         />
       )}
