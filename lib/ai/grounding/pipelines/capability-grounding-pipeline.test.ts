@@ -532,6 +532,66 @@ describe("Stage 4.1 capability grounding pipeline", () => {
     expect(wrongTopic.provider.structuredInputs).toHaveLength(0);
   });
 
+  it("supports bounded about-style user context for equation follow-ups", async () => {
+    const supported = await runPipeline({
+      message: "State that equation.",
+      recentMessages: [{ role: "USER", content: "Tell me about pressure." }],
+      chunks: [retrievedChunk("Pressure formula is P = F / A. P means pressure.")],
+    });
+
+    expect(supported.outcome.kind).toBe("COMPLETED");
+    expect(supported.provider.structuredInputs).toHaveLength(1);
+    if (supported.outcome.kind !== "COMPLETED") return;
+    expect(supported.outcome.content).toContain("P = F / A");
+  });
+
+  it("refuses unresolved or ambiguous context before calling the provider", async () => {
+    const assistantOnly = await runPipeline({
+      message: "What is its formula?",
+      recentMessages: [{ role: "ASSISTANT", content: "Pressure uses P = F / A." }],
+      chunks: [retrievedChunk("P = F / A, where P is pressure.")],
+    });
+    expect(assistantOnly.outcome.kind).toBe("INSUFFICIENT_CONTEXT");
+    expect(assistantOnly.provider.generateInputs).toHaveLength(0);
+    expect(assistantOnly.provider.structuredInputs).toHaveLength(0);
+
+    const ambiguous = await runPipeline({
+      message: "What is its formula?",
+      recentMessages: [{ role: "USER", content: "Tell me about force and density." }],
+      chunks: [retrievedChunk("density = mass / volume.")],
+    });
+    expect(ambiguous.outcome.kind).toBe("INSUFFICIENT_CONTEXT");
+    expect(ambiguous.provider.generateInputs).toHaveLength(0);
+    expect(ambiguous.provider.structuredInputs).toHaveLength(0);
+  });
+
+  it("refuses incomplete formula/symbol contracts before calling the provider", async () => {
+    const missingSymbol = await runPipeline({
+      message: "In rho = m / V, what does V mean?",
+      chunks: [
+        retrievedChunk("rho = m / V.", {
+          id: "density",
+          resourceId: "resource-density",
+        }),
+        retrievedChunk("V = I x R. V means voltage.", {
+          id: "ohms",
+          resourceId: "resource-ohms",
+        }),
+      ],
+    });
+    expect(missingSymbol.outcome.kind).toBe("INSUFFICIENT_CONTEXT");
+    expect(missingSymbol.provider.generateInputs).toHaveLength(0);
+    expect(missingSymbol.provider.structuredInputs).toHaveLength(0);
+
+    const missingUnit = await runPipeline({
+      message: "Give the density formula and its unit.",
+      chunks: [retrievedChunk("density = mass / volume.")],
+    });
+    expect(missingUnit.outcome.kind).toBe("INSUFFICIENT_CONTEXT");
+    expect(missingUnit.provider.generateInputs).toHaveLength(0);
+    expect(missingUnit.provider.structuredInputs).toHaveLength(0);
+  });
+
   it("passes fake-provider output when every required task is covered", async () => {
     const { outcome } = await runPipeline({
       message: "How do acids and bases affect litmus paper?",
