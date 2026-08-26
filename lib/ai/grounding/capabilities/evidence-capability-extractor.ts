@@ -14,6 +14,7 @@ import type {
   ExtractEvidenceCapabilitiesInput,
   ExplicitFactCapability,
   FormulaCapability,
+  FormulaSymbolContext,
   MethodCapability,
   NumericCapability,
   PassageInterpretationCapability,
@@ -114,8 +115,10 @@ export function extractEvidenceCapability(chunk: AuthorizedEvidenceChunk): Evide
 
     const symbolDefinitions = extractSymbolDefinitions(sentence, state);
     const formulas = extractFormulas(sentence, state, symbolDefinitions);
+    attachFormulaContextsToSymbols(symbolDefinitions, formulas);
     capability.formulas.push(...formulas);
     capability.symbolDefinitions.push(...symbolDefinitions);
+    updateLastFormulaContext(state, formulas);
 
     const definitions = extractConceptDefinitions(sentence, state);
     const numerics = extractNumericValues(sentence, state);
@@ -946,7 +949,7 @@ function extractRelations(
   const relations: RelationCapability[] = [];
   for (const clause of splitRelationClauses(sentence)) {
     const relationMatch =
-      clause.text.match(/\b(.+?)\s+(increases|decreases|reduces|affects|causes|depends on|leads to|turns?|changes?|transfers?|makes?|eats?)\s+(.+)$/i) ??
+      clause.text.match(/\b(.+?)\s+(increases|decreases|reduces|affects|causes|depends on|leads to|turns?|changes?|transfers?|makes?|eats?|applies to)\s+(.+)$/i) ??
       clause.text.match(/\b(.+?)\s+(carry|carries|transport|transports)\s+(.+)$/i) ??
       clause.text.match(/\b(.+?)\s+(increases|decreases)\s+with\s+(.+)$/i);
     if (!relationMatch) continue;
@@ -1286,6 +1289,7 @@ type CapabilityState = {
   chunk: AuthorizedEvidenceChunk;
   sequence: number;
   lastSemanticTarget?: string;
+  lastFormulaContext?: FormulaSymbolContext;
 };
 
 function createCapabilityState(chunk: AuthorizedEvidenceChunk): CapabilityState {
@@ -1313,6 +1317,41 @@ function updateLastSemanticTarget(
     )
     .find(Boolean);
   if (target) state.lastSemanticTarget = target;
+}
+
+function updateLastFormulaContext(
+  state: CapabilityState,
+  formulas: FormulaCapability[]
+) {
+  const formula = formulas.at(-1);
+  if (!formula) return;
+  state.lastFormulaContext = formulaSymbolContext(formula);
+}
+
+function attachFormulaContextsToSymbols(
+  symbolDefinitions: SymbolCapability[],
+  formulas: FormulaCapability[]
+) {
+  for (const definition of symbolDefinitions) {
+    if (definition.formulaContext) continue;
+    const scopedFormulas = formulas.filter((formula) =>
+      formula.symbols.some(
+        (symbol) => symbol.normalized === definition.symbol.normalized
+      )
+    );
+    if (scopedFormulas.length !== 1) continue;
+    definition.formulaContext = formulaSymbolContext(scopedFormulas[0]);
+  }
+}
+
+function formulaSymbolContext(formula: FormulaCapability): FormulaSymbolContext {
+  return {
+    formulaCapabilityId: formula.id,
+    normalizedExpression: formula.normalizedExpression,
+    resourceChunkId: formula.resourceChunkId,
+    sourceLabel: formula.sourceLabel,
+    symbols: formula.symbols.map((symbol) => symbol.normalized),
+  };
 }
 
 function attachSemanticComponents(capability: EvidenceCapability) {
@@ -1621,7 +1660,7 @@ function definitionFacets(definitionText: string, evidenceText: string): Semanti
 
 function relationFacet(relation: string, evidenceText: string): SemanticComponent["kind"] {
   const combined = normalizeConceptText(`${relation} ${evidenceText}`);
-  if (/\b(?:transport|carry|allow|does not allow|do not allow|make|eat|transfer)\b/.test(combined)) return "FUNCTION";
+  if (/\b(?:transport|carry|allow|does not allow|do not allow|make|eat|transfer|appl(?:y|ies|ied|ication))\b/.test(combined)) return "FUNCTION";
   if (/\b(?:purpose|useful|used for|needed for|helps?)\b/.test(combined)) return "PURPOSE";
   if (/\b(?:cannot|can not|does not|do not|limitation|rather than)\b/.test(combined)) return "LIMITATION";
   if (/\b(?:cause|lead to|reduce|increase|effect|result)\b/.test(combined)) return "CONSEQUENCE";
@@ -1686,6 +1725,11 @@ function createSymbolDefinition(input: {
   meaning?: string;
   polarity: CapabilityPolarity;
 }): SymbolCapability {
+  const formulaContext =
+    input.polarity === "POSITIVE" &&
+    input.state.lastFormulaContext?.symbols.includes(input.symbol.normalized)
+      ? input.state.lastFormulaContext
+      : undefined;
   return {
     id: nextCapabilityId(input.state, "symbol"),
     resourceChunkId: input.state.chunk.resourceChunkId,
@@ -1698,6 +1742,7 @@ function createSymbolDefinition(input: {
       ? canonicalizeConcept(input.meaning, input.state.chunk)
       : undefined,
     polarity: input.polarity,
+    formulaContext,
   };
 }
 
