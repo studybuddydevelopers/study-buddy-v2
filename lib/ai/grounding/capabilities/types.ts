@@ -30,6 +30,14 @@ export type SymbolReference = {
   normalized: string;
 };
 
+export type FormulaSymbolContext = {
+  formulaCapabilityId: string;
+  normalizedExpression: string;
+  resourceChunkId: string;
+  sourceLabel: string;
+  symbols: string[];
+};
+
 type CapabilityBase = {
   id: string;
   resourceChunkId: string;
@@ -60,6 +68,7 @@ export type SymbolCapability = CapabilityBase & {
   meaning?: string;
   canonicalConcept?: CanonicalConcept;
   polarity: CapabilityPolarity;
+  formulaContext?: FormulaSymbolContext;
 };
 
 export type NumericCapability = CapabilityBase & {
