@@ -16,14 +16,14 @@ interface TableProps {
 
 export default function Table({ columns, data }: TableProps) {
   return (
-    <div className="overflow-x-auto rounded-xl border border-gray-200 bg-background">
+    <div className="overflow-x-auto rounded-xl border border-gray-300 bg-background">
       <table className="w-full border-collapse text-[0.95rem]">
         <thead>
           <tr>
             {columns.map((col) => (
               <th
                 key={col.key}
-                className="text-left font-semibold text-gray-900 p-4 border-b border-gray-200"
+                className="text-left font-semibold text-gray-900 p-4 border-b border-gray-300"
               >
                 {col.label}
               </th>
@@ -40,7 +40,7 @@ export default function Table({ columns, data }: TableProps) {
               {columns.map((col) => (
                 <td
                   key={col.key}
-                  className="p-4 text-gray-700 border-b border-gray-200"
+                  className="p-4 text-gray-700 border-b border-gray-300"
                 >
                   {row[col.key]}
                 </td>
