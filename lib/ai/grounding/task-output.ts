@@ -397,7 +397,16 @@ export type CalculationAnswerViewModel = {
 
 export type FormulaContract = {
   expressions: string[];
+  expressionSymbols: Array<{
+    symbol: string;
+    sourceLabels: string[];
+  }>;
   requiredVariables: Array<{
+    symbol: string;
+    meaning: string;
+    sourceLabels: string[];
+  }>;
+  availableVariables: Array<{
     symbol: string;
     meaning: string;
     sourceLabels: string[];
@@ -576,6 +585,9 @@ export function buildFormulaContract(
     ]
   ).filter(isFormulaExpressionForContract);
   const requiredUnits = deriveRequiredFormulaUnits(units);
+  const requestedSymbolDisplayByKey = requestedFormulaSymbolDisplayByKey(
+    options.requestRequirements
+  );
   const requiredVariables = deriveRequiredFormulaVariables(
     units,
     formulaExpressions,
@@ -587,8 +599,22 @@ export function buildFormulaContract(
       additionalSourceLabels: authorisedFormulaCapabilities.map(
         (formula) => formula.sourceLabel
       ),
+      requestedSymbolDisplayByKey,
+      restrictToRequestedSymbols: shouldRestrictFormulaVariablesToRequestedSymbols(
+        options.requestRequirements
+      ),
     }
   );
+  const expressionSymbols = deriveFormulaExpressionSymbols(
+    authorisedFormulaCapabilities,
+    formulaExpressions
+  );
+  const availableVariables = deriveAvailableFormulaVariables({
+    evidenceCapabilities: options.evidenceCapabilities ?? [],
+    authorisedFormulaCapabilities,
+    formulaExpressions,
+    requiredUnits,
+  });
   const requiredConditions = uniqueBy(
     units
       .flatMap((unit) =>
@@ -605,7 +631,9 @@ export function buildFormulaContract(
 
   return {
     expressions: formulaExpressions,
+    expressionSymbols,
     requiredVariables,
+    availableVariables,
     requiredConditions,
     requiredUnits,
     sourceLabels,
@@ -655,18 +683,28 @@ function authorisedFormulaCapabilitiesForContract(input: {
       selectedSourceScopes.has(evidenceScopeKey(formula.resourceChunkId, formula.sourceLabel)) &&
       formulaCapabilityMatchesFormulaRequest(formula, input.requestRequirements)
   );
-  const scopedFormulas =
+  const fallbackFormulaExpressionScopedFormulas =
     matchingScopedFormulas.length > 0
-      ? matchingScopedFormulas
+      ? []
       : allFormulas.filter(
-          (formula) =>
-            selectedSourceScopes.has(
-              evidenceScopeKey(formula.resourceChunkId, formula.sourceLabel)
-            ) &&
-            formulaExpressionRequested &&
-            formulasInScope(input.evidenceCapabilities, formula.resourceChunkId, formula.sourceLabel)
-              .length === 1
-        );
+        (formula) =>
+          selectedSourceScopes.has(
+            evidenceScopeKey(formula.resourceChunkId, formula.sourceLabel)
+          ) &&
+          formulaExpressionRequested &&
+          formulasInScope(input.evidenceCapabilities, formula.resourceChunkId, formula.sourceLabel)
+            .length === 1
+      );
+  const symbolDefinitionScopedFormulas =
+    symbolDefinitionScopedFormulasForContract(input);
+  const scopedFormulas = uniqueBy(
+    [
+      ...matchingScopedFormulas,
+      ...fallbackFormulaExpressionScopedFormulas,
+      ...symbolDefinitionScopedFormulas,
+    ],
+    (formula) => formula.id
+  );
 
   return uniqueBy(
     allFormulas.filter(
@@ -675,6 +713,73 @@ function authorisedFormulaCapabilitiesForContract(input: {
         supportingFormulaCapabilityIds.has(formula.id) ||
         scopedFormulas.some((scoped) => scoped.id === formula.id)
     ),
+    (formula) => formula.id
+  );
+}
+
+function symbolDefinitionScopedFormulasForContract(input: {
+  units: ValidatedEvidenceUnit[];
+  requestRequirements?: RequestRequirements;
+  answerabilityDecision?: AnswerabilityDecision;
+  evidenceCapabilities: EvidenceCapability[];
+}): FormulaCapability[] {
+  if (!input.requestRequirements) return [];
+
+  const symbolRequirements = flattenRequirements(
+    input.requestRequirements.requirements
+  ).filter(
+    (requirement) =>
+      requirement.kind === "SYMBOL_DEFINITION" &&
+      (requirement.requiredSymbols ?? []).length > 0 &&
+      requestMentionsExplicitFormulaContext(
+        input.requestRequirements!.normalizedQuestion,
+        requirement.requiredSymbols ?? []
+      )
+  );
+  if (symbolRequirements.length === 0) return [];
+
+  const supportedResultByRequirementId = new Map(
+    (input.answerabilityDecision?.requirementResults ?? [])
+      .filter((result) => result.status === "SUPPORTED")
+      .map((result) => [result.requirementId, result])
+  );
+  const formulas = input.evidenceCapabilities.flatMap(
+    (capability) => capability.formulas
+  );
+
+  return uniqueBy(
+    symbolRequirements.flatMap((requirement) => {
+      const requestedSymbols = new Set(
+        (requirement.requiredSymbols ?? []).map(normalizeFormulaSymbolKey)
+      );
+      const support = supportedResultByRequirementId.get(requirement.id);
+      const supportingCapabilityIds = new Set(support?.supportingCapabilityIds ?? []);
+      const supportingUnits = input.units.filter((unit) => {
+        if (!unit.supportsRequirementIds.includes(requirement.id)) return false;
+        if (!unit.allowedUses.includes("SYMBOL")) return false;
+        if (supportingCapabilityIds.size === 0) return true;
+        return unit.capabilityIds.some((id) => supportingCapabilityIds.has(id));
+      });
+
+      return supportingUnits.flatMap((unit) => {
+        const groundedSymbols = new Set(
+          (unit.semanticComponents ?? [])
+            .filter((component) => component.kind === "SYMBOL" && component.symbol)
+            .map((component) => normalizeFormulaSymbolKey(component.symbol!))
+            .filter((symbol) => requestedSymbols.has(symbol))
+        );
+        if (groundedSymbols.size === 0) return [];
+
+        return formulas.filter(
+          (formula) =>
+            formula.resourceChunkId === unit.resourceChunkId &&
+            formula.sourceLabel === unit.sourceLabel &&
+            [...groundedSymbols].some((symbol) =>
+              formulaContainsSymbol(formula, symbol)
+            )
+        );
+      });
+    }),
     (formula) => formula.id
   );
 }
@@ -689,6 +794,17 @@ function isFormulaExpressionRequirement(requirement: RequestRequirement) {
       (component) => component.kind === "FORMULA"
     )
   );
+}
+
+function requestMentionsExplicitFormulaContext(
+  question: string,
+  requestedSymbols: string[]
+) {
+  if (!question.includes("=")) return false;
+  const terms = new Set(extractFormulaTerms(question).map(normalizeFormulaSymbolKey));
+  return requestedSymbols
+    .map(normalizeFormulaSymbolKey)
+    .some((symbol) => symbol && terms.has(symbol));
 }
 
 function formulaCapabilityMatchesFormulaRequest(
@@ -725,6 +841,17 @@ function formulaCapabilityMatchesFormulaRequest(
       )
     );
   });
+}
+
+function formulaContainsSymbol(formula: FormulaCapability, symbolKey: string) {
+  const expressionSymbols = new Set(
+    [
+      ...formula.symbols.map((symbol) => symbol.display),
+      ...extractFormulaTerms(formula.expression),
+      formula.outputQuantity ?? "",
+    ].map(normalizeFormulaSymbolKey)
+  );
+  return expressionSymbols.has(symbolKey);
 }
 
 function targetIncludesAllFormulaConceptTokens(target: string, formulaText: string) {
@@ -1073,6 +1200,8 @@ export function validateStructuredFormulaOutput(input: {
     seenVariables.add(symbol);
 
     const expected = input.contract.requiredVariables.find(
+      (item) => normalizeFormulaSymbolKey(item.symbol) === symbol
+    ) ?? input.contract.availableVariables.find(
       (item) => normalizeFormulaSymbolKey(item.symbol) === symbol
     );
     if (!expected) {
@@ -2948,6 +3077,8 @@ function deriveRequiredFormulaVariables(
   options: {
     additionalEvidenceTexts?: string[];
     additionalSourceLabels?: string[];
+    requestedSymbolDisplayByKey?: Map<string, string>;
+    restrictToRequestedSymbols?: boolean;
   } = {}
 ): FormulaContract["requiredVariables"] {
   const sourceLabels = uniqueStrings([
@@ -2969,8 +3100,17 @@ function deriveRequiredFormulaVariables(
       :
     (unit.semanticComponents ?? [])
       .filter((component) => component.kind === "SYMBOL" && component.symbol)
+      .filter((component) => {
+        if (!options.restrictToRequestedSymbols) return true;
+        return options.requestedSymbolDisplayByKey?.has(
+          normalizeFormulaSymbolKey(component.symbol!)
+        );
+      })
       .map((component) => ({
-        symbol: component.symbol!,
+        symbol:
+          options.requestedSymbolDisplayByKey?.get(
+            normalizeFormulaSymbolKey(component.symbol!)
+          ) ?? component.symbol!,
         meaning:
           termMeanings.get(normalizeFormulaSymbolKey(component.symbol!)) ??
           component.concept?.aliases?.[0] ??
@@ -2983,13 +3123,21 @@ function deriveRequiredFormulaVariables(
     formulaExpressions.flatMap(extractFormulaTerms)
   ).filter((term) => !["area"].includes(normalizeQuantity(term)));
   const inferred = expressionTerms.map((term) => ({
-    symbol: term,
+    symbol:
+      options.requestedSymbolDisplayByKey?.get(normalizeFormulaSymbolKey(term)) ??
+      term,
     meaning:
       termMeanings.get(normalizeFormulaSymbolKey(term)) ??
       inferFormulaTermMeaning(term, combinedEvidence),
     sourceLabels,
   })).filter((item) => {
     const symbol = normalizeFormulaSymbolKey(item.symbol);
+    if (
+      options.restrictToRequestedSymbols &&
+      !options.requestedSymbolDisplayByKey?.has(symbol)
+    ) {
+      return false;
+    }
     const meaning = normalizeQuantity(item.meaning);
     return symbol.length > 1 || meaning !== symbol;
   });
@@ -3000,6 +3148,108 @@ function deriveRequiredFormulaVariables(
     ),
     (item) => normalizeFormulaSymbolKey(item.symbol)
   );
+}
+
+function deriveFormulaExpressionSymbols(
+  formulas: FormulaCapability[],
+  formulaExpressions: string[]
+): FormulaContract["expressionSymbols"] {
+  const formulaSymbols = formulas.flatMap((formula) =>
+    uniqueStrings([
+      ...extractFormulaTerms(formula.expression),
+      ...formula.symbols.map((symbol) => symbol.display),
+      formula.outputQuantity ?? "",
+    ]).map((symbol) => ({
+      symbol,
+      sourceLabels: [formula.sourceLabel],
+    }))
+  );
+  const expressionSymbols = formulaExpressions.flatMap((expression) =>
+    extractFormulaTerms(expression).map((symbol) => ({
+      symbol,
+      sourceLabels: formulas
+        .filter((formula) => formula.expression === expression)
+        .map((formula) => formula.sourceLabel),
+    }))
+  );
+
+  return uniqueBy(
+    [...formulaSymbols, ...expressionSymbols].filter((item) => item.symbol),
+    (item) => normalizeFormulaSymbolKey(item.symbol)
+  );
+}
+
+function deriveAvailableFormulaVariables(input: {
+  evidenceCapabilities: EvidenceCapability[];
+  authorisedFormulaCapabilities: FormulaCapability[];
+  formulaExpressions: string[];
+  requiredUnits: FormulaContract["requiredUnits"];
+}): FormulaContract["availableVariables"] {
+  const authorisedScopes = new Set(
+    input.authorisedFormulaCapabilities.map((formula) =>
+      evidenceScopeKey(formula.resourceChunkId, formula.sourceLabel)
+    )
+  );
+  const formulaSymbols = new Set(
+    input.formulaExpressions.flatMap(extractFormulaTerms).map(normalizeFormulaSymbolKey)
+  );
+
+  return uniqueBy(
+    input.evidenceCapabilities
+      .filter((capability) =>
+        authorisedScopes.has(
+          evidenceScopeKey(capability.resourceChunkId, capability.sourceLabel)
+        )
+      )
+      .flatMap((capability) => capability.symbolDefinitions)
+      .filter(
+        (definition) =>
+          definition.polarity === "POSITIVE" &&
+          Boolean(definition.meaning) &&
+          formulaSymbols.has(normalizeFormulaSymbolKey(definition.symbol.display))
+      )
+      .map((definition) => ({
+        symbol: definition.symbol.display,
+        meaning: definition.meaning!,
+        sourceLabels: [definition.sourceLabel],
+      })),
+    (item) => normalizeFormulaSymbolKey(item.symbol)
+  );
+}
+
+function requestedFormulaSymbolDisplayByKey(
+  requestRequirements?: RequestRequirements
+) {
+  const result = new Map<string, string>();
+  if (!requestRequirements) return result;
+  for (const requirement of flattenRequirements(requestRequirements.requirements)) {
+    for (const symbol of requirement.requiredSymbols ?? []) {
+      const key = normalizeFormulaSymbolKey(symbol);
+      if (key && !result.has(key)) result.set(key, symbol);
+    }
+  }
+  return result;
+}
+
+function shouldRestrictFormulaVariablesToRequestedSymbols(
+  requestRequirements?: RequestRequirements
+) {
+  if (!requestRequirements) return false;
+  const requestedSymbols = requestedFormulaSymbolDisplayByKey(requestRequirements);
+  if (requestedSymbols.size === 0) return false;
+
+  const requirements = flattenRequirements(requestRequirements.requirements);
+  const asksForAllVariables = requirements.some(
+    (requirement) =>
+      requirement.kind === "FORMULA_WITH_SYMBOLS" ||
+      requirement.requestedAction === "DEFINE_VARIABLES" ||
+      /\b(?:variables?|symbols?)\b/i.test(requirement.requestedFact ?? "") ||
+      /\b(?:define|explain|name|identify|state|list)\b.{0,100}\b(?:variables?|symbols?)\b/i.test(
+        requestRequirements.normalizedQuestion
+      )
+  );
+
+  return !asksForAllVariables;
 }
 
 function deriveRequiredFormulaUnits(
