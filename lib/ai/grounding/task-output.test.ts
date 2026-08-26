@@ -172,6 +172,44 @@ function formulaDecision(content: string) {
   return { capability, requestRequirements, decision };
 }
 
+function formulaSymbolDecision(input: {
+  question: string;
+  content: string;
+  resourceChunkId?: string;
+  sourceLabel?: string;
+  subjectId?: string;
+  topicId?: string;
+}) {
+  const caseSubjectId = input.subjectId ?? "eval-subject-physics";
+  const caseTopicId = input.topicId ?? "eval-topic-formula-symbols";
+  const capability = extractEvidenceCapability(
+    chunk(input.content, {
+      resourceChunkId: input.resourceChunkId ?? "formula-symbol-chunk",
+      sourceLabel: input.sourceLabel ?? "SOURCE_1",
+      subjectId: caseSubjectId,
+      topicId: caseTopicId,
+    })
+  );
+  const requestRequirements = extractRequestRequirements({
+    requestId: "request-1",
+    question: input.question,
+    subjectId: caseSubjectId,
+    topicId: caseTopicId,
+  });
+  const decision = decideAnswerability({
+    requestRequirements,
+    evidenceCapabilities: [capability],
+    conflicts: [],
+  });
+  const contract = buildFormulaContract(decision.validatedEvidenceUnits, {
+    requestRequirements,
+    answerabilityDecision: decision,
+    evidenceCapabilities: [capability],
+  });
+
+  return { capability, requestRequirements, decision, contract };
+}
+
 function formulaOutput(overrides: Record<string, unknown> = {}) {
   return {
     expression: "Area = 1/2 * base * height",
@@ -1185,7 +1223,9 @@ describe("Stage 4.1 structured task output", () => {
   it("fails formula contract completeness before provider repair when formula evidence is absent", () => {
     const incomplete = {
       expressions: [],
+      expressionSymbols: [],
       requiredVariables: [],
+      availableVariables: [],
       requiredConditions: [],
       requiredUnits: [{ quantity: "force", unit: "newtons", sourceLabels: ["SOURCE_1"] }],
       sourceLabels: ["SOURCE_1"],
@@ -1248,6 +1288,137 @@ describe("Stage 4.1 structured task output", () => {
 
     expect(contract.expressions).toContain("rectangle area = length x width");
     expect(validateFormulaContractCompleteness(contract).supported).toBe(true);
+  });
+
+  it("admits same-source formula context for requested density symbol definitions", () => {
+    const { requestRequirements, decision, contract } = formulaSymbolDecision({
+      question: "In rho = m / V, what does V represent?",
+      content:
+        "Density relation is rho = m / V. In this relation, m means mass and V means volume.",
+      topicId: "eval-topic-post-v5-density",
+    });
+
+    expect(selectTaskOutputMode({ requestRequirements, answerabilityDecision: decision })).toBe(
+      "STRUCTURED_FORMULA"
+    );
+    expect(decision.classification).toBe("SUPPORTED");
+    expect(contract.expressions).toEqual(["rho = m / V"]);
+    expect(contract.expressionSymbols.map((symbol) => symbol.symbol)).toEqual(
+      expect.arrayContaining(["rho", "m", "V"])
+    );
+    expect(contract.requiredVariables).toEqual([
+      { symbol: "V", meaning: "volume", sourceLabels: ["SOURCE_1"] },
+    ]);
+    expect(contract.availableVariables).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ symbol: "m", meaning: "mass" }),
+        expect.objectContaining({ symbol: "V", meaning: "volume" }),
+      ])
+    );
+    expect(validateFormulaContractCompleteness(contract).supported).toBe(true);
+
+    expect(
+      validateStructuredFormulaOutput({
+        value: {
+          expression: "rho = m / V",
+          variables: [{ symbol: "V", meaning: "volume", sourceLabels: ["SOURCE_1"] }],
+          units: [],
+          conditions: [],
+          sourceLabels: ["SOURCE_1"],
+          suggestedQuestions: [],
+        },
+        contract,
+        validatedEvidenceUnits: decision.validatedEvidenceUnits,
+      }).supported
+    ).toBe(true);
+  });
+
+  it("admits same-source formula context for requested sound symbol definitions", () => {
+    const { requestRequirements, decision, contract } = formulaSymbolDecision({
+      question: "In s = d / t, define t.",
+      content:
+        "For a sound pulse, speed is s = d / t. In this formula, d means distance and t means time.",
+      topicId: "eval-topic-post-v5-motion",
+    });
+
+    expect(selectTaskOutputMode({ requestRequirements, answerabilityDecision: decision })).toBe(
+      "STRUCTURED_FORMULA"
+    );
+    expect(decision.classification).toBe("SUPPORTED");
+    expect(contract.expressions).toEqual(["s = d / t"]);
+    expect(contract.expressionSymbols.map((symbol) => symbol.symbol)).toEqual(
+      expect.arrayContaining(["s", "d", "t"])
+    );
+    expect(contract.requiredVariables).toEqual([
+      { symbol: "t", meaning: "time", sourceLabels: ["SOURCE_1"] },
+    ]);
+    expect(contract.availableVariables).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ symbol: "d", meaning: "distance" }),
+        expect.objectContaining({ symbol: "t", meaning: "time" }),
+      ])
+    );
+    expect(validateFormulaContractCompleteness(contract).supported).toBe(true);
+
+    expect(
+      validateStructuredFormulaOutput({
+        value: {
+          expression: "s = d / t",
+          variables: [{ symbol: "t", meaning: "time", sourceLabels: ["SOURCE_1"] }],
+          units: [],
+          conditions: [],
+          sourceLabels: ["SOURCE_1"],
+          suggestedQuestions: [],
+        },
+        contract,
+        validatedEvidenceUnits: decision.validatedEvidenceUnits,
+      }).supported
+    ).toBe(true);
+  });
+
+  it("keeps requested symbol definitions separate from expression symbols", () => {
+    const { decision, contract } = formulaSymbolDecision({
+      question: "In rho = m / V, what does V represent?",
+      content:
+        "Density relation is rho = m / V. In this relation, m means mass and V means volume.",
+      topicId: "eval-topic-post-v5-density",
+    });
+
+    expect(
+      validateStructuredFormulaOutput({
+        value: {
+          expression: "rho = m / V",
+          variables: [
+            { symbol: "V", meaning: "volume", sourceLabels: ["SOURCE_1"] },
+            { symbol: "m", meaning: "mass", sourceLabels: ["SOURCE_1"] },
+          ],
+          units: [],
+          conditions: [],
+          sourceLabels: ["SOURCE_1"],
+          suggestedQuestions: [],
+        },
+        contract,
+        validatedEvidenceUnits: decision.validatedEvidenceUnits,
+      }).supported
+    ).toBe(true);
+
+    expect(
+      validateStructuredFormulaOutput({
+        value: {
+          expression: "rho = m / V",
+          variables: [
+            { symbol: "V", meaning: "volume", sourceLabels: ["SOURCE_1"] },
+            { symbol: "rho", meaning: "density", sourceLabels: ["SOURCE_1"] },
+          ],
+          units: [],
+          conditions: [],
+          sourceLabels: ["SOURCE_1"],
+          suggestedQuestions: [],
+        },
+        contract,
+        validatedEvidenceUnits: decision.validatedEvidenceUnits,
+      }).supported
+    ).toBe(false);
   });
 
   it("does not borrow formula capabilities from unrelated chunks or sibling concepts", () => {
@@ -1327,6 +1498,77 @@ describe("Stage 4.1 structured task output", () => {
 
     expect(unrelatedContract.expressions).toEqual([]);
     expect(siblingContract.expressions).toEqual([]);
+  });
+
+  it("does not admit a formula when requested symbol support is missing", () => {
+    const invented = formulaSymbolDecision({
+      question: "In rho = m / V, what does X represent?",
+      content:
+        "Density relation is rho = m / V. In this relation, m means mass and V means volume.",
+      topicId: "eval-topic-post-v5-density",
+    });
+    const missingMeaning = formulaSymbolDecision({
+      question: "In rho = m / V, what does V represent?",
+      content: "Density relation is rho = m / V.",
+      topicId: "eval-topic-post-v5-density",
+    });
+
+    expect(invented.decision.classification).toBe("INSUFFICIENT_CONTEXT");
+    expect(missingMeaning.decision.classification).toBe("INSUFFICIENT_CONTEXT");
+  });
+
+  it("does not admit symbol-context formulas from another chunk or source", () => {
+    const symbolCapability = extractEvidenceCapability(
+      chunk("In this relation, V means volume.", {
+        resourceChunkId: "symbol-chunk",
+        sourceLabel: "SOURCE_1",
+        subjectId: "eval-subject-physics",
+        topicId: "eval-topic-post-v5-density",
+      })
+    );
+    const otherChunkFormula = extractEvidenceCapability(
+      chunk("Density relation is rho = m / V.", {
+        resourceChunkId: "formula-chunk",
+        sourceLabel: "SOURCE_1",
+        subjectId: "eval-subject-physics",
+        topicId: "eval-topic-post-v5-density",
+      })
+    );
+    const otherSourceFormula = extractEvidenceCapability(
+      chunk("Density relation is rho = m / V.", {
+        resourceChunkId: "symbol-chunk",
+        sourceLabel: "SOURCE_2",
+        subjectId: "eval-subject-physics",
+        topicId: "eval-topic-post-v5-density",
+      })
+    );
+    const requestRequirements = extractRequestRequirements({
+      requestId: "request-1",
+      question: "In rho = m / V, what does V represent?",
+      subjectId: "eval-subject-physics",
+      topicId: "eval-topic-post-v5-density",
+    });
+    const decision = decideAnswerability({
+      requestRequirements,
+      evidenceCapabilities: [symbolCapability, otherChunkFormula, otherSourceFormula],
+      conflicts: [],
+    });
+
+    expect(decision.classification).toBe("SUPPORTED");
+    expect(
+      buildFormulaContract(decision.validatedEvidenceUnits, {
+        requestRequirements,
+        answerabilityDecision: decision,
+        evidenceCapabilities: [symbolCapability, otherChunkFormula],
+      }).expressions
+    ).toEqual([]);
+    expect(
+      buildFormulaContract(decision.validatedEvidenceUnits, {
+        requestRequirements,
+        answerabilityDecision: decision,
+        evidenceCapabilities: [symbolCapability, otherSourceFormula],
+      }).expressions
+    ).toEqual([]);
   });
 
   it("routes formula-only requests to structured formula mode", () => {
@@ -1495,6 +1737,26 @@ describe("Stage 4.1 structured task output", () => {
           "Newton's second law links resultant force, mass and acceleration: F = m x a. Force is measured in newtons when mass is in kilograms and acceleration is in metres per second squared.",
         expectedMode: "STRUCTURED_FORMULA",
         expectedText: "force is measured in newtons",
+        expectedProviderCalls: 1,
+      },
+      {
+        question: "In rho = m / V, what does V represent?",
+        topicId: "eval-topic-post-v5-density",
+        subjectId: "eval-subject-physics",
+        content:
+          "Density relation is rho = m / V. In this relation, m means mass and V means volume.",
+        expectedMode: "STRUCTURED_FORMULA",
+        expectedText: "V means volume",
+        expectedProviderCalls: 1,
+      },
+      {
+        question: "In s = d / t, define t.",
+        topicId: "eval-topic-post-v5-motion",
+        subjectId: "eval-subject-physics",
+        content:
+          "For a sound pulse, speed is s = d / t. In this formula, d means distance and t means time.",
+        expectedMode: "STRUCTURED_FORMULA",
+        expectedText: "t means time",
         expectedProviderCalls: 1,
       },
       {
