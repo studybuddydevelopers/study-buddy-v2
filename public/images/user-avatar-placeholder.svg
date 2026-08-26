@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" role="img" aria-labelledby="title desc">
+  <title id="title">Default user avatar</title>
+  <desc id="desc">A neutral user avatar placeholder in navy and light gray.</desc>
+  <rect width="256" height="256" rx="128" fill="#F8F9FA"/>
+  <circle cx="128" cy="128" r="112" fill="#E8F0F5"/>
+  <circle cx="128" cy="96" r="43" fill="#102B3F"/>
+  <path
+    fill="#102B3F"
+    d="M49 213c9-42 40-70 79-70s70 28 79 70c-20 17-47 27-79 27s-59-10-79-27Z"
+  />
+  <path
+    fill="#FFFFFF"
+    fill-opacity=".38"
+    d="M84 67c10-15 26-24 44-24 17 0 32 8 42 21-11-8-25-13-41-13-18 0-34 6-45 16Z"
+  />
+</svg>
