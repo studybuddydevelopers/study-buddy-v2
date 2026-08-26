@@ -9,6 +9,7 @@ import type {
 } from "./types";
 import {
   canonicalizeSemanticConcept,
+  findMentionedCanonicalConcepts,
   inferRequestedFacet,
   makeSemanticComponent,
   normalizeSemanticBaseConcept,
@@ -32,6 +33,7 @@ type RequirementDraft = {
   kind: RequirementKind;
   targetConcepts: string[];
   requestedAction?: string;
+  formulaContext?: string;
   presentationStyle?: PresentationStyle;
   requestedFacet?: SemanticFacet;
   constraints?: string[];
@@ -56,6 +58,9 @@ type RequirementBuildContext = {
   topicId?: string;
   contextConcept?: string;
   contextProcess?: string;
+  contextFormula?: string;
+  currentFormula?: string;
+  unresolvedContextualFollowUp?: boolean;
   dependsOnPreviousTurn: boolean;
   ignoredDirectiveText?: string[];
   requestedAction?: string;
@@ -74,20 +79,36 @@ export function extractRequestRequirements(
   const educationalQuestion = directiveMetadata.educationalQuestion;
   const context = resolveRecentContext(
     input.recentMessages ?? [],
-    input.maxContextMessages ?? DEFAULT_CONTEXT_LIMIT
+    input.maxContextMessages ?? DEFAULT_CONTEXT_LIMIT,
+    { subjectId: input.subjectId, topicId: input.topicId }
   );
+  const currentFormula = extractFormulaContextExpression(educationalQuestion);
   const currentHasExplicitConcept = hasExplicitCurrentConcept(educationalQuestion);
   const namedPossessiveFacet = hasNamedPossessiveFacetTarget(educationalQuestion);
+  const contextualFollowUp = isContextualFollowUp(activeQuestion);
+  const currentNeedsResolvedContext =
+    contextualFollowUp &&
+    !currentFormula &&
+    (!currentHasExplicitConcept ||
+      isContextualReferenceOnlyQuestion(educationalQuestion) ||
+      hasPronounScopedTask(educationalQuestion));
   const shouldUseContext =
     !namedPossessiveFacet &&
-    isContextualFollowUp(activeQuestion) &&
-    (!currentHasExplicitConcept || isPronounOnlyFollowUp(activeQuestion)) &&
-    Boolean(context.concept || context.process);
+    currentNeedsResolvedContext &&
+    context.status === "RESOLVED" &&
+    Boolean(context.concept || context.process || context.formula);
+  const unresolvedContextualFollowUp =
+    !namedPossessiveFacet &&
+    currentNeedsResolvedContext &&
+    !shouldUseContext;
   const drafts = buildRequirementDrafts(educationalQuestion, {
     subjectId: input.subjectId,
     topicId: input.topicId,
     contextConcept: shouldUseContext ? context.concept : undefined,
     contextProcess: shouldUseContext ? context.process : undefined,
+    contextFormula: shouldUseContext ? context.formula : undefined,
+    currentFormula,
+    unresolvedContextualFollowUp,
     dependsOnPreviousTurn: shouldUseContext,
     ignoredDirectiveText: directiveMetadata.ignoredDirectiveText,
   });
@@ -121,6 +142,20 @@ function buildRequirementDrafts(
     requestedAction: detectRequestedAction(question),
     presentationStyle: detectPresentationStyle(question),
   };
+
+  if (normalizedContext.unresolvedContextualFollowUp) {
+    return [
+      withContext(
+        {
+          kind: "CONTEXTUAL_FOLLOW_UP",
+          targetConcepts: [],
+          requestedFact: "unresolved contextual reference",
+          constraints: ["unresolved contextual reference"],
+        },
+        normalizedContext
+      ),
+    ];
+  }
 
   const methodSelection = buildMethodSelectionRequirement(question);
   if (methodSelection) return [withContext(methodSelection, normalizedContext)];
@@ -170,7 +205,7 @@ function buildRequirementDrafts(
   const formulaWithSymbols = buildFormulaWithSymbolsRequirement(question, context);
   if (formulaWithSymbols) return [withContext(formulaWithSymbols, normalizedContext)];
 
-  const symbolDefinition = buildSymbolDefinitionRequirement(question);
+  const symbolDefinition = buildSymbolDefinitionRequirement(question, context);
   if (symbolDefinition) return [withContext(symbolDefinition, normalizedContext)];
 
   const formula = buildFormulaRequirement(question, context);
@@ -309,6 +344,7 @@ function buildFormulaAndUnitRequirement(
           kind: "FORMULA",
           targetConcepts: compactStrings([concept, context.contextConcept]),
           requestedAction: "STATE_FORMULA",
+          formulaContext: context.currentFormula ?? context.contextFormula,
         },
         unitChild,
       ],
@@ -358,6 +394,7 @@ function buildFormulaVariableRequirement(
         kind: "FORMULA",
         targetConcepts: compactStrings([concept, context.contextConcept]),
         requestedAction: "STATE_FORMULA",
+        formulaContext: context.currentFormula ?? context.contextFormula,
       },
       {
         kind: "FACT_LOOKUP",
@@ -817,6 +854,7 @@ function buildFormulaWithSymbolsRequirement(
     kind: "FORMULA_WITH_SYMBOLS",
     targetConcepts: compactStrings([extractFormulaConcept(question), context.contextConcept]),
     requiredSymbols: symbols,
+    formulaContext: context.currentFormula ?? context.contextFormula,
   };
 }
 
@@ -824,11 +862,12 @@ function buildFormulaRequirement(
   question: string,
   context: RequirementBuildContext
 ): RequirementDraft | undefined {
-  if (!/\bformula\b/i.test(question)) return undefined;
+  if (!/\b(?:formula|equation|relation)\b/i.test(question)) return undefined;
 
   return {
     kind: "FORMULA",
     targetConcepts: compactStrings([extractFormulaConcept(question), context.contextConcept]),
+    formulaContext: context.currentFormula ?? context.contextFormula,
   };
 }
 
@@ -853,6 +892,7 @@ function buildFormulaConceptRequirement(
         {
           kind: "FORMULA",
           targetConcepts: compactStrings([cleaned, context.contextConcept]),
+          formulaContext: context.currentFormula ?? context.contextFormula,
         },
         {
           kind: "FACT_LOOKUP",
@@ -866,17 +906,24 @@ function buildFormulaConceptRequirement(
   return {
     kind: "FORMULA",
     targetConcepts: compactStrings([cleanConcept(concept), context.contextConcept]),
+    formulaContext: context.currentFormula ?? context.contextFormula,
   };
 }
 
-function buildSymbolDefinitionRequirement(question: string): RequirementDraft | undefined {
-  const symbol = extractPrimarySymbolRequest(question);
+function buildSymbolDefinitionRequirement(
+  question: string,
+  context: RequirementBuildContext
+): RequirementDraft | undefined {
+  const symbol =
+    extractPrimarySymbolRequest(question) ??
+    (context.dependsOnPreviousTurn ? extractStandaloneSymbolFollowUp(question) : undefined);
   if (!symbol) return undefined;
 
   return {
     kind: "SYMBOL_DEFINITION",
-    targetConcepts: [],
+    targetConcepts: compactStrings([context.contextConcept]),
     requiredSymbols: [symbol],
+    formulaContext: context.currentFormula ?? context.contextFormula,
   };
 }
 
@@ -1131,6 +1178,35 @@ function buildDefinitionRequirement(
     };
   }
 
+  if (
+    /\bmain\s+idea\b/i.test(question) &&
+    /\b(?:where|when|appl(?:y|ies|icability)|used|fits?)\b/i.test(
+      question
+    ) &&
+    /\b(?:define|what\s+is|explain|tell\s+me|state)\b/i.test(question)
+  ) {
+    return {
+      kind: "MULTI_PART",
+      targetConcepts: ["main idea", "main idea applicability"],
+      requestedAction: detectRequestedAction(question) ?? "TEACH",
+      childRequirements: [
+        {
+          kind: "CONCEPT_DEFINITION",
+          targetConcepts: ["main idea"],
+          requestedFacet: "DEFINITION",
+          requestedAction: "DEFINE",
+        },
+        {
+          kind: "RELATION_MECHANISM_CONSEQUENCE",
+          targetConcepts: ["main idea", "paragraph", "passage"],
+          requestedRelation: "main idea applies to paragraph passage",
+          requestedFacet: "FUNCTION",
+          requestedAction: "EXPLAIN_APPLICABILITY",
+        },
+      ],
+    };
+  }
+
   const concept =
     firstMatch(question, /\bwhat\s+about\s+(.+?)\s+in\s+(?:that|this)\s+topic(?:[?.]|$)/i) ??
     firstMatch(question, /\bwhat\s+(?:is|are)\s+(.+?)(?:[?.]|$)/i) ??
@@ -1156,6 +1232,35 @@ function buildDefinitionRequirement(
 }
 
 function buildPassageInterpretationRequirement(question: string): RequirementDraft | undefined {
+  if (
+    /\bmain\s+idea\b/i.test(question) &&
+    /\b(?:where|when|appl(?:y|ies|icability)|used|fits?)\b/i.test(
+      question
+    ) &&
+    /\b(?:define|what\s+is|explain|tell\s+me|state)\b/i.test(question)
+  ) {
+    return {
+      kind: "MULTI_PART",
+      targetConcepts: ["main idea", "main idea applicability"],
+      requestedAction: detectRequestedAction(question) ?? "TEACH",
+      childRequirements: [
+        {
+          kind: "CONCEPT_DEFINITION",
+          targetConcepts: ["main idea"],
+          requestedFacet: "DEFINITION",
+          requestedAction: "DEFINE",
+        },
+        {
+          kind: "RELATION_MECHANISM_CONSEQUENCE",
+          targetConcepts: ["main idea", "paragraph", "passage"],
+          requestedRelation: "main idea applies to paragraph passage",
+          requestedFacet: "FUNCTION",
+          requestedAction: "EXPLAIN_APPLICABILITY",
+        },
+      ],
+    };
+  }
+
   if (/\bmain\s+idea\b/i.test(question) && /\bsupporting\s+details?\b/i.test(question)) {
     return {
       kind: "MULTI_PART",
@@ -1211,6 +1316,7 @@ function withContext(
   return {
     ...draft,
     requestedAction: draft.requestedAction ?? context.requestedAction,
+    formulaContext: draft.formulaContext ?? context.currentFormula ?? context.contextFormula,
     presentationStyle: draft.presentationStyle ?? context.presentationStyle,
     ignoredDirectiveText: optionalUnique([
       ...(draft.ignoredDirectiveText ?? []),
@@ -1248,6 +1354,7 @@ function assignRequirementId(
     targetConcepts: uniqueStrings(draft.targetConcepts),
     baseConcept: semantic.baseConcept,
     requestedAction: draft.requestedAction,
+    formulaContext: draft.formulaContext,
     presentationStyle: draft.presentationStyle,
     requestedFacet: draft.requestedFacet ?? semantic.requestedFacet,
     constraints: optionalUnique([...(draft.constraints ?? []), ...semantic.constraints]),
@@ -1515,29 +1622,121 @@ function extractQuotedSegments(question: string): string[] {
   return segments;
 }
 
-function resolveRecentContext(messages: RequestContextMessage[], limit: number) {
-  const bounded = messages.slice(-Math.max(0, limit));
-  for (const message of [...bounded].reverse()) {
-    if (message.role !== "USER") continue;
-    const concept = extractLikelyConcept(message.content);
-    if (concept) {
-      return { concept, process: concept };
+type ResolvedRecentContext =
+  | {
+      status: "RESOLVED";
+      concept?: string;
+      process?: string;
+      formula?: string;
     }
-  }
+  | { status: "AMBIGUOUS"; concept?: undefined; process?: undefined; formula?: undefined }
+  | { status: "NONE"; concept?: undefined; process?: undefined; formula?: undefined };
 
-  return { concept: undefined, process: undefined };
+function resolveRecentContext(
+  messages: RequestContextMessage[],
+  limit: number,
+  scope: { subjectId?: string; topicId?: string }
+): ResolvedRecentContext {
+  const bounded = messages.slice(-Math.max(0, limit));
+  const latestUser = [...bounded].reverse().find((message) => message.role === "USER");
+  if (!latestUser) return { status: "NONE" };
+
+  const formula = extractFormulaContextExpression(latestUser.content);
+  const controlledConcepts = findMentionedCanonicalConcepts(latestUser.content, scope);
+  const uniqueControlledIds = new Set(controlledConcepts.map((concept) => concept.id));
+  if (uniqueControlledIds.size > 1) return { status: "AMBIGUOUS" };
+
+  const controlled = controlledConcepts[0];
+  const likelyConcept =
+    extractRecentContextConcept(latestUser.content) ??
+    extractLikelyConcept(latestUser.content);
+  const concept =
+    controlled?.aliases?.[0] ??
+    (likelyConcept && !isAmbiguousLikelyConcept(likelyConcept) ? likelyConcept : undefined);
+
+  if (!concept && !formula) return { status: "NONE" };
+
+  return {
+    status: "RESOLVED",
+    concept,
+    process: concept,
+    formula,
+  };
 }
 
 function isContextualFollowUp(question: string): boolean {
-  return /\b(it|its|that|this|this quantity|that quantity|that process|that formula)\b/i.test(
-    question
-  ) || /\b(equivalent forms?|these forms?|those forms?)\b/i.test(question);
+  if (extractStandaloneSymbolFollowUp(question)) return true;
+  if (/\b(equivalent forms?|these forms?|those forms?)\b/i.test(question)) return true;
+  return (
+    /\b(?:its|that formula|this formula|that quantity|this quantity|that process|this process)\b/i.test(
+      question
+    ) ||
+    /\b(?:what|which|how|why|explain|define|tell\s+me|state|give)\b.{0,80}\b(?:it|its|that|this)\b.{0,80}\b(?:formula|equation|relation|units?|mean|represent|stand for|meaning|definition|purpose|function|process)\b/i.test(
+      question
+    ) ||
+    /\b(?:formula|equation|relation|units?|meaning|definition|purpose|function|process)\b.{0,80}\b(?:of|for)\s+(?:it|that|this)\b/i.test(
+      question
+    )
+  );
 }
 
-function isPronounOnlyFollowUp(question: string): boolean {
-  return /\b(?:it|its|that|this|this quantity|that quantity|that process|that formula)\b/i.test(
+function extractFormulaContextExpression(question: string): string | undefined {
+  const match = question.match(
+    /\b([A-Za-z\u0370-\u03ff][A-Za-z0-9_'\u0370-\u03ff]*(?:\s+[A-Za-z][A-Za-z0-9_']*){0,4})\s*=\s*([^,.;?]+?)(?=,|\?|\.|;|\s+where\b|\s+and\s+(?:its\s+|the\s+)?(?:units?|symbols?|variables?|what|define|explain)\b|$)/i
+  );
+  if (!match) return undefined;
+
+  const left = normalizeFormulaSide(match[1] ?? "");
+  const right = normalizeFormulaSide(match[2] ?? "");
+  if (!left || !right || !/[A-Za-z\u0370-\u03ff]/.test(`${left}${right}`)) {
+    return undefined;
+  }
+
+  return `${left} = ${right}`;
+}
+
+function extractRecentContextConcept(question: string): string | undefined {
+  const normalized = normalizeQuestion(question);
+  const candidates = [
+    firstMatch(normalized, /\b(?:tell\s+me|teach\s+me|explain|show\s+me)\s+about\s+(.+?)(?:[?.]|$)/i),
+    firstMatch(normalized, /\b(?:we\s+were|we're|i\s+was|i'm)\s+(?:talking|learning)\s+about\s+(.+?)(?:[?.]|$)/i),
+  ];
+  return compactStrings(candidates.map((candidate) => cleanConcept(candidate ?? "")))[0];
+}
+
+function isContextualReferenceOnlyQuestion(question: string): boolean {
+  if (
+    !/\b(?:it|its|that|this|that formula|this formula|that quantity|this quantity|that process|this process)\b/i.test(
+      question
+    )
+  ) {
+    return false;
+  }
+  return findMentionedCanonicalConcepts(question).length === 0;
+}
+
+function hasPronounScopedTask(question: string): boolean {
+  return /\b(?:it|its|that|this)\b.{0,60}\b(?:formula|equation|relation|units?|meaning|definition|purpose|function|process)\b/i.test(
+    question
+  ) || /\b(?:formula|equation|relation|units?|meaning|definition|purpose|function|process)\b.{0,60}\b(?:it|that|this)\b/i.test(
     question
   );
+}
+
+function normalizeFormulaSide(value: string): string {
+  return normalizeQuestion(value)
+    .replace(/\b(?:in|for|using|from|with|the|explain|teach|state|give|what\s+is|show)\b/gi, " ")
+    .replace(/\b(?:formula|relation|equation)\b/gi, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function extractStandaloneSymbolFollowUp(question: string): string | undefined {
+  const match = question.match(
+    /^(?:and\s+)?(?:(?:what\s+about|how\s+about)\s+)?([A-Za-z\u0370-\u03ff][A-Za-z0-9\u0370-\u03ff]?)(?:\s*(?:mean|means|represent|represents|stand for|stands for))?\??$/i
+  );
+  const symbol = cleanSymbolToken(match?.[1] ?? "");
+  return symbol && isSymbolToken(symbol) ? symbol : undefined;
 }
 
 function hasNamedPossessiveFacetTarget(question: string): boolean {
@@ -1567,6 +1766,10 @@ function extractLikelyConcept(question: string): string | undefined {
   ];
 
   return compactStrings(candidates.map((candidate) => cleanConcept(candidate ?? "")))[0];
+}
+
+function isAmbiguousLikelyConcept(value: string): boolean {
+  return /\b(?:and|or|versus|vs\.?)\b/i.test(value);
 }
 
 function isContextOnlyConceptCandidate(value: string): boolean {
