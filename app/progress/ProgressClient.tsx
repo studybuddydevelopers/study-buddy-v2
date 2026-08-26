@@ -1,4 +1,8 @@
+"use client";
+
+import { useState } from "react";
 import Link from "next/link";
+import { CircleHelp } from "lucide-react";
 import Heading1 from "@/components/Heading1";
 import Heading2 from "@/components/Heading2";
 import Paragraph from "@/components/Paragraph";
@@ -6,6 +10,9 @@ import ProgressBar from "@/components/ProgressBar";
 import Button from "@/components/Button";
 import type { ProgressFullReport } from "@/app/dashboard/dashboard.types";
 import LocalDateTime from "@/components/LocalDateTime";
+
+const PROGRESS_HELP_TEXT =
+  "Based on study materials practice, graded mock exams, and every past question you submit. Numbers update as you work.";
 
 function formatDurationMinutes(m: number | null | undefined): string {
   if (m == null || m <= 0) return "—";
@@ -48,6 +55,8 @@ export default function ProgressClient({
 }: {
   progress: ProgressFullReport | null;
 }) {
+  const [showProgressHelp, setShowProgressHelp] = useState(false);
+
   if (!progress) {
     return (
       <div className="w-[90vw] max-w-4xl mx-auto py-10">
@@ -78,26 +87,34 @@ export default function ProgressClient({
 
   return (
     <div className="w-[80vw] mx-auto py-10 space-y-12">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-        <div>
-          <Heading1 gutter="sm">Your progress</Heading1>
-          <Paragraph variant="superMuted" className="max-w-2xl">
-            Based on study materials practice, graded mock exams, and every
-            past question you submit. Numbers update as you work.
+      <div>
+        <div className="flex items-center gap-2">
+          <Heading1 gutter="none">Your progress</Heading1>
+          <div className="group/help relative">
+            <button
+              type="button"
+              aria-expanded={showProgressHelp}
+              aria-controls="progress-help-text"
+              onClick={() => setShowProgressHelp((current) => !current)}
+              className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-gray-300 bg-white text-primary-600 shadow-sm transition hover:border-primary-300 hover:bg-primary-50 focus:outline-none focus:ring-2 focus:ring-primary-300"
+            >
+              <CircleHelp className="h-5 w-5" aria-hidden="true" />
+              <span className="sr-only">Show how progress is calculated</span>
+            </button>
+            <div className="pointer-events-none absolute left-1/2 top-full z-20 mt-2 hidden w-72 -translate-x-1/2 rounded-lg border border-gray-300 bg-white p-3 text-left text-xs font-medium leading-relaxed text-gray-700 shadow-lg group-hover/help:block group-focus-within/help:block">
+              {PROGRESS_HELP_TEXT}
+            </div>
+          </div>
+        </div>
+        {showProgressHelp && (
+          <Paragraph
+            id="progress-help-text"
+            variant="superMuted"
+            className="mt-2 max-w-2xl"
+          >
+            {PROGRESS_HELP_TEXT}
           </Paragraph>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          <Link href="/materials">
-            <Button variant="outline" size="sm">
-              Study materials
-            </Button>
-          </Link>
-          <Link href="/exams" prefetch={false}>
-            <Button variant="primary" size="sm">
-              Mock exams
-            </Button>
-          </Link>
-        </div>
+        )}
       </div>
 
       <div className="grid gap-4 sm:grid-cols-3">
@@ -206,7 +223,7 @@ export default function ProgressClient({
                 {formatDurationMinutes(mocks.averageDurationMinutes)}
               </span>
             </div>
-            <div className="overflow-x-auto border border-accent-200 rounded-xl">
+            <div className="overflow-x-auto border border-gray-300 rounded-xl">
               <table className="w-full text-sm text-left">
                 <thead className="bg-accent-50 text-gray-700">
                   <tr>
@@ -220,7 +237,7 @@ export default function ProgressClient({
                   {mocks.exams.map((e) => (
                     <tr
                       key={e.instanceId}
-                      className="border-t border-accent-100 bg-white"
+                      className="border-t border-gray-300 bg-white"
                     >
                       <td className="p-3 font-medium text-gray-900">
                         {e.templateTitle}
@@ -333,7 +350,9 @@ export default function ProgressClient({
         <Heading2 gutter="sm">AI Q&amp;A</Heading2>
         <div className="flex justify-between w-72 max-w-72 align-items-center">
           <Paragraph variant="muted" className="text-sm max-w-2xl !m-0" style={{alignSelf: "center"}}>
-            {progress.aiActivity.totalQuestionsAsked} threads started.{" "}
+            {progress.aiActivity.threadsStarted ??
+              progress.aiActivity.totalQuestionsAsked}{" "}
+            threads started.{" "}
           </Paragraph>
           <Link href="/chat">
             <Button variant="primary" size="md">
