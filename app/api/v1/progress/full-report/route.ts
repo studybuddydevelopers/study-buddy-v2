@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/auth";
 import { MATERIALS_SUBJECT_ORDER } from "@/lib/materials-display";
 import { getPagination, getPaginationMeta } from "@/lib/pagination";
+import { getAiActivitySummary } from "@/lib/progress/ai-activity";
 
 function clampPct(n: number): number {
   return Math.max(0, Math.min(100, Math.round(n)));
@@ -276,13 +277,7 @@ export async function GET(req: Request) {
     ),
   };
 
-  const aiCount = await prisma.aiQuestion.count({
-    where: { userId: dbUser.id },
-  });
-
-  const aiActivity = {
-    totalQuestionsAsked: aiCount,
-  };
+  const aiActivity = await getAiActivitySummary(prisma, dbUser.id);
 
   return NextResponse.json({
     subjects,
