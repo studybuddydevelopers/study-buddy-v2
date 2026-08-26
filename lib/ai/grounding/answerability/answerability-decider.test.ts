@@ -170,6 +170,50 @@ describe("Stage 4.1 answerability decider golden cases", () => {
     expect(decision.requirementResults[0]?.missingComponents).toContain("symbol:A");
   });
 
+  it("requires explicit definition and applicability evidence for main-idea applicability requests", () => {
+    const incomplete = expectInsufficient("Define main idea and where it applies.", [
+      chunk("A main idea is the central point of a paragraph."),
+    ]);
+    expect(incomplete.requirementResults.some((result) => result.status === "MISSING")).toBe(
+      true
+    );
+
+    const complete = expectSupported("Define main idea and where it applies.", [
+      chunk(
+        "A main idea is the central point of a paragraph. The main idea applies to the whole paragraph."
+      ),
+    ]);
+    expect(complete.requirementResults.every((result) => result.status === "SUPPORTED")).toBe(
+      true
+    );
+  });
+
+  it("does not borrow a same-letter symbol definition from another formula context", () => {
+    const decision = expectInsufficient("In rho = m / V, what does V mean?", [
+      chunk("rho = m / V.", { resourceChunkId: "density", sourceLabel: "SOURCE_1" }),
+      chunk("V = I x R. V means voltage.", {
+        resourceChunkId: "ohms",
+        sourceLabel: "SOURCE_2",
+      }),
+    ]);
+
+    expect(decision.requirementResults[0]?.missingComponents).toContain("symbol:V");
+  });
+
+  it("supports a symbol definition linked to the requested formula context", () => {
+    const decision = expectSupported("In rho = m / V, what does V mean?", [
+      chunk(
+        "rho = m / V. In this relation, V means volume.",
+        { resourceChunkId: "density", sourceLabel: "SOURCE_1" }
+      ),
+    ]);
+
+    expect(decision.validatedEvidenceUnits.map((unit) => unit.quotedEvidence)).toEqual([
+      "rho = m / V",
+      "V means volume",
+    ]);
+  });
+
   it("supports complete calculation capability without producing an answer", () => {
     const decision = expectSupported("Calculate speed from 120 m in 10 s.", [
       chunk("speed = distance / time. The distance is 120 m. The time is 10 s."),
