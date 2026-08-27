@@ -19,6 +19,21 @@ function extract(question: string, recentMessages: RequestContextMessage[] = [])
   });
 }
 
+function extractWithScope(input: {
+  question: string;
+  recentMessages?: RequestContextMessage[];
+  subjectId?: string;
+  topicId?: string;
+}) {
+  return extractRequestRequirements({
+    requestId: "request-test",
+    question: input.question,
+    subjectId: input.subjectId ?? SUBJECT_ID,
+    topicId: input.topicId ?? TOPIC_ID,
+    recentMessages: input.recentMessages ?? [],
+  });
+}
+
 function firstRequirement(question: string, recentMessages: RequestContextMessage[] = []) {
   return extract(question, recentMessages).requirements[0]!;
 }
@@ -419,9 +434,51 @@ describe("Stage 4.1 request requirement extraction", () => {
     expect(requirement.targetConcepts).toEqual(["pressure"]);
   });
 
+  it("resolves scoped about-style context for equation follow-ups", () => {
+    const requirement = extractWithScope({
+      question: "State that equation.",
+      subjectId: "eval-subject-physics",
+      topicId: "eval-topic-forces",
+      recentMessages: [{ role: "USER", content: "Tell me about pressure." }],
+    }).requirements[0]!;
+
+    expect(requirement.kind).toBe("FORMULA");
+    expect(requirement.subjectId).toBe("eval-subject-physics");
+    expect(requirement.topicId).toBe("eval-topic-forces");
+    expect(requirement.dependsOnPreviousTurn).toBe(true);
+    expect(requirement.targetConcepts).toEqual(["pressure"]);
+  });
+
+  it("resolves concept and formula-symbol follow-ups from bounded prior user context", () => {
+    const concept = firstRequirement("What is its formula?", [
+      { role: "USER", content: "Teach me density." },
+    ]);
+    expectKind(concept, "FORMULA");
+    expect(concept.dependsOnPreviousTurn).toBe(true);
+    expect(concept.targetConcepts).toEqual(["density"]);
+
+    const symbol = firstRequirement("And t?", [
+      { role: "USER", content: "In s = d / t, what is d?" },
+    ]);
+    expectKind(symbol, "SYMBOL_DEFINITION");
+    expect(symbol.dependsOnPreviousTurn).toBe(true);
+    expect(symbol.requiredSymbols).toEqual(["t"]);
+    expect(symbol.formulaContext).toBe("s = d / t");
+  });
+
   it("does not treat previous assistant factual claims as evidence or referents", () => {
     const requirement = firstRequirement("What is its formula?", [
       { role: "ASSISTANT", content: "Pressure is force per unit area." },
+    ]);
+
+    expectKind(requirement, "CONTEXTUAL_FOLLOW_UP");
+    expect(requirement.dependsOnPreviousTurn).toBeUndefined();
+    expect(requirement.targetConcepts).toEqual([]);
+  });
+
+  it("does not use assistant-only context for unit follow-ups", () => {
+    const requirement = firstRequirement("What is its unit?", [
+      { role: "ASSISTANT", content: "Force is measured in newtons." },
     ]);
 
     expectKind(requirement, "CONTEXTUAL_FOLLOW_UP");
@@ -437,6 +494,18 @@ describe("Stage 4.1 request requirement extraction", () => {
     expectKind(requirement, "CONTEXTUAL_FOLLOW_UP");
     expect(requirement.dependsOnPreviousTurn).toBeUndefined();
     expect(requirement.targetConcepts).toEqual([]);
+  });
+
+  it("uses the nearest explicit prior user concept and does not jump stale context", () => {
+    const requirement = firstRequirement("What is its formula?", [
+      { role: "USER", content: "Teach me force." },
+      { role: "USER", content: "Tell me about photosynthesis." },
+    ]);
+
+    expectKind(requirement, "FORMULA");
+    expect(requirement.dependsOnPreviousTurn).toBe(true);
+    expect(requirement.targetConcepts).toEqual(["photosynthesis"]);
+    expect(requirement.targetConcepts).not.toContain("force");
   });
 
   it("resolves explicit symbol follow-ups only from the latest unambiguous user formula", () => {
