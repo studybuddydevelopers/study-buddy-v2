@@ -349,6 +349,8 @@ export type CalculationContract = {
       kind: "LOWER_IS_BETTER" | "HIGHER_IS_BETTER";
       label: string;
       candidateOutputKeys: string[];
+      metric?: "UNIT_RATE" | "VALUE";
+      requiredOptionIds?: string[];
     };
   };
   presentationRequirements: CalculationPresentationRequirements;
@@ -464,12 +466,25 @@ export function buildCalculationContract(
   } = {}
 ): CalculationContract {
   const sourceLabels = uniqueStrings(units.map((unit) => unit.sourceLabel));
+  const hasMultiOptionComparison = Boolean(
+    options.requestRequirements &&
+      flattenRequirements(options.requestRequirements.requirements).some(
+        (requirement) => requirement.kind === "MULTI_OPTION_COMPARISON"
+      )
+  );
+  const selectedCapabilityIds = new Set(units.flatMap((unit) => unit.capabilityIds));
   const bindings = uniqueQuantityBindings(
     units.flatMap((unit) =>
-      (unit.semanticQuantityBindings ?? []).map((binding) => ({
-        ...binding,
-        sourceLabels: [unit.sourceLabel],
-      }))
+      (unit.semanticQuantityBindings ?? [])
+        .filter(
+          (binding) =>
+            !hasMultiOptionComparison ||
+            binding.sourceCapabilityIds.some((id) => selectedCapabilityIds.has(id))
+        )
+        .map((binding) => ({
+          ...binding,
+          sourceLabels: [unit.sourceLabel],
+        }))
     )
   );
   const requestedFinalQuantity =
@@ -478,7 +493,10 @@ export function buildCalculationContract(
   const origins = inferCalculationValueOrigins(bindings, requestedFinalQuantity);
   const quantities = uniqueBy([
     ...pathInputQuantities(options.answerabilityDecision, options.evidenceCapabilities),
-    ...unitRateInputQuantitiesFromEvidenceCapabilities(options.evidenceCapabilities ?? []),
+    ...unitRateInputQuantitiesFromEvidenceCapabilities(
+      options.evidenceCapabilities ?? [],
+      hasMultiOptionComparison ? selectedCapabilityIds : undefined
+    ),
     ...bindings
     .filter((binding) => binding.value !== undefined)
     .map((binding) => ({
@@ -498,16 +516,15 @@ export function buildCalculationContract(
       units,
     }),
     ...deriveUnitRateCalculationMethodsFromEvidenceCapabilities(
-      options.evidenceCapabilities ?? []
+      options.evidenceCapabilities ?? [],
+      hasMultiOptionComparison ? selectedCapabilityIds : undefined
     ),
     ...deriveCalculationMethods(bindings, units, {
     origins,
     requestedFinalQuantity,
     }),
   ];
-  const dedupedMethods = uniqueBy(authorisedMethods, (method) =>
-    `${normalizeCalculationKey(method.outputQuantityKey)}:${renderExpressionSignature(method.expressionAst)}:${method.result}`
-  );
+  const dedupedMethods = dedupeAuthorisedCalculationMethods(authorisedMethods);
   const comparison = inferCalculationComparisonPlan(dedupedMethods, options.requestRequirements);
   const finalTarget = inferFinalTargetFromMethods(
     dedupedMethods,
@@ -1574,7 +1591,7 @@ export function structuredCalculationOutputFromTrace(
   const steps = trace.steps.map((step) => ({
     targetQuantity: step.outputQuantity,
     expression: step.renderedExpression,
-    result: numberToText(step.result),
+    result: step.displayResult ?? numberToText(step.result),
     unit: step.unit ?? "",
     sourceLabels: step.sourceLabels,
   }));
@@ -1585,7 +1602,10 @@ export function structuredCalculationOutputFromTrace(
   return {
     steps,
     finalQuantity: trace.comparisonResult?.label ?? trace.finalTarget,
-    finalResult: trace.comparisonResult?.result ?? numberToText(trace.finalResult),
+    finalResult:
+      trace.comparisonResult?.result ??
+      trace.finalResultDisplay ??
+      numberToText(trace.finalResult),
     finalUnit: trace.comparisonResult ? "" : trace.finalUnit ?? "",
     sourceLabels: uniqueStrings(finalSourceLabels),
     suggestedQuestions: [],
@@ -2373,13 +2393,15 @@ function deriveUnitRateCalculationMethods(
 }
 
 function deriveUnitRateCalculationMethodsFromEvidenceCapabilities(
-  evidenceCapabilities: EvidenceCapability[]
+  evidenceCapabilities: EvidenceCapability[],
+  selectedCapabilityIds?: Set<string>
 ): CalculationContract["authorisedMethods"] {
   const bindings: Array<SemanticQuantityBinding & { sourceLabels: string[] }> =
     [];
   for (const capability of evidenceCapabilities) {
     for (const numeric of capability.numericValues) {
-      const option = normalizeCalculationKey(numeric.qualifier ?? "");
+      if (selectedCapabilityIds && !selectedCapabilityIds.has(numeric.id)) continue;
+      const option = normalizeCalculationKey(numeric.optionScope ?? numeric.qualifier ?? "");
       if (!option) continue;
       if (numeric.role === "PRICE") {
         bindings.push({
@@ -2388,6 +2410,8 @@ function deriveUnitRateCalculationMethodsFromEvidenceCapabilities(
           value: numeric.value,
           unit: numeric.unit,
           role: "priceValue",
+          optionScope: option,
+          matchingAliases: optionAliases(option),
           sourceLabels: [numeric.sourceLabel],
           sourceCapabilityIds: [numeric.id],
         });
@@ -2399,6 +2423,8 @@ function deriveUnitRateCalculationMethodsFromEvidenceCapabilities(
           value: numeric.value,
           unit: numeric.unit,
           role: "quantityCount",
+          optionScope: option,
+          matchingAliases: optionAliases(option),
           sourceLabels: [numeric.sourceLabel],
           sourceCapabilityIds: [numeric.id],
         });
@@ -2409,11 +2435,13 @@ function deriveUnitRateCalculationMethodsFromEvidenceCapabilities(
 }
 
 function unitRateInputQuantitiesFromEvidenceCapabilities(
-  evidenceCapabilities: EvidenceCapability[]
+  evidenceCapabilities: EvidenceCapability[],
+  selectedCapabilityIds?: Set<string>
 ): CalculationContract["quantities"] {
   return evidenceCapabilities.flatMap((capability) =>
     capability.numericValues.flatMap((numeric) => {
-      const option = normalizeCalculationKey(numeric.qualifier ?? "");
+      if (selectedCapabilityIds && !selectedCapabilityIds.has(numeric.id)) return [];
+      const option = normalizeCalculationKey(numeric.optionScope ?? numeric.qualifier ?? "");
       if (!option || !["PRICE", "QUANTITY"].includes(numeric.role ?? "")) return [];
       const optionLabel = numeric.qualifier ?? option;
       const isPrice = numeric.role === "PRICE";
@@ -2465,6 +2493,14 @@ function groupUnitRateBindings(
 }
 
 function unitRateOptionKey(binding: SemanticQuantityBinding) {
+  if (binding.optionScope) {
+    const label =
+      binding.matchingAliases?.find((alias) => /\s/.test(alias)) ?? binding.optionScope;
+    return {
+      key: normalizeCalculationKey(binding.optionScope),
+      label,
+    };
+  }
   const label = `${binding.label} ${binding.quantityId}`;
   const match = label.match(/\b((?:crate|option|pack|plan|shop|bundle|ticket)\s+[A-Za-z0-9]+)\b/i);
   const optionLabel = match?.[1] ?? "default";
@@ -2604,6 +2640,13 @@ function inferCalculationValueOrigins(
         "principalValue",
         "timeValue",
         "distanceValue",
+        "massValue",
+        "volumeValue",
+        "accelerationValue",
+        "forceValue",
+        "currentValue",
+        "voltageValue",
+        "resistanceValue",
         "priceValue",
         "quantityCount",
         "favourableOutcomeCount",
@@ -2644,6 +2687,7 @@ function originForBinding(
 
 function bindingKey(binding: SemanticQuantityBinding) {
   return [
+    normalizeQuantity(binding.optionScope ?? ""),
     normalizeQuantity(binding.quantityId),
     normalizeQuantity(binding.label),
     binding.role ?? "",
@@ -2685,7 +2729,14 @@ function inferFinalTargetFromMethods(
   requestedFinalQuantity?: string,
   comparison?: CalculationContract["calculationPlan"]["comparison"]
 ) {
-  void comparison;
+  if (comparison?.candidateOutputKeys.length) {
+    const comparisonTarget = methods.find((method) =>
+      comparison.candidateOutputKeys
+        .map(normalizeCalculationKey)
+        .includes(normalizeCalculationKey(method.outputQuantityKey))
+    );
+    if (comparisonTarget) return comparisonTarget.outputQuantity;
+  }
   const requested = normalizeQuantity(requestedFinalQuantity ?? "");
   if (requested) {
     const match = methods.find(
@@ -2703,7 +2754,10 @@ function inferCalculationComparisonPlan(
   const requirements = requestRequirements
     ? flattenRequirements(requestRequirements.requirements)
     : [];
-  if (!requirements.some((requirement) => requirement.kind === "MULTI_OPTION_COMPARISON")) {
+  const comparisonRequirement = requirements.find(
+    (requirement) => requirement.kind === "MULTI_OPTION_COMPARISON"
+  );
+  if (!comparisonRequirement) {
     return undefined;
   }
   const unitRateMethods = methods.filter((method) =>
@@ -2712,11 +2766,102 @@ function inferCalculationComparisonPlan(
     )
   );
   if (unitRateMethods.length < 2) return undefined;
+  const requestedOptions = requestedComparisonOptions(comparisonRequirement);
+  const requiredOptionIds = requestedOptions
+    .filter((option) => !/^option\s+\d+$/i.test(normalizeCalculationKey(option.label)))
+    .map((option) => normalizeCalculationKey(option.id || option.label));
+  const candidateMethods = requiredOptionIds.length > 0
+    ? unitRateMethods.filter((method) =>
+        requiredOptionIds.some((id) => methodMatchesOption(method, id))
+      )
+    : unitRateMethods;
+  if (candidateMethods.length < 2) return undefined;
+  if (
+    requiredOptionIds.length > 0 &&
+    !requiredOptionIds.every((id) =>
+      candidateMethods.some((method) => methodMatchesOption(method, id))
+    )
+  ) {
+    return undefined;
+  }
+  const kind = comparisonRequirement.comparisonDirection ?? "LOWER_IS_BETTER";
   return {
-    kind: "LOWER_IS_BETTER",
-    label: "better value",
-    candidateOutputKeys: unitRateMethods.map((method) => method.outputQuantityKey),
+    kind,
+    label: comparisonLabel(comparisonRequirement),
+    candidateOutputKeys: candidateMethods.map((method) => method.outputQuantityKey),
+    metric: comparisonRequirement.comparisonMetric ?? "UNIT_RATE",
+    requiredOptionIds,
   };
+}
+
+function dedupeAuthorisedCalculationMethods(
+  methods: CalculationContract["authorisedMethods"]
+): CalculationContract["authorisedMethods"] {
+  const byOutputKey = new Map<string, CalculationContract["authorisedMethods"][number]>();
+  for (const method of methods) {
+    const key = normalizeCalculationKey(method.outputQuantityKey);
+    if (!key) continue;
+    const existing = byOutputKey.get(key);
+    if (!existing) {
+      byOutputKey.set(key, method);
+      continue;
+    }
+    if (shouldPreferCalculationMethod(method, existing)) {
+      byOutputKey.set(key, {
+        ...method,
+        sourceLabels: uniqueStrings([...existing.sourceLabels, ...method.sourceLabels]),
+      });
+      continue;
+    }
+    if (
+      renderExpressionSignature(method.expressionAst) ===
+        renderExpressionSignature(existing.expressionAst) &&
+      method.result === existing.result
+    ) {
+      byOutputKey.set(key, {
+        ...existing,
+        sourceLabels: uniqueStrings([...existing.sourceLabels, ...method.sourceLabels]),
+      });
+    }
+  }
+  return [...byOutputKey.values()];
+}
+
+function shouldPreferCalculationMethod(
+  candidate: CalculationContract["authorisedMethods"][number],
+  existing: CalculationContract["authorisedMethods"][number]
+) {
+  if (candidate.referenceResult?.unit && !existing.referenceResult?.unit) return true;
+  if (/\//.test(candidate.result) && !/\//.test(existing.result)) return true;
+  if (candidate.resultUnit && !existing.resultUnit) return true;
+  return false;
+}
+
+function requestedComparisonOptions(requirement: RequestRequirement) {
+  if (requirement.comparisonOptions?.length) return requirement.comparisonOptions;
+  return (requirement.comparisonSides ?? []).map((side) => ({
+    id: normalizeCalculationKey(side),
+    label: side,
+    aliases: optionAliases(side),
+  }));
+}
+
+function methodMatchesOption(
+  method: CalculationContract["authorisedMethods"][number],
+  optionId: string
+) {
+  const aliases = optionAliases(optionId).map(normalizeCalculationKey);
+  const methodText = normalizeCalculationKey(
+    `${method.outputQuantity} ${method.outputQuantityKey} ${method.inputQuantities.join(" ")} ${method.inputQuantityKeys.join(" ")}`
+  );
+  return aliases.some((alias) => alias && methodText.includes(alias));
+}
+
+function comparisonLabel(requirement: RequestRequirement) {
+  const relation = normalizeCalculationKey(requirement.requestedRelation ?? "");
+  if (/\bcheaper|lowest|less|better\s+value\b/.test(relation)) return "better value";
+  if (/\bhighest|greater|largest|most\b/.test(relation)) return "highest value";
+  return "comparison result";
 }
 
 function formulaCapabilitiesById(evidenceCapabilities: EvidenceCapability[]) {
@@ -2896,18 +3041,26 @@ function formulaTermToQuantityKey(
     return normalizeCalculationKey(alias);
   }
   const symbolMap: Record<string, string> = {
+    m: "mass",
     p: "principal",
     r: "rate",
     t: "time",
     i: output === "simple interest" ? "interest" : "current",
     d: "distance",
     s: "speed",
+    a: "acceleration",
+    f: "force",
   };
-  const mapped = symbolMap[normalized] ?? normalized;
+  const mapped =
+    normalized === "v"
+      ? availableInputKeys.map(normalizeCalculationKey).includes("volume")
+        ? "volume"
+        : "voltage"
+      : symbolMap[normalized] ?? normalized;
   if (availableInputKeys.map(normalizeCalculationKey).includes(normalizeCalculationKey(mapped))) {
     return normalizeCalculationKey(mapped);
   }
-  if (["principal", "rate", "time", "distance", "speed"].includes(mapped)) {
+  if (["principal", "rate", "time", "distance", "speed", "mass", "volume", "force", "acceleration"].includes(mapped)) {
     return mapped;
   }
   return mapped;
@@ -3070,6 +3223,7 @@ function inferResultUnit(input: {
 function unitRateUnit(priceUnit: string | undefined, quantityUnit: string | undefined) {
   if (priceUnit && quantityUnit) return `${priceUnit} per ${quantityUnit.replace(/s$/, "")}`;
   if (priceUnit) return `${priceUnit} per unit`;
+  if (quantityUnit) return `cost per ${quantityUnit.replace(/s$/, "")}`;
   return undefined;
 }
 
@@ -3802,6 +3956,10 @@ function bindingsForQuantity(
 
 function calculationKeyForBinding(binding: SemanticQuantityBinding) {
   const label = binding.label || binding.quantityId;
+  const scopedLabel =
+    binding.optionScope && !normalizeCalculationKey(label).startsWith(normalizeCalculationKey(binding.optionScope))
+      ? `${binding.optionScope} ${label}`
+      : label;
   switch (binding.role) {
     case "ratioPartValue":
       return `${label} ratio part`;
@@ -3826,14 +3984,22 @@ function calculationKeyForBinding(binding: SemanticQuantityBinding) {
       return label;
     case "speedValue":
       return label;
+    case "massValue":
+    case "volumeValue":
+    case "accelerationValue":
+    case "forceValue":
+    case "currentValue":
+    case "voltageValue":
+    case "resistanceValue":
+      return label;
     case "interestValue":
       return label;
     case "unitRateValue":
-      return label;
+      return scopedLabel;
     case "priceValue":
-      return label;
+      return scopedLabel;
     case "quantityCount":
-      return label;
+      return scopedLabel;
     case "favourableOutcomeCount":
       return "favourable outcomes";
     case "totalOutcomeCount":
@@ -3991,6 +4157,13 @@ function uniqueStrings(values: string[]): string[] {
   return [...new Set(values.filter(Boolean))];
 }
 
+function optionAliases(label: string): string[] {
+  const normalized = normalizeCalculationKey(label);
+  const compact = normalized.replace(/\s+/g, "");
+  const suffix = normalized.match(/\b([a-z0-9]+)$/)?.[1] ?? "";
+  return uniqueStrings([label, normalized, compact, suffix]);
+}
+
 function uniqueBy<T>(values: T[], key: (value: T) => string): T[] {
   const seen = new Set<string>();
   const result: T[] = [];
@@ -4009,7 +4182,7 @@ function uniqueQuantityBindings(
   return uniqueBy(
     bindings,
     (binding) =>
-      `${normalizeQuantity(binding.quantityId)}:${binding.role ?? ""}:${binding.value ?? ""}:${binding.unit ?? ""}`
+      `${normalizeQuantity(binding.optionScope ?? "")}:${normalizeQuantity(binding.quantityId)}:${binding.role ?? ""}:${binding.value ?? ""}:${binding.unit ?? ""}`
   );
 }
 
