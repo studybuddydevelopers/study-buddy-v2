@@ -77,6 +77,7 @@ export type NumericCapability = CapabilityBase & {
   value: number;
   unit?: string;
   qualifier?: string;
+  optionScope?: string;
   role?: "PRICE" | "QUANTITY" | "VALUE";
 };
 
