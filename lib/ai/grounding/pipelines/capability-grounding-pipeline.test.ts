@@ -1373,6 +1373,48 @@ describe("Stage 4.1 capability grounding pipeline", () => {
     expect(outcome.kind === "COMPLETED" ? outcome.content : "").not.toMatch(/\b2,\s*4,\s*6\b/);
   });
 
+  it("executes separate-count bounded probability without chat-provider calls", async () => {
+    const provider = new RecordingStructuredProvider();
+    const { outcome } = await runPipeline({
+      message: "Find the probability of success.",
+      chunks: [
+        retrievedChunk(
+          "Probability is favourable outcomes divided by total outcomes. Favourable outcomes are 4. Total outcomes are 10."
+        ),
+      ],
+      provider,
+    });
+
+    expect(outcome.kind).toBe("COMPLETED");
+    expect(provider.structuredInputs).toHaveLength(0);
+    expect(provider.generateInputs).toHaveLength(0);
+    expect(outcome.kind === "COMPLETED" ? outcome.content : "").toMatch(
+      /probability = 4\s*\/\s*10 = 2\/5/i
+    );
+  });
+
+  it("executes unitless multi-option comparisons without chat-provider calls", async () => {
+    const provider = new RecordingStructuredProvider();
+    const { outcome } = await runPipeline({
+      message: "Which is cheaper per item, option A or option B?",
+      chunks: [
+        retrievedChunk(
+          "Option C costs 1 for 100 pens. Option A costs 10 for 2 pens. Option B costs 12 for 3 pens."
+        ),
+      ],
+      provider,
+    });
+
+    expect(outcome.kind).toBe("COMPLETED");
+    expect(provider.structuredInputs).toHaveLength(0);
+    expect(provider.generateInputs).toHaveLength(0);
+    const content = outcome.kind === "COMPLETED" ? outcome.content : "";
+    expect(content).toMatch(/option A unit rate = 10\s*\/\s*2 = 5/i);
+    expect(content).toMatch(/option B unit rate = 12\s*\/\s*3 = 4/i);
+    expect(content).toContain("Therefore, better value = option b.");
+    expect(content).not.toMatch(/option C unit rate/i);
+  });
+
   it("keeps force formula evidence in the structured formula contract", async () => {
     const provider = new RecordingStructuredProvider();
     const { outcome } = await runPipeline({
