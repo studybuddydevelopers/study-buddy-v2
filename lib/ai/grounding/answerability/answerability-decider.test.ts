@@ -350,6 +350,42 @@ describe("Stage 4.1 answerability decider golden cases", () => {
     );
   });
 
+  it("supports explicit unitless A/B option comparisons without requiring irrelevant options", () => {
+    const decision = expectSupported(
+      "Which is cheaper per item, option A or option B?",
+      [
+        chunk(
+          "Option C costs 1 for 100 pens. Option A costs 10 for 2 pens. Option B costs 12 for 3 pens."
+        ),
+      ]
+    );
+
+    expect(decision.requirementResults[0]).toEqual(
+      expect.objectContaining({
+        status: "SUPPORTED",
+        supportingCapabilityIds: expect.arrayContaining([
+          expect.stringContaining("numeric"),
+        ]),
+      })
+    );
+    expect(decision.requirementResults[0]?.missingComponents).toEqual([]);
+  });
+
+  it("refuses explicit option comparisons when one requested side is missing", () => {
+    const decision = expectInsufficient(
+      "Which is cheaper per item, option A or option B?",
+      [
+        chunk(
+          "Option A costs 10 for 2 pens. Option C costs 1 for 100 pens."
+        ),
+      ]
+    );
+
+    expect(decision.requirementResults[0]?.missingComponents).toContain(
+      "option-components:option b"
+    );
+  });
+
   it("supports explicit relation evidence but not definition-only consequence requests", () => {
     expectSupported("Why does increasing temperature increase evaporation?", [
       chunk("Increasing temperature increases evaporation rate."),
