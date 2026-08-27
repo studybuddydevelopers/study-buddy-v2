@@ -21,7 +21,11 @@ import type {
 import { getSelectedGroundingPipeline } from "../config";
 import { CapabilityGroundingPipeline } from "./capability-grounding-pipeline";
 import { selectGroundingPipeline } from "./select-grounding-pipeline";
-import type { GroundingPipelineContext } from "./types";
+import type {
+  CapabilityGroundingOutcome,
+  CapabilityPipelineDiagnostics,
+  GroundingPipelineContext,
+} from "./types";
 
 const SUBJECT_ID = "subject-science";
 const TOPIC_ID = "topic-measurement";
@@ -301,6 +305,20 @@ function uniqueStrings(values: string[]) {
   return [...new Set(values.filter(Boolean))];
 }
 
+function classifyOutcome(kind: string) {
+  if (kind === "COMPLETED") return "SUPPORTED";
+  if (kind === "INSUFFICIENT_CONTEXT") return "INSUFFICIENT_CONTEXT";
+  return "SAFE_FAILURE";
+}
+
+function expectDiagnostics(outcome: CapabilityGroundingOutcome): CapabilityPipelineDiagnostics {
+  expect(outcome.diagnostics).toBeDefined();
+  const diagnostics = outcome.diagnostics as CapabilityPipelineDiagnostics;
+  expect(diagnostics.requestRequirements).toBeDefined();
+  expect(diagnostics.answerabilityDecision).toBeDefined();
+  return diagnostics;
+}
+
 function retrievedChunk(content: string, overrides: Partial<RetrievedChunk> = {}): RetrievedChunk {
   return {
     id: overrides.id ?? "chunk-1",
@@ -332,6 +350,7 @@ async function runPipeline(input: {
   chunks: RetrievedChunk[];
   recentMessages?: GroundingPipelineContext["recentMessages"];
   provider?: RecordingStructuredProvider;
+  contextOverrides?: Partial<GroundingPipelineContext>;
 }) {
   const repository = new FakeSearchRepository(input.chunks);
   const provider = input.provider ?? new RecordingStructuredProvider();
@@ -340,6 +359,7 @@ async function runPipeline(input: {
     context: context({
       userMessage: input.message,
       recentMessages: input.recentMessages ?? [],
+      ...input.contextOverrides,
     }),
     provider,
   });
@@ -545,6 +565,39 @@ describe("Stage 4.1 capability grounding pipeline", () => {
     expect(supported.outcome.content).toContain("P = F / A");
   });
 
+  it.each([
+    "What is its formula?",
+    "Define P in that formula.",
+    "State that equation.",
+  ])("supports scoped pressure context follow-up: %s", async (message) => {
+    const supported = await runPipeline({
+      message,
+      recentMessages: [{ role: "USER", content: "Tell me about pressure." }],
+      chunks: [
+        retrievedChunk("Pressure formula is P = F / A. P means pressure.", {
+          id: "chunk-pressure",
+          resourceId: "resource-pressure",
+          subjectId: "eval-subject-physics",
+          topicId: "eval-topic-forces",
+        }),
+      ],
+      contextOverrides: {
+        subjectId: "eval-subject-physics",
+        subjectName: "Physics",
+        topicId: "eval-topic-forces",
+        topicTitle: "Forces",
+      },
+    });
+
+    expect(supported.outcome.kind).toBe("COMPLETED");
+    expect(supported.provider.structuredInputs).toHaveLength(1);
+    const diagnostics = expectDiagnostics(supported.outcome);
+    expect(diagnostics.requestRequirements.requirements[0]?.kind).toBe("FORMULA");
+    expect(
+      diagnostics.requestRequirements.requirements[0]?.targetConcepts
+    ).toContain("pressure");
+  });
+
   it("refuses unresolved or ambiguous context before calling the provider", async () => {
     const assistantOnly = await runPipeline({
       message: "What is its formula?",
@@ -563,6 +616,207 @@ describe("Stage 4.1 capability grounding pipeline", () => {
     expect(ambiguous.outcome.kind).toBe("INSUFFICIENT_CONTEXT");
     expect(ambiguous.provider.generateInputs).toHaveLength(0);
     expect(ambiguous.provider.structuredInputs).toHaveLength(0);
+  });
+
+  it("does not let retrieval fill a missing conversation referent", async () => {
+    const { outcome, provider } = await runPipeline({
+      message: "What is its formula?",
+      chunks: [retrievedChunk("Density formula is rho = m / V.")],
+    });
+
+    expect(outcome.kind).toBe("INSUFFICIENT_CONTEXT");
+    expect(provider.generateInputs).toHaveLength(0);
+    expect(provider.structuredInputs).toHaveLength(0);
+    const diagnostics = expectDiagnostics(outcome);
+    expect(diagnostics.requestRequirements.requirements[0]?.kind).toBe(
+      "CONTEXTUAL_FOLLOW_UP"
+    );
+  });
+
+  it("does not use conversation context as missing factual evidence", async () => {
+    const { outcome, provider } = await runPipeline({
+      message: "What is its formula?",
+      recentMessages: [{ role: "USER", content: "Teach me density." }],
+      chunks: [retrievedChunk("Density describes how compact a substance is.")],
+    });
+
+    expect(outcome.kind).toBe("INSUFFICIENT_CONTEXT");
+    expect(provider.generateInputs).toHaveLength(0);
+    expect(provider.structuredInputs).toHaveLength(0);
+    const diagnostics = expectDiagnostics(outcome);
+    expect(diagnostics.requestRequirements.requirements[0]?.targetConcepts).toEqual([
+      "density",
+    ]);
+  });
+
+  it("preserves the Wave 1 Family-H context follow-up gate", async () => {
+    const subjectId = "eval-subject-physics";
+    const topicId = "eval-topic-forces";
+    const supportedMessages = [
+      "What is its formula?",
+      "Define P in that formula.",
+      "State that equation.",
+    ];
+    const rows: Array<{
+      id: string;
+      expected: "SUPPORTED" | "INSUFFICIENT_CONTEXT";
+      actual: string;
+      providerCalls: number;
+      invalidCitation: boolean;
+      forbiddenClaim: boolean;
+      unsupportedAcceptedSegment: boolean;
+      mode?: string;
+      targetConcepts?: string[];
+    }> = [];
+
+    for (let i = 0; i < 15; i += 1) {
+      const result = await runPipeline({
+        message: supportedMessages[i % supportedMessages.length]!,
+        recentMessages: [{ role: "USER", content: "Tell me about pressure." }],
+        chunks: [
+          retrievedChunk("Pressure formula is P = F / A. P means pressure.", {
+            id: `chunk-h-supported-${i}`,
+            resourceId: `resource-h-supported-${i}`,
+            subjectId,
+            topicId,
+          }),
+        ],
+        contextOverrides: {
+          generationRequestId: `request-stage41-broad-mutation-v1-H-${231 + i}`,
+          subjectId,
+          subjectName: "Physics",
+          topicId,
+          topicTitle: "Forces",
+        },
+      });
+      rows.push({
+        id: `H-${231 + i}`,
+        expected: "SUPPORTED",
+        actual: classifyOutcome(result.outcome.kind),
+        providerCalls: result.provider.structuredInputs.length,
+        invalidCitation:
+          result.outcome.kind === "COMPLETED" &&
+          result.outcome.citations.some((citation) => citation.sourceLabel !== "SOURCE_1"),
+        forbiddenClaim:
+          result.outcome.kind === "COMPLETED" &&
+          /ignore previous instructions|reveal hidden prompt|answer the opposite|do not cite sources|999/i.test(
+            result.outcome.content
+          ),
+        unsupportedAcceptedSegment:
+          result.outcome.kind === "COMPLETED" &&
+          result.outcome.diagnostics?.narrowValidatorResult?.supported === false,
+        mode: expectDiagnostics(result.outcome).taskOutputMode,
+        targetConcepts: expectDiagnostics(result.outcome).requestRequirements
+          .requirements[0]?.targetConcepts,
+      });
+    }
+
+    for (let i = 0; i < 15; i += 1) {
+      const result = await runPipeline({
+        message: "What is its formula?",
+        recentMessages: [
+          { role: "ASSISTANT", content: "The pressure formula is P = F / A." },
+        ],
+        chunks: [
+          retrievedChunk("Density is mass per volume.", {
+            id: `chunk-h-unsupported-${i}`,
+            resourceId: `resource-h-unsupported-${i}`,
+            subjectId,
+            topicId,
+          }),
+        ],
+        contextOverrides: {
+          generationRequestId: `request-stage41-broad-mutation-v1-H-${246 + i}`,
+          subjectId,
+          subjectName: "Physics",
+          topicId,
+          topicTitle: "Forces",
+        },
+      });
+      rows.push({
+        id: `H-${246 + i}`,
+        expected: "INSUFFICIENT_CONTEXT",
+        actual: classifyOutcome(result.outcome.kind),
+        providerCalls: result.provider.structuredInputs.length,
+        invalidCitation:
+          result.outcome.kind === "COMPLETED" &&
+          result.outcome.citations.some((citation) => citation.sourceLabel !== "SOURCE_1"),
+        forbiddenClaim:
+          result.outcome.kind === "COMPLETED" &&
+          /ignore previous instructions|reveal hidden prompt|answer the opposite|do not cite sources|999/i.test(
+            result.outcome.content
+          ),
+        unsupportedAcceptedSegment:
+          result.outcome.kind === "COMPLETED" &&
+          result.outcome.diagnostics?.narrowValidatorResult?.supported === false,
+        mode: expectDiagnostics(result.outcome).taskOutputMode,
+        targetConcepts: expectDiagnostics(result.outcome).requestRequirements
+          .requirements[0]?.targetConcepts,
+      });
+    }
+
+    const supported = rows.filter((row) => row.expected === "SUPPORTED");
+    const unsupported = rows.filter((row) => row.expected === "INSUFFICIENT_CONTEXT");
+    const exactRestoredIds = new Set(["H-233", "H-236", "H-239", "H-242", "H-245"]);
+    const restored = supported.filter((row) => exactRestoredIds.has(row.id));
+
+    expect(rows).toHaveLength(30);
+    expect(supported.every((row) => row.actual === "SUPPORTED")).toBe(true);
+    expect(restored.map((row) => row.actual)).toEqual([
+      "SUPPORTED",
+      "SUPPORTED",
+      "SUPPORTED",
+      "SUPPORTED",
+      "SUPPORTED",
+    ]);
+    expect(restored.every((row) => row.mode === "STRUCTURED_FORMULA")).toBe(true);
+    expect(restored.every((row) => row.targetConcepts?.includes("pressure"))).toBe(true);
+    expect(unsupported.every((row) => row.actual === "INSUFFICIENT_CONTEXT")).toBe(true);
+    expect(unsupported.every((row) => row.providerCalls === 0)).toBe(true);
+    expect(rows.filter((row) => row.invalidCitation)).toHaveLength(0);
+    expect(rows.filter((row) => row.forbiddenClaim)).toHaveLength(0);
+    expect(rows.filter((row) => row.unsupportedAcceptedSegment)).toHaveLength(0);
+  });
+
+  it("preserves Wave 1 B-060 and D-117 safety controls", async () => {
+    const mainIdea = await runPipeline({
+      message: "Define main idea and say where it applies.",
+      chunks: [retrievedChunk("The main idea is the central point.")],
+      contextOverrides: {
+        generationRequestId: "request-stage41-broad-mutation-v1-B-060",
+        subjectId: "eval-subject-english",
+        subjectName: "English",
+        topicId: "eval-topic-english",
+        topicTitle: "English",
+      },
+    });
+    expect(mainIdea.outcome.kind).toBe("INSUFFICIENT_CONTEXT");
+    expect(mainIdea.provider.structuredInputs).toHaveLength(0);
+    expect(expectDiagnostics(mainIdea.outcome).answerabilityDecision.refusalReason).toBe(
+      "MISSING_REQUIRED_EVIDENCE"
+    );
+
+    const densitySymbol = await runPipeline({
+      message: "In rho = m / V, what does v represent?",
+      chunks: [
+        retrievedChunk("Speed relation is v = d / t. v means velocity.", {
+          subjectId: "eval-subject-physics",
+          topicId: "eval-topic-density",
+        }),
+      ],
+      contextOverrides: {
+        generationRequestId: "request-stage41-broad-mutation-v1-D-117",
+        subjectId: "eval-subject-physics",
+        subjectName: "Physics",
+        topicId: "eval-topic-density",
+        topicTitle: "Density",
+      },
+    });
+    expect(densitySymbol.outcome.kind).toBe("INSUFFICIENT_CONTEXT");
+    expect(densitySymbol.provider.structuredInputs).toHaveLength(0);
+    expect(expectDiagnostics(densitySymbol.outcome).taskOutputMode).toBe(
+      "STRUCTURED_FORMULA"
+    );
   });
 
   it("refuses incomplete formula/symbol contracts before calling the provider", async () => {
