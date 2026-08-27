@@ -423,6 +423,40 @@ describe("Stage 4.1 structured task output", () => {
     expect(rendered.content).toContain("Therefore, probability = 1/2.");
   });
 
+  it("executes bounded probability from separate grounded count sentences", () => {
+    const { decision, contract } = calculationDecision({
+      question: "Find the probability of success.",
+      topicId: "eval-topic-probability",
+      content:
+        "Probability is favourable outcomes divided by total outcomes. Favourable outcomes are 4. Total outcomes are 10.",
+    });
+
+    expect(decision.classification).toBe("SUPPORTED");
+    const execution = executeCalculationPlan(contract);
+    expect(execution.ok).toBe(true);
+    if (!execution.ok) throw new Error("Expected separate-count probability plan to execute.");
+    const output = structuredCalculationOutputFromTrace(execution.trace);
+    expect(output.steps[0]).toEqual(
+      expect.objectContaining({
+        targetQuantity: "probability",
+        expression: "4 / 10",
+        result: "2/5",
+      })
+    );
+    expect(output.finalResult).toBe("2/5");
+  });
+
+  it("refuses separate-count bounded probability when total outcomes is zero", () => {
+    const { decision } = calculationDecision({
+      question: "Calculate probability if favourable outcomes are 4 and total outcomes are 8.",
+      topicId: "eval-topic-probability",
+      content:
+        "Probability = favourable outcomes / total outcomes. Favourable outcomes are 4. Total outcomes are 0.",
+    });
+
+    expect(decision.classification).toBe("INSUFFICIENT_CONTEXT");
+  });
+
   it.each([
     {
       label: "missing favourable count",
@@ -462,13 +496,7 @@ describe("Stage 4.1 structured task output", () => {
       content:
         "Probability is favourable outcomes divided by total equally likely outcomes. For a fair six-sided die, the probability of rolling an even number is 3 out of 0.",
     });
-    expect(zeroTotal.decision.classification).toBe("SUPPORTED");
-    expect(executeCalculationPlan(zeroTotal.contract)).toMatchObject({
-      ok: false,
-      failure: expect.objectContaining({
-        reasons: expect.arrayContaining(["MISSING_AUTHORISED_METHOD"]),
-      }),
-    });
+    expect(zeroTotal.decision.classification).toBe("INSUFFICIENT_CONTEXT");
 
     const conflictingReference = calculationDecision({
       question: "What is the probability of rolling an even number on a fair die?",
@@ -483,6 +511,38 @@ describe("Stage 4.1 structured task output", () => {
         reasons: expect.arrayContaining(["REFERENCE_RESULT_MISMATCH"]),
       }),
     });
+  });
+
+  it("executes direct formula substitution once for complete density evidence", () => {
+    const { decision, contract } = calculationDecision({
+      question: "Calculate density from the complete sample card.",
+      topicId: "eval-topic-density",
+      content:
+        "Density is mass divided by volume: density = mass / volume. Mass is 10 kg. Volume is 2 m3.",
+    });
+
+    expect(decision.classification).toBe("SUPPORTED");
+    expect(contract.authorisedMethods).toEqual([
+      expect.objectContaining({
+        outputQuantityKey: "density",
+        inputQuantityKeys: ["mass", "volume"],
+        expression: "10 / 2",
+        result: "5",
+      }),
+    ]);
+    expect(executeCalculationPlan(contract)).toMatchObject({ ok: true });
+  });
+
+  it("refuses direct formula calculations when a required operand is missing", () => {
+    const { decision, contract } = calculationDecision({
+      question: "Calculate density from the sample card.",
+      topicId: "eval-topic-density",
+      content:
+        "Density is mass divided by volume: density = mass / volume. Mass is 10 kg.",
+    });
+
+    expect(decision.classification).toBe("INSUFFICIENT_CONTEXT");
+    expect(contract.authorisedMethods).toEqual([]);
   });
 
   it("renders requested simple-interest formula and variable meanings from authorised evidence", () => {
