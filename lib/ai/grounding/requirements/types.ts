@@ -30,6 +30,16 @@ export type PresentationStyle =
   | "STEP_BY_STEP"
   | "CONCISE";
 
+export type ComparisonMetric = "UNIT_RATE" | "VALUE";
+
+export type ComparisonDirection = "LOWER_IS_BETTER" | "HIGHER_IS_BETTER";
+
+export type ComparisonOptionRequirement = {
+  id: string;
+  label: string;
+  aliases: string[];
+};
+
 export type RequestContextMessage = {
   role: RequirementRole;
   content: string;
@@ -53,6 +63,10 @@ export type RequestRequirement = {
   requiredInputs?: string[];
   requiredInputConcepts?: string[];
   comparisonSides?: string[];
+  comparisonOptions?: ComparisonOptionRequirement[];
+  comparisonMetric?: ComparisonMetric;
+  comparisonDirection?: ComparisonDirection;
+  requiresAllComparisonOptions?: boolean;
   requestedRelation?: string;
   requestedProcess?: string;
   requestedFact?: string;
