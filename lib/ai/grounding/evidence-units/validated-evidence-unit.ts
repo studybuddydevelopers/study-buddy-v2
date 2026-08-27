@@ -32,6 +32,8 @@ export type SemanticQuantityBinding = {
   value?: number;
   unit?: string;
   role?: string;
+  optionScope?: string;
+  matchingAliases?: string[];
   sourceCapabilityIds: string[];
 };
 
@@ -233,7 +235,8 @@ function uniqueQuantityBindings(
   const unique = new Map<string, SemanticQuantityBinding>();
   for (const binding of bindings) {
     const key = [
-      binding.quantityId,
+      normalizeQuantityId(binding.optionScope ?? ""),
+      normalizeQuantityId(binding.quantityId),
       binding.role ?? "",
       binding.value ?? "",
       binding.unit ?? "",
@@ -359,7 +362,52 @@ function extractBoundedProbabilityQuantityBindings(
       });
     }
   }
+
+  const directCounts = new Map<string, SemanticQuantityBinding>();
+  for (const match of text.matchAll(
+    /\b(?:the\s+)?(?:number\s+of\s+)?(favou?rable\s+outcomes?|favou?rable\s+outcome\s+count|total\s+outcomes?|total\s+outcome\s+count|possible\s+outcomes?|possible\s+outcome\s+count)\s+(?:is|are|=|equals?)\s+([-+]?\d+(?:\.\d+)?)/gi
+  )) {
+    const rawLabel = cleanQuantityLabel(match[1] ?? "");
+    const value = Number(match[2]);
+    if (!rawLabel || !Number.isFinite(value)) continue;
+    const role = /favou?rable/i.test(rawLabel)
+      ? "favourableOutcomeCount"
+      : "totalOutcomeCount";
+    const label = role === "favourableOutcomeCount"
+      ? "favourable outcomes"
+      : "total outcomes";
+    directCounts.set(role, {
+      quantityId: label,
+      label,
+      value,
+      role,
+      matchingAliases: probabilityCountAliases(role),
+      sourceCapabilityIds,
+    });
+  }
+
+  bindings.push(...directCounts.values());
   return bindings;
+}
+
+function probabilityCountAliases(role: string): string[] {
+  return role === "favourableOutcomeCount"
+    ? [
+        "favourable outcome",
+        "favourable outcomes",
+        "favorable outcome",
+        "favorable outcomes",
+        "favourable outcome count",
+        "number of favourable outcomes",
+      ]
+    : [
+        "total outcome",
+        "total outcomes",
+        "possible outcome",
+        "possible outcomes",
+        "total outcome count",
+        "number of possible outcomes",
+      ];
 }
 
 function extractNamedQuantityBindings(
@@ -368,7 +416,7 @@ function extractNamedQuantityBindings(
 ): SemanticQuantityBinding[] {
   const bindings: SemanticQuantityBinding[] = [];
   for (const match of text.matchAll(
-    /\b(?:the\s+)?([A-Za-z][A-Za-z\s-]{1,42}?)(?:\s*(?:=|is|are|equals?))\s*(?:approximately|about|around)?\s*([-+]?\d+(?:\.\d+)?)(?:\s*([A-Za-z/%]+))?/gi
+    /\b(?:the\s+)?([A-Za-z][A-Za-z\s-]{1,42}?)(?:\s*(?:=|is|are|equals?))\s*(?:approximately|about|around)?\s*([-+]?\d+(?:\.\d+)?)(?:\s*([A-Za-z0-9%/²³]+))?/gi
   )) {
     const fullMatch = match[0] ?? "";
     const label = cleanQuantityLabel(match[1] ?? "");
@@ -451,7 +499,7 @@ function extractCostPerQuantityBindings(
 ): SemanticQuantityBinding[] {
   const bindings: SemanticQuantityBinding[] = [];
   for (const match of text.matchAll(
-    /\b([A-Za-z][A-Za-z0-9 ]{0,40}?)\s+costs?\s+([-+]?\d+(?:\.\d+)?)\s*(naira|ngn|₦|£|\$|dollars?|pounds?)\s+for\s+([-+]?\d+(?:\.\d+)?)\s*([A-Za-z][A-Za-z0-9/ ]{0,24})\b/gi
+    /\b([A-Za-z][A-Za-z0-9 ]{0,40}?)\s+costs?\s+([-+]?\d+(?:\.\d+)?)(?:\s*(naira|ngn|₦|£|\$|dollars?|pounds?))?\s+for\s+([-+]?\d+(?:\.\d+)?)\s*([A-Za-z][A-Za-z0-9/ ]{0,24})\b/gi
   )) {
     const option = cleanQuantityLabel(match[1] ?? "");
     const price = Number(match[2]);
@@ -462,6 +510,8 @@ function extractCostPerQuantityBindings(
       continue;
     }
     const optionId = normalizeQuantityId(option);
+    const optionScope = optionId;
+    const aliases = optionAliases(option);
     bindings.push(
       {
         quantityId: `${optionId} total cost`,
@@ -469,6 +519,8 @@ function extractCostPerQuantityBindings(
         value: price,
         unit: priceUnit,
         role: "priceValue",
+        optionScope,
+        matchingAliases: aliases,
         sourceCapabilityIds,
       },
       {
@@ -477,6 +529,8 @@ function extractCostPerQuantityBindings(
         value: count,
         unit: countUnit,
         role: "quantityCount",
+        optionScope,
+        matchingAliases: aliases,
         sourceCapabilityIds,
       },
       {
@@ -485,6 +539,8 @@ function extractCostPerQuantityBindings(
         value: price / count,
         unit: `${priceUnit ?? "cost"} per ${countUnit.replace(/s$/, "")}`,
         role: "unitRateValue",
+        optionScope,
+        matchingAliases: aliases,
         sourceCapabilityIds,
       }
     );
@@ -508,6 +564,15 @@ function isRatioPartFragment(text: string, index: number, fullMatch: string) {
 
 function inferQuantityRole(label: string) {
   const normalized = normalizeQuantityId(label);
+  if (/\bfavou?rable\s+outcomes?\b/.test(normalized)) return "favourableOutcomeCount";
+  if (/\b(?:total|possible)\s+outcomes?\b/.test(normalized)) return "totalOutcomeCount";
+  if (/\bmass\b/.test(normalized)) return "massValue";
+  if (/\bvolume\b/.test(normalized)) return "volumeValue";
+  if (/\bacceleration\b/.test(normalized)) return "accelerationValue";
+  if (/\bforce\b/.test(normalized)) return "forceValue";
+  if (/\bcurrent\b/.test(normalized)) return "currentValue";
+  if (/\bvoltage\b/.test(normalized)) return "voltageValue";
+  if (/\bresistance\b/.test(normalized)) return "resistanceValue";
   if (/\bone\s+part\b/.test(normalized)) return "derivedUnitValue";
   if (normalized === "p") return "principalValue";
   if (normalized === "r") return "rateValue";
@@ -529,6 +594,13 @@ function cleanQuantityLabel(value: string) {
     .replace(/\b(?:if|then|so|therefore|and|where|given|answer)\b/gi, " ")
     .replace(/\s+/g, " ")
     .trim();
+}
+
+function optionAliases(label: string): string[] {
+  const normalized = normalizeQuantityId(label);
+  const compact = normalized.replace(/\s+/g, "");
+  const suffix = normalized.match(/\b([a-z0-9]+)$/)?.[1] ?? "";
+  return [...new Set([label, normalized, compact, suffix].filter(Boolean))];
 }
 
 export function normalizeSemanticQuantityId(value: string) {
