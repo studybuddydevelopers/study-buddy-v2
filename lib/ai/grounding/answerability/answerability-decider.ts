@@ -510,7 +510,10 @@ function evaluateCalculationRequirement(
   const paths = buildCalculationPaths(requirement, context);
   const completePath = paths.find((path) => path.complete);
   if (!completePath) {
-    const explicitInputFallback = findExplicitInputCalculationSupport(requirement, context);
+    const explicitInputFallback =
+      paths.length === 0
+        ? findExplicitInputCalculationSupport(requirement, context)
+        : [];
     if (explicitInputFallback.length > 0) {
       return buildMatch(requirement.id, "SUPPORTED", explicitInputFallback);
     }
@@ -688,8 +691,31 @@ function evaluateMultiOptionRequirement(
 ): RequirementMatch {
   const supportRefs: CapabilitySupportRef[] = [];
   const missing: string[] = [];
-  const sides = requirement.comparisonSides ?? [];
+  const requiredOptions = requestedComparisonOptions(requirement);
   const optionGroups = buildNumericOptionGroups(context.numerics);
+  const needsUnitRate = requirement.comparisonMetric === "UNIT_RATE";
+
+  if (requiredOptions.length > 0 && !usesPlaceholderOptions(requiredOptions.map((option) => option.label))) {
+    for (const option of requiredOptions) {
+      const optionValues = optionGroups.find((group) => optionMatchesGroup(option, group));
+
+      if (optionValues?.price && optionValues.quantity && (!needsUnitRate || optionValues.quantity.value !== 0)) {
+        supportRefs.push(
+          supportRef(requirement.id, optionValues.price.id, ["COMPARE", "CALCULATE"]),
+          supportRef(requirement.id, optionValues.quantity.id, ["COMPARE", "CALCULATE"])
+        );
+      } else {
+        missing.push(`option-components:${option.id}`);
+      }
+    }
+
+    if (needsUnitRate && !comparisonDirectionResolved(requirement)) {
+      missing.push("comparison-direction");
+    }
+    return buildMatchFromMissing(requirement.id, supportRefs, missing);
+  }
+
+  const sides = requirement.comparisonSides ?? [];
 
   if (usesPlaceholderOptions(sides)) {
     const completeGroups = optionGroups.filter((group) => group.price && group.quantity);
@@ -705,7 +731,7 @@ function evaluateMultiOptionRequirement(
 
   for (const side of sides) {
     const optionValues = optionGroups.find((group) =>
-      group.label.includes(normalizedText(side))
+      optionMatchesGroup({ id: normalizedText(side), label: side, aliases: [side] }, group)
     );
 
     if (optionValues?.price && optionValues.quantity) {
@@ -949,17 +975,20 @@ function buildNumericOptionGroups(numerics: NumericCapability[]) {
     string,
     {
       label: string;
+      aliases: string[];
       price?: NumericCapability;
       quantity?: NumericCapability;
     }
   >();
 
   for (const numeric of numerics) {
-    const label = normalizedText(numeric.qualifier ?? optionLabelFromQuantity(numeric.quantity));
+    const label = normalizedText(
+      numeric.optionScope ?? numeric.qualifier ?? optionLabelFromQuantity(numeric.quantity)
+    );
     if (!label) continue;
-    const existing = groups.get(label) ?? { label };
+    const existing = groups.get(label) ?? { label, aliases: optionAliases(label) };
     if (numeric.role === "PRICE" || /price|cost|charge|fee|fare|£|\$|₦|naira|ngn/i.test(numeric.quantity)) {
-      existing.price = numeric;
+      existing.price = existing.price ?? numeric;
     }
     if (
       numeric.role === "QUANTITY" ||
@@ -967,12 +996,51 @@ function buildNumericOptionGroups(numerics: NumericCapability[]) {
         `${numeric.quantity} ${numeric.unit ?? ""}`
       )
     ) {
-      existing.quantity = numeric;
+      existing.quantity = existing.quantity ?? numeric;
     }
     groups.set(label, existing);
   }
 
   return [...groups.values()].sort((left, right) => left.label.localeCompare(right.label));
+}
+
+function requestedComparisonOptions(requirement: RequestRequirement) {
+  if (requirement.comparisonOptions?.length) {
+    return requirement.comparisonOptions;
+  }
+  return (requirement.comparisonSides ?? [])
+    .filter((side) => !/^option\s+\d+$/i.test(normalizedText(side)))
+    .map((side) => ({
+      id: normalizedText(side),
+      label: side,
+      aliases: optionAliases(side),
+    }));
+}
+
+function optionMatchesGroup(
+  option: { id: string; label: string; aliases?: string[] },
+  group: { label: string; aliases?: string[] }
+) {
+  const optionAliases = new Set(
+    [option.id, option.label, ...(option.aliases ?? [])]
+      .map(normalizedText)
+      .filter(Boolean)
+  );
+  const groupAliases = [group.label, ...(group.aliases ?? [])]
+    .map(normalizedText)
+    .filter(Boolean);
+  return groupAliases.some((alias) => optionAliases.has(alias));
+}
+
+function optionAliases(label: string): string[] {
+  const normalized = normalizedText(label);
+  const compact = normalized.replace(/\s+/g, "");
+  const suffix = normalized.match(/\b([a-z0-9]+)$/)?.[1] ?? "";
+  return uniqueStrings([label, normalized, compact, suffix]);
+}
+
+function comparisonDirectionResolved(requirement: RequestRequirement) {
+  return Boolean(requirement.comparisonDirection);
 }
 
 function optionLabelFromQuantity(quantity: string) {
@@ -1132,17 +1200,57 @@ function buildCalculationPaths(
         return numeric ? availableInputFromNumeric(input, numeric) : undefined;
       })
       .filter((input): input is SemanticComponent => Boolean(input));
+    const inputsComplete = requiredInputs.every((input) =>
+      availableInputs.some((available) => semanticComponentMatches(input, available))
+    );
     return {
       requirementId: requirement.id,
       formulaCapabilityId: formula.id,
       outputConcept,
       requiredInputs,
       availableInputs,
-      complete: requiredInputs.every((input) =>
-        availableInputs.some((available) => semanticComponentMatches(input, available))
-      ),
+      complete:
+        inputsComplete &&
+        !hasZeroDenominatorBinding(formula, availableInputs),
     };
   });
+}
+
+function hasZeroDenominatorBinding(
+  formula: FormulaCapability,
+  availableInputs: SemanticComponent[]
+) {
+  const denominatorText = denominatorSideOfFormula(formula.expression);
+  if (!denominatorText) return false;
+  return availableInputs.some(
+    (input) =>
+      input.value === 0 &&
+      semanticComponentAppearsInText(input, denominatorText)
+  );
+}
+
+function denominatorSideOfFormula(expression: string) {
+  const rhs = expression.includes("=")
+    ? expression.split("=").slice(1).join("=")
+    : expression;
+  if (!rhs.includes("/")) return "";
+  return rhs
+    .split("/")
+    .slice(1)
+    .map((segment) => normalizedText(segment))
+    .filter((segment) => !/^\d+(?:\.\d+)?\b/.test(segment))
+    .join(" ");
+}
+
+function semanticComponentAppearsInText(component: SemanticComponent, text: string) {
+  const aliases = [
+    component.text,
+    component.concept?.baseConcept,
+    ...(component.concept?.aliases ?? []),
+  ]
+    .map((item) => normalizedText(item ?? ""))
+    .filter(Boolean);
+  return aliases.some((alias) => includesTokens(text, alias));
 }
 
 function availableInputFromNumeric(
@@ -2008,10 +2116,22 @@ function findBoundedProbabilityCalculationSupport(
   }) ?? findFormula(requirement, context);
 
   const event = findEventFact(requirement, context);
-  if (!formula || !event || !hasBoundedProbabilityCountAndTotal(event)) {
+  const countSupport = findBoundedProbabilityCountSupport(context);
+  if (!formula) {
     return [];
   }
 
+  if (countSupport) {
+    return uniqueSupportRefs([
+      supportRef(requirement.id, formula.id, ["CALCULATE", "FORMULA"]),
+      supportRef(requirement.id, countSupport.favourable.id, ["CALCULATE"]),
+      supportRef(requirement.id, countSupport.total.id, ["CALCULATE"]),
+    ]);
+  }
+
+  if (!event || !hasBoundedProbabilityCountAndTotal(event)) {
+    return [];
+  }
   return uniqueSupportRefs([
     supportRef(requirement.id, formula.id, ["CALCULATE", "FORMULA"]),
     supportRef(requirement.id, event.id, ["CALCULATE"]),
@@ -2032,8 +2152,48 @@ function isBoundedProbabilityRequirement(requirement: RequestRequirement): boole
 
 function hasBoundedProbabilityCountAndTotal(event: EventCapability): boolean {
   const text = `${event.outcomeText} ${event.numericValues.join(" ")} ${event.evidenceSpan.text}`;
-  const match = text.match(/\b[-+]?\d+(?:\.\d+)?\s+out\s+of\s+[-+]?\d+(?:\.\d+)?\b/i);
-  return Boolean(match);
+  const match = text.match(/\b([-+]?\d+(?:\.\d+)?)\s+out\s+of\s+([-+]?\d+(?:\.\d+)?)\b/i);
+  const total = Number(match?.[2]);
+  return Boolean(match) && Number.isFinite(total) && total > 0;
+}
+
+function findBoundedProbabilityCountSupport(context: MatchContext):
+  | { favourable: NumericCapability; total: NumericCapability }
+  | undefined {
+  const favourable = uniqueBy(
+    context.numerics.filter(isFavourableOutcomeNumeric),
+    (numeric) => `${numeric.value}:${numeric.resourceChunkId}:${numeric.sourceLabel}`
+  );
+  const totals = uniqueBy(
+    context.numerics.filter(isTotalOutcomeNumeric),
+    (numeric) => `${numeric.value}:${numeric.resourceChunkId}:${numeric.sourceLabel}`
+  );
+  if (favourable.length !== 1 || totals.length !== 1) return undefined;
+  const total = totals[0]!;
+  if (!Number.isFinite(total.value) || total.value <= 0) return undefined;
+  return { favourable: favourable[0]!, total };
+}
+
+function isFavourableOutcomeNumeric(numeric: NumericCapability) {
+  return (
+    numeric.value !== undefined &&
+    Number.isFinite(numeric.value) &&
+    (numeric.canonicalConcept?.id === "favourable-outcomes" ||
+      /\bfavou?rable\b/.test(
+        normalizedText(`${numeric.quantity} ${numeric.qualifier ?? ""} ${numeric.evidenceSpan.text}`)
+      ))
+  );
+}
+
+function isTotalOutcomeNumeric(numeric: NumericCapability) {
+  return (
+    numeric.value !== undefined &&
+    Number.isFinite(numeric.value) &&
+    (numeric.canonicalConcept?.id === "total-outcomes" ||
+      /\b(?:total|possible)\b.{0,40}\boutcomes?\b/.test(
+        normalizedText(`${numeric.quantity} ${numeric.qualifier ?? ""} ${numeric.evidenceSpan.text}`)
+      ))
+  );
 }
 
 function findConsequence(
@@ -2305,4 +2465,16 @@ function normalizedText(value: string): string {
 
 function uniqueStrings(values: string[]): string[] {
   return [...new Set(values.filter(Boolean))];
+}
+
+function uniqueBy<T>(values: T[], key: (value: T) => string): T[] {
+  const seen = new Set<string>();
+  const result: T[] = [];
+  for (const value of values) {
+    const id = key(value);
+    if (seen.has(id)) continue;
+    seen.add(id);
+    result.push(value);
+  }
+  return result;
 }
