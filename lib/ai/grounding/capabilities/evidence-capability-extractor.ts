@@ -624,7 +624,7 @@ function extractNumericValues(
 ): NumericCapability[] {
   const values: NumericCapability[] = [];
   for (const match of sentence.text.matchAll(
-    /\b([A-Za-z][A-Za-z0-9 ]{0,40}?)\s+(?:costs?|charges?)\s+([-+]?\d+(?:\.\d+)?)\s*(naira|ngn|₦|£|\$|dollars?|pounds?)\s+for\s+([-+]?\d+(?:\.\d+)?)\s*([A-Za-z][A-Za-z0-9/ ]{0,24})\b/gi
+    /\b([A-Za-z][A-Za-z0-9 ]{0,40}?)\s+(?:costs?|charges?)\s+([-+]?\d+(?:\.\d+)?)(?:\s*(naira|ngn|₦|£|\$|dollars?|pounds?))?\s+for\s+([-+]?\d+(?:\.\d+)?)\s*([A-Za-z][A-Za-z0-9/ ]{0,24})\b/gi
   )) {
     const qualifier = cleanConcept(match[1] ?? "");
     const price = Number(match[2]);
@@ -632,12 +632,14 @@ function extractNumericValues(
     const quantity = Number(match[4]);
     const quantityUnit = normalizeUnit(match[5]);
     if (!qualifier || !Number.isFinite(price) || !Number.isFinite(quantity)) continue;
+    const optionScope = optionScopeFromQualifier(qualifier);
     values.push(
       createNumericValue({
         state,
         span: sliceSentenceSpan(sentence, match.index ?? 0, match[0].length),
         quantity: "cost",
         qualifier,
+        optionScope,
         value: price,
         unit: priceUnit,
         role: "PRICE",
@@ -647,6 +649,7 @@ function extractNumericValues(
         span: sliceSentenceSpan(sentence, match.index ?? 0, match[0].length),
         quantity: "quantity",
         qualifier,
+        optionScope,
         value: quantity,
         unit: quantityUnit,
         role: "QUANTITY",
@@ -674,6 +677,7 @@ function extractNumericValues(
     /\b(?:the\s+)?([A-Za-z][A-Za-z ]{1,40}?)\s+is\s+([-+]?\d+(?:\.\d+)?)\s*([A-Za-z%/²³][A-Za-z0-9%/²³]*)\b/gi
   )) {
     if (isDefinitionVerbContext(sentence.text)) continue;
+    if (/\b(?:across|in|of|for|through)\b/i.test(direct[1] ?? "")) continue;
     values.push(
       createNumericValue({
         state,
@@ -701,7 +705,7 @@ function extractNumericValues(
   }
 
   for (const noUnit of sentence.text.matchAll(
-    /\b(?:the\s+)?([A-Za-z][A-Za-z ]{0,40}?)\s+is\s+([-+]?\d+(?:\.\d+)?)(?=,|;|\.|\s+and\b|\s+so\b|$)/gi
+    /\b(?:the\s+)?([A-Za-z][A-Za-z ]{0,40}?)\s+(?:is|are|=|equals?)\s+([-+]?\d+(?:\.\d+)?)(?=,|;|\.|\s+and\b|\s+so\b|$)/gi
   )) {
     values.push(
       createNumericValue({
@@ -756,7 +760,7 @@ function extractNumericValues(
   return dedupeBy(
     values,
     (value) =>
-      `${value.value}:${value.unit ?? ""}`
+      `${normalizeConceptText(value.quantity)}:${value.qualifier ?? ""}:${value.optionScope ?? ""}:${value.role ?? ""}:${value.value}:${value.unit ?? ""}`
   );
 }
 
@@ -1209,7 +1213,7 @@ function detectNumericConflicts(
   for (const capability of capabilities) {
     for (const numeric of capability.numericValues) {
       if (normalizedMeaning(numeric.quantity) === "calculation value") continue;
-      const key = `numeric:${numeric.quantity}:${numeric.qualifier ?? ""}:${numeric.unit ?? ""}`;
+      const key = `numeric:${numeric.quantity}:${numeric.qualifier ?? ""}:${numeric.optionScope ?? ""}:${numeric.role ?? ""}:${numeric.unit ?? ""}`;
       grouped.set(key, [...(grouped.get(key) ?? []), numeric]);
     }
   }
@@ -1753,6 +1757,7 @@ function createNumericValue(input: {
   value: number;
   unit?: string;
   qualifier?: string;
+  optionScope?: string;
   role?: NumericCapability["role"];
 }): NumericCapability {
   return {
@@ -1766,6 +1771,7 @@ function createNumericValue(input: {
     value: input.value,
     unit: input.unit,
     qualifier: input.qualifier,
+    optionScope: input.optionScope ?? optionScopeFromQualifier(input.qualifier),
     role: input.role,
   };
 }
@@ -1998,7 +2004,7 @@ function normalizeFormulaSide(side: string): string {
 
 function cleanAdjacentNumericQuantity(value: string): string {
   const cleaned = cleanConcept(value)
-    .replace(/\b(?:with|and|has|have|covers?|for|in|if|then|so)\b/g, " ")
+    .replace(/\b(?:with|and|has|have|covers?|for|in|if|then|so|is|are)\b/g, " ")
     .replace(/\b(?:a|an|the|this|that)\b/g, " ")
     .replace(/\s+/g, " ")
     .trim();
@@ -2014,7 +2020,13 @@ function cleanLeadingNumericQuantity(value: string): string {
 }
 
 function isMostlyVerbPhrase(value: string): boolean {
-  return /\b(?:covers?|gives?|has|have|with|then|so|if)\b/i.test(value);
+  if (/\b(?:across|through|of|for|in)\b/i.test(value)) {
+    return true;
+  }
+  if (/\b(?:is|are)\b/i.test(value) && !/^\s*[A-Za-z]\s+(?:is|are)\b/i.test(value)) {
+    return true;
+  }
+  return /\b(?:covers?|gives?|costs?|charges?|has|have|with|then|so|if)\b/i.test(value);
 }
 
 function normalizeFormulaLeft(side: string): string {
@@ -2053,7 +2065,7 @@ function inferNumericRole(quantity: string, unit?: string): NumericCapability["r
   if (/\b(price|cost|charge|fee|fare|naira|ngn|₦|£|\$|dollar|pound)\b/.test(normalized)) {
     return "PRICE";
   }
-  if (/\b(quantity|items?|count|number|pack|pens?|bottles?|pages?|gb|gbs|kilometres?|kilometers?|miles?)\b/.test(normalized)) {
+  if (/\b(quantity|items?|count|number|pack|pens?|bottles?|pages?|gb|gbs|kilometres?|kilometers?|miles?|outcomes?)\b/.test(normalized)) {
     return "QUANTITY";
   }
   return "VALUE";
@@ -2182,6 +2194,19 @@ function normalizeExtractedUnit(unit: string | undefined): string | undefined {
     return undefined;
   }
   return unit === "%" ? "percent" : unit;
+}
+
+function optionScopeFromQualifier(qualifier: string | undefined): string | undefined {
+  if (!qualifier) return undefined;
+  const normalized = normalizeOptionScope(qualifier);
+  return normalized || undefined;
+}
+
+function normalizeOptionScope(value: string): string {
+  return normalizeConceptText(value)
+    .replace(/[^a-z0-9]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
 }
 
 function inferNumericQuantity(sentenceText: string, index: number, unit?: string): string {
