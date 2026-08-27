@@ -333,6 +333,30 @@ describe("Stage 4.1 request requirement extraction", () => {
     expectKind(requirement, "MULTI_OPTION_COMPARISON");
     expect(requirement.comparisonSides).toEqual(["option 1", "option 2"]);
     expect(requirement.requestedRelation).toBe("cheaper per item");
+    expect(requirement.comparisonMetric).toBe("UNIT_RATE");
+    expect(requirement.comparisonDirection).toBe("LOWER_IS_BETTER");
+    expect(requirement.requiresAllComparisonOptions).toBe(true);
+  });
+
+  it("preserves named multi-option identities and aliases", () => {
+    const requirement = firstRequirement(
+      "Which is cheaper per item, option A or option B?"
+    );
+
+    expectKind(requirement, "MULTI_OPTION_COMPARISON");
+    expect(requirement.comparisonSides).toEqual(["option A", "option B"]);
+    expect(requirement.comparisonOptions).toEqual([
+      expect.objectContaining({
+        id: "option a",
+        label: "option A",
+        aliases: expect.arrayContaining(["option A", "option a", "optiona", "a"]),
+      }),
+      expect.objectContaining({
+        id: "option b",
+        label: "option B",
+        aliases: expect.arrayContaining(["option B", "option b", "optionb", "b"]),
+      }),
+    ]);
   });
 
   it("extracts relation, mechanism, and consequence requests", () => {
