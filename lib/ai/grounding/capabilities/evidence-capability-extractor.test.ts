@@ -463,6 +463,48 @@ describe("Stage 4.1 evidence capability extraction", () => {
     ]);
   });
 
+  it("extracts unitless option costs without dropping option scope", () => {
+    const capability = extract(
+      "Option A costs 10 for 2 pens. Option B costs 12 for 3 pens."
+    );
+
+    expect(capability.numericValues.map((numeric) => [
+      numeric.optionScope,
+      numeric.qualifier,
+      numeric.role,
+      numeric.value,
+      numeric.unit,
+    ])).toEqual([
+      ["option a", "option a", "PRICE", 10, undefined],
+      ["option a", "option a", "QUANTITY", 2, "pens"],
+      ["option b", "option b", "PRICE", 12, undefined],
+      ["option b", "option b", "QUANTITY", 3, "pens"],
+    ]);
+  });
+
+  it("extracts bounded probability counts as canonical numeric quantities", () => {
+    const capability = extract(
+      "Probability is favourable outcomes divided by total outcomes. Favourable outcomes are 4. Total outcomes are 8."
+    );
+
+    expect(capability.numericValues).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          quantity: "favourable outcomes",
+          role: "QUANTITY",
+          value: 4,
+          canonicalConcept: expect.objectContaining({ id: "favourable-outcomes" }),
+        }),
+        expect.objectContaining({
+          quantity: "total outcomes",
+          role: "QUANTITY",
+          value: 8,
+          canonicalConcept: expect.objectContaining({ id: "total-outcomes" }),
+        }),
+      ])
+    );
+  });
+
   it("separates positive symbol meanings from later negated symbol clauses", () => {
     const capability = extract("F means force, but the card does not define d.");
 
