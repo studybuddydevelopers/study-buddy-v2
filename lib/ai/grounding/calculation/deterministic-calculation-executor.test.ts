@@ -204,6 +204,62 @@ describe("deterministic calculation executor", () => {
     );
   });
 
+  it("compares only explicitly requested options and ignores irrelevant third options", () => {
+    const { contract } = contractFor(
+      "Which is cheaper per item, option A or option B?",
+      "Option C costs 1 for 100 pens. Option B costs 12 for 3 pens. Option A costs 10 for 2 pens."
+    );
+
+    expect(contract.authorisedMethods.map((method) => method.outputQuantityKey)).toEqual([
+      "option a unit rate",
+      "option b unit rate",
+    ]);
+    const result = executeCalculationPlan(contract);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.trace.steps.map((step) => step.renderedExpression)).toEqual([
+      "10 / 2",
+      "12 / 3",
+    ]);
+    expect(result.trace.comparisonResult).toEqual(
+      expect.objectContaining({ label: "better value", result: "option b" })
+    );
+  });
+
+  it("keeps comparison results stable when evidence order changes", () => {
+    const first = executeCalculationPlan(contractFor(
+      "Which is cheaper per item, option A or option B?",
+      "Option A costs 10 for 2 pens. Option B costs 12 for 3 pens."
+    ).contract);
+    const reordered = executeCalculationPlan(contractFor(
+      "Which is cheaper per item, option A or option B?",
+      "Option B costs 12 for 3 pens. Option A costs 10 for 2 pens."
+    ).contract);
+
+    expect(first.ok).toBe(true);
+    expect(reordered.ok).toBe(true);
+    if (!first.ok || !reordered.ok) return;
+    expect(first.trace.comparisonResult?.result).toBe("option b");
+    expect(reordered.trace.comparisonResult?.result).toBe("option b");
+  });
+
+  it("returns a deterministic tie instead of selecting by option order", () => {
+    const { contract } = contractFor(
+      "Which is cheaper per item, option A or option B?",
+      "Option B costs 10 for 2 pens. Option A costs 15 for 3 pens."
+    );
+
+    const result = executeCalculationPlan(contract);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.trace.comparisonResult).toEqual(
+      expect.objectContaining({
+        label: "better value",
+        result: "option a and option b are tied",
+      })
+    );
+  });
+
   it("executes speed from distance and time while treating source speed as a reference only", () => {
     const { contract } = contractFor(
       "Calculate speed from 120 metres in 10 seconds.",
