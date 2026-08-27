@@ -65,6 +65,7 @@ export function executeCalculationPlan(
       expression: method.expressionAst,
       renderedExpression,
       result: evaluated.value,
+      displayResult: displayResultForMethod(method),
       unit: method.resultUnit,
       sourceLabels: method.sourceLabels,
     });
@@ -120,6 +121,7 @@ export function executeCalculationPlan(
       steps,
       finalTarget,
       finalResult,
+      finalResultDisplay: finalStep?.displayResult,
       finalUnit: units.get(finalKey),
       sourceLabels: uniqueStrings(contract.sourceLabels),
       referenceCheck: reference
@@ -296,6 +298,19 @@ function inferComparisonResult(
         ? current
         : best
   );
+  const tied = candidates.filter((candidate) =>
+    numbersClose(candidate.result, selected.result)
+  );
+  if (tied.length > 1) {
+    const labels = tied.map((candidate) =>
+      optionLabelFromQuantity(candidate.outputQuantity)
+    );
+    return {
+      label: contract.calculationPlan.comparison.label,
+      result: `${labels.join(" and ")} are tied`,
+      sourceLabels: uniqueStrings(candidates.flatMap((candidate) => candidate.sourceLabels)),
+    };
+  }
   const label = optionLabelFromQuantity(selected.outputQuantity);
   return {
     label: contract.calculationPlan.comparison.label,
@@ -334,4 +349,12 @@ function numberToText(value: number) {
   if (!Number.isFinite(value)) return "NaN";
   if (Number.isInteger(value)) return String(value);
   return String(Number(value.toFixed(10)));
+}
+
+function displayResultForMethod(method: CalculationContract["authorisedMethods"][number]) {
+  const referenceUnit = method.referenceResult?.unit?.trim();
+  if (referenceUnit && /^\d+(?:\.\d+)?\s*\/\s*\d+(?:\.\d+)?$/.test(referenceUnit)) {
+    return referenceUnit.replace(/\s+/g, "");
+  }
+  return method.result;
 }
