@@ -25,6 +25,7 @@ export type ValidatedCalculationStep = {
   expression: CalculationExpression;
   renderedExpression: string;
   result: number;
+  displayResult?: string;
   unit?: string;
   sourceLabels: string[];
 };
@@ -33,6 +34,7 @@ export type ValidatedCalculationTrace = {
   steps: ValidatedCalculationStep[];
   finalTarget: string;
   finalResult: number;
+  finalResultDisplay?: string;
   finalUnit?: string;
   sourceLabels: string[];
   referenceCheck?: {
