@@ -1,4 +1,7 @@
 import type {
+  ComparisonDirection,
+  ComparisonMetric,
+  ComparisonOptionRequirement,
   ExtractRequestRequirementsInput,
   RequestContextMessage,
   RequestRequirement,
@@ -43,6 +46,10 @@ type RequirementDraft = {
   requiredInputs?: string[];
   requiredInputConcepts?: string[];
   comparisonSides?: string[];
+  comparisonOptions?: ComparisonOptionRequirement[];
+  comparisonMetric?: ComparisonMetric;
+  comparisonDirection?: ComparisonDirection;
+  requiresAllComparisonOptions?: boolean;
   requestedRelation?: string;
   requestedProcess?: string;
   requestedFact?: string;
@@ -301,11 +308,19 @@ function buildMultiOptionRequirement(question: string): RequirementDraft | undef
   const relation =
     firstMatch(question, /\b((?:cheaper|cheapest|lower|lowest|less|best)\s+per\s+[A-Za-z]+)\b/i) ??
     firstMatch(question, /\b(cheaper per item|cheapest|best|lowest|highest|greater|smaller)\b/i);
+  const comparisonOptions = inferComparisonOptions(question);
+  const comparisonSides = comparisonOptions.length > 0
+    ? comparisonOptions.map((option) => option.label)
+    : inferOptionSides(question);
 
   return {
     kind: "MULTI_OPTION_COMPARISON",
     targetConcepts: compactStrings([relation ?? "options"]),
-    comparisonSides: inferOptionSides(question),
+    comparisonSides,
+    comparisonOptions,
+    comparisonMetric: inferComparisonMetric(question, relation),
+    comparisonDirection: inferComparisonDirection(question, relation),
+    requiresAllComparisonOptions: true,
     requestedRelation: relation ?? cleanConcept(question),
   };
 }
@@ -1367,6 +1382,12 @@ function assignRequirementId(
     requiredInputs: optionalUnique(draft.requiredInputs),
     requiredInputConcepts: optionalUnique(draft.requiredInputConcepts),
     comparisonSides: optionalUnique(draft.comparisonSides),
+    comparisonOptions: draft.comparisonOptions?.length
+      ? uniqueComparisonOptions(draft.comparisonOptions)
+      : undefined,
+    comparisonMetric: draft.comparisonMetric,
+    comparisonDirection: draft.comparisonDirection,
+    requiresAllComparisonOptions: draft.requiresAllComparisonOptions,
     requestedRelation: draft.requestedRelation,
     requestedProcess: draft.requestedProcess,
     requestedFact: draft.requestedFact,
@@ -1974,12 +1995,80 @@ function cleanWorkedExampleTarget(value: string): string {
 }
 
 function inferOptionSides(question: string): string[] {
-  const explicit = [...question.matchAll(/\b(pack|option|choice)\s+([A-Za-z0-9]+)\b/gi)]
+  const explicit = [...question.matchAll(/\b(pack|option|choice|crate|plan|shop|bundle|ticket)\s+([A-Za-z0-9]+)\b/gi)]
     .map((match) => `${(match[1] ?? "option").toLowerCase()} ${match[2] ?? ""}`.trim());
   if (explicit.length >= 2) return uniqueStrings(explicit);
   if (/\btwo\b/i.test(question)) return ["option 1", "option 2"];
   if (/\bthree\b/i.test(question)) return ["option 1", "option 2", "option 3"];
   return ["option 1", "option 2"];
+}
+
+function inferComparisonOptions(question: string): ComparisonOptionRequirement[] {
+  const explicit = [...question.matchAll(/\b(pack|option|choice|crate|plan|shop|bundle|ticket)\s+([A-Za-z0-9]+)\b/gi)]
+    .map((match) => {
+      const label = `${(match[1] ?? "option").toLowerCase()} ${match[2] ?? ""}`.trim();
+      return comparisonOption(label);
+    });
+  if (explicit.length >= 2) return uniqueComparisonOptions(explicit);
+  if (/\btwo\b/i.test(question)) {
+    return [comparisonOption("option 1"), comparisonOption("option 2")];
+  }
+  if (/\bthree\b/i.test(question)) {
+    return [
+      comparisonOption("option 1"),
+      comparisonOption("option 2"),
+      comparisonOption("option 3"),
+    ];
+  }
+  return [];
+}
+
+function comparisonOption(label: string): ComparisonOptionRequirement {
+  const normalized = normalizeOptionId(label);
+  const compact = normalized.replace(/\s+/g, "");
+  const suffix = normalized.match(/\b([a-z0-9]+)$/)?.[1] ?? "";
+  return {
+    id: normalized,
+    label,
+    aliases: uniqueStrings([label, normalized, compact, suffix]),
+  };
+}
+
+function inferComparisonMetric(
+  question: string,
+  relation: string | undefined
+): ComparisonMetric {
+  const combined = `${question} ${relation ?? ""}`;
+  if (
+    /\b(?:per|unit\s+rate|cost\s+per|price\s+per|fare\s+per|cheaper|cheapest|better\s+value)\b/i.test(
+      combined
+    )
+  ) {
+    return "UNIT_RATE";
+  }
+  return "VALUE";
+}
+
+function inferComparisonDirection(
+  question: string,
+  relation: string | undefined
+): ComparisonDirection | undefined {
+  const combined = `${question} ${relation ?? ""}`;
+  if (/\b(?:cheaper|cheapest|lower|lowest|less|better\s+value)\b/i.test(combined)) {
+    return "LOWER_IS_BETTER";
+  }
+  if (/\b(?:higher|highest|greater|largest|most)\b/i.test(combined)) {
+    return "HIGHER_IS_BETTER";
+  }
+  return undefined;
+}
+
+function normalizeOptionId(value: string): string {
+  return normalizeQuestion(value)
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
 }
 
 function firstMatch(value: string, pattern: RegExp): string | undefined;
@@ -2106,6 +2195,23 @@ function optionalUnique(values: string[] | undefined): string[] | undefined {
   if (!values) return undefined;
   const unique = uniqueStrings(values);
   return unique.length > 0 ? unique : undefined;
+}
+
+function uniqueComparisonOptions(
+  options: ComparisonOptionRequirement[]
+): ComparisonOptionRequirement[] {
+  const unique = new Map<string, ComparisonOptionRequirement>();
+  for (const option of options) {
+    const id = normalizeOptionId(option.id || option.label);
+    if (!id) continue;
+    const existing = unique.get(id);
+    unique.set(id, {
+      id,
+      label: existing?.label ?? option.label,
+      aliases: uniqueStrings([...(existing?.aliases ?? []), ...option.aliases, id]),
+    });
+  }
+  return [...unique.values()];
 }
 
 function optionalSemanticComponents(
