@@ -324,6 +324,12 @@ function findEvidenceSemanticComponent(
   context: MatchContext
 ): SemanticComponent | undefined {
   return context.semanticComponents.find((candidate) => {
+    if (
+      requiredComponent.kind === "METHOD" &&
+      !semanticMethodHasRequiredOperationSet(requiredComponent, candidate)
+    ) {
+      return false;
+    }
     if (semanticComponentMatches(requiredComponent, candidate)) return true;
     if (
       requiredComponent.kind === "COMPARISON_SIDE" &&
@@ -334,6 +340,26 @@ function findEvidenceSemanticComponent(
     }
     return false;
   });
+}
+
+function semanticMethodHasRequiredOperationSet(
+  requiredComponent: SemanticComponent,
+  candidate: SemanticComponent
+): boolean {
+  if (candidate.kind !== "METHOD") return true;
+  const requestedConcept = normalizedText(
+    `${requiredComponent.concept?.baseConcept ?? ""} ${requiredComponent.text ?? ""}`
+  );
+  if (!/\b(?:mean|average|arithmetic mean)\b/.test(requestedConcept)) {
+    return true;
+  }
+
+  const evidenceText = normalizedText(candidate.text ?? "");
+  return (
+    /\b(?:add|adds|adding|sum|sums|total)\b/.test(evidenceText) &&
+    /\b(?:divide|dividing|divided)\b/.test(evidenceText) &&
+    /\b(?:number|count|values?)\b/.test(evidenceText)
+  );
 }
 
 function allowedUsesForSemanticComponent(component: SemanticComponent): AllowedEvidenceUse[] {
@@ -762,6 +788,13 @@ function evaluateRelationRequirement(
   if (relation) {
     return buildMatch(requirement.id, "SUPPORTED", [
       supportRef(requirement.id, relation.id, ["RELATION"]),
+    ]);
+  }
+
+  const functionalDefinition = findFunctionalDefinitionRelation(requirement, context);
+  if (functionalDefinition) {
+    return buildMatch(requirement.id, "SUPPORTED", [
+      supportRef(requirement.id, functionalDefinition.id, ["DEFINE", "RELATION"]),
     ]);
   }
 
@@ -1720,6 +1753,61 @@ function findRelation(
   });
 }
 
+function findFunctionalDefinitionRelation(
+  requirement: RequestRequirement,
+  context: MatchContext
+): CapabilityFact | undefined {
+  const requested = normalizedText(
+    `${requirement.requestedRelation ?? ""} ${requirement.targetConcepts.join(" ")}`
+  );
+  if (
+    requirement.requestedFacet !== "FUNCTION" &&
+    !/\b(?:appl(?:y|ies|icability)|where|function|used\s+in|used\s+for)\b/.test(
+      requested
+    )
+  ) {
+    return undefined;
+  }
+
+  const targetIds = canonicalTargetIds(requirement, context.request);
+  const requestedScopeTokens = toSemanticTokens(requested).filter(
+    (token) =>
+      ![
+        "apply",
+        "applies",
+        "applicability",
+        "where",
+        "function",
+        "main",
+        "idea",
+        "used",
+        "for",
+        "in",
+        "to",
+      ].includes(token)
+  );
+
+  return context.definitions.find((definition) => {
+    if (definition.polarity !== "POSITIVE") return false;
+    if (
+      targetIds.length > 0 &&
+      !targetIds.includes(definition.canonicalConcept.id)
+    ) {
+      return false;
+    }
+    const combined = normalizedText(
+      `${definition.definitionText} ${definition.evidenceSpan.text}`
+    );
+    if (
+      targetIds.includes("main-idea") &&
+      !/\b(?:appl(?:y|ies)|whole paragraph|paragraph or passage|passage)\b/.test(combined)
+    ) {
+      return false;
+    }
+    return requestedScopeTokens.some((token) => combined.includes(token));
+  });
+}
+
 function relationSubjectOverlaps(subject: string, requestedCause: string) {
   const subjectTokens = new Set(toSemanticTokens(subject));
   const requestedTokens = toSemanticTokens(requestedCause);
@@ -1898,11 +1986,68 @@ function findUnitFactSupport(
     })
     .map((candidate) => candidate.id);
 
+  const formulaUnitSupports = formulaSymbolUnitSupports(requirement, context);
+
   return uniqueSupportRefs(
     uniqueStrings([...semanticSupports, ...definitionSupports]).map((id) =>
       supportRef(requirement.id, id, ["DEFINE"])
-    )
+    ).concat(formulaUnitSupports)
   );
+}
+
+function formulaSymbolUnitSupports(
+  requirement: RequestRequirement,
+  context: MatchContext
+): CapabilitySupportRef[] {
+  const matchingFormulas = context.formulas.filter((formula) =>
+    formulaMatchesRequirement(formula, requirement, context)
+  );
+  if (matchingFormulas.length === 0) return [];
+
+  const refs: CapabilitySupportRef[] = [];
+  for (const formula of matchingFormulas) {
+    const formulaSymbolSet = new Set(formula.symbols.map((symbol) => symbol.normalized));
+    const unitSymbols = context.symbols.filter(
+      (symbol) =>
+        symbol.polarity === "POSITIVE" &&
+        symbol.resourceChunkId === formula.resourceChunkId &&
+        symbol.sourceLabel === formula.sourceLabel &&
+        formulaSymbolSet.has(symbol.symbol.normalized) &&
+        /\b(?:measured\s+in|unit|units|volts?|amperes?|amps?|ohms?|newtons?|metres?|meters?|seconds?|grams?|kilograms?)\b/i.test(
+          symbol.meaning ?? symbol.evidenceSpan.text
+        )
+    );
+    if (unitSymbols.length === 0) continue;
+    if (
+      formulaSymbolSet.size > 0 &&
+      requiresCompleteFormulaSymbolUnits(requirement, formula, context) &&
+      unitSymbols.length < formulaSymbolSet.size
+    ) {
+      continue;
+    }
+    refs.push(supportRef(requirement.id, formula.id, ["FORMULA"]));
+    refs.push(
+      ...unitSymbols.map((symbol) => supportRef(requirement.id, symbol.id, ["DEFINE"]))
+    );
+  }
+
+  return uniqueSupportRefs(refs);
+}
+
+function requiresCompleteFormulaSymbolUnits(
+  requirement: RequestRequirement,
+  formula: FormulaCapability,
+  context: MatchContext
+): boolean {
+  const requested = normalizedText(
+    `${requirement.requestedFact ?? ""} ${requirement.targetConcepts.join(" ")}`
+  );
+  if (!/\bunits\b/.test(requested)) return false;
+  if (!/\b(?:law|formula|equation|relation)\b/.test(requested)) return false;
+
+  const targetIds = canonicalTargetIds(requirement, context.request);
+  const formulaConceptId = formula.canonicalConcept?.id;
+  return Boolean(formulaConceptId && targetIds.includes(formulaConceptId));
 }
 
 function findExplanationContextSupport(
@@ -1991,6 +2136,9 @@ function findMethod(
   return context.methods.find((candidate) => {
     const combinedRaw = `${candidate.method} ${candidate.stepsText} ${candidate.evidenceSpan.text} ${candidate.canonicalConcept?.label ?? ""}`;
     const combined = normalizedText(combinedRaw);
+    if (!methodHasRequiredOperationSet(candidate, requirement, context)) {
+      return false;
+    }
     if (mathExpressionMatches(combinedRaw, requestedRaw)) return true;
     if (
       candidate.canonicalConcept &&
@@ -2001,6 +2149,34 @@ function findMethod(
     }
     return semanticTextMatches(combined, requested);
   });
+}
+
+function methodHasRequiredOperationSet(
+  candidate: MethodCapability,
+  requirement: RequestRequirement,
+  context: MatchContext
+): boolean {
+  const conceptIds = new Set([
+    candidate.canonicalConcept?.id,
+    ...canonicalTargetIds(requirement, context.request),
+  ].filter((value): value is string => Boolean(value)));
+  const requestedText = normalizedText(
+    `${requirement.requestedMethod ?? ""} ${requirement.targetConcepts.join(" ")} ${candidate.method} ${candidate.canonicalConcept?.label ?? ""}`
+  );
+  if (
+    !conceptIds.has("mean") &&
+    !conceptIds.has("arithmetic-mean") &&
+    !/\b(?:mean|average|arithmetic mean)\b/.test(requestedText)
+  ) {
+    return true;
+  }
+
+  const methodText = normalizedText(`${candidate.stepsText} ${candidate.evidenceSpan.text}`);
+  return (
+    /\b(?:add|adds|adding|sum|sums|total)\b/.test(methodText) &&
+    /\b(?:divide|dividing|divided)\b/.test(methodText) &&
+    /\b(?:number|count|values?)\b/.test(methodText)
+  );
 }
 
 function findWorkedExampleSupport(
