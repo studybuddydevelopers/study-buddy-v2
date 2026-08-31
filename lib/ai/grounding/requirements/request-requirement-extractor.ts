@@ -176,6 +176,9 @@ function buildRequirementDrafts(
   const formulaVariables = buildFormulaVariableRequirement(question, context);
   if (formulaVariables) return [withContext(formulaVariables, normalizedContext)];
 
+  const formulaCondition = buildFormulaConditionRequirement(question, context);
+  if (formulaCondition) return [withContext(formulaCondition, normalizedContext)];
+
   const workedExample = buildWorkedExampleRequirement(question);
   if (workedExample) return [withContext(workedExample, normalizedContext)];
 
@@ -422,6 +425,46 @@ function buildFormulaVariableRequirement(
   };
 }
 
+function buildFormulaConditionRequirement(
+  question: string,
+  context: RequirementBuildContext
+): RequirementDraft | undefined {
+  if (!/\bformula\b/i.test(question) || !/\bconditions?\b/i.test(question)) {
+    return undefined;
+  }
+
+  const concept = extractFormulaConcept(question);
+  if (!concept && !context.contextConcept) return undefined;
+
+  const conditionMatch =
+    question.match(/\b(?:and|with)\s+(?:the\s+)?([A-Za-z][A-Za-z -]*?\bconditions?)\b/i) ??
+    question.match(/\b(?:the\s+)?([A-Za-z][A-Za-z -]*?\bconditions?)\b/i);
+  const conditionTarget = conditionMatch?.[1] ?? "condition";
+  const cleanedCondition = cleanConcept(conditionTarget);
+
+  return {
+    kind: "MULTI_PART",
+    targetConcepts: compactStrings([concept, cleanedCondition]),
+    requestedAction: detectRequestedAction(question) ?? "EXPLAIN",
+    presentationStyle: detectPresentationStyle(question),
+    childRequirements: [
+      {
+        kind: "FORMULA",
+        targetConcepts: compactStrings([concept, context.contextConcept]),
+        requestedAction: "STATE_FORMULA",
+        requestedFacet: "FORMULA",
+        formulaContext: context.currentFormula ?? context.contextFormula,
+      },
+      {
+        kind: "FACT_LOOKUP",
+        targetConcepts: compactStrings([cleanedCondition]),
+        requestedFact: cleanedCondition,
+        requestedAction: "EXPLAIN",
+      },
+    ],
+  };
+}
+
 function buildWorkedExampleRequirement(question: string): RequirementDraft | undefined {
   const target =
     firstMatch(question, /\b(?:work\s+through|walk\s+(?:me\s+)?through|go\s+through)\s+(?:the\s+|this\s+)?(.+?)(?:[?.]|$)/i) ??
@@ -445,11 +488,21 @@ function buildWorkedExampleRequirement(question: string): RequirementDraft | und
 function buildReferencedAnswerRequirement(question: string): RequirementDraft | undefined {
   const referenced = question.match(
     /\bfor\s+(.+?\bquestion\s+\d+[A-Za-z]?)\s*,?\s*(?:please\s+)?(?:explain|work\s+through|walk\s+(?:me\s+)?through|show\s+me)\s+(?:the\s+)?(.+?)(?:[?.]|$)/i
+  ) ?? question.match(
+    /\b(?:explain|work\s+through|walk\s+(?:me\s+)?through|show\s+me)\s+(?:the\s+)?(answer)\s+(?:to|for)\s+(question\s+\d+[A-Za-z]?)(?:[?.]|$)/i
   );
   if (!referenced) return undefined;
 
-  const reference = cleanConcept(referenced[1] ?? "");
-  const answerTarget = cleanConcept(referenced[2] ?? "");
+  const reference = cleanConcept(
+    referenced[2]?.toLowerCase().startsWith("question")
+      ? referenced[2]
+      : referenced[1] ?? ""
+  );
+  const answerTarget = cleanConcept(
+    referenced[2]?.toLowerCase().startsWith("question")
+      ? referenced[1] ?? ""
+      : referenced[2] ?? ""
+  );
   if (!reference || !answerTarget) return undefined;
 
   const questionNumber = firstMatch(reference, /\b(question\s+\d+[A-Za-z]?)\b/i) ?? reference;
@@ -770,7 +823,17 @@ function buildProcedureMethodRequirement(
   }
 
   if (!/\b(?:how\s+do\s+i|how\s+can\s+i|how\s+to|what\s+steps?|which\s+steps?|explain\s+how\s+to|show\s+how\s+to)\b/i.test(question)) {
-    return undefined;
+    const namedMethod = question.match(
+      /\b(?:show|explain|describe|state)\s+(?:the\s+)?method\s+(?:for|of)\s+(.+?)(?:[?.]|$)/i
+    );
+    if (!namedMethod) return undefined;
+    const target = cleanConcept(namedMethod[1] ?? "");
+    return {
+      kind: "PROCEDURE_METHOD",
+      targetConcepts: compactStrings([target]),
+      requestedMethod: `find ${target}`,
+      requestedAction: "EXPLAIN",
+    };
   }
 
   const method =
@@ -828,6 +891,11 @@ function buildComparisonRequirement(question: string): RequirementDraft | undefi
     firstMatch(
       question,
       /\b(?:compare|distinguish|differentiate)\s+(.+?)\s+(?:and|with|from|vs\.?|versus)\s+(.+?)(?:[?.]|$)/i,
+      "pair"
+    ) ??
+    firstMatch(
+      question,
+      /\bexplain\s+(.+?)\s+(?:vs\.?|versus)\s+(.+?)(?:[?.]|$)/i,
       "pair"
     ) ??
     firstMatch(
@@ -1155,18 +1223,20 @@ function buildProcessRequirement(
   }
 
   const process =
-    firstMatch(question, /\b(?:explain|describe)\s+(?:the\s+)?process\s+of\s+(.+?)(?:[?.]|$)/i) ??
+    firstMatch(question, /\b(?:teach|explain|describe)\s+(?:the\s+)?process\s+of\s+(.+?)(?:[?.]|$)/i) ??
+    firstMatch(question, /\bwhat\s+happens\s+in\s+(.+?)(?:[?.]|$)/i) ??
     firstMatch(question, /\b(?:explain|describe)\s+(.+?)(?:[?.]|$)/i);
 
   if (!process) return undefined;
 
   const cleaned = cleanConcept(process);
+  const processTarget = cleaned.replace(/\b(?:inputs?|outputs?|products?)$/i, "").trim();
   if (/\b(formula|symbol|mean|represent)\b/i.test(cleaned)) return undefined;
 
   return {
     kind: "PROCESS_EXPLANATION",
-    targetConcepts: compactStrings([cleaned, context.contextProcess]),
-    requestedProcess: cleaned || context.contextProcess,
+    targetConcepts: compactStrings([processTarget || cleaned, context.contextProcess]),
+    requestedProcess: processTarget || cleaned || context.contextProcess,
   };
 }
 
@@ -1707,13 +1777,32 @@ function extractFormulaContextExpression(question: string): string | undefined {
   );
   if (!match) return undefined;
 
-  const left = normalizeFormulaSide(match[1] ?? "");
+  const left = normalizeFormulaContextLeft(match[1] ?? "");
   const right = normalizeFormulaSide(match[2] ?? "");
   if (!left || !right || !/[A-Za-z\u0370-\u03ff]/.test(`${left}${right}`)) {
     return undefined;
   }
 
   return `${left} = ${right}`;
+}
+
+function normalizeFormulaContextLeft(value: string): string {
+  const normalized = normalizeFormulaSide(value);
+  if (!normalized) return "";
+
+  const rawHasFormulaContextWords =
+    /\b(?:define|symbol|formula|relation|equation|meaning|mean|represent|stand\s+for|in)\b/i.test(
+      value
+    );
+  const tokens = normalized.split(/\s+/).filter(Boolean);
+  if (rawHasFormulaContextWords && tokens.length > 1) {
+    const last = tokens[tokens.length - 1] ?? "";
+    if (/^[A-Za-z\u0370-\u03ff][A-Za-z0-9_\u0370-\u03ff]*$/.test(last)) {
+      return last;
+    }
+  }
+
+  return normalized;
 }
 
 function extractRecentContextConcept(question: string): string | undefined {
@@ -1746,7 +1835,7 @@ function hasPronounScopedTask(question: string): boolean {
 
 function normalizeFormulaSide(value: string): string {
   return normalizeQuestion(value)
-    .replace(/\b(?:in|for|using|from|with|the|explain|teach|state|give|what\s+is|show)\b/gi, " ")
+    .replace(/\b(?:in|for|using|from|with|the|define|symbol|explain|teach|state|give|what\s+is|show)\b/gi, " ")
     .replace(/\b(?:formula|relation|equation)\b/gi, " ")
     .replace(/\s+/g, " ")
     .trim();
@@ -1893,10 +1982,13 @@ function inferUnitFactTarget(question: string, concept: string): string {
 
 function extractPrimarySymbolRequest(question: string): string | undefined {
   const patterns = [
+    /\bwhat\s+does\s+(?:the\s+)?symbol\s+([A-Za-z\u0370-\u03ff][A-Za-z0-9\u0370-\u03ff]*)\s+(?:mean|represent|stand for)\b/i,
     /\bwhat\s+does\s+([A-Za-z\u0370-\u03ff][A-Za-z0-9\u0370-\u03ff]*)\s+(?:mean|represent|stand for)\b/i,
     /\bwhat\s+is\s+([A-Za-z\u0370-\u03ff][A-Za-z0-9\u0370-\u03ff]*)\s+in\s+(?:the\s+)?formula\b/i,
     /\bidentify\s+([A-Za-z\u0370-\u03ff][A-Za-z0-9\u0370-\u03ff]*)\b/i,
     /\bstate\s+what\s+([A-Za-z\u0370-\u03ff][A-Za-z0-9\u0370-\u03ff]*)\s+(?:means|represents|stands for)\b/i,
+    /\bdefine\s+(?:the\s+)?symbol\s+([A-Za-z\u0370-\u03ff][A-Za-z0-9\u0370-\u03ff]*)\b/i,
+    /\bdefine\s+([A-Za-z\u0370-\u03ff][A-Za-z0-9\u0370-\u03ff]*)\s+in\s+(?=[^?.!]*=)/i,
     /\bdefine\s+([A-Za-z\u0370-\u03ff][A-Za-z0-9\u0370-\u03ff]*)(?:[?.]|$)/i,
     /\bwhat\s+is\s+([A-Za-z\u0370-\u03ff])(?:[?.]|$)/i,
   ];
@@ -1913,6 +2005,7 @@ function extractRequestedSymbols(question: string): string[] {
   const symbols = new Set<string>();
   const symbolClauses = [
     ...question.matchAll(/\bdefine\s+(.+?)(?:[?.]|$)/gi),
+    ...question.matchAll(/\bwhat\s+does\s+(?:the\s+)?symbol\s+(.+?)\s+(?:mean|represent|stand for)(?:[?.]|$)/gi),
     ...question.matchAll(/\bexplain\s+what\s+(.+?)\s+(?:means?|represents?|stands for)(?:[?.]|$)/gi),
     ...question.matchAll(/\bwhat\s+(.+?)\s+(?:means?|represents?|stands for)(?:[?.]|$)/gi),
   ];
@@ -2099,6 +2192,9 @@ function cleanConcept(value: string): string {
     .replace(/\s+in\s+simple\s+terms$/i, "")
     .replace(/\s+for\s+me$/i, "")
     .replace(/^(?:please\s+)?(?:teach|explain|show\s+me|show|tell\s+me|help\s+me\s+understand|work\s+through|walk\s+(?:me\s+)?through|go\s+through)\s+/i, "")
+    .replace(/^(?:me\s+)?what\s+(.+?)\s+means?$/i, "$1")
+    .replace(/^(?:the\s+)?meaning\s+of\s+/i, "")
+    .replace(/^(?:of|for)\s+/i, "")
     .replace(/\s+of\s+(?:a\s+|an\s+|the\s+)?(?:paragraph|passage|text)$/i, "")
     .replace(/^(?:a|an|the|this|that|its)(?:\s+|$)/i, "")
     .replace(/\b(?:formula|process|method|rule|conditions?|ways?|one|two|three|cards?|notes?)\b/gi, " ")
