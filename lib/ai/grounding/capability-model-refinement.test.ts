@@ -336,6 +336,122 @@ describe("Stage 4.1 capability model refinement", () => {
       ]).classification
     ).toBe("SUPPORTED");
   });
+
+  it("supports benign request paraphrases without changing the evidence boundary", () => {
+    expect(
+      decide("Teach me what ratios mean.", [
+        chunk("A ratio compares two quantities by division."),
+      ]).classification
+    ).toBe("SUPPORTED");
+
+    expect(
+      decide("Define V in rho = m / V.", [
+        chunk("Density relation is rho = m / V. m means mass and V means volume."),
+      ]).classification
+    ).toBe("SUPPORTED");
+
+    expect(
+      decide("Explain acid versus base.", [
+        chunk("An acid produces hydrogen ions. A base neutralises an acid."),
+      ]).classification
+    ).toBe("SUPPORTED");
+
+    expect(
+      decide("Teach the process of photosynthesis.", [
+        chunk("Photosynthesis uses light energy to make glucose from carbon dioxide and water."),
+      ]).classification
+    ).toBe("SUPPORTED");
+  });
+
+  it("aligns restored facet capabilities with formula, method, and application requests", () => {
+    expect(
+      decide("State Ohm's law formula and units.", [
+        chunk(
+          "Ohm's law is V = I x R. V is measured in volts. I is measured in amperes. R is measured in ohms."
+        ),
+      ]).classification
+    ).toBe("SUPPORTED");
+
+    expect(
+      decide("Explain photosynthesis inputs.", [
+        chunk("Photosynthesis uses light energy to make glucose from carbon dioxide and water."),
+      ]).classification
+    ).toBe("SUPPORTED");
+
+    expect(
+      decide("Explain the answer to question 5.", [
+        chunk(
+          "Question 5 asks for blue counters when 20 red counters are given. The answer is 25 blue counters."
+        ),
+      ]).classification
+    ).toBe("SUPPORTED");
+
+    expect(
+      decide("Define main idea and say where it applies.", [
+        chunk("The main idea is the central point of a paragraph or passage."),
+      ]).classification
+    ).toBe("SUPPORTED");
+  });
+
+  it("rejects required-facet removals while accepting restored facets", () => {
+    expect(
+      decide("State Ohm's law formula and units.", [
+        chunk("Ohm's law is V = I x R. V is measured in volts. I is measured in amperes."),
+      ]).classification
+    ).toBe("INSUFFICIENT_CONTEXT");
+
+    expect(
+      decide("State Ohm's law formula and units.", [
+        chunk(
+          "Ohm's law is V = I x R. V is measured in volts. I is measured in amperes. R is measured in ohms."
+        ),
+      ]).classification
+    ).toBe("SUPPORTED");
+
+    expect(
+      decide("How do you find the mean?", [
+        chunk("To find the mean, add all the values."),
+      ]).classification
+    ).toBe("INSUFFICIENT_CONTEXT");
+
+    expect(
+      decide("How do you find the mean?", [
+        chunk("To find the mean, add all the values and divide by the number of values."),
+      ]).classification
+    ).toBe("SUPPORTED");
+
+    expect(
+      decide("State triangle area formula and the height condition.", [
+        chunk("Area = 1/2 x base x height."),
+      ]).classification
+    ).toBe("INSUFFICIENT_CONTEXT");
+
+    expect(
+      decide("State triangle area formula and the height condition.", [
+        chunk("Area = 1/2 x base x height. The height must be perpendicular to the base."),
+      ]).classification
+    ).toBe("SUPPORTED");
+  });
+
+  it("infers formula concepts from distinctive formula structure", () => {
+    expect(
+      decide("State the circle area formula.", [
+        chunk("Area = pi x radius squared."),
+      ]).classification
+    ).toBe("SUPPORTED");
+
+    expect(
+      decide("State triangle area formula and the height condition.", [
+        chunk("Area = 1/2 x base x height. The height must be perpendicular to the base."),
+      ]).classification
+    ).toBe("SUPPORTED");
+
+    expect(
+      decide("In speed = d / t, what does d represent?", [
+        chunk("Speed relation is speed = d / t. d means distance and t means time."),
+      ]).classification
+    ).toBe("SUPPORTED");
+  });
 });
 
 function stableHash(value: string): string {
