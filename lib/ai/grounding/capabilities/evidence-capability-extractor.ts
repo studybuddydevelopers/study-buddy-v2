@@ -888,6 +888,7 @@ function extractMethods(
   const matches = [
     text.match(/\b(.+?)\s+can\s+be\s+(?:solved|found|calculated|worked\s+out|balanced|separated|prepared|made|done)\s+by\s+(.+)$/i),
     text.match(/\b(.+?)\s+(?:is|are)\s+(?:found|calculated|worked\s+out)\s+by\s+(.+)$/i),
+    text.match(/\bto\s+(?:find|calculate|work\s+out|compute|determine)\s+(?:the\s+)?(.+?),\s*(.+)$/i),
     text.match(/\b(.+?)\s+can\s+((?:recover|separate|remove|filter|extract|collect|produce|form|make)\b.+)$/i),
     text.match(/\bfor\s+(.+?),\s*(.+?\b(?:subtract|add|divide|multiply|balance|filter|heat|cool|apply|remove|separate|mix|measure|solve)\b.+)$/i),
     text.match(/\b(.+?)\s+(?:is|are)\s+made\s+by\s+(.+)$/i),
@@ -1014,6 +1015,20 @@ function extractComparisonSides(
       sentence,
       side: cleanConcept(says[1] ?? ""),
       fact: cleanMeaning(`${says[2] ?? ""} ${says[3] ?? ""}`.trim()),
+    });
+  }
+
+  const actionDefinition = sentence.text.match(
+    /\b(?:an|a|the)?\s*(.+?)\s+(produces?|neutralises?|neutralizes?|forms?|makes?|uses?)\s+(.+)$/i
+  );
+  if (actionDefinition && !isFormulaLike(sentence.text)) {
+    return createComparisonSide({
+      state,
+      sentence,
+      side: cleanConcept(actionDefinition[1] ?? ""),
+      fact: cleanMeaning(
+        `${actionDefinition[2] ?? ""} ${actionDefinition[3] ?? ""}`.trim()
+      ),
     });
   }
 
@@ -1864,6 +1879,27 @@ function inferFormulaConcept(
   left: string,
   state: CapabilityState
 ): CanonicalConcept | undefined {
+  const formulaRight = normalizeFormulaSide(
+    sentenceText.slice(formulaStart).split("=")[1] ?? ""
+  );
+  const normalizedFormula = normalizeFormulaExpression(`${left} = ${formulaRight}`);
+  if (
+    /^area=/.test(normalizedFormula) &&
+    normalizedFormula.includes("pi") &&
+    normalizedFormula.includes("radius") &&
+    normalizedFormula.includes("^2")
+  ) {
+    return canonicalizeConcept("area of circle", state.chunk);
+  }
+  if (
+    /^area=/.test(normalizedFormula) &&
+    normalizedFormula.includes("1/2") &&
+    normalizedFormula.includes("base") &&
+    normalizedFormula.includes("height")
+  ) {
+    return canonicalizeConcept("area of triangle", state.chunk);
+  }
+
   const prefix = sentenceText.slice(0, formulaStart).replace(/[:;,]\s*$/g, "").trim();
   const leftContext = rawLeft
     .replace(new RegExp(`${escapeRegExp(left)}\\s*$`, "i"), "")
@@ -1995,7 +2031,7 @@ function cleanFormulaConceptCandidate(value: string): string {
 
 function normalizeFormulaSide(side: string): string {
   return side
-    .replace(/\b(?:formula|is|equals?)\b/gi, "")
+    .replace(/\b(?:formula|relation|equation|is|equals?)\b/gi, "")
     .replace(/\bsquared\b/gi, "^2")
     .replace(/\bcubed\b/gi, "^3")
     .replace(/\s+/g, " ")
