@@ -60,7 +60,13 @@ const SPLASH_POINTS = [
 ] as const;
 const SPLASH_OUT_ORDER = [7, 0, 13, 5, 10, 2, 12, 8, 3, 14, 6, 1, 11, 4, 9] as const;
 
-export function SbEqualizerLoadingPattern({ size = 400 }: { size?: number }) {
+export function SbEqualizerLoadingPattern({
+  size = 400,
+  showMessage = true,
+}: {
+  size?: number;
+  showMessage?: boolean;
+}) {
   const [phase, setPhase] = useState(0);
 
   useEffect(() => {
@@ -95,7 +101,9 @@ export function SbEqualizerLoadingPattern({ size = 400 }: { size?: number }) {
         levels={equalizerLevels}
         label="Study Buddy volume-bar loading animation"
       />
-      <p className="mt-5 text-base text-gray-500">Loading, please wait…</p>
+      {showMessage && (
+        <p className="mt-5 text-base text-gray-500">Loading, please wait…</p>
+      )}
     </div>
   );
 }
