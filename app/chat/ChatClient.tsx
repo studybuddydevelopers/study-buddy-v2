@@ -15,8 +15,8 @@ import {
   isGenerationFailureCode,
 } from "@/components/chatFailureCopy";
 
-const AI_AVATAR = "/images/ai-tutor-avatar.png";
-const DEFAULT_USER_AVATAR = "/images/user-avatar-placeholder.svg";
+const AI_AVATAR = "/images/ai-tutor-avatar.svg";
+const DEFAULT_USER_AVATAR = "/images/profile-avatar.svg";
 const CHAT_PAGE_SIZE = 25;
 const MESSAGE_PAGE_SIZE = 50;
 
