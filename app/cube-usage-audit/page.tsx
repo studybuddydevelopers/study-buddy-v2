@@ -16,15 +16,16 @@ export default function CubeUsageAuditPage() {
       <div className="mx-auto w-full max-w-6xl px-5 py-10 sm:px-8 sm:py-14">
         <header className="rounded-3xl bg-secondary-500 px-6 py-8 text-white shadow-sm sm:px-9 sm:py-10">
           <p className="text-xs font-bold uppercase tracking-[0.2em] text-secondary-200">
-            Inventory only · one proposal assigned
+            Inventory only · four proposals assigned
           </p>
           <h1 className="mt-3 max-w-4xl text-3xl font-bold leading-tight text-white sm:text-4xl">
             Every place the current cube is used
           </h1>
           <p className="mt-4 max-w-3xl text-sm leading-6 text-secondary-100 sm:text-base">
             Each card recreates the current placement, size, animation, surrounding
-            copy, and purpose. The SB volume-bar loading pattern is assigned only to
-            the global route loader; no live placement has been changed.
+            copy, and purpose. Both loading contexts now use the proposed SB
+            volume-bar pattern, while both static identity contexts use the proposed
+            static SB mark. No live placement has been changed.
           </p>
 
           <div className="mt-7 grid gap-3 sm:grid-cols-3">
@@ -38,7 +39,7 @@ export default function CubeUsageAuditPage() {
           <SectionHeading
             eyebrow="Group 1"
             title="The cube is genuinely communicating loading"
-            copy="These are the two placements where a loading animation replacement is directly relevant."
+            copy="Both genuine loading placements are now assigned the SB volume-bar animation."
           />
 
           <div className="mt-5 grid gap-5 lg:grid-cols-2">
@@ -84,19 +85,19 @@ export default function CubeUsageAuditPage() {
               source="app/reset-password/update/ResetPasswordUpdateClient.tsx"
               size="28 × 28px icon"
               motion="Continuous 2s rotation"
+              replacement="SB volume-bar loading pattern"
             >
-              <div className="flex min-h-52 items-center justify-center rounded-xl bg-[#F8F9FA] p-5">
-                <div className="flex w-full max-w-md flex-col items-center rounded-2xl bg-white p-7 shadow-md">
-                  <h3 className="text-xl font-bold text-secondary-500">
-                    Checking Reset Link
-                  </h3>
-                  <Logo
-                    variant="icon"
-                    animation="rotate"
-                    size="lg"
-                    className="mt-6"
-                  />
-                </div>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <PreviewState label="Current · rotating cube">
+                  <ResetCheckPreview>
+                    <Logo variant="icon" animation="rotate" size="lg" />
+                  </ResetCheckPreview>
+                </PreviewState>
+                <PreviewState label="Proposed · volume bars" proposed>
+                  <ResetCheckPreview>
+                    <SbEqualizerLoadingPattern size={28} showMessage={false} />
+                  </ResetCheckPreview>
+                </PreviewState>
               </div>
             </UsageCard>
           </div>
@@ -200,7 +201,7 @@ export default function CubeUsageAuditPage() {
           <SectionHeading
             eyebrow="Group 3"
             title="Static cube identity"
-            copy="These placements use the cube without animation and should be treated separately from loading."
+            copy="Both non-animated identity placements are assigned the static SB mark."
           />
 
           <div className="mt-5 grid gap-5 lg:grid-cols-2">
@@ -212,20 +213,15 @@ export default function CubeUsageAuditPage() {
               source="app/about-us/page.tsx + public/logo-icon.svg"
               size="20 × 20px image"
               motion="None"
+              replacement="Static SB mark"
             >
-              <div className="flex min-h-40 items-center justify-center rounded-xl bg-white p-5">
-                <div className="inline-flex items-center gap-2 rounded-lg border border-primary-200 bg-primary-50 px-3 py-2 text-sm font-semibold text-primary-700">
-                  <Image
-                    src="/logo-icon.svg"
-                    alt=""
-                    className="!h-5 !w-5"
-                    width={20}
-                    height={20}
-                    sizes="20px"
-                    widths={[20, 40]}
-                  />
-                  Study Buddy
-                </div>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <PreviewState label="Current · static cube">
+                  <AboutBadge iconSrc="/logo-icon.svg" />
+                </PreviewState>
+                <PreviewState label="Proposed · static SB" proposed>
+                  <AboutBadge iconSrc="/images/proposed-sb-mark.svg" />
+                </PreviewState>
               </div>
             </UsageCard>
 
@@ -237,25 +233,15 @@ export default function CubeUsageAuditPage() {
               source="app/layout.tsx + app/favicon.svg + public/logo-icon.svg"
               size="Typically 16–32px"
               motion="None"
+              replacement="Static SB mark"
             >
-              <div className="flex min-h-40 items-center justify-center rounded-xl bg-[#F8F9FA] p-5">
-                <div className="w-full max-w-md overflow-hidden rounded-xl border border-gray-300 bg-white shadow-sm">
-                  <div className="flex h-11 items-center gap-2 border-b border-gray-200 px-3">
-                    <Image
-                      src="/logo-icon.svg"
-                      alt=""
-                      width={16}
-                      height={16}
-                      widths={[16, 32]}
-                      sizes="16px"
-                      rounded="none"
-                      className="!h-4 !w-4"
-                    />
-                    <span className="text-xs text-gray-700">Study Buddy</span>
-                    <span className="ml-auto text-gray-400">×</span>
-                  </div>
-                  <div className="h-10 bg-gray-50" />
-                </div>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <PreviewState label="Current · cube favicon">
+                  <BrowserTab iconSrc="/logo-icon.svg" />
+                </PreviewState>
+                <PreviewState label="Proposed · SB favicon" proposed>
+                  <BrowserTab iconSrc="/images/proposed-sb-mark.svg" />
+                </PreviewState>
               </div>
             </UsageCard>
           </div>
@@ -286,9 +272,10 @@ export default function CubeUsageAuditPage() {
         </section>
 
         <div className="mt-8 rounded-2xl border border-amber-200 bg-amber-50 p-5 text-sm leading-6 text-amber-950">
-          <strong>Decision status:</strong> the Global route loading screen is assigned
-          the SB volume-bar loading pattern. The other eight placements remain
-          unassigned, and no live cube placement has changed.
+          <strong>Decision status:</strong> both loading placements are assigned the SB
+          volume-bar pattern, and both static identity placements are assigned the
+          static SB mark. Five placements remain unassigned; no live placement has
+          changed.
         </div>
       </div>
 
