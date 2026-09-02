@@ -5,6 +5,8 @@ import Image from "@/components/Image";
 
 const MARK_SRC = "/images/proposed-sb-mark.svg";
 const CYCLE_MS = 9000;
+const BRUSH_CYCLE_MS = 4500;
+const SPLASH_CYCLE_MS = 4500;
 const S_END = 0.45;
 const B_END = 0.9;
 const S_TRACE =
@@ -121,7 +123,7 @@ export function SbSplashMotionPattern({ size = 28 }: { size?: number }) {
         return;
       }
 
-      setPhase(((now - startedAt) % CYCLE_MS) / CYCLE_MS);
+      setPhase(((now - startedAt) % SPLASH_CYCLE_MS) / SPLASH_CYCLE_MS);
       frameId = window.requestAnimationFrame(tick);
     };
 
@@ -152,7 +154,7 @@ export function SbDiagonalBrushMotionPattern({ size = 36 }: { size?: number }) {
         return;
       }
 
-      setPhase(((now - startedAt) % CYCLE_MS) / CYCLE_MS);
+      setPhase(((now - startedAt) % BRUSH_CYCLE_MS) / BRUSH_CYCLE_MS);
       frameId = window.requestAnimationFrame(tick);
     };
 
@@ -194,16 +196,18 @@ export default function SbSequentialFillPreview() {
   const sProgress = clamp(phase / S_END);
   const bProgress = clamp((phase - S_END) / (B_END - S_END));
   const bottomUpProgress = clamp(phase / B_END);
-  const brushInProgress = segmentProgress(phase, 0.02, 0.42);
-  const brushOutProgress = segmentProgress(phase, 0.58, 0.98);
+  const brushPhase = ((phase * CYCLE_MS) % BRUSH_CYCLE_MS) / BRUSH_CYCLE_MS;
+  const splashPhase = ((phase * CYCLE_MS) % SPLASH_CYCLE_MS) / SPLASH_CYCLE_MS;
+  const brushInProgress = segmentProgress(brushPhase, 0.02, 0.42);
+  const brushOutProgress = segmentProgress(brushPhase, 0.58, 0.98);
   const brushStatus =
     brushInProgress < 1
       ? "Brushing diagonally in…"
       : brushOutProgress === 0
         ? "Fully brushed"
         : "Brushing diagonally out…";
-  const splashInProgress = segmentProgress(phase, 0.02, 0.42);
-  const splashOutProgress = segmentProgress(phase, 0.58, 0.98);
+  const splashInProgress = segmentProgress(splashPhase, 0.02, 0.42);
+  const splashOutProgress = segmentProgress(splashPhase, 0.58, 0.98);
   const splashStatus =
     splashInProgress < 1
       ? "Splashing in…"
