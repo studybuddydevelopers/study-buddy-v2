@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import Image from "@/components/Image";
 import { requireUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
@@ -16,6 +17,7 @@ export default async function ProfilePage() {
       lastNames: true,
       gradeLevel: true,
       examYear: true,
+      avatarUrl: true,
     },
   });
 
@@ -27,10 +29,28 @@ export default async function ProfilePage() {
 
   return (
     <div className="w-[90vw] max-w-3xl mx-auto py-10 space-y-6">
-      <div className="space-y-2">
-        <p className="text-sm font-medium text-primary-600">Account</p>
-        <h1 className="text-3xl font-bold text-gray-900">{displayName}</h1>
-        {user.email && <p className="text-sm text-gray-600">{user.email}</p>}
+      <div className="flex items-center gap-4">
+        <Image
+          src={profile?.avatarUrl || "/images/profile-avatar.svg"}
+          alt={`${displayName} profile avatar`}
+          width={96}
+          height={96}
+          sizes="96px"
+          widths={[96, 192]}
+          rounded="full"
+          bordered
+          shadow="sm"
+          className="!h-24 !w-24 shrink-0 object-cover"
+        />
+        <div className="min-w-0 space-y-2">
+          <p className="text-sm font-medium text-primary-600">Account</p>
+          <h1 className="truncate text-3xl font-bold text-gray-900">
+            {displayName}
+          </h1>
+          {user.email && (
+            <p className="truncate text-sm text-gray-600">{user.email}</p>
+          )}
+        </div>
       </div>
 
       <section className="grid gap-3 sm:grid-cols-2">
