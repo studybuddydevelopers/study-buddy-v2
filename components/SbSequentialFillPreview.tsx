@@ -60,6 +60,46 @@ const SPLASH_POINTS = [
 ] as const;
 const SPLASH_OUT_ORDER = [7, 0, 13, 5, 10, 2, 12, 8, 3, 14, 6, 1, 11, 4, 9] as const;
 
+export function SbEqualizerLoadingPattern({ size = 400 }: { size?: number }) {
+  const [phase, setPhase] = useState(0);
+
+  useEffect(() => {
+    const startedAt = performance.now();
+    let frameId = 0;
+
+    const tick = (now: number) => {
+      if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+        setPhase(B_END);
+        return;
+      }
+
+      setPhase(((now - startedAt) % CYCLE_MS) / CYCLE_MS);
+      frameId = window.requestAnimationFrame(tick);
+    };
+
+    frameId = window.requestAnimationFrame(tick);
+    return () => window.cancelAnimationFrame(frameId);
+  }, []);
+
+  const equalizerLevels = Array.from({ length: EQUALIZER_BAR_COUNT }, (_, index) => {
+    const cycles = 5 + (index % 4);
+    const wave = Math.sin(phase * Math.PI * 2 * cycles + index * 1.35);
+
+    return 0.18 + ((wave + 1) / 2) * 0.82;
+  });
+
+  return (
+    <div className="flex flex-col items-center justify-center">
+      <EqualizerFillMark
+        size={size}
+        levels={equalizerLevels}
+        label="Study Buddy volume-bar loading animation"
+      />
+      <p className="mt-5 text-base text-gray-500">Loading, please wait…</p>
+    </div>
+  );
+}
+
 export default function SbSequentialFillPreview() {
   const [phase, setPhase] = useState(0);
 
