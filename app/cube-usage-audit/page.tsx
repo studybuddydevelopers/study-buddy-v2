@@ -2,7 +2,11 @@ import type { Metadata } from "next";
 import type { ReactNode } from "react";
 import Image from "@/components/Image";
 import Logo from "@/components/Logo";
-import { SbEqualizerLoadingPattern } from "@/components/SbSequentialFillPreview";
+import {
+  SbDiagonalBrushMotionPattern,
+  SbEqualizerLoadingPattern,
+  SbSplashMotionPattern,
+} from "@/components/SbSequentialFillPreview";
 
 export const metadata: Metadata = {
   title: "Current Cube Usage Audit | Study Buddy",
@@ -16,16 +20,17 @@ export default function CubeUsageAuditPage() {
       <div className="mx-auto w-full max-w-6xl px-5 py-10 sm:px-8 sm:py-14">
         <header className="rounded-3xl bg-secondary-500 px-6 py-8 text-white shadow-sm sm:px-9 sm:py-10">
           <p className="text-xs font-bold uppercase tracking-[0.2em] text-secondary-200">
-            Inventory only · four proposals assigned
+            Inventory only · all nine proposals assigned
           </p>
           <h1 className="mt-3 max-w-4xl text-3xl font-bold leading-tight text-white sm:text-4xl">
             Every place the current cube is used
           </h1>
           <p className="mt-4 max-w-3xl text-sm leading-6 text-secondary-100 sm:text-base">
             Each card recreates the current placement, size, animation, surrounding
-            copy, and purpose. Both loading contexts now use the proposed SB
-            volume-bar pattern, while both static identity contexts use the proposed
-            static SB mark. No live placement has been changed.
+            copy, and purpose. Rotating cubes use the proposed SB volume-bar pattern,
+            the expired-link floating decoration uses one diagonal brush-on/off SB,
+            and the auth headers use SB splash motion. Static identity placements use
+            the static SB mark. No live placement has been changed.
           </p>
 
           <div className="mt-7 grid gap-3 sm:grid-cols-3">
@@ -107,7 +112,7 @@ export default function CubeUsageAuditPage() {
           <SectionHeading
             eyebrow="Group 2"
             title="Animated cube uses that are not loading"
-            copy="These placements move, but their job is branding, navigation, or error-state decoration."
+            copy="The rotating navbar and reset footer use SB volume bars, Login and Sign Up use SB splash motion, and the expired-link floating group becomes one diagonal brush-on/off SB."
           />
 
           <div className="mt-5 grid gap-5 lg:grid-cols-2">
@@ -119,16 +124,15 @@ export default function CubeUsageAuditPage() {
               source="components/NavBar.tsx"
               size="28px icon + 18px name"
               motion="Continuous 2s rotation"
+              replacement="SB volume-bar pattern"
             >
-              <div className="flex min-h-40 items-center justify-center rounded-xl bg-[#F8F9FA] p-5">
-                <div className="flex w-full items-center justify-between rounded-xl bg-white px-5 py-4 shadow-sm">
-                  <Logo variant="full" size="lg" animation="rotate" />
-                  <div className="flex gap-5 text-xs font-semibold text-gray-500">
-                    <span>Materials</span>
-                    <span>Exams</span>
-                    <span>Profile</span>
-                  </div>
-                </div>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <PreviewState label="Current · rotating cube">
+                  <NavbarBrandPreview />
+                </PreviewState>
+                <PreviewState label="Proposed · volume bars" proposed>
+                  <NavbarBrandPreview volumeBars />
+                </PreviewState>
               </div>
             </UsageCard>
 
@@ -140,8 +144,16 @@ export default function CubeUsageAuditPage() {
               source="app/login/LoginClient.tsx"
               size="28px icon + 18px name"
               motion="Gentle 3s icon float"
+              replacement="SB splash motion"
             >
-              <AuthBrandPreview />
+              <div className="grid gap-3 sm:grid-cols-2">
+                <PreviewState label="Current · floating cube">
+                  <AuthBrandPreview />
+                </PreviewState>
+                <PreviewState label="Proposed · SB splash" proposed>
+                  <AuthBrandPreview splash />
+                </PreviewState>
+              </div>
             </UsageCard>
 
             <UsageCard
@@ -152,8 +164,16 @@ export default function CubeUsageAuditPage() {
               source="app/sign-up/SignUpClient.tsx"
               size="28px icon + 18px name"
               motion="Gentle 3s icon float"
+              replacement="SB splash motion"
             >
-              <AuthBrandPreview />
+              <div className="grid gap-3 sm:grid-cols-2">
+                <PreviewState label="Current · floating cube">
+                  <AuthBrandPreview />
+                </PreviewState>
+                <PreviewState label="Proposed · SB splash" proposed>
+                  <AuthBrandPreview splash />
+                </PreviewState>
+              </div>
             </UsageCard>
 
             <UsageCard
@@ -164,17 +184,15 @@ export default function CubeUsageAuditPage() {
               source="app/reset-password/update/ResetPasswordUpdateClient.tsx"
               size="Four 36 × 36px icons"
               motion="Alternating 0.8s float / reverse float"
+              replacement="One SB diagonal brush on/off"
             >
-              <div className="flex min-h-52 flex-col items-center justify-center rounded-xl bg-[#F8F9FA] p-5">
-                <h3 className="text-xl font-bold text-secondary-500">
-                  Reset Link Expired
-                </h3>
-                <div className="mt-9 flex items-center justify-center">
-                  <Logo variant="icon" animation="floatReverse" size="2xl" />
-                  <Logo variant="icon" animation="float" size="2xl" />
-                  <Logo variant="icon" animation="floatReverse" size="2xl" />
-                  <Logo variant="icon" animation="float" size="2xl" />
-                </div>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <PreviewState label="Current · four floating cubes">
+                  <ExpiredResetDecorationPreview />
+                </PreviewState>
+                <PreviewState label="Proposed · one diagonal brush SB" proposed>
+                  <ExpiredResetDecorationPreview brush />
+                </PreviewState>
               </div>
             </UsageCard>
 
@@ -186,12 +204,15 @@ export default function CubeUsageAuditPage() {
               source="app/reset-password/update/ResetPasswordUpdateClient.tsx"
               size="28 × 28px icon"
               motion="Continuous 2s rotation"
+              replacement="SB volume-bar pattern"
             >
-              <div className="flex min-h-52 flex-col items-center justify-center rounded-xl bg-[#F8F9FA] p-5">
-                <p className="mb-5 text-sm text-gray-600">
-                  Your password reset link has expired.
-                </p>
-                <Logo variant="icon" animation="rotate" size="lg" />
+              <div className="grid gap-3 sm:grid-cols-2">
+                <PreviewState label="Current · rotating cube">
+                  <ExpiredResetFooterPreview />
+                </PreviewState>
+                <PreviewState label="Proposed · volume bars" proposed>
+                  <ExpiredResetFooterPreview volumeBars />
+                </PreviewState>
               </div>
             </UsageCard>
           </div>
@@ -273,8 +294,10 @@ export default function CubeUsageAuditPage() {
 
         <div className="mt-8 rounded-2xl border border-amber-200 bg-amber-50 p-5 text-sm leading-6 text-amber-950">
           <strong>Decision status:</strong> both loading placements are assigned the SB
-          volume-bar pattern, and both static identity placements are assigned the
-          static SB mark. Five placements remain unassigned; no live placement has
+          volume-bar pattern, all other rotating cubes use the same volume-bar SB,
+          Login and Sign Up use SB splash motion, the expired-link floating group uses
+          one diagonal brush-on/off SB, and both static identity placements use the
+          static SB mark. All nine placements are assigned; no live placement has
           changed.
         </div>
       </div>
@@ -405,6 +428,67 @@ function ResetCheckPreview({ children }: { children: ReactNode }) {
   );
 }
 
+function NavbarBrandPreview({ volumeBars = false }: { volumeBars?: boolean }) {
+  return (
+    <div className="flex min-h-40 items-center justify-center bg-[#F8F9FA] p-4">
+      <div className="flex w-full items-center justify-between rounded-xl bg-white px-4 py-4 shadow-sm">
+        {volumeBars ? (
+          <div className="flex items-center gap-2">
+            <SbEqualizerLoadingPattern size={28} showMessage={false} />
+            <span className="text-lg font-bold text-secondary-500">Study Buddy</span>
+          </div>
+        ) : (
+          <Logo variant="full" size="lg" animation="rotate" />
+        )}
+        <div className="flex gap-3 text-[10px] font-semibold text-gray-500">
+          <span>Materials</span>
+          <span>Exams</span>
+          <span>Profile</span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ExpiredResetDecorationPreview({ brush = false }: { brush?: boolean }) {
+  return (
+    <div className="flex min-h-52 flex-col items-center justify-center bg-[#F8F9FA] p-5">
+      <h3 className="text-xl font-bold text-secondary-500">Reset Link Expired</h3>
+      <div className="mt-9 flex min-h-9 items-center justify-center">
+        {brush ? (
+          <SbDiagonalBrushMotionPattern size={36} />
+        ) : (
+          <>
+            <Logo variant="icon" animation="floatReverse" size="2xl" />
+            <Logo variant="icon" animation="float" size="2xl" />
+            <Logo variant="icon" animation="floatReverse" size="2xl" />
+            <Logo variant="icon" animation="float" size="2xl" />
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function ExpiredResetFooterPreview({
+  volumeBars = false,
+}: {
+  volumeBars?: boolean;
+}) {
+  return (
+    <div className="flex min-h-52 flex-col items-center justify-center bg-[#F8F9FA] p-5">
+      <p className="mb-5 text-center text-sm text-gray-600">
+        Your password reset link has expired.
+      </p>
+      {volumeBars ? (
+        <SbEqualizerLoadingPattern size={28} showMessage={false} />
+      ) : (
+        <Logo variant="icon" animation="rotate" size="lg" />
+      )}
+    </div>
+  );
+}
+
 function AboutBadge({ iconSrc }: { iconSrc: string }) {
   return (
     <div className="flex min-h-40 items-center justify-center bg-white p-4">
@@ -449,11 +533,18 @@ function BrowserTab({ iconSrc }: { iconSrc: string }) {
   );
 }
 
-function AuthBrandPreview() {
+function AuthBrandPreview({ splash = false }: { splash?: boolean }) {
   return (
     <div className="flex min-h-52 flex-col items-center justify-center rounded-xl bg-[#F8F9FA] p-5">
       <div className="mb-6 flex flex-col items-center gap-2">
-        <Logo variant="full" size="lg" animated />
+        {splash ? (
+          <div className="flex items-center gap-2">
+            <SbSplashMotionPattern size={28} />
+            <span className="text-lg font-bold text-secondary-500">Study Buddy</span>
+          </div>
+        ) : (
+          <Logo variant="full" size="lg" animated />
+        )}
         <p className="text-center text-sm text-gray-500">
           Nigeria&apos;s WAEC prep companion
         </p>
