@@ -19,6 +19,46 @@ const B_UPPER_TRACE =
   "M475 365 C545 365 585 335 585 280 L585 130 C585 80 560 45 525 45 C485 45 456 75 456 125 L456 215 C456 240 443 258 420 265";
 const EQUALIZER_BAR_COUNT = 12;
 const SPIRAL_PATH = createSpiralPath();
+const DIAGONAL_BRUSH_IN_STROKES = [
+  "M-180 180 L180 -180",
+  "M-180 370 L370 -180",
+  "M-180 560 L560 -180",
+  "M-180 750 L750 -180",
+  "M-180 940 L940 -180",
+  "M-180 1130 L1130 -180",
+  "M-180 1320 L1320 -180",
+  "M-180 1510 L1510 -180",
+  "M-180 1700 L1700 -180",
+] as const;
+const DIAGONAL_BRUSH_OUT_STROKES = [
+  "M1700 -180 L-180 1700",
+  "M1510 -180 L-180 1510",
+  "M1320 -180 L-180 1320",
+  "M1130 -180 L-180 1130",
+  "M940 -180 L-180 940",
+  "M750 -180 L-180 750",
+  "M560 -180 L-180 560",
+  "M370 -180 L-180 370",
+  "M180 -180 L-180 180",
+] as const;
+const SPLASH_POINTS = [
+  { x: 235, y: 60, rotation: -18 },
+  { x: 425, y: 60, rotation: 14 },
+  { x: 600, y: 60, rotation: -8 },
+  { x: 235, y: 220, rotation: 11 },
+  { x: 425, y: 220, rotation: -15 },
+  { x: 600, y: 220, rotation: 20 },
+  { x: 235, y: 380, rotation: -10 },
+  { x: 425, y: 380, rotation: 17 },
+  { x: 600, y: 380, rotation: -21 },
+  { x: 235, y: 540, rotation: 19 },
+  { x: 425, y: 540, rotation: -12 },
+  { x: 600, y: 540, rotation: 8 },
+  { x: 235, y: 700, rotation: -16 },
+  { x: 425, y: 700, rotation: 13 },
+  { x: 600, y: 700, rotation: -5 },
+] as const;
+const SPLASH_OUT_ORDER = [7, 0, 13, 5, 10, 2, 12, 8, 3, 14, 6, 1, 11, 4, 9] as const;
 
 export default function SbSequentialFillPreview() {
   const [phase, setPhase] = useState(0);
@@ -44,6 +84,22 @@ export default function SbSequentialFillPreview() {
   const sProgress = clamp(phase / S_END);
   const bProgress = clamp((phase - S_END) / (B_END - S_END));
   const bottomUpProgress = clamp(phase / B_END);
+  const brushInProgress = segmentProgress(phase, 0.02, 0.42);
+  const brushOutProgress = segmentProgress(phase, 0.58, 0.98);
+  const brushStatus =
+    brushInProgress < 1
+      ? "Brushing diagonally in…"
+      : brushOutProgress === 0
+        ? "Fully brushed"
+        : "Brushing diagonally out…";
+  const splashInProgress = segmentProgress(phase, 0.02, 0.42);
+  const splashOutProgress = segmentProgress(phase, 0.58, 0.98);
+  const splashStatus =
+    splashInProgress < 1
+      ? "Splashing in…"
+      : splashOutProgress === 0
+        ? "Fully splashed"
+        : "Splashing out…";
   const equalizerLevels = Array.from({ length: EQUALIZER_BAR_COUNT }, (_, index) => {
     const cycles = 5 + (index % 4);
     const wave = Math.sin(phase * Math.PI * 2 * cycles + index * 1.35);
@@ -143,6 +199,197 @@ export default function SbSequentialFillPreview() {
               </div>
             </div>
           </ContextCard>
+        </div>
+      </div>
+
+      <div className="mt-5 rounded-2xl border border-primary-200 bg-white p-4 sm:p-6">
+        <div className="grid items-center gap-6 lg:grid-cols-[0.8fr_1.2fr]">
+          <div>
+            <p className="text-xs font-bold uppercase tracking-[0.14em] text-primary-700">
+              Diagonal brush motion test
+            </p>
+            <h3 className="mt-2 text-xl font-bold text-secondary-500">
+              Brush the SB diagonally in and out
+            </h3>
+            <p className="mt-2 text-sm leading-6 text-gray-700">
+              Parallel strokes sweep from the lower-left toward the upper-right until
+              the mark is full. After a short hold, the purple is brushed away across
+              the opposite diagonal. Everything remains clipped inside the pale SB
+              frame.
+            </p>
+          </div>
+
+          <div className="grid gap-4 sm:grid-cols-[220px_1fr] sm:items-center">
+            <div className="flex min-h-64 flex-col items-center justify-center rounded-xl bg-primary-50 p-4">
+              <BrushFillMark
+                size={200}
+                brushInProgress={brushInProgress}
+                brushOutProgress={brushOutProgress}
+                label={`Study Buddy diagonal brush animation: ${brushStatus}`}
+              />
+              <p className="mt-3 text-sm font-bold text-[#6C3483]">
+                {brushStatus}
+              </p>
+            </div>
+
+            <div className="grid grid-cols-3 gap-3">
+              {[
+                { size: 56, label: "56px" },
+                { size: 36, label: "36px" },
+                { size: 28, label: "28px" },
+              ].map(({ size, label }) => (
+                <div
+                  key={size}
+                  className="flex min-h-28 flex-col items-center justify-center rounded-xl bg-[#F8F9FA] p-3"
+                >
+                  <BrushFillMark
+                    size={size}
+                    brushInProgress={brushInProgress}
+                    brushOutProgress={brushOutProgress}
+                    label={`Study Buddy diagonal brush at ${label}`}
+                  />
+                  <p className="mt-3 text-xs font-bold text-secondary-500">
+                    {label}
+                  </p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-4">
+          {[
+            {
+              label: "Partly brushed",
+              brushInProgress: 0.35,
+              brushOutProgress: 0,
+            },
+            {
+              label: "Fully brushed",
+              brushInProgress: 1,
+              brushOutProgress: 0,
+            },
+            {
+              label: "Partly removed",
+              brushInProgress: 1,
+              brushOutProgress: 0.45,
+            },
+            {
+              label: "Cleared",
+              brushInProgress: 1,
+              brushOutProgress: 1,
+            },
+          ].map((checkpoint) => (
+            <div
+              key={checkpoint.label}
+              className="flex flex-col items-center rounded-xl bg-[#F8F9FA] p-3"
+            >
+              <BrushFillMark
+                size={80}
+                brushInProgress={checkpoint.brushInProgress}
+                brushOutProgress={checkpoint.brushOutProgress}
+                label={checkpoint.label}
+              />
+              <p className="mt-2 text-xs font-bold text-secondary-500">
+                {checkpoint.label}
+              </p>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div className="mt-5 rounded-2xl border border-primary-200 bg-white p-4 sm:p-6">
+        <div className="grid items-center gap-6 lg:grid-cols-[0.8fr_1.2fr]">
+          <div>
+            <p className="text-xs font-bold uppercase tracking-[0.14em] text-primary-700">
+              Splash motion test
+            </p>
+            <h3 className="mt-2 text-xl font-bold text-secondary-500">
+              Fill and clear the SB with splashes
+            </h3>
+            <p className="mt-2 text-sm leading-6 text-gray-700">
+              Purple ink-like splashes expand across the SB until it is completely
+              filled. After a short hold, a new splash order removes the colour while
+              the pale letter frame stays visible.
+            </p>
+          </div>
+
+          <div className="grid gap-4 sm:grid-cols-[220px_1fr] sm:items-center">
+            <div className="flex min-h-64 flex-col items-center justify-center rounded-xl bg-primary-50 p-4">
+              <SplashFillMark
+                size={200}
+                splashInProgress={splashInProgress}
+                splashOutProgress={splashOutProgress}
+                label={`Study Buddy splash animation: ${splashStatus}`}
+              />
+              <p className="mt-3 text-sm font-bold text-[#6C3483]">
+                {splashStatus}
+              </p>
+            </div>
+
+            <div className="grid grid-cols-3 gap-3">
+              {[
+                { size: 56, label: "56px" },
+                { size: 36, label: "36px" },
+                { size: 28, label: "28px" },
+              ].map(({ size, label }) => (
+                <div
+                  key={size}
+                  className="flex min-h-28 flex-col items-center justify-center rounded-xl bg-[#F8F9FA] p-3"
+                >
+                  <SplashFillMark
+                    size={size}
+                    splashInProgress={splashInProgress}
+                    splashOutProgress={splashOutProgress}
+                    label={`Study Buddy splash animation at ${label}`}
+                  />
+                  <p className="mt-3 text-xs font-bold text-secondary-500">
+                    {label}
+                  </p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-4">
+          {[
+            {
+              label: "Partly splashed",
+              splashInProgress: 0.35,
+              splashOutProgress: 0,
+            },
+            {
+              label: "Fully splashed",
+              splashInProgress: 1,
+              splashOutProgress: 0,
+            },
+            {
+              label: "Partly cleared",
+              splashInProgress: 1,
+              splashOutProgress: 0.45,
+            },
+            {
+              label: "Cleared",
+              splashInProgress: 1,
+              splashOutProgress: 1,
+            },
+          ].map((checkpoint) => (
+            <div
+              key={checkpoint.label}
+              className="flex flex-col items-center rounded-xl bg-[#F8F9FA] p-3"
+            >
+              <SplashFillMark
+                size={80}
+                splashInProgress={checkpoint.splashInProgress}
+                splashOutProgress={checkpoint.splashOutProgress}
+                label={checkpoint.label}
+              />
+              <p className="mt-2 text-xs font-bold text-secondary-500">
+                {checkpoint.label}
+              </p>
+            </div>
+          ))}
         </div>
       </div>
 
@@ -717,6 +964,223 @@ function SpiralFillMark({
   );
 }
 
+function BrushFillMark({
+  size,
+  brushInProgress,
+  brushOutProgress,
+  label,
+}: {
+  size: number;
+  brushInProgress: number;
+  brushOutProgress: number;
+  label: string;
+}) {
+  const maskId = `sb-brush-${useId().replaceAll(":", "")}`;
+
+  return (
+    <span
+      role="img"
+      aria-label={label}
+      className="relative inline-flex shrink-0"
+      style={{ width: size, height: size }}
+    >
+      <Image
+        src={MARK_SRC}
+        alt=""
+        width={size}
+        height={size}
+        widths={[size, size * 2]}
+        sizes={`${size}px`}
+        rounded="none"
+        className="!absolute !inset-0 !h-full !w-full object-contain opacity-[0.14]"
+      />
+      <svg
+        aria-hidden="true"
+        className="absolute inset-0 h-full w-full"
+        viewBox="0 0 745 745"
+        preserveAspectRatio="xMidYMid meet"
+      >
+        <defs>
+          <mask
+            id={maskId}
+            maskUnits="userSpaceOnUse"
+            maskContentUnits="userSpaceOnUse"
+            x="0"
+            y="0"
+            width="745"
+            height="745"
+          >
+            <rect width="745" height="745" fill="black" />
+            {DIAGONAL_BRUSH_IN_STROKES.map((path, index) => (
+              <path
+                key={`in-${path}`}
+                d={path}
+                fill="none"
+                stroke="white"
+                strokeWidth="170"
+                strokeLinecap="round"
+                pathLength="1"
+                strokeDasharray="1"
+                strokeDashoffset={
+                  1 -
+                  staggeredStrokeProgress(
+                    brushInProgress,
+                    index,
+                    DIAGONAL_BRUSH_IN_STROKES.length
+                  )
+                }
+              />
+            ))}
+            {DIAGONAL_BRUSH_OUT_STROKES.map((path, index) => (
+              <path
+                key={`out-${path}`}
+                d={path}
+                fill="none"
+                stroke="black"
+                strokeWidth="170"
+                strokeLinecap="round"
+                pathLength="1"
+                strokeDasharray="1"
+                strokeDashoffset={
+                  1 -
+                  staggeredStrokeProgress(
+                    brushOutProgress,
+                    index,
+                    DIAGONAL_BRUSH_OUT_STROKES.length
+                  )
+                }
+              />
+            ))}
+          </mask>
+        </defs>
+        <image
+          href={MARK_SRC}
+          width="745"
+          height="745"
+          preserveAspectRatio="xMidYMid meet"
+          mask={`url(#${maskId})`}
+        />
+      </svg>
+    </span>
+  );
+}
+
+function SplashFillMark({
+  size,
+  splashInProgress,
+  splashOutProgress,
+  label,
+}: {
+  size: number;
+  splashInProgress: number;
+  splashOutProgress: number;
+  label: string;
+}) {
+  const maskId = `sb-splash-${useId().replaceAll(":", "")}`;
+
+  return (
+    <span
+      role="img"
+      aria-label={label}
+      className="relative inline-flex shrink-0"
+      style={{ width: size, height: size }}
+    >
+      <Image
+        src={MARK_SRC}
+        alt=""
+        width={size}
+        height={size}
+        widths={[size, size * 2]}
+        sizes={`${size}px`}
+        rounded="none"
+        className="!absolute !inset-0 !h-full !w-full object-contain opacity-[0.14]"
+      />
+      <svg
+        aria-hidden="true"
+        className="absolute inset-0 h-full w-full"
+        viewBox="0 0 745 745"
+        preserveAspectRatio="xMidYMid meet"
+      >
+        <defs>
+          <mask
+            id={maskId}
+            maskUnits="userSpaceOnUse"
+            maskContentUnits="userSpaceOnUse"
+            x="0"
+            y="0"
+            width="745"
+            height="745"
+          >
+            <rect width="745" height="745" fill="black" />
+            {SPLASH_POINTS.map((splash, index) => (
+              <SplashMaskShape
+                key={`in-${splash.x}-${splash.y}`}
+                splash={splash}
+                progress={staggeredStrokeProgress(
+                  splashInProgress,
+                  index,
+                  SPLASH_POINTS.length
+                )}
+                fill="white"
+              />
+            ))}
+            {SPLASH_OUT_ORDER.map((splashIndex, index) => {
+              const splash = SPLASH_POINTS[splashIndex];
+
+              return (
+                <SplashMaskShape
+                  key={`out-${splash.x}-${splash.y}`}
+                  splash={splash}
+                  progress={staggeredStrokeProgress(
+                    splashOutProgress,
+                    index,
+                    SPLASH_OUT_ORDER.length
+                  )}
+                  fill="black"
+                />
+              );
+            })}
+          </mask>
+        </defs>
+        <image
+          href={MARK_SRC}
+          width="745"
+          height="745"
+          preserveAspectRatio="xMidYMid meet"
+          mask={`url(#${maskId})`}
+        />
+      </svg>
+    </span>
+  );
+}
+
+function SplashMaskShape({
+  splash,
+  progress,
+  fill,
+}: {
+  splash: (typeof SPLASH_POINTS)[number];
+  progress: number;
+  fill: "white" | "black";
+}) {
+  const scale = 1 - Math.pow(1 - clamp(progress), 3);
+
+  return (
+    <g
+      transform={`translate(${splash.x} ${splash.y}) rotate(${splash.rotation}) scale(${scale})`}
+      fill={fill}
+    >
+      <circle r="130" />
+      <circle cx="108" cy="-62" r="34" />
+      <circle cx="-106" cy="-46" r="27" />
+      <circle cx="95" cy="84" r="30" />
+      <circle cx="-68" cy="112" r="24" />
+      <circle cx="-118" cy="55" r="18" />
+      <circle cx="60" cy="-118" r="20" />
+    </g>
+  );
+}
+
 function ContextCard({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <article className="rounded-2xl border border-primary-200 bg-[#F8F9FA] p-4">
@@ -773,4 +1237,11 @@ function createSpiralPath() {
   });
 
   return points.map((point, index) => `${index === 0 ? "M" : "L"}${point}`).join(" ");
+}
+
+function staggeredStrokeProgress(progress: number, index: number, count: number) {
+  const strokeWindow = 0.34;
+  const start = (index / (count - 1)) * (1 - strokeWindow);
+
+  return segmentProgress(progress, start, start + strokeWindow);
 }
