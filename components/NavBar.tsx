@@ -3,12 +3,14 @@
 import { useState } from "react";
 import Logo from "./Logo";
 import Button from "./Button";
+import Image from "./Image";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 
 interface NavLink {
   label: string;
   href: string;
+  imageSrc?: string;
 }
 
 interface NavBarProps {
@@ -27,7 +29,11 @@ export default function NavBar({
     { label: "Mock Exams", href: "/exams" },
     { label: "Progress", href: "/progress" },
     { label: "Chat Bot", href: "/chat" },
-    { label: "Profile", href: "/profile" },
+    {
+      label: "Profile",
+      href: "/profile",
+      imageSrc: "/images/profile-avatar.svg",
+    },
   ] : [],
   signInLink,
   signUpLink,
@@ -81,10 +87,22 @@ export default function NavBar({
             key={link.href}
             href={link.href}
             prefetch={false}
-            className={`${linkBase} ${
+            className={`${linkBase} inline-flex items-center gap-2 ${
               pathname.startsWith(link.href) ? linkActive : ""
             }`}
           >
+            {link.imageSrc && (
+              <Image
+                src={link.imageSrc}
+                alt=""
+                width={28}
+                height={28}
+                widths={[28, 56]}
+                sizes="28px"
+                rounded="full"
+                className="!h-7 !w-7 shrink-0"
+              />
+            )}
             {link.label}
           </Link>
         ))}
@@ -169,10 +187,22 @@ export default function NavBar({
             <Link
               key={link.href}
               href={link.href}
-              className={`${linkBase} ${
+              className={`${linkBase} inline-flex items-center gap-2 ${
                 pathname.startsWith(link.href) ? linkActive : ""
               }`}
             >
+              {link.imageSrc && (
+                <Image
+                  src={link.imageSrc}
+                  alt=""
+                  width={28}
+                  height={28}
+                  widths={[28, 56]}
+                  sizes="28px"
+                  rounded="full"
+                  className="!h-7 !w-7 shrink-0"
+                />
+              )}
               {link.label}
             </Link>
           ))}
