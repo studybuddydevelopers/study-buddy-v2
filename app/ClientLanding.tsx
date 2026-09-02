@@ -40,7 +40,7 @@ export default function ClientLanding() {
         <section className="flex flex-col-reverse lg:flex-row-reverse items-center gap-12 mt-10">
 
           {/* Text Section */}
-          <div className="text-left w-1/2">
+          <div className="w-full text-left lg:w-1/2">
             <Heading1>Ace your WAEC exams with Study Buddy</Heading1>
 
             <Paragraph size="lg">
@@ -77,13 +77,19 @@ export default function ClientLanding() {
           </div>
 
           {/* Illustration */}
-          <div className="flex">
+          <div className="flex w-full items-center justify-center rounded-3xl bg-primary-50 p-3 sm:p-6 lg:w-1/2">
             <Image
-              src="https://picsum.photos/600/600"
-              alt="Students studying"
+              src="/images/study-buddy-students.svg"
+              alt="Two smiling Study Buddy students wearing purple and white shirts"
+              width={1265}
+              height={948}
+              sizes="(min-width: 1024px) 50vw, 100vw"
+              widths={[480, 768, 1265]}
+              loading="eager"
+              fetchPriority="high"
               rounded="xl"
-              shadow="md"
-              className="w-full min-w-[-webkit-fill-available]"
+              shadow="none"
+              className="w-full object-contain"
             />
           </div>
         </section>
