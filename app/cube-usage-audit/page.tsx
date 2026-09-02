@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import type { ReactNode } from "react";
 import Image from "@/components/Image";
 import Logo from "@/components/Logo";
+import { SbEqualizerLoadingPattern } from "@/components/SbSequentialFillPreview";
 
 export const metadata: Metadata = {
   title: "Current Cube Usage Audit | Study Buddy",
@@ -15,15 +16,15 @@ export default function CubeUsageAuditPage() {
       <div className="mx-auto w-full max-w-6xl px-5 py-10 sm:px-8 sm:py-14">
         <header className="rounded-3xl bg-secondary-500 px-6 py-8 text-white shadow-sm sm:px-9 sm:py-10">
           <p className="text-xs font-bold uppercase tracking-[0.2em] text-secondary-200">
-            Inventory only · no replacements assigned
+            Inventory only · one proposal assigned
           </p>
           <h1 className="mt-3 max-w-4xl text-3xl font-bold leading-tight text-white sm:text-4xl">
             Every place the current cube is used
           </h1>
           <p className="mt-4 max-w-3xl text-sm leading-6 text-secondary-100 sm:text-base">
             Each card recreates the current placement, size, animation, surrounding
-            copy, and purpose. The SB loading pattern has not been applied anywhere
-            on this page yet.
+            copy, and purpose. The SB volume-bar loading pattern is assigned only to
+            the global route loader; no live placement has been changed.
           </p>
 
           <div className="mt-7 grid gap-3 sm:grid-cols-3">
@@ -49,20 +50,29 @@ export default function CubeUsageAuditPage() {
               source="app/loading.tsx"
               size="400 × 400px icon"
               motion="2.5s outer spin + 2s icon rotation + 3s float"
+              replacement="SB volume-bar loading pattern"
               wide
             >
-              <div className="min-h-[510px] min-w-[430px] overflow-hidden rounded-xl bg-white p-6">
-                <div className="flex min-h-[460px] flex-col items-center justify-center">
-                  <div className="mb-6 animate-[cubeAuditSpin_2.5s_linear_infinite]">
-                    <Logo
-                      variant="icon"
-                      size="max"
-                      animated
-                      animation="rotate"
-                    />
+              <div className="grid min-w-[920px] gap-4 xl:grid-cols-2">
+                <PreviewState label="Current · rotating cube">
+                  <div className="flex min-h-[500px] flex-col items-center justify-center">
+                    <div className="mb-6 animate-[cubeAuditSpin_2.5s_linear_infinite]">
+                      <Logo
+                        variant="icon"
+                        size="max"
+                        animated
+                        animation="rotate"
+                      />
+                    </div>
+                    <p className="text-base text-gray-500">Loading, please wait…</p>
                   </div>
-                  <p className="text-base text-gray-500">Loading, please wait…</p>
-                </div>
+                </PreviewState>
+
+                <PreviewState label="Proposed · SB volume-bar pattern" proposed>
+                  <div className="flex min-h-[500px] items-center justify-center">
+                    <SbEqualizerLoadingPattern size={400} />
+                  </div>
+                </PreviewState>
               </div>
             </UsageCard>
 
@@ -276,8 +286,9 @@ export default function CubeUsageAuditPage() {
         </section>
 
         <div className="mt-8 rounded-2xl border border-amber-200 bg-amber-50 p-5 text-sm leading-6 text-amber-950">
-          <strong>Decision status:</strong> all nine replacement assignments remain
-          intentionally unassigned. This page changes no live cube placement.
+          <strong>Decision status:</strong> the Global route loading screen is assigned
+          the SB volume-bar loading pattern. The other eight placements remain
+          unassigned, and no live cube placement has changed.
         </div>
       </div>
 
@@ -299,6 +310,7 @@ function UsageCard({
   source,
   size,
   motion,
+  replacement,
   wide = false,
   children,
 }: {
@@ -309,6 +321,7 @@ function UsageCard({
   source: string;
   size: string;
   motion: string;
+  replacement?: string;
   wide?: boolean;
   children: ReactNode;
 }) {
@@ -347,11 +360,48 @@ function UsageCard({
         <span className="text-xs font-bold uppercase tracking-[0.12em] text-gray-500">
           Proposed replacement
         </span>
-        <span className="rounded-full border border-amber-300 bg-amber-50 px-3 py-1 text-xs font-bold text-amber-800">
-          Unassigned
+        <span
+          className={`rounded-full border px-3 py-1 text-xs font-bold ${
+            replacement
+              ? "border-primary-300 bg-primary-50 text-primary-800"
+              : "border-amber-300 bg-amber-50 text-amber-800"
+          }`}
+        >
+          {replacement ?? "Unassigned"}
         </span>
       </div>
     </article>
+  );
+}
+
+function PreviewState({
+  label,
+  proposed = false,
+  children,
+}: {
+  label: string;
+  proposed?: boolean;
+  children: ReactNode;
+}) {
+  return (
+    <div
+      className={`overflow-hidden rounded-xl border ${
+        proposed
+          ? "border-primary-300 bg-primary-50"
+          : "border-gray-200 bg-white"
+      }`}
+    >
+      <div
+        className={`border-b px-4 py-3 text-xs font-bold uppercase tracking-[0.12em] ${
+          proposed
+            ? "border-primary-200 text-primary-700"
+            : "border-gray-200 text-gray-500"
+        }`}
+      >
+        {label}
+      </div>
+      {children}
+    </div>
   );
 }
 
