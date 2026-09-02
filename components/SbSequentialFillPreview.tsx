@@ -108,6 +108,68 @@ export function SbEqualizerLoadingPattern({
   );
 }
 
+export function SbSplashMotionPattern({ size = 28 }: { size?: number }) {
+  const [phase, setPhase] = useState(0);
+
+  useEffect(() => {
+    const startedAt = performance.now();
+    let frameId = 0;
+
+    const tick = (now: number) => {
+      if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+        setPhase(0.5);
+        return;
+      }
+
+      setPhase(((now - startedAt) % CYCLE_MS) / CYCLE_MS);
+      frameId = window.requestAnimationFrame(tick);
+    };
+
+    frameId = window.requestAnimationFrame(tick);
+    return () => window.cancelAnimationFrame(frameId);
+  }, []);
+
+  return (
+    <SplashFillMark
+      size={size}
+      splashInProgress={segmentProgress(phase, 0.02, 0.42)}
+      splashOutProgress={segmentProgress(phase, 0.58, 0.98)}
+      label="Study Buddy splash animation"
+    />
+  );
+}
+
+export function SbDiagonalBrushMotionPattern({ size = 36 }: { size?: number }) {
+  const [phase, setPhase] = useState(0);
+
+  useEffect(() => {
+    const startedAt = performance.now();
+    let frameId = 0;
+
+    const tick = (now: number) => {
+      if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+        setPhase(0.5);
+        return;
+      }
+
+      setPhase(((now - startedAt) % CYCLE_MS) / CYCLE_MS);
+      frameId = window.requestAnimationFrame(tick);
+    };
+
+    frameId = window.requestAnimationFrame(tick);
+    return () => window.cancelAnimationFrame(frameId);
+  }, []);
+
+  return (
+    <BrushFillMark
+      size={size}
+      brushInProgress={segmentProgress(phase, 0.02, 0.42)}
+      brushOutProgress={segmentProgress(phase, 0.58, 0.98)}
+      label="Study Buddy diagonal brush-on and brush-off animation"
+    />
+  );
+}
+
 export default function SbSequentialFillPreview() {
   const [phase, setPhase] = useState(0);
 
