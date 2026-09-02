@@ -392,6 +392,63 @@ function PreviewState({
   );
 }
 
+function ResetCheckPreview({ children }: { children: ReactNode }) {
+  return (
+    <div className="flex min-h-48 items-center justify-center bg-[#F8F9FA] p-4">
+      <div className="flex w-full flex-col items-center rounded-xl bg-white p-5 shadow-sm">
+        <h4 className="text-center text-base font-bold text-secondary-500">
+          Checking Reset Link
+        </h4>
+        <div className="mt-6">{children}</div>
+      </div>
+    </div>
+  );
+}
+
+function AboutBadge({ iconSrc }: { iconSrc: string }) {
+  return (
+    <div className="flex min-h-40 items-center justify-center bg-white p-4">
+      <div className="inline-flex items-center gap-2 rounded-lg border border-primary-200 bg-primary-50 px-3 py-2 text-sm font-semibold text-primary-700">
+        <Image
+          src={iconSrc}
+          alt=""
+          className="!h-5 !w-5"
+          width={20}
+          height={20}
+          sizes="20px"
+          widths={[20, 40]}
+          rounded="none"
+        />
+        Study Buddy
+      </div>
+    </div>
+  );
+}
+
+function BrowserTab({ iconSrc }: { iconSrc: string }) {
+  return (
+    <div className="flex min-h-40 items-center justify-center bg-[#F8F9FA] p-4">
+      <div className="w-full overflow-hidden rounded-xl border border-gray-300 bg-white shadow-sm">
+        <div className="flex h-11 items-center gap-2 border-b border-gray-200 px-3">
+          <Image
+            src={iconSrc}
+            alt=""
+            width={16}
+            height={16}
+            widths={[16, 32]}
+            sizes="16px"
+            rounded="none"
+            className="!h-4 !w-4"
+          />
+          <span className="text-xs text-gray-700">Study Buddy</span>
+          <span className="ml-auto text-gray-400">×</span>
+        </div>
+        <div className="h-10 bg-gray-50" />
+      </div>
+    </div>
+  );
+}
+
 function AuthBrandPreview() {
   return (
     <div className="flex min-h-52 flex-col items-center justify-center rounded-xl bg-[#F8F9FA] p-5">
