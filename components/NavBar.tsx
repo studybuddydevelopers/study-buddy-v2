@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import Logo from "./Logo";
+import LogoName from "./LogoName";
+import { SbEqualizerLoadingPattern } from "./SbSequentialFillPreview";
 import Button from "./Button";
 import Image from "./Image";
 import Link from "next/link";
@@ -78,7 +79,10 @@ export default function NavBar({
   return (
     <header className="flex items-center justify-between bg-background shadow px-6 py-3">
       <Link href={isAuthenticated ? "/dashboard" : "/"} prefetch={false}>
-        <Logo variant="full" size="lg" animation="rotate" />
+        <div className="flex items-center gap-2">
+          <SbEqualizerLoadingPattern size={28} showMessage={false} />
+          <LogoName size="lg" />
+        </div>
       </Link>
 
       <nav className="hidden md:flex space-x-8">
