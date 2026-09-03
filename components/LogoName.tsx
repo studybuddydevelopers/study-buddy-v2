@@ -22,7 +22,7 @@ export default function LogoName({
   };
 
   const colorClasses: Record<NonNullable<LogoNameProps["color"]>, string> = {
-    default: "text-secondary-500",
+    default: "text-[#6C3483]",
     primary: "text-primary-500",
     secondary: "text-secondary-500",
     accent: "text-accent-500",
