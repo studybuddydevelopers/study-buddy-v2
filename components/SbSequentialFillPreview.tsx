@@ -989,7 +989,8 @@ function EqualizerFillMark({
         </defs>
         <g mask={`url(#${maskId})`}>
           {levels.map((level, index) => {
-            const barHeight = maximumBarHeight * clamp(level);
+            const barHeight =
+              Math.round(maximumBarHeight * clamp(level) * 1000) / 1000;
 
             return (
               <rect
