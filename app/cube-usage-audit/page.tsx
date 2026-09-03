@@ -9,9 +9,9 @@ import {
 } from "@/components/SbSequentialFillPreview";
 
 export const metadata: Metadata = {
-  title: "Current Cube Usage Audit | Study Buddy",
+  title: "Logo Replacement Audit | Study Buddy",
   description:
-    "A visual inventory of every production placement of the current Study Buddy cube.",
+    "A visual record of every completed Study Buddy cube replacement.",
 };
 
 export default function CubeUsageAuditPage() {
@@ -20,7 +20,7 @@ export default function CubeUsageAuditPage() {
       <div className="mx-auto w-full max-w-6xl px-5 py-10 sm:px-8 sm:py-14">
         <header className="rounded-3xl bg-secondary-500 px-6 py-8 text-white shadow-sm sm:px-9 sm:py-10">
           <p className="text-xs font-bold uppercase tracking-[0.2em] text-secondary-200">
-            Inventory only · all nine proposals assigned
+            Implementation complete · all nine replacements live
           </p>
           <h1 className="mt-3 max-w-4xl text-3xl font-bold leading-tight text-white sm:text-4xl">
             Every place the current cube is used
@@ -30,7 +30,7 @@ export default function CubeUsageAuditPage() {
             copy, and purpose. Rotating cubes use the proposed SB volume-bar pattern,
             the expired-link floating decoration uses one diagonal brush-on/off SB,
             and the auth headers use SB splash motion. Static identity placements use
-            the static SB mark. No live placement has been changed.
+            the static SB mark. Every live placement has now been updated.
           </p>
 
           <div className="mt-7 grid gap-3 sm:grid-cols-3">
@@ -74,7 +74,7 @@ export default function CubeUsageAuditPage() {
                   </div>
                 </PreviewState>
 
-                <PreviewState label="Proposed · SB volume-bar pattern" proposed>
+                <PreviewState label="Replacement · SB volume-bar pattern" proposed>
                   <div className="flex min-h-[500px] items-center justify-center">
                     <SbEqualizerLoadingPattern size={400} />
                   </div>
@@ -98,7 +98,7 @@ export default function CubeUsageAuditPage() {
                     <Logo variant="icon" animation="rotate" size="lg" />
                   </ResetCheckPreview>
                 </PreviewState>
-                <PreviewState label="Proposed · volume bars" proposed>
+                <PreviewState label="Replacement · volume bars" proposed>
                   <ResetCheckPreview>
                     <SbEqualizerLoadingPattern size={28} showMessage={false} />
                   </ResetCheckPreview>
@@ -130,7 +130,7 @@ export default function CubeUsageAuditPage() {
                 <PreviewState label="Current · rotating cube">
                   <NavbarBrandPreview />
                 </PreviewState>
-                <PreviewState label="Proposed · volume bars" proposed>
+                <PreviewState label="Replacement · volume bars" proposed>
                   <NavbarBrandPreview volumeBars />
                 </PreviewState>
               </div>
@@ -150,7 +150,7 @@ export default function CubeUsageAuditPage() {
                 <PreviewState label="Current · floating cube">
                   <AuthBrandPreview />
                 </PreviewState>
-                <PreviewState label="Proposed · SB splash" proposed>
+                <PreviewState label="Replacement · SB splash" proposed>
                   <AuthBrandPreview splash />
                 </PreviewState>
               </div>
@@ -170,7 +170,7 @@ export default function CubeUsageAuditPage() {
                 <PreviewState label="Current · floating cube">
                   <AuthBrandPreview />
                 </PreviewState>
-                <PreviewState label="Proposed · SB splash" proposed>
+                <PreviewState label="Replacement · SB splash" proposed>
                   <AuthBrandPreview splash />
                 </PreviewState>
               </div>
@@ -190,7 +190,7 @@ export default function CubeUsageAuditPage() {
                 <PreviewState label="Current · four floating cubes">
                   <ExpiredResetDecorationPreview />
                 </PreviewState>
-                <PreviewState label="Proposed · one diagonal brush SB" proposed>
+                <PreviewState label="Replacement · one diagonal brush SB" proposed>
                   <ExpiredResetDecorationPreview brush />
                 </PreviewState>
               </div>
@@ -210,7 +210,7 @@ export default function CubeUsageAuditPage() {
                 <PreviewState label="Current · rotating cube">
                   <ExpiredResetFooterPreview />
                 </PreviewState>
-                <PreviewState label="Proposed · volume bars" proposed>
+                <PreviewState label="Replacement · volume bars" proposed>
                   <ExpiredResetFooterPreview volumeBars />
                 </PreviewState>
               </div>
@@ -240,7 +240,7 @@ export default function CubeUsageAuditPage() {
                 <PreviewState label="Current · static cube">
                   <AboutBadge iconSrc="/logo-icon.svg" />
                 </PreviewState>
-                <PreviewState label="Proposed · static SB" proposed>
+                <PreviewState label="Replacement · static SB" proposed>
                   <AboutBadge iconSrc="/images/proposed-sb-mark.svg" />
                 </PreviewState>
               </div>
@@ -260,7 +260,7 @@ export default function CubeUsageAuditPage() {
                 <PreviewState label="Current · cube favicon">
                   <BrowserTab iconSrc="/logo-icon.svg" />
                 </PreviewState>
-                <PreviewState label="Proposed · SB favicon" proposed>
+                <PreviewState label="Replacement · SB favicon" proposed>
                   <BrowserTab iconSrc="/images/proposed-sb-mark.svg" />
                 </PreviewState>
               </div>
@@ -297,8 +297,7 @@ export default function CubeUsageAuditPage() {
           volume-bar pattern, all other rotating cubes use the same volume-bar SB,
           Login and Sign Up use SB splash motion, the expired-link floating group uses
           one diagonal brush-on/off SB, and both static identity placements use the
-          static SB mark. All nine placements are assigned; no live placement has
-          changed.
+          static SB mark. All nine replacements are now live across the site.
         </div>
       </div>
 
@@ -368,7 +367,7 @@ function UsageCard({
 
       <div className="flex items-center justify-between gap-3 border-t border-gray-200 px-5 py-3">
         <span className="text-xs font-bold uppercase tracking-[0.12em] text-gray-500">
-          Proposed replacement
+          Implemented replacement
         </span>
         <span
           className={`rounded-full border px-3 py-1 text-xs font-bold ${
@@ -435,7 +434,7 @@ function NavbarBrandPreview({ volumeBars = false }: { volumeBars?: boolean }) {
         {volumeBars ? (
           <div className="flex items-center gap-2">
             <SbEqualizerLoadingPattern size={28} showMessage={false} />
-            <span className="text-lg font-bold text-secondary-500">Study Buddy</span>
+            <span className="text-lg font-bold text-[#6C3483]">Study Buddy</span>
           </div>
         ) : (
           <Logo variant="full" size="lg" animation="rotate" />
@@ -540,7 +539,7 @@ function AuthBrandPreview({ splash = false }: { splash?: boolean }) {
         {splash ? (
           <div className="flex items-center gap-2">
             <SbSplashMotionPattern size={28} />
-            <span className="text-lg font-bold text-secondary-500">Study Buddy</span>
+            <span className="text-lg font-bold text-[#6C3483]">Study Buddy</span>
           </div>
         ) : (
           <Logo variant="full" size="lg" animated />
