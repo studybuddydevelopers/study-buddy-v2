@@ -205,7 +205,7 @@ function HeaderLogoPreview({ size, label }: { size: number; label: string }) {
       <div className="flex min-h-20 items-center justify-between gap-4 px-4 sm:px-5">
         <div className="flex min-w-0 items-center gap-2.5">
           <ArtworkAtHeight size={size} />
-          <span className="truncate text-lg font-bold text-secondary-500">
+          <span className="truncate text-lg font-bold text-[#6C3483]">
             Study Buddy
           </span>
         </div>
