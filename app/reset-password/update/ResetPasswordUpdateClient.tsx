@@ -10,7 +10,10 @@ import Button from "@/components/Button";
 import TextField from "@/components/TextField";
 import { FaHandPeace, FaHandPointDown } from "react-icons/fa6";
 import { FaHandPaper } from "react-icons/fa";
-import Logo from "@/components/Logo";
+import {
+  SbDiagonalBrushMotionPattern,
+  SbEqualizerLoadingPattern,
+} from "@/components/SbSequentialFillPreview";
 
 const HAND_ICONS = [FaHandPeace, FaHandPaper, FaHandPointDown];
 
@@ -217,7 +220,9 @@ export default function ResetPasswordUpdateClient() {
           <Heading2 gutter="sm" className="text-center">
             Checking Reset Link
           </Heading2>
-          <Logo variant="icon" animation="rotate" size="lg" className="mt-6" />
+          <div className="mt-6">
+            <SbEqualizerLoadingPattern size={28} showMessage={false} />
+          </div>
         </Card>
       </div>
     );
@@ -232,17 +237,14 @@ export default function ResetPasswordUpdateClient() {
           </Heading2>
 
           <div className="flex flex-row justify-self-center mt-14 mb-10">
-            <Logo variant="icon" animation="floatReverse" size="2xl" />
-            <Logo variant="icon" animation="float" size="2xl" />
-            <Logo variant="icon" animation="floatReverse" size="2xl" />
-            <Logo variant="icon" animation="float" size="2xl" />
+            <SbDiagonalBrushMotionPattern size={36} />
           </div>
 
           <p className="text-gray-600 mb-4 px-4 text-center">
             {errorMessage || "Your password reset link has expired."}
           </p>
 
-          <Logo variant="icon" animation="rotate" size="lg" className="text-center" />
+          <SbEqualizerLoadingPattern size={28} showMessage={false} />
         </Card>
       </div>
     );
