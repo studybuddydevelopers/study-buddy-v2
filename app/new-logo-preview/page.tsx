@@ -100,7 +100,7 @@ export default function NewLogoPreviewPage() {
                     hover
                     label="Proposed SB logo"
                   />
-                  <span className="text-lg font-bold text-secondary-500">
+                  <span className="text-lg font-bold text-[#6C3483]">
                     Study Buddy
                   </span>
                 </div>
@@ -145,7 +145,7 @@ export default function NewLogoPreviewPage() {
                     animationClass="animate-[logoFloat_3s_ease-in-out_infinite]"
                     label="Floating SB logo"
                   />
-                  <span className="text-lg font-bold text-secondary-500">
+                  <span className="text-lg font-bold text-[#6C3483]">
                     Study Buddy
                   </span>
                 </div>
