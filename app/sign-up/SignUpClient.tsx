@@ -5,7 +5,8 @@ import { useRouter } from "next/navigation";
 import Heading2 from "@/components/Heading2";
 import TextField from "@/components/TextField";
 import Button from "@/components/Button";
-import Logo from "@/components/Logo";
+import LogoName from "@/components/LogoName";
+import { SbSplashMotionPattern } from "@/components/SbSequentialFillPreview";
 import CaptchaChallenge, {
   captchaEnabled,
   type CaptchaChallengeHandle,
@@ -119,7 +120,10 @@ export default function SignUpClient() {
 
       {/* Brand header — visible on mobile, subtle on desktop */}
       <div className="mb-6 flex flex-col items-center gap-2">
-        <Logo variant="full" size="lg" animated />
+        <div className="flex items-center gap-2">
+          <SbSplashMotionPattern size={28} />
+          <LogoName size="lg" />
+        </div>
         <p className="text-sm text-gray-500 text-center">
           Nigeria&apos;s WAEC prep companion
         </p>
