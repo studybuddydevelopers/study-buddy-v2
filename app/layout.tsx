@@ -11,7 +11,7 @@ export const runtime = "nodejs"; // <-- required
 export const metadata: Metadata = {
   title: "Study Buddy",
   description: "The no 1 platform to get high grades at WAEC exams",
-  icons: ["logo-icon.svg"],
+  icons: ["/logo-icon.svg"],
 };
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
