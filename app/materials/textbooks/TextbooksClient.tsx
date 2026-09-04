@@ -1,8 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { BookOpen, ChevronRight, ClipboardList } from "lucide-react";
+import { BookOpen, ClipboardList } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
+import StudyBuddyIcon from "@/components/StudyBuddyIcon";
 import type { MaterialsSubjectSection } from "../materials.types";
 
 const TEXTBOOK_COLLECTIONS: {
@@ -118,9 +119,10 @@ function CollectionCard({
           >
             <Icon size={32} style={{ color }} aria-hidden="true" />
           </div>
-          <ChevronRight
-            size={22}
-            className="text-primary-500 transition group-hover:translate-x-0.5"
+          <StudyBuddyIcon
+            name="chevron"
+            size={24}
+            className="transition group-hover:translate-x-0.5"
           />
         </div>
         <div>
