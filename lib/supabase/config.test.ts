@@ -121,7 +121,7 @@ describe("Supabase public configuration", () => {
 
   it("keeps ordinary auth client files on the shared public-key resolver", () => {
     const checkedFiles = [
-      "middleware.ts",
+      "proxy.ts",
       "lib/auth.ts",
       "lib/getSession.ts",
       "lib/supabaseClient.ts",
