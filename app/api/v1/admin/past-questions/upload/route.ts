@@ -4,6 +4,11 @@ import { prisma } from "@/lib/prisma";
 import { requireAdmin } from "@/lib/auth";
 import { createServerClient, type CookieOptions } from "@supabase/ssr";
 import { getServerSupabaseConfig } from "@/lib/supabase/config";
+import {
+  parseFormDataRequest,
+  REQUEST_LIMITS,
+} from "@/lib/security/request-body";
+import { fetchWithTimeout } from "@/lib/security/timeouts";
 
 export async function POST(req: Request) {
   // ----------------------------------------
@@ -15,7 +20,12 @@ export async function POST(req: Request) {
   // ----------------------------------------
   // 2. Parse FormData
   // ----------------------------------------
-  const formData = await req.formData();
+  const parsedForm = await parseFormDataRequest(
+    req,
+    REQUEST_LIMITS.imageUpload
+  );
+  if (!parsedForm.ok) return parsedForm.response;
+  const formData = parsedForm.data;
 
   const subjectId = formData.get("subjectId")?.toString();
   const topicId = formData.get("topicId")?.toString() ?? null;
@@ -69,6 +79,7 @@ export async function POST(req: Request) {
     supabaseConfig.url,
     supabaseConfig.key,
     {
+      global: { fetch: fetchWithTimeout },
       cookies: {
         get(name: string) {
           return req.headers
