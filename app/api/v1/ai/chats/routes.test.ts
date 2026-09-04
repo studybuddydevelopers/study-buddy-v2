@@ -18,6 +18,10 @@ vi.mock("@/lib/ai/chats/chat-service", () => ({
   getChatService: vi.fn(() => serviceMocks),
 }));
 
+vi.mock("@/lib/security/rate-limit", () => ({
+  enforceAiRequestLimits: vi.fn().mockResolvedValue(null),
+}));
+
 describe("Stage 1 chat routes", () => {
   beforeEach(async () => {
     vi.clearAllMocks();
