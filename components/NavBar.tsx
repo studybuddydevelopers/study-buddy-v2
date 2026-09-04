@@ -7,10 +7,14 @@ import Button from "./Button";
 import Image from "./Image";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
+import StudyBuddyIcon, {
+  type StudyBuddyIconName,
+} from "./StudyBuddyIcon";
 
 interface NavLink {
   label: string;
   href: string;
+  iconName?: StudyBuddyIconName;
   imageSrc?: string;
 }
 
@@ -25,11 +29,11 @@ interface NavBarProps {
 export default function NavBar({
   isAuthenticated,
   links = isAuthenticated ? [
-    { label: "Dashboard", href: "/dashboard" },
-    { label: "Study Materials", href: "/materials" },
-    { label: "Mock Exams", href: "/exams" },
-    { label: "Progress", href: "/progress" },
-    { label: "Chat Bot", href: "/chat" },
+    { label: "Dashboard", href: "/dashboard", iconName: "dashboard" },
+    { label: "Study Materials", href: "/materials", iconName: "materials" },
+    { label: "Mock Exams", href: "/exams", iconName: "exams" },
+    { label: "Progress", href: "/progress", iconName: "progress" },
+    { label: "Chat Bot", href: "/chat", iconName: "chat" },
     {
       label: "Profile",
       href: "/profile",
@@ -84,7 +88,7 @@ export default function NavBar({
         </div>
       </Link>
 
-      <nav className="hidden min-[1110px]:flex space-x-8">
+      <nav className="hidden min-[1110px]:flex min-[1110px]:gap-3 xl:gap-5">
         {links.map((link) => (
           <Link
             key={link.href}
@@ -94,6 +98,13 @@ export default function NavBar({
               pathname.startsWith(link.href) ? linkActive : ""
             }`}
           >
+            {link.iconName && (
+              <StudyBuddyIcon
+                name={link.iconName}
+                size={24}
+                className="shrink-0"
+              />
+            )}
             {link.imageSrc && (
               <Image
                 src={link.imageSrc}
