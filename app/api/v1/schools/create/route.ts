@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireAdmin } from "@/lib/auth";
+import { parseJsonObjectRequest } from "@/lib/security/request-body";
 
 export async function POST(req: Request) {
   // ---------------------------------------------------------
@@ -12,15 +13,9 @@ export async function POST(req: Request) {
   // ---------------------------------------------------------
   // 2. PARSE INPUT
   // ---------------------------------------------------------
-  let body;
-  try {
-    body = await req.json();
-  } catch {
-    return NextResponse.json(
-      { error: "Invalid JSON body" },
-      { status: 400 }
-    );
-  }
+  const parsedBody = await parseJsonObjectRequest(req);
+  if (!parsedBody.ok) return parsedBody.response;
+  const body = parsedBody.data;
 
   const { name, location, adminEmail } = body;
 
@@ -32,14 +27,18 @@ export async function POST(req: Request) {
   }
 
   // location and adminEmail are optional but must be strings if provided
-  if (location && typeof location !== "string") {
+  if (location !== undefined && location !== null && typeof location !== "string") {
     return NextResponse.json(
       { error: "location must be a string" },
       { status: 400 }
     );
   }
 
-  if (adminEmail && typeof adminEmail !== "string") {
+  if (
+    adminEmail !== undefined &&
+    adminEmail !== null &&
+    typeof adminEmail !== "string"
+  ) {
     return NextResponse.json(
       { error: "adminEmail must be a string" },
       { status: 400 }
@@ -52,8 +51,8 @@ export async function POST(req: Request) {
   const school = await prisma.school.create({
     data: {
       name,
-      location: location ?? null,
-      adminEmail: adminEmail ?? null,
+      location: (location as string | null | undefined) ?? null,
+      adminEmail: (adminEmail as string | null | undefined) ?? null,
     },
     include: {
       students: true, // returns empty array by default
