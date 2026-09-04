@@ -48,14 +48,14 @@ export default function ClientLanding() {
             </Paragraph>
 
             {/* Buttons */}
-            <div className="flex gap-4 mt-8">
+            <div className="mt-8 flex flex-col gap-4 min-[426px]:flex-row">
               <Button
                 variant="primary"
                 size="lg"
                 loading={loadingStart}
                 disabled={loadingStart}
                 onClick={handleStart}
-                className="rounded-3xl"
+                className="w-full rounded-3xl min-[426px]:w-auto"
               >
                 Get Started
               </Button>
@@ -66,7 +66,7 @@ export default function ClientLanding() {
                 loading={loadingLearn}
                 disabled={loadingLearn}
                 onClick={handleLearn}
-                className="rounded-3xl pl-6 pr-6"
+                className="w-full rounded-3xl pl-6 pr-6 min-[426px]:w-auto"
               >
                 Learn More
               </Button>
@@ -97,69 +97,87 @@ export default function ClientLanding() {
             Why Choose Study Buddy?
           </Heading1>
 
-          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+          <div className="space-y-7">
 
             {/* Card 1 */}
-            <Card className="h-full w-full" padding="xs" shadow="sm" hover>
-              <Image
-                src="/icon-audit/proposal-source/study-plan"
-                alt="Student selecting activities for a personalised study plan"
-                width={3000}
-                height={2250}
-                rounded="xl"
-                className="mb-5 !h-40 !w-full bg-primary-50 object-contain"
-              />
+            <Card className="w-full !max-w-none overflow-hidden" padding="none" shadow="sm" hover>
+              <div className="flex flex-col md:min-h-72 md:flex-row">
+                <div className="flex items-center justify-center bg-primary-50 p-4 sm:p-6 md:w-[46%]">
+                  <Image
+                    src="/icon-audit/proposal-source/study-plan"
+                    alt="Student selecting activities for a personalised study plan"
+                    width={3000}
+                    height={2250}
+                    rounded="none"
+                    className="!h-auto !w-full !object-contain"
+                  />
+                </div>
 
-              <Heading6 gutter="sm" weight="bold" className="text-left">
-                Personalized Study Plans
-              </Heading6>
+                <div className="flex flex-1 flex-col justify-center px-6 py-8 sm:px-10 md:py-10">
+                  <Heading6 gutter="sm" weight="bold" className="text-left">
+                    Personalized Study Plans
+                  </Heading6>
 
-              <Paragraph variant="superMuted" className="text-left">
-                Get a study plan tailored to your learning style and pace, ensuring 
-                you cover all the necessary material effectively.
-              </Paragraph>
+                  <Paragraph variant="superMuted" className="max-w-xl text-left">
+                    Get a study plan tailored to your learning style and pace, ensuring
+                    you cover all the necessary material effectively.
+                  </Paragraph>
+                </div>
+              </div>
             </Card>
 
             {/* Card 2 */}
-            <Card className="h-full w-full" padding="xs" shadow="sm" hover>
-              <Image
-                src="/icon-audit/proposal-source/practice-tests"
-                alt="Student completing a timed online practice test"
-                width={3000}
-                height={2250}
-                rounded="xl"
-                className="mb-5 !h-40 !w-full bg-primary-50 object-contain"
-              />
+            <Card className="w-full !max-w-none overflow-hidden" padding="none" shadow="sm" hover>
+              <div className="flex flex-col md:min-h-72 md:flex-row-reverse">
+                <div className="flex items-center justify-center bg-primary-50 p-4 sm:p-6 md:w-[46%]">
+                  <Image
+                    src="/icon-audit/proposal-source/practice-tests"
+                    alt="Student completing a timed online practice test"
+                    width={3000}
+                    height={2250}
+                    rounded="none"
+                    className="!h-auto !w-full !object-contain"
+                  />
+                </div>
 
-              <Heading6 gutter="sm" weight="bold" className="max-w-48 text-left">
-                Comprehensive Practice Tests
-              </Heading6>
+                <div className="flex flex-1 flex-col justify-center px-6 py-8 sm:px-10 md:py-10">
+                  <Heading6 gutter="sm" weight="bold" className="text-left">
+                    Comprehensive Practice Tests
+                  </Heading6>
 
-              <Paragraph variant="superMuted" className="text-left">
-                Take full-length WAEC practice exams that replicate test-day conditions,
-                empowering you to build confidence, track progress, and improve your score.
-              </Paragraph>
+                  <Paragraph variant="superMuted" className="max-w-xl text-left">
+                    Take full-length WAEC practice exams that replicate test-day conditions,
+                    empowering you to build confidence, track progress, and improve your score.
+                  </Paragraph>
+                </div>
+              </div>
             </Card>
 
             {/* Card 3 */}
-            <Card className="h-full w-full" padding="xs" shadow="sm" hover>
-              <Image
-                src="/icon-audit/proposal-source/expert-guidance"
-                alt="Student following a guidance pathway towards success"
-                width={3000}
-                height={2250}
-                rounded="xl"
-                className="mb-5 !h-40 !w-full bg-primary-50 object-contain"
-              />
+            <Card className="w-full !max-w-none overflow-hidden" padding="none" shadow="sm" hover>
+              <div className="flex flex-col md:min-h-72 md:flex-row">
+                <div className="flex items-center justify-center bg-primary-50 p-4 sm:p-6 md:w-[46%]">
+                  <Image
+                    src="/icon-audit/proposal-source/expert-guidance"
+                    alt="Student following a guidance pathway towards success"
+                    width={3000}
+                    height={2250}
+                    rounded="none"
+                    className="!h-auto !w-full !object-contain"
+                  />
+                </div>
 
-              <Heading6 gutter="sm" weight="bold" className="text-left">
-                Expert Guidance
-              </Heading6>
+                <div className="flex flex-1 flex-col justify-center px-6 py-8 sm:px-10 md:py-10">
+                  <Heading6 gutter="sm" weight="bold" className="text-left">
+                    Expert Guidance
+                  </Heading6>
 
-              <Paragraph variant="superMuted" className="text-left">
-                Connect with experienced tutors and mentors who can provide 
-                valuable insights and support throughout your preparation journey.
-              </Paragraph>
+                  <Paragraph variant="superMuted" className="max-w-xl text-left">
+                    Connect with experienced tutors and mentors who can provide
+                    valuable insights and support throughout your preparation journey.
+                  </Paragraph>
+                </div>
+              </div>
             </Card>
 
           </div>
