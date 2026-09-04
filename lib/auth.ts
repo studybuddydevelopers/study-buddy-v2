@@ -1,11 +1,20 @@
 // lib/auth.ts
 import { NextResponse } from "next/server";
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
 import { createServerClient } from "@supabase/ssr";
 import { prisma } from "@/lib/prisma";
 import { getServerSupabaseConfig } from "@/lib/supabase/config";
+import {
+  enforceAccountRateLimit,
+  enforceRequestIpRateLimit,
+} from "@/lib/security/rate-limit";
+import { fetchWithTimeout } from "@/lib/security/timeouts";
 
 export async function requireUser() {
+  const requestHeaders = await headers();
+  const ipLimitResponse = await enforceRequestIpRateLimit(requestHeaders);
+  if (ipLimitResponse) return { errorResponse: ipLimitResponse };
+
   const cookieStore = await cookies();
   const supabaseConfig = getServerSupabaseConfig();
 
@@ -13,6 +22,7 @@ export async function requireUser() {
     supabaseConfig.url,
     supabaseConfig.key,
     {
+      global: { fetch: fetchWithTimeout },
       cookies: {
         getAll() {
           return cookieStore.getAll().map(({ name, value }) => ({
@@ -49,6 +59,9 @@ export async function requireUser() {
       ),
     };
   }
+
+  const accountLimitResponse = await enforceAccountRateLimit(dbUser.id);
+  if (accountLimitResponse) return { errorResponse: accountLimitResponse };
 
   return { user, dbUser };
 }
