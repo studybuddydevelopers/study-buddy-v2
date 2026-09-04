@@ -3,7 +3,6 @@
 import Link from "next/link";
 import {
   BookOpen,
-  ChevronRight,
   ClipboardList,
   MessageCircle,
 } from "lucide-react";
@@ -11,6 +10,9 @@ import type { LucideIcon } from "lucide-react";
 import Heading1 from "@/components/Heading1";
 import Heading2 from "@/components/Heading2";
 import Paragraph from "@/components/Paragraph";
+import StudyBuddyIcon, {
+  type StudyBuddyIconName,
+} from "@/components/StudyBuddyIcon";
 import type { MaterialsSubjectSection } from "./materials.types";
 
 interface HubCard {
@@ -18,6 +20,7 @@ interface HubCard {
   description: string;
   href: string;
   Icon: LucideIcon;
+  proposal?: StudyBuddyIconName;
 }
 
 const FEATURED_CARDS: HubCard[] = [
@@ -26,12 +29,14 @@ const FEATURED_CARDS: HubCard[] = [
     description: "Practice Mathematics topics from the question bank.",
     href: "/materials/past-questions",
     Icon: ClipboardList,
+    proposal: "pastQuestions",
   },
   {
     title: "Flashcards",
     description: "Community and standard flashcards by subject.",
     href: "/materials/flashcards",
     Icon: MessageCircle,
+    proposal: "flashcards",
   },
   {
     title: "Textbooks",
@@ -91,6 +96,7 @@ export default function MaterialsClient({
                 title="Mathematics Past Questions"
                 href="/materials/past-questions"
                 Icon={ClipboardList}
+                proposal="pastQuestions"
                 completed={touchedQuestions}
                 total={totalQuestions}
                 progressPercentage={progressPercentage}
@@ -99,6 +105,7 @@ export default function MaterialsClient({
                 title="Mathematics Flashcards"
                 href="/materials/flashcards"
                 Icon={MessageCircle}
+                proposal="flashcards"
                 completed={0}
                 total={0}
                 progressPercentage={0}
@@ -132,6 +139,7 @@ function OngoingCard({
   title,
   href,
   Icon,
+  proposal,
   completed,
   total,
   progressPercentage,
@@ -139,6 +147,7 @@ function OngoingCard({
   title: string;
   href: string;
   Icon: LucideIcon;
+  proposal?: StudyBuddyIconName;
   completed: number;
   total: number;
   progressPercentage: number;
@@ -150,12 +159,16 @@ function OngoingCard({
       className="grid min-h-28 grid-cols-[80px_1fr] gap-4 rounded-lg border border-accent-200 bg-white p-3 text-gray-900 shadow-sm transition hover:border-primary-300 hover:shadow-md"
     >
       <div className="flex h-20 w-20 items-center justify-center rounded-lg bg-primary-50">
-        <Icon size={40} className="text-primary-500" aria-hidden="true" />
+        {proposal ? (
+          <StudyBuddyIcon name={proposal} size={52} />
+        ) : (
+          <Icon size={40} className="text-primary-500" aria-hidden="true" />
+        )}
       </div>
       <div className="flex min-w-0 flex-col justify-center gap-3">
         <div className="flex items-start justify-between gap-2">
           <h3 className="truncate text-base font-bold text-gray-900">{title}</h3>
-          <ChevronRight size={18} className="shrink-0 text-primary-500" />
+          <StudyBuddyIcon name="chevron" size={20} className="shrink-0" />
         </div>
         <div className="h-2 overflow-hidden rounded-full bg-accent-100">
           <div
@@ -175,7 +188,7 @@ function OngoingCard({
 }
 
 function FeaturedCard({ card }: { card: HubCard }) {
-  const { title, description, href, Icon } = card;
+  const { title, description, href, Icon, proposal } = card;
 
   return (
     <Link
@@ -193,10 +206,14 @@ function FeaturedCard({ card }: { card: HubCard }) {
 
         <div className="flex items-end justify-between gap-4">
           <div className="flex h-20 w-20 items-center justify-center rounded-lg bg-primary-50 ring-1 ring-primary-100">
-            <Icon size={44} className="text-primary-500" aria-hidden="true" />
+            {proposal ? (
+              <StudyBuddyIcon name={proposal} size={56} />
+            ) : (
+              <Icon size={44} className="text-primary-500" aria-hidden="true" />
+            )}
           </div>
           <span className="inline-flex h-10 w-10 items-center justify-center rounded-lg bg-accent-100 text-primary-500 transition group-hover:bg-primary-500 group-hover:text-background">
-            <ChevronRight size={22} aria-hidden="true" />
+            <StudyBuddyIcon name="chevron" size={24} />
           </span>
         </div>
       </div>
