@@ -7,6 +7,7 @@ import {
   parseJsonBody,
 } from "@/lib/ai/chats/http";
 import { sendChatMessageSchema } from "@/lib/ai/chats/schemas";
+import { enforceAiRequestLimits } from "@/lib/security/rate-limit";
 
 interface RouteContext {
   params: Promise<{ chatId: string }>;
@@ -36,6 +37,12 @@ export async function POST(req: Request, context: RouteContext) {
 
   const parsed = await parseJsonBody(req, sendChatMessageSchema);
   if (!parsed.success) return parsed.response;
+
+  const aiLimitResponse = await enforceAiRequestLimits({
+    accountId: auth.dbUser.id,
+    requestHeaders: req.headers,
+  });
+  if (aiLimitResponse) return aiLimitResponse;
 
   const { chatId } = await context.params;
 
