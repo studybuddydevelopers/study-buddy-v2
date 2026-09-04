@@ -2,6 +2,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/auth";
+import { parseJsonObjectRequest } from "@/lib/security/request-body";
 
 export async function POST(req: Request) {
   // -------------------------------------
@@ -13,8 +14,12 @@ export async function POST(req: Request) {
   // -------------------------------------
   // 2. INPUT
   // -------------------------------------
-  const body = await req.json().catch(() => null);
-  const questionId = body?.questionId;
+  const parsedBody = await parseJsonObjectRequest(req);
+  if (!parsedBody.ok) return parsedBody.response;
+  const questionId =
+    typeof parsedBody.data.questionId === "string"
+      ? parsedBody.data.questionId
+      : undefined;
 
   if (!questionId) {
     return NextResponse.json(
