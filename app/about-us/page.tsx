@@ -1,20 +1,29 @@
 import Link from "next/link";
 import {
   ArrowRight,
-  BarChart3,
   BookOpen,
   CheckCircle2,
-  MessageCircle,
   ShieldCheck,
   Wifi,
 } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 import Button from "@/components/Button";
 import Heading1 from "@/components/Heading1";
 import Heading2 from "@/components/Heading2";
 import Paragraph from "@/components/Paragraph";
 import Image from "@/components/Image";
+import StudyBuddyIcon, {
+  type StudyBuddyIconName,
+} from "@/components/StudyBuddyIcon";
 
-const productAreas = [
+interface ProductArea {
+  title: string;
+  description: string;
+  icon?: LucideIcon;
+  proposal?: StudyBuddyIconName;
+}
+
+const productAreas: ProductArea[] = [
   {
     title: "Practice that feels close to exam day",
     description:
@@ -25,13 +34,13 @@ const productAreas = [
     title: "A chat space for study support",
     description:
       "The current AI chat keeps conversation history and helps students reason through questions. Grounded resource-backed tutoring stays disabled until it passes validation.",
-    icon: MessageCircle,
+    proposal: "support",
   },
   {
     title: "Progress that is easy to read",
     description:
       "The dashboard and progress page show what a learner has practised, where they are improving, and where they should return next.",
-    icon: BarChart3,
+    proposal: "analytics",
   },
 ];
 
@@ -151,10 +160,14 @@ export default function AboutUsPage() {
                 key={principle}
                 className="flex items-start gap-3 rounded-lg border border-gray-200 bg-white p-4"
               >
-                <CheckCircle2
-                  className="mt-0.5 h-5 w-5 shrink-0 text-primary-600"
-                  aria-hidden="true"
-                />
+                {principle === "Designed to protect student data and account access" ? (
+                  <StudyBuddyIcon name="shield" size={26} className="mt-0.5 shrink-0" />
+                ) : (
+                  <CheckCircle2
+                    className="mt-0.5 h-5 w-5 shrink-0 text-primary-600"
+                    aria-hidden="true"
+                  />
+                )}
                 <p className="text-sm font-medium leading-relaxed text-gray-800">
                   {principle}
                 </p>
@@ -177,13 +190,17 @@ export default function AboutUsPage() {
           </div>
 
           <div className="mt-10 grid gap-5 lg:grid-cols-3">
-            {productAreas.map(({ title, description, icon: Icon }) => (
+            {productAreas.map(({ title, description, icon: Icon, proposal }) => (
               <article
                 key={title}
                 className="rounded-lg border border-gray-200 bg-white p-5 shadow-sm"
               >
                 <div className="mb-4 inline-flex h-10 w-10 items-center justify-center rounded-lg bg-primary-50 text-primary-700">
-                  <Icon className="h-5 w-5" aria-hidden="true" />
+                  {proposal ? (
+                    <StudyBuddyIcon name={proposal} size={30} />
+                  ) : Icon ? (
+                    <Icon className="h-5 w-5" aria-hidden="true" />
+                  ) : null}
                 </div>
                 <h3 className="text-lg font-bold text-gray-900">{title}</h3>
                 <p className="mt-3 text-sm leading-relaxed text-gray-700">
