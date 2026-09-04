@@ -337,8 +337,8 @@ const ICONS: IconDecision[] = [
     current: <PiGraduationCapLight size={56} aria-hidden="true" />,
     actualSize: 40,
     proposal: "plan",
-    proposalName: "Learner planning a study schedule",
-    rationale: "The newly downloaded illustration shows the complete idea: a learner actively planning with a calendar, clock, pencil and books. It is much more meaningful than a graduation cap, but it needs a larger feature-card layout rather than the current 40px icon slot.",
+    proposalName: "Student selecting a study plan",
+    rationale: "The new illustration makes personalisation explicit: the learner is choosing daily practice, mock exams, subject focus and revision from a structured plan. It communicates a tailored study route much more clearly than a graduation cap.",
     locations: [
       { file: "app/ClientLanding.tsx", context: "Homepage ‘Personalized Study Plans’ benefit card." },
     ],
@@ -350,8 +350,8 @@ const ICONS: IconDecision[] = [
     current: <HiOutlinePresentationChartBar size={54} aria-hidden="true" />,
     actualSize: 40,
     proposal: "practice",
-    proposalName: "Timed WAEC answer sheet",
-    rationale: "A question sheet, answer bubbles and pencil depict sitting a realistic timed exam. There is no presentation screen or analytics chart in the new metaphor.",
+    proposalName: "Student taking an online practice test",
+    rationale: "The learner, timer and on-screen questions show the real activity: completing a structured online test under time pressure. It replaces the unrelated presentation-chart metaphor with a recognisable practice experience.",
     locations: [
       { file: "app/ClientLanding.tsx", context: "Homepage ‘Comprehensive Practice Tests’ benefit card." },
     ],
@@ -363,8 +363,8 @@ const ICONS: IconDecision[] = [
     current: <HiOutlineUserGroup size={54} aria-hidden="true" />,
     actualSize: 40,
     proposal: "mentors",
-    proposalName: "Tutor-led study moment",
-    rationale: "Two learners sharing an open book with a guidance spark show teaching in action, rather than using a generic group-of-people directory icon.",
+    proposalName: "Guidance pathway to success",
+    rationale: "The learner and staged lightbulb show guidance as a process: assess, analyse, counsel and guide towards success. That explains the benefit more directly than a generic group-of-people icon.",
     locations: [
       { file: "app/ClientLanding.tsx", context: "Homepage ‘Expert Guidance’ benefit card." },
     ],
@@ -608,7 +608,6 @@ const ICONS: IconDecision[] = [
     proposalName: "Protected learner shield",
     rationale: "A solid purple shield with a white check becomes a recognisable trust signature across the site.",
     locations: [
-      { file: "app/ClientLanding.tsx", context: "Homepage ‘Secure and Reliable’ benefit card." },
       { file: "app/about-us/page.tsx", context: "Student-data protection principle." },
       { file: "app/privacy-policy/page.tsx", context: "Privacy summary and navigation actions." },
       { file: "app/terms-of-service/page.tsx", context: "Fair-use summary." },
@@ -956,7 +955,7 @@ function IconComparisonCard({
           <div className="flex min-h-36 flex-col items-center justify-center gap-2 px-3 py-3">
             <ProposalArtwork icon={icon} size={76} expanded />
             <p className="text-center text-[9px] font-bold uppercase tracking-[0.1em] text-[#6C3483]">{icon.proposalName}</p>
-            {icon.title === "Personalised study plans" && (
+            {["Personalised study plans", "Practice tests", "Expert guidance"].includes(icon.title) && (
               <p className="text-center text-[9px] font-bold text-[#895033]">Full illustration · card layout must expand</p>
             )}
           </div>
@@ -1020,15 +1019,31 @@ function ProposalArtwork({
   size: number;
   expanded?: boolean;
 }) {
-  if (icon.title === "Personalised study plans") {
+  const downloadedIllustrations: Record<string, { alt: string; src: string }> = {
+    "Personalised study plans": {
+      alt: "Student selecting activities for a personalised study plan",
+      src: "/icon-audit/proposal-source/study-plan",
+    },
+    "Practice tests": {
+      alt: "Student completing a timed online practice test",
+      src: "/icon-audit/proposal-source/practice-tests",
+    },
+    "Expert guidance": {
+      alt: "Student following a guidance pathway towards success",
+      src: "/icon-audit/proposal-source/expert-guidance",
+    },
+  };
+  const downloadedIllustration = downloadedIllustrations[icon.title];
+
+  if (downloadedIllustration) {
     return (
       <Image
-        src="/icon-audit/study-plan-source"
-        alt="Learner planning a study schedule with a calendar, clock, pencil and books"
-        width={980}
-        height={980}
+        src={downloadedIllustration.src}
+        alt={downloadedIllustration.alt}
+        width={3000}
+        height={2250}
         unoptimized
-        className={expanded ? "h-32 w-32 rounded-2xl object-contain" : "h-20 w-20 rounded-xl object-contain"}
+        className={expanded ? "h-32 w-44 rounded-2xl object-contain" : "h-20 w-24 rounded-xl object-contain"}
       />
     );
   }
@@ -1166,10 +1181,6 @@ function usageCopy(icon: IconDecision, location: IconLocation) {
     "Expert guidance": {
       heading: "Expert Guidance",
       body: "Connect with experienced tutors and mentors for insights and support throughout your preparation journey.",
-    },
-    "Security and trust": {
-      heading: "Secure and Reliable",
-      body: "Your data is protected so your learning experience remains seamless and reliable.",
     },
   };
 
