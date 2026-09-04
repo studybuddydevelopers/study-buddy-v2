@@ -3,6 +3,10 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireAdmin } from "@/lib/auth";
 import { getErrorMessage, isRecord } from "@/lib/type-utils";
+import {
+  parseJsonRequest,
+  REQUEST_LIMITS,
+} from "@/lib/security/request-body";
 
 interface PastQuestionBatchInput {
   subjectId: string;
@@ -77,12 +81,9 @@ export async function POST(req: Request) {
   // -------------------------------------
   // 2. Parse Input
   // -------------------------------------
-  let body: unknown;
-  try {
-    body = await req.json();
-  } catch {
-    return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
-  }
+  const parsedBody = await parseJsonRequest(req, REQUEST_LIMITS.adminBatchJson);
+  if (!parsedBody.ok) return parsedBody.response;
+  const body = parsedBody.data;
 
   if (!Array.isArray(body)) {
     return NextResponse.json(
