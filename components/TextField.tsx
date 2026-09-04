@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { LuEye, LuEyeClosed } from "react-icons/lu";
+import StudyBuddyIcon from "@/components/StudyBuddyIcon";
 
 interface TextFieldProps {
   label?: string;
@@ -65,11 +65,12 @@ export default function TextField({
             type="button"
             onClick={() => setShowPassword(!showPassword)}
             disabled={disabled}
+            aria-label={showPassword ? "Hide password" : "Show password"}
             className={`absolute right-3 flex items-center justify-center text-gray-500 transition-colors duration-200
               hover:text-gray-900 disabled:cursor-not-allowed disabled:text-gray-400
             `}
           >
-            {showPassword ? <LuEye size={20} /> : <LuEyeClosed size={20} />}
+            <StudyBuddyIcon name={showPassword ? "eye" : "eyeOff"} size={24} />
           </button>
         )}
       </div>
