@@ -5,17 +5,27 @@ export function externalRequestSignal(timeoutMs = externalRequestTimeoutMs()) {
   return AbortSignal.timeout(timeoutMs);
 }
 
-export function fetchWithTimeout(
+export async function fetchWithTimeout(
   input: RequestInfo | URL,
   init: RequestInit = {},
   timeoutMs = externalRequestTimeoutMs()
 ) {
-  const timeoutSignal = externalRequestSignal(timeoutMs);
-  const signal = init.signal
-    ? AbortSignal.any([init.signal, timeoutSignal])
-    : timeoutSignal;
+  const controller = new AbortController();
+  const timeout = setTimeout(
+    () => controller.abort(new DOMException("Request timed out", "TimeoutError")),
+    timeoutMs
+  );
+  const abortFromCaller = () => controller.abort(init.signal?.reason);
 
-  return fetch(input, { ...init, signal });
+  if (init.signal?.aborted) abortFromCaller();
+  else init.signal?.addEventListener("abort", abortFromCaller, { once: true });
+
+  try {
+    return await fetch(input, { ...init, signal: controller.signal });
+  } finally {
+    clearTimeout(timeout);
+    init.signal?.removeEventListener("abort", abortFromCaller);
+  }
 }
 
 export function externalRequestTimeoutMs() {
