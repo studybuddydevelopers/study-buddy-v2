@@ -1,29 +1,25 @@
 "use client";
 
 import Link from "next/link";
-import { ChevronRight, ClipboardList, MessageCircle } from "lucide-react";
-import type { LucideIcon } from "lucide-react";
+import StudyBuddyIcon from "@/components/StudyBuddyIcon";
 import type { MaterialsSubjectSection } from "../materials.types";
 
 const FLASHCARD_COLLECTIONS: {
   title: string;
   description: string;
   href: string;
-  Icon: LucideIcon;
   color: string;
 }[] = [
   {
     title: "Community FlashCards",
     description: "Student and tutor-created flashcard sets.",
     href: "/materials/flashcards/community",
-    Icon: MessageCircle,
     color: "#5EEAD4",
   },
   {
     title: "Standard FlashCards",
     description: "Study Buddy reviewed flashcard sets.",
     href: "/materials/flashcards/standard",
-    Icon: ClipboardList,
     color: "#38BDF8",
   },
 ];
@@ -70,7 +66,6 @@ export default function FlashcardsClient({
                       title={collection.title}
                       description={collection.description}
                       href={collection.href}
-                      Icon={collection.Icon}
                       color={collection.color}
                     />
                   ))}
@@ -88,13 +83,11 @@ function CollectionCard({
   title,
   description,
   href,
-  Icon,
   color,
 }: {
   title: string;
   description: string;
   href: string;
-  Icon: LucideIcon;
   color: string;
 }) {
   return (
@@ -109,11 +102,12 @@ function CollectionCard({
             className="flex h-16 w-16 items-center justify-center rounded-lg"
             style={{ backgroundColor: `${color}2E` }}
           >
-            <Icon size={32} style={{ color }} aria-hidden="true" />
+            <StudyBuddyIcon name="flashcards" size={48} />
           </div>
-          <ChevronRight
-            size={22}
-            className="text-primary-500 transition group-hover:translate-x-0.5"
+          <StudyBuddyIcon
+            name="chevron"
+            size={24}
+            className="transition group-hover:translate-x-0.5"
           />
         </div>
         <div>
