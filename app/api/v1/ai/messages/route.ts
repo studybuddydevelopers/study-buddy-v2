@@ -3,6 +3,12 @@ import { NextResponse } from "next/server";
 import { requireUser } from "@/lib/auth";
 import { getErrorMessage, getString, isRecord } from "@/lib/type-utils";
 import OpenAI from "openai";
+import {
+  parseJsonRequest,
+  REQUEST_LIMITS,
+} from "@/lib/security/request-body";
+import { enforceAiRequestLimits } from "@/lib/security/rate-limit";
+import { openAiClientOptions } from "@/lib/security/timeouts";
 
 export async function POST(req: Request) {
   // -------------------------------------
@@ -16,15 +22,9 @@ export async function POST(req: Request) {
   // -------------------------------------
   // 2. PARSE INPUT
   // -------------------------------------
-  let body: unknown;
-  try {
-    body = await req.json();
-  } catch {
-    return NextResponse.json(
-      { error: "Invalid JSON body" },
-      { status: 400 }
-    );
-  }
+  const parsedBody = await parseJsonRequest(req, REQUEST_LIMITS.aiJson);
+  if (!parsedBody.ok) return parsedBody.response;
+  const body = parsedBody.data;
 
   if (!isRecord(body)) {
     return NextResponse.json(
@@ -43,6 +43,12 @@ export async function POST(req: Request) {
       { status: 400 }
     );
   }
+
+  const aiLimitResponse = await enforceAiRequestLimits({
+    accountId: dbUser.id,
+    requestHeaders: req.headers,
+  });
+  if (aiLimitResponse) return aiLimitResponse;
 
   // -------------------------------------
   // 3. PREPARE AI PROMPT
@@ -77,6 +83,7 @@ ${topicId ? `Topic ID: ${topicId}` : ""}
   // -------------------------------------
   const client = new OpenAI({
     apiKey: process.env.OPENAI_API_KEY,
+    ...openAiClientOptions(),
   });
 
   let aiText = "";
