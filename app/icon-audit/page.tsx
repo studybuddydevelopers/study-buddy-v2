@@ -64,6 +64,7 @@ interface IconDecision {
   proposalName: string;
   rationale: string;
   locations: IconLocation[];
+  keepCurrent?: boolean;
 }
 
 interface PageGroup {
@@ -293,8 +294,9 @@ const ICONS: IconDecision[] = [
     ),
     actualSize: 24,
     proposal: "profile",
-    proposalName: "Simplified student portrait",
-    rationale: "Keeps the student identity but removes detail that disappears inside a 24px navigation slot.",
+    proposalName: "Keep current profile artwork",
+    rationale: "Approved to stay exactly as it is in both navigation placements.",
+    keepCurrent: true,
     locations: [
       { file: "components/BottomNav.tsx", context: "Mobile Profile tab with active-state ring." },
       { file: "components/NavBar.tsx", context: "Desktop Profile navigation link." },
@@ -307,8 +309,9 @@ const ICONS: IconDecision[] = [
     current: <span className="text-5xl" aria-hidden="true">🔔</span>,
     actualSize: 24,
     proposal: "bell",
-    proposalName: "Study Buddy bell",
-    rationale: "A controlled SVG removes operating-system emoji differences and adds the brand palette.",
+    proposalName: "Keep current notification bell",
+    rationale: "Approved to stay exactly as it is in the authenticated desktop navbar.",
+    keepCurrent: true,
     locations: [
       { file: "components/NavBar.tsx", context: "Authenticated navbar notification popover trigger." },
     ],
@@ -404,8 +407,8 @@ const ICONS: IconDecision[] = [
     current: <div className="flex items-center gap-2"><BookOpen size={42} /><ClipboardList size={42} /></div>,
     actualSize: 40,
     proposal: "textbook",
-    proposalName: "Bound textbook",
-    rationale: "The closed spine and bookmark distinguish a textbook library from general study materials.",
+    proposalName: "Open illustrated textbook",
+    rationale: "The revised open book keeps the textbook instantly recognisable while using Study Buddy’s purple page, warm cover edge and yellow bookmark.",
     locations: [
       { file: "app/materials/MaterialsClient.tsx", context: "Textbooks ongoing and featured cards." },
       { file: "app/materials/textbooks/TextbooksClient.tsx", context: "Textbook collection groups and prompts." },
@@ -513,8 +516,8 @@ const ICONS: IconDecision[] = [
     current: <CircleHelp {...lucideProps} />,
     actualSize: 20,
     proposal: "help",
-    proposalName: "High-contrast help mark",
-    rationale: "A solid brand circle gives the tooltip trigger enough weight beside the page heading.",
+    proposalName: "Centred high-contrast help mark",
+    rationale: "The revised question mark is optically centred, and its yellow answer point remains visible against the solid purple circle at the real 20px size.",
     locations: [
       { file: "app/progress/ProgressClient.tsx", context: "Explains how student progress is calculated." },
     ],
@@ -569,19 +572,6 @@ const ICONS: IconDecision[] = [
     ],
   },
   {
-    title: "Legacy mobile menu",
-    group: "Actions & forms",
-    currentSource: "Text glyphs · ☰ / ✖",
-    current: <span className="text-4xl font-bold" aria-hidden="true">☰ &nbsp;✖</span>,
-    actualSize: 24,
-    proposal: "menu",
-    proposalName: "Painted menu strokes",
-    rationale: "If this hidden control returns, the SVG will be consistent; otherwise the better implementation choice is deletion.",
-    locations: [
-      { file: "components/NavBar.tsx", context: "Currently hidden legacy mobile-nav toggle." },
-    ],
-  },
-  {
     title: "Directional actions",
     group: "Actions & forms",
     currentSource: "Lucide ArrowRight + text arrows",
@@ -591,11 +581,14 @@ const ICONS: IconDecision[] = [
     proposalName: "Painted direction arrow",
     rationale: "One shared arrow treatment can replace both component icons and inconsistent text glyphs.",
     locations: [
-      { file: "app/about-us/page.tsx", context: "Start-learning and page-end calls to action." },
-      { file: "app/privacy-policy/page.tsx", context: "Privacy-page action buttons." },
-      { file: "app/terms-of-service/page.tsx", context: "Terms-page action buttons." },
-      { file: "app/dashboard/DashboardClient.tsx", context: "Practice and first-session text links." },
-      { file: "app/materials/practice/[topicId]/TopicPracticeClient.tsx", context: "Back to study materials link." },
+      { file: "app/about-us/page.tsx", context: "‘Start learning’ button in the opening About section." },
+      { file: "app/about-us/page.tsx", context: "‘Go to dashboard’ button at the end of the About page." },
+      { file: "app/privacy-policy/page.tsx", context: "‘Create an account’ button at the end of the Privacy Policy." },
+      { file: "app/terms-of-service/page.tsx", context: "‘Create an account’ button at the end of Terms of Service — page 14, held for review." },
+      { file: "app/contact-us/page.tsx", context: "‘Browse materials’ link in the study-support panel." },
+      { file: "app/dashboard/DashboardClient.tsx", context: "‘Practice now’ link beside the learner’s weakest topic." },
+      { file: "app/dashboard/DashboardClient.tsx", context: "‘Start your first session’ link in the empty study-plan state." },
+      { file: "app/materials/practice/[topicId]/TopicPracticeClient.tsx", context: "‘Study materials’ back button above a practice session." },
     ],
   },
   {
@@ -615,16 +608,28 @@ const ICONS: IconDecision[] = [
     ],
   },
   {
-    title: "Success / completed",
+    title: "Built for learners",
     group: "Trust, status & support",
     currentSource: "Lucide · CheckCircle2",
     current: <CheckCircle2 {...lucideProps} />,
     actualSize: 20,
-    proposal: "success",
-    proposalName: "Purple success seal",
-    rationale: "A filled seal reads confidently in both small principle cards and the larger sent-message state.",
+    proposal: "learnerSuccess",
+    proposalName: "Learner-first badge",
+    rationale: "The revised mark centres a learner and a study spark, which suits a learner-first principle better than a generic completion tick.",
     locations: [
       { file: "app/about-us/page.tsx", context: "About-page principle cards." },
+    ],
+  },
+  {
+    title: "Message sent confirmation",
+    group: "Trust, status & support",
+    currentSource: "Lucide · CheckCircle2",
+    current: <CheckCircle2 {...lucideProps} />,
+    actualSize: 20,
+    proposal: "messageSent",
+    proposalName: "Delivered message envelope",
+    rationale: "The revised envelope and delivery check describe the completed action directly instead of reusing a generic success circle.",
+    locations: [
       { file: "app/contact-us/page.tsx", context: "Successful contact-form submission." },
     ],
   },
@@ -635,8 +640,8 @@ const ICONS: IconDecision[] = [
     current: <Wifi {...lucideProps} />,
     actualSize: 20,
     proposal: "wifi",
-    proposalName: "Warm-signal Wi-Fi",
-    rationale: "The warm signal point makes connectivity feel human while keeping the standard recognisable arcs.",
+    proposalName: "Low-data Wi-Fi download",
+    rationale: "The revised Wi-Fi mark adds a visible downward arrow so the idea reads as lighter data delivery, rather than connectivity alone.",
     locations: [
       { file: "app/about-us/page.tsx", context: "Low-bandwidth design principle." },
     ],
@@ -648,8 +653,8 @@ const ICONS: IconDecision[] = [
     current: <Database {...lucideProps} />,
     actualSize: 20,
     proposal: "database",
-    proposalName: "Layered learning data",
-    rationale: "Layered purple and white cylinders add hierarchy without changing the familiar database metaphor.",
+    proposalName: "Learner data record",
+    rationale: "The revised record shows a learner profile, information lines and a verified data point. It describes collected student information more honestly than a generic server cylinder.",
     locations: [
       { file: "app/privacy-policy/page.tsx", context: "‘Data we collect’ summary card." },
     ],
@@ -687,8 +692,8 @@ const ICONS: IconDecision[] = [
     current: <Mail {...lucideProps} />,
     actualSize: 20,
     proposal: "mail",
-    proposalName: "Stamped support envelope",
-    rationale: "The purple fold and warm stamp distinguish direct contact from generic system mail.",
+    proposalName: "Open contact envelope",
+    rationale: "The revised icon makes the letter and envelope construction obvious at small size and removes the ambiguous stamp treatment.",
     locations: [
       { file: "app/contact-us/page.tsx", context: "Email contact card." },
       { file: "app/privacy-policy/page.tsx", context: "Privacy contact details." },
@@ -767,8 +772,8 @@ const ICONS: IconDecision[] = [
     current: <Send {...lucideProps} />,
     actualSize: 20,
     proposal: "send",
-    proposalName: "Purple paper plane",
-    rationale: "The solid plane has enough contrast for the primary form action and a small warm motion trail.",
+    proposalName: "Outgoing message arrow",
+    rationale: "The revised design shows a message leaving an envelope, making the submit action clearer than the previous heavy paper-plane silhouette.",
     locations: [
       { file: "app/contact-us/page.tsx", context: "Contact-form submit button." },
     ],
@@ -800,7 +805,7 @@ export default function IconAuditPage() {
           </div>
           <div className="relative max-w-3xl">
             <p className="text-xs font-black uppercase tracking-[0.22em] text-[#6C3483]">
-              Page-by-page audit · no replacements made
+              Page-by-page audit · approved replacements in progress
             </p>
             <h1 className="mt-3 text-3xl font-black leading-tight sm:text-5xl">
               See every icon in the job it actually performs
@@ -951,7 +956,7 @@ function IconComparisonCard({
             <p className="text-[9px] font-bold uppercase tracking-[0.1em] text-[#777]">{icon.currentSource}</p>
           </div>
         </PreviewPanel>
-        <PreviewPanel label="New idea" proposed>
+        <PreviewPanel label={icon.keepCurrent ? "Decision" : "New idea"} proposed>
           <div className="flex min-h-36 flex-col items-center justify-center gap-2 px-3 py-3">
             <ProposalArtwork icon={icon} size={76} expanded />
             <p className="text-center text-[9px] font-bold uppercase tracking-[0.1em] text-[#6C3483]">{icon.proposalName}</p>
@@ -983,6 +988,8 @@ function IconComparisonCard({
 }
 
 function proposalApproach(icon: IconDecision) {
+  if (icon.keepCurrent) return "Approved · keep current";
+
   const familiarControls = new Set([
     "Dashboard / Home",
     "Study materials",
@@ -1000,7 +1007,6 @@ function proposalApproach(icon: IconDecision) {
     "Progress explanation",
     "Selected option",
     "Button loading",
-    "Legacy mobile menu",
     "Directional actions",
     "Send message",
   ]);
@@ -1035,6 +1041,10 @@ function ProposalArtwork({
   };
   const downloadedIllustration = downloadedIllustrations[icon.title];
 
+  if (icon.keepCurrent) {
+    return <>{icon.current}</>;
+  }
+
   if (downloadedIllustration) {
     return (
       <Image
@@ -1068,7 +1078,7 @@ function UsagePreview({
   location: IconLocation;
   proposed: boolean;
 }) {
-  const artwork = proposed ? (
+  const artwork = proposed && !icon.keepCurrent ? (
     <ProposalArtwork icon={icon} size={Math.max(icon.actualSize, 18)} />
   ) : (
     <CurrentIconAtSize icon={icon} />
@@ -1149,7 +1159,7 @@ function UsagePreview({
   return (
     <div>
       <p className={`mb-1.5 text-[9px] font-black uppercase tracking-[0.12em] ${proposed ? "text-[#6C3483]" : "text-[#777]"}`}>
-        {proposed ? "Proposed" : "Current"}
+        {proposed ? (icon.keepCurrent ? "Keep current" : "Proposed") : "Current"}
       </p>
       {surface}
     </div>
@@ -1235,10 +1245,21 @@ function usageCopy(icon: IconDecision, location: IconLocation) {
     if (location.file.includes("contact-us")) heading = "Your privacy";
   } else if (icon.title === "Study support") {
     heading = location.file.includes("about-us") ? "Study support" : "Contact Study Buddy";
-  } else if (icon.title === "Success / completed") {
-    heading = location.file.includes("contact-us") ? "Message sent" : "Built for learners";
+  } else if (icon.title === "Built for learners") {
+    heading = "Built for learners";
+  } else if (icon.title === "Message sent confirmation") {
+    heading = "Message sent";
   } else if (icon.title === "Directional actions") {
-    action = location.file.includes("TopicPractice") ? "Back to study materials" : "Start learning";
+    const directionalLabels = [
+      "Start learning",
+      "Go to dashboard",
+      "Create an account",
+      "Browse materials",
+      "Practice now",
+      "Start your first session",
+      "Study materials",
+    ];
+    action = directionalLabels.find((label) => location.context.includes(`‘${label}’`)) ?? "Continue";
   } else if (icon.title === "New chat") {
     action = "New Chat";
   } else if (icon.title === "Edit chat title") {
