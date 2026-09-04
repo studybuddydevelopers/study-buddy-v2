@@ -3,6 +3,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireAdmin } from "@/lib/auth";
+import { parseJsonObjectRequest } from "@/lib/security/request-body";
 
 export async function POST(req: Request) {
   // -------------------------------------
@@ -14,15 +15,9 @@ export async function POST(req: Request) {
   // -------------------------------------
   // 2. PARSE JSON BODY
   // -------------------------------------
-  let body;
-  try {
-    body = await req.json();
-  } catch {
-    return NextResponse.json(
-      { error: "Invalid JSON body" },
-      { status: 400 }
-    );
-  }
+  const parsedBody = await parseJsonObjectRequest(req);
+  if (!parsedBody.ok) return parsedBody.response;
+  const body = parsedBody.data;
 
   const { name, examCode, description } = body;
 
@@ -34,14 +29,18 @@ export async function POST(req: Request) {
   }
 
   // examCode + description are optional strings
-  if (examCode && typeof examCode !== "string") {
+  if (examCode !== undefined && examCode !== null && typeof examCode !== "string") {
     return NextResponse.json(
       { error: "examCode must be a string" },
       { status: 400 }
     );
   }
 
-  if (description && typeof description !== "string") {
+  if (
+    description !== undefined &&
+    description !== null &&
+    typeof description !== "string"
+  ) {
     return NextResponse.json(
       { error: "description must be a string" },
       { status: 400 }
@@ -68,8 +67,8 @@ export async function POST(req: Request) {
   const subject = await prisma.subject.create({
     data: {
       name,
-      examCode: examCode ?? null,
-      description: description ?? null,
+      examCode: (examCode as string | null | undefined) ?? null,
+      description: (description as string | null | undefined) ?? null,
     },
   });
 
