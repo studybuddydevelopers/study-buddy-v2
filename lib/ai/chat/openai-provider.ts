@@ -1,5 +1,6 @@
 import { AiGenerationFailureCode } from "@prisma/client";
 import OpenAI from "openai";
+import { openAiClientOptions } from "@/lib/security/timeouts";
 import { ChatProviderError } from "./errors";
 import type {
   ChatModelProvider,
@@ -59,7 +60,7 @@ export class OpenAIChatModelProvider implements ChatModelProvider {
       );
     }
 
-    this.client = new OpenAI({ apiKey });
+    this.client = new OpenAI({ apiKey, ...openAiClientOptions() });
     this.model = options.model ?? process.env.AI_CHAT_MODEL ?? "gpt-4o-mini";
   }
 
