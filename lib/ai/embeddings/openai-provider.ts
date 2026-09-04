@@ -1,4 +1,5 @@
 import OpenAI from "openai";
+import { openAiClientOptions } from "@/lib/security/timeouts";
 import { EmbeddingProviderError } from "./errors";
 import type { EmbeddingProvider } from "./types";
 
@@ -22,7 +23,7 @@ export class OpenAIEmbeddingProvider implements EmbeddingProvider {
       );
     }
 
-    this.client = new OpenAI({ apiKey });
+    this.client = new OpenAI({ apiKey, ...openAiClientOptions() });
     this.model = options.model ?? process.env.AI_EMBEDDING_MODEL ?? "text-embedding-3-small";
     this.dimensions = options.dimensions ?? readPositiveInt(process.env.AI_EMBEDDING_DIMENSIONS, 1536);
   }
