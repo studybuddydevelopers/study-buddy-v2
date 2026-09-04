@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ChevronRight } from "lucide-react";
+import StudyBuddyIcon from "@/components/StudyBuddyIcon";
 
 export default function CollectionComingSoon({
   title,
@@ -39,7 +39,7 @@ export default function CollectionComingSoon({
             className="mt-8 inline-flex items-center gap-2 rounded-lg border border-primary-500 px-4 py-3 text-sm font-semibold text-primary-500 transition hover:bg-primary-500 hover:text-background"
           >
             Study Materials
-            <ChevronRight size={18} aria-hidden="true" />
+            <StudyBuddyIcon name="chevron" size={20} />
           </Link>
         </div>
       </div>
