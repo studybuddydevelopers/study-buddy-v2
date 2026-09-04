@@ -1,8 +1,6 @@
 "use client";
 
 import Link from "next/link";
-import { BookOpen, ClipboardList } from "lucide-react";
-import type { LucideIcon } from "lucide-react";
 import StudyBuddyIcon from "@/components/StudyBuddyIcon";
 import type { MaterialsSubjectSection } from "../materials.types";
 
@@ -10,29 +8,21 @@ const TEXTBOOK_COLLECTIONS: {
   title: string;
   description: string;
   href: string;
-  Icon: LucideIcon;
-  color: string;
 }[] = [
   {
     title: "Most Popular",
     description: "Frequently used textbook picks for the subject.",
     href: "/materials/textbooks/most-popular",
-    Icon: BookOpen,
-    color: "#F59E0B",
   },
   {
     title: "Community Favourite",
     description: "Textbooks learners and tutors recommend most.",
     href: "/materials/textbooks/community-favourite",
-    Icon: ClipboardList,
-    color: "#5EEAD4",
   },
   {
     title: "Others",
     description: "Additional textbook options and references.",
     href: "/materials/textbooks/others",
-    Icon: BookOpen,
-    color: "#C084FC",
   },
 ];
 
@@ -78,8 +68,6 @@ export default function TextbooksClient({
                       title={collection.title}
                       description={collection.description}
                       href={collection.href}
-                      Icon={collection.Icon}
-                      color={collection.color}
                     />
                   ))}
                 </div>
@@ -96,14 +84,10 @@ function CollectionCard({
   title,
   description,
   href,
-  Icon,
-  color,
 }: {
   title: string;
   description: string;
   href: string;
-  Icon: LucideIcon;
-  color: string;
 }) {
   return (
     <Link
@@ -113,11 +97,8 @@ function CollectionCard({
     >
       <div className="flex h-full flex-col justify-between gap-8">
         <div className="flex items-start justify-between gap-4">
-          <div
-            className="flex h-16 w-16 items-center justify-center rounded-lg"
-            style={{ backgroundColor: `${color}2E` }}
-          >
-            <Icon size={32} style={{ color }} aria-hidden="true" />
+          <div className="flex h-16 w-16 items-center justify-center rounded-lg bg-primary-50">
+            <StudyBuddyIcon name="textbook" size={48} />
           </div>
           <StudyBuddyIcon
             name="chevron"
