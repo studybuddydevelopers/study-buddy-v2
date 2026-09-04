@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/auth";
+import { parseJsonObjectRequest } from "@/lib/security/request-body";
 
 const DEFAULT_SETTINGS = {
   cloudPracticeDraftsEnabled: false,
@@ -41,13 +42,9 @@ export async function PATCH(req: Request) {
   if ("errorResponse" in auth) return auth.errorResponse;
   const { dbUser } = auth;
 
-  const body = await req.json().catch(() => null);
-  if (!body || typeof body !== "object" || Array.isArray(body)) {
-    return NextResponse.json(
-      { error: "Invalid JSON body" },
-      { status: 400 }
-    );
-  }
+  const parsedBody = await parseJsonObjectRequest(req);
+  if (!parsedBody.ok) return parsedBody.response;
+  const body = parsedBody.data;
 
   const patch: Partial<typeof DEFAULT_SETTINGS> = {};
   const maybeSettings = body as Partial<Record<keyof typeof DEFAULT_SETTINGS, unknown>>;
