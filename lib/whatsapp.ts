@@ -2,6 +2,7 @@
 // Helpers for the WhatsApp Cloud API (Meta) integration.
 import crypto from "crypto";
 import { getString, isRecord } from "@/lib/type-utils";
+import { fetchWithTimeout } from "@/lib/security/timeouts";
 
 const GRAPH_API_VERSION = "v21.0";
 
@@ -137,7 +138,7 @@ export async function sendWhatsAppText(to: string, body: string) {
   const phoneNumberId = process.env.WHATSAPP_PHONE_NUMBER_ID;
   const accessToken = process.env.WHATSAPP_ACCESS_TOKEN;
 
-  const response = await fetch(
+  const response = await fetchWithTimeout(
     `https://graph.facebook.com/${GRAPH_API_VERSION}/${phoneNumberId}/messages`,
     {
       method: "POST",
