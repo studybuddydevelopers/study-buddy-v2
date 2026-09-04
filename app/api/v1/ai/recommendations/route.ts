@@ -13,6 +13,8 @@ import {
 import { enforceAiRequestLimits } from "@/lib/security/rate-limit";
 import { openAiClientOptions } from "@/lib/security/timeouts";
 
+export const maxDuration = 30;
+
 const FRESH_WINDOW_MS = 23 * 60 * 60 * 1000;
 const DAILY_CAP = 2; // max recommendations per user per ~24h
 
