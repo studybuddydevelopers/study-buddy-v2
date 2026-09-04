@@ -6,6 +6,12 @@ import { requireUser } from "@/lib/auth";
 import { getErrorMessage, getString, isRecord } from "@/lib/type-utils";
 import OpenAI from "openai";
 import { Recommendation } from "@prisma/client";
+import {
+  parseJsonRequest,
+  REQUEST_LIMITS,
+} from "@/lib/security/request-body";
+import { enforceAiRequestLimits } from "@/lib/security/rate-limit";
+import { openAiClientOptions } from "@/lib/security/timeouts";
 
 const FRESH_WINDOW_MS = 23 * 60 * 60 * 1000;
 const DAILY_CAP = 2; // max recommendations per user per ~24h
@@ -13,6 +19,7 @@ const DAILY_CAP = 2; // max recommendations per user per ~24h
 async function generateRecommendationText(prompt: string) {
   const client = new OpenAI({
     apiKey: process.env.OPENAI_API_KEY!,
+    ...openAiClientOptions(),
   });
 
   const completion = await client.chat.completions.create({
@@ -46,7 +53,7 @@ async function buildProgressContext(userId: string) {
   return { summary, ranked };
 }
 
-export async function GET() {
+export async function GET(req: Request) {
   // -------------------------------------
   // 1. AUTH
   // -------------------------------------
@@ -86,6 +93,13 @@ export async function GET() {
   let generated: string[] = [];
   const apiKey = process.env.OPENAI_API_KEY;
   if (apiKey) {
+    const aiLimitResponse = await enforceAiRequestLimits({
+      accountId: dbUser.id,
+      requestHeaders: req.headers,
+      units: DAILY_CAP - recent.length,
+    });
+    if (aiLimitResponse) return aiLimitResponse;
+
     try {
       generated = await Promise.all(
         Array.from({ length: DAILY_CAP - recent.length }).map((_, idx) => {
@@ -159,12 +173,9 @@ export async function POST(req: Request) {
   // -------------------------------------
   // 2. PARSE INPUT
   // -------------------------------------
-  let body: unknown;
-  try {
-    body = await req.json();
-  } catch {
-    return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
-  }
+  const parsedBody = await parseJsonRequest(req, REQUEST_LIMITS.aiJson);
+  if (!parsedBody.ok) return parsedBody.response;
+  const body = parsedBody.data;
 
   if (!isRecord(body)) {
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
@@ -198,6 +209,12 @@ export async function POST(req: Request) {
     }
   }
 
+  const aiLimitResponse = await enforceAiRequestLimits({
+    accountId: dbUser.id,
+    requestHeaders: req.headers,
+  });
+  if (aiLimitResponse) return aiLimitResponse;
+
   // -------------------------------------
   // 4. GENERATE AI RECOMMENDATION
   // -------------------------------------
@@ -214,6 +231,7 @@ Output ONLY the recommendation text.
 
   const client = new OpenAI({
     apiKey: process.env.OPENAI_API_KEY!,
+    ...openAiClientOptions(),
   });
 
   let recommendationText = "";
