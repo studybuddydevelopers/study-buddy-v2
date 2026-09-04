@@ -1,10 +1,5 @@
 import Link from "next/link";
-import {
-  ArrowRight,
-  Database,
-  Mail,
-  ShieldCheck,
-} from "lucide-react";
+import { ArrowRight } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import Button from "@/components/Button";
 import Heading1 from "@/components/Heading1";
@@ -27,13 +22,13 @@ const summaryItems: {
     title: "We collect learning data",
     description:
       "Account details, study activity, mock results, saved answers, and AI-chat messages help the product work.",
-    icon: Database,
+    proposal: "database",
   },
   {
     title: "We do not sell personal data",
     description:
       "Study Buddy does not sell student data and does not use personal data for targeted advertising.",
-    icon: ShieldCheck,
+    proposal: "shield",
   },
   {
     title: "Trusted services process data",
@@ -118,7 +113,7 @@ export default function PrivacyPolicyPage() {
         <div className="mx-auto grid max-w-6xl gap-8 px-6 py-14 lg:grid-cols-[1fr_320px] lg:items-end lg:py-16">
           <div>
             <div className="mb-5 inline-flex items-center gap-2 rounded-lg border border-primary-200 bg-primary-50 px-3 py-2 text-sm font-semibold text-primary-700">
-              <ShieldCheck className="h-4 w-4" aria-hidden="true" />
+              <StudyBuddyIcon name="shield" size={22} />
               Legal and privacy
             </div>
             <Heading1 gutter="sm">Privacy Policy</Heading1>
@@ -143,7 +138,7 @@ export default function PrivacyPolicyPage() {
               href={`mailto:${CONTACT_EMAIL}`}
               className="mt-4 inline-flex items-center gap-2 text-sm font-semibold text-primary-700 hover:underline"
             >
-              <Mail className="h-4 w-4" aria-hidden="true" />
+              <StudyBuddyIcon name="mail" size={22} />
               {CONTACT_EMAIL}
             </a>
           </div>
