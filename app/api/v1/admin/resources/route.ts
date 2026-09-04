@@ -7,6 +7,10 @@ import {
   parsePositiveInt,
 } from "@/lib/resources/http";
 import { listResourcesQuerySchema } from "@/lib/resources/schemas";
+import {
+  parseFormDataRequest,
+  REQUEST_LIMITS,
+} from "@/lib/security/request-body";
 
 export async function GET(req: Request) {
   const auth = await requireAdmin();
@@ -42,15 +46,12 @@ export async function POST(req: Request) {
   const auth = await requireAdmin();
   if ("errorResponse" in auth) return auth.errorResponse;
 
-  let formData: FormData;
-  try {
-    formData = await req.formData();
-  } catch {
-    return NextResponse.json(
-      { error: "INVALID_INPUT", message: "Expected multipart form data." },
-      { status: 400 }
-    );
-  }
+  const parsedForm = await parseFormDataRequest(
+    req,
+    REQUEST_LIMITS.resourceUpload
+  );
+  if (!parsedForm.ok) return parsedForm.response;
+  const formData = parsedForm.data;
 
   const file = formData.get("file");
   if (!(file instanceof File)) {
