@@ -4,26 +4,59 @@ import { NextResponse } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 import { prisma } from "@/lib/prisma";
 import { getServerSupabaseConfig } from "@/lib/supabase/config";
+import { isRecord } from "@/lib/type-utils";
+import {
+  parseJsonRequest,
+  REQUEST_LIMITS,
+} from "@/lib/security/request-body";
+import {
+  enforceRateLimitRules,
+  getClientIp,
+} from "@/lib/security/rate-limit";
+import { fetchWithTimeout } from "@/lib/security/timeouts";
 
 export async function POST(req: Request) {
-  const body = await req.json();
-  const {
-    firstName,
-    middleNames,
-    lastNames,
-    email,
-    phoneNumber,
-    password,
-  } = body;
+  const parsedBody = await parseJsonRequest(req, REQUEST_LIMITS.publicFormJson);
+  if (!parsedBody.ok) return parsedBody.response;
+  if (!isRecord(parsedBody.data)) {
+    return NextResponse.json({ error: "Invalid request body" }, { status: 400 });
+  }
+
+  const body = parsedBody.data;
+  const { firstName, lastNames, email, phoneNumber, password } = body;
+  const middleNames =
+    typeof body.middleNames === "string" ? body.middleNames : undefined;
   const captchaToken =
     typeof body?.captchaToken === "string" ? body.captchaToken : undefined;
 
-  if (!firstName || !lastNames || !email || !phoneNumber || !password) {
+  if (
+    typeof firstName !== "string" ||
+    typeof lastNames !== "string" ||
+    typeof email !== "string" ||
+    typeof phoneNumber !== "string" ||
+    typeof password !== "string"
+  ) {
     return NextResponse.json(
       { error: "Missing required fields" },
       { status: 400 }
     );
   }
+
+  const rateLimitResponse = await enforceRateLimitRules([
+    {
+      scope: "auth:signup:ip",
+      identifier: getClientIp(req.headers),
+      limit: 5,
+      windowMs: 60 * 60_000,
+    },
+    {
+      scope: "auth:signup:account",
+      identifier: email.trim().toLowerCase(),
+      limit: 3,
+      windowMs: 60 * 60_000,
+    },
+  ]);
+  if (rateLimitResponse) return rateLimitResponse;
 
   // MUST be created before supabase so cookies attach to it
   const res = NextResponse.json({ success: true });
@@ -33,6 +66,7 @@ export async function POST(req: Request) {
     supabaseConfig.url,
     supabaseConfig.key,
     {
+      global: { fetch: fetchWithTimeout },
       cookies: {
         get(name) {
           return (
