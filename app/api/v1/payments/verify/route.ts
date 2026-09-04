@@ -2,6 +2,8 @@
 import { NextResponse } from "next/server";
 import { requireUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { parseJsonObjectRequest } from "@/lib/security/request-body";
+import { fetchWithTimeout } from "@/lib/security/timeouts";
 
 export async function POST(req: Request) {
   // -------------------------------------------------------
@@ -14,8 +16,12 @@ export async function POST(req: Request) {
   // -------------------------------------------------------
   // 2. INPUT
   // -------------------------------------------------------
-  const body = await req.json().catch(() => null);
-  const reference = body?.reference;
+  const parsedBody = await parseJsonObjectRequest(req);
+  if (!parsedBody.ok) return parsedBody.response;
+  const reference =
+    typeof parsedBody.data.reference === "string"
+      ? parsedBody.data.reference
+      : undefined;
 
   if (!reference) {
     return NextResponse.json(
@@ -27,8 +33,8 @@ export async function POST(req: Request) {
   // -------------------------------------------------------
   // 3. VERIFY WITH PAYSTACK
   // -------------------------------------------------------
-  const verifyRes = await fetch(
-    `https://api.paystack.co/transaction/verify/${reference}`,
+  const verifyRes = await fetchWithTimeout(
+    `https://api.paystack.co/transaction/verify/${encodeURIComponent(reference)}`,
     {
       headers: {
         Authorization: `Bearer ${process.env.PAYSTACK_SECRET_KEY}`,
@@ -38,7 +44,7 @@ export async function POST(req: Request) {
 
   const verifyData = await verifyRes.json();
 
-  if (!verifyData.status || !verifyData.data) {
+  if (!verifyRes.ok || !verifyData.status || !verifyData.data) {
     return NextResponse.json(
       { error: "Failed verifying Paystack payment" },
       { status: 400 }
@@ -46,6 +52,17 @@ export async function POST(req: Request) {
   }
 
   const tx = verifyData.data;
+
+  if (
+    tx.status !== "success" ||
+    tx.reference !== reference ||
+    tx.metadata?.userId !== dbUser.id
+  ) {
+    return NextResponse.json(
+      { error: "Payment does not belong to this account" },
+      { status: 403 }
+    );
+  }
 
   // -------------------------------------------------------
   // 4. PREVENT DUPLICATE RECORDS
