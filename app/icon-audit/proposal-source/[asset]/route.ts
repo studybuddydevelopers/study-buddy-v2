@@ -6,6 +6,34 @@ const ILLUSTRATION_SOURCES: Record<string, string> = {
   "study-plan": "/Users/efeon/Downloads/vectorised-1a5fc589.svg",
 };
 
+const STUDY_BUDDY_PURPLES: Record<string, string> = {
+  "#170a3f": "#3B2A56",
+  "#291470": "#3B2A56",
+  "#301b6b": "#4F387D",
+  "#3b1f92": "#4F387D",
+  "#3b2573": "#4F387D",
+  "#432692": "#4F387D",
+  "#4b3a69": "#4F387D",
+  "#502fb6": "#513D96",
+  "#512cbf": "#513D96",
+  "#543495": "#513D96",
+  "#543bb4": "#513D96",
+  "#723bd2": "#633894",
+  "#7f47d7": "#683E99",
+  "#9a65de": "#683E99",
+  "#ccb2ec": "#9E92B0",
+  "#d8cde6": "#9E92B0",
+  "#e6d1f3": "#E9E6ED",
+  "#ebe2f5": "#E9E6ED",
+  "#efe0f9": "#E9E6ED",
+};
+
+function applyStudyBuddyPurplePalette(svg: string) {
+  return svg.replace(/#[\da-f]{6}/gi, (colour) => (
+    STUDY_BUDDY_PURPLES[colour.toLowerCase()] ?? colour
+  ));
+}
+
 function addViewBox(svg: string) {
   if (/<svg\b[^>]*\bviewBox=/i.test(svg)) return svg;
 
@@ -32,7 +60,9 @@ export async function GET(
 
   try {
     const svg = addViewBox(
-      await readFile(/* turbopackIgnore: true */ sourcePath, "utf8"),
+      applyStudyBuddyPurplePalette(
+        await readFile(/* turbopackIgnore: true */ sourcePath, "utf8"),
+      ),
     );
     const body = new TextEncoder().encode(svg);
 
