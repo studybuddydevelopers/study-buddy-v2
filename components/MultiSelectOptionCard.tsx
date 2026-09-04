@@ -1,5 +1,7 @@
 "use client"; // for Next.js App Router interactivity
 
+import StudyBuddyIcon from "@/components/StudyBuddyIcon";
+
 interface MultiSelectOptionCardProps {
   label: string;
   value: string;
@@ -29,26 +31,11 @@ export default function MultiSelectOptionCard({
       />
 
       {/* Custom checkbox square */}
-      <span
-        className={`mr-3 h-5 w-5 rounded-md border-2 p-2.5 flex items-center justify-center 
-          ${checked ? "border-primary-500" : "bg-background border-gray-400 "}
-        `}
-      >
-        <div className={checked? "border bg-primary-500 rounded-sm " : ""}>
-          {checked && (
-            <svg
-              className="h-3 w-3 text-background"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth={4}
-              viewBox="0 0 24 24"
-            >
-              <path d="M5 13l4 4L19 7" />
-            </svg>
-          )}
-        </div>
-        
-      </span>
+      {checked ? (
+        <StudyBuddyIcon name="checkbox" size={26} className="mr-3 shrink-0" />
+      ) : (
+        <span className="mr-3 flex h-5 w-5 shrink-0 items-center justify-center rounded-md border-2 border-gray-400 bg-background p-2.5" />
+      )}
 
       <span className="font-medium text-gray-800">{label}</span>
     </label>
