@@ -1,8 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { BookOpen, ChevronRight } from "lucide-react";
 import Paragraph from "@/components/Paragraph";
+import StudyBuddyIcon from "@/components/StudyBuddyIcon";
 import type { MaterialsSubjectSection } from "../materials.types";
 
 export default function PastQuestionsClient({
@@ -53,11 +53,7 @@ export default function PastQuestionsClient({
                         <div className="flex items-start justify-between gap-3">
                           <div className="flex gap-3">
                             <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-lg bg-primary-50">
-                              <BookOpen
-                                size={28}
-                                className="text-primary-500"
-                                aria-hidden="true"
-                              />
+                              <StudyBuddyIcon name="pastQuestions" size={40} />
                             </div>
                             <div className="min-w-0">
                               <h3 className="font-semibold leading-snug text-gray-900">
@@ -74,9 +70,10 @@ export default function PastQuestionsClient({
                               </Paragraph>
                             </div>
                           </div>
-                          <ChevronRight
-                            size={18}
-                            className="mt-1 shrink-0 text-primary-500"
+                          <StudyBuddyIcon
+                            name="chevron"
+                            size={20}
+                            className="mt-1 shrink-0"
                           />
                         </div>
 
