@@ -6,6 +6,10 @@ import {
   sendWhatsAppText,
 } from "@/lib/whatsapp";
 import { handleIncomingMessage } from "@/lib/whatsapp-flow";
+import {
+  parseTextRequest,
+  REQUEST_LIMITS,
+} from "@/lib/security/request-body";
 
 // -----------------------------------------------------
 // GET — Meta's one-time webhook verification handshake.
@@ -30,7 +34,9 @@ export async function GET(req: Request) {
 export async function POST(req: Request) {
   try {
     // 1. Read raw body for signature verification.
-    const rawBody = await req.text();
+    const parsedBody = await parseTextRequest(req, REQUEST_LIMITS.webhook);
+    if (!parsedBody.ok) return parsedBody.response;
+    const rawBody = parsedBody.data;
 
     // 2. Verify the request came from Meta.
     const signature = req.headers.get("x-hub-signature-256");
