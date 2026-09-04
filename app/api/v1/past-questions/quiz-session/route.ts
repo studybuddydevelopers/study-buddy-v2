@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/auth";
+import { parseJsonObjectRequest } from "@/lib/security/request-body";
 
 const MAX_QUESTIONS_PER_SESSION = 200;
 const MAX_ANSWER_LENGTH = 10_000;
@@ -68,12 +69,9 @@ export async function POST(req: Request) {
   if ("errorResponse" in auth) return auth.errorResponse;
   const { dbUser } = auth;
 
-  const body = await req.json().catch(() => null);
-  if (!body || typeof body !== "object" || Array.isArray(body)) {
-    return NextResponse.json({ error: "Invalid request body" }, { status: 400 });
-  }
-
-  const record = body as Record<string, unknown>;
+  const parsedBody = await parseJsonObjectRequest(req);
+  if (!parsedBody.ok) return parsedBody.response;
+  const record = parsedBody.data;
   const topicId = record.topicId;
   if (typeof topicId !== "string" || topicId.length === 0) {
     return NextResponse.json({ error: "topicId is required" }, { status: 400 });
@@ -88,7 +86,7 @@ export async function POST(req: Request) {
     );
   }
 
-  const answers = parseAnswers(body);
+  const answers = parseAnswers(record);
   if (!answers) {
     return NextResponse.json(
       {
