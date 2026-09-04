@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/auth";
+import { parseJsonRequest } from "@/lib/security/request-body";
 
 const MAX_DRAFTS_PER_REQUEST = 25;
 const MAX_ANSWER_LENGTH = 10_000;
@@ -138,8 +139,9 @@ export async function PATCH(req: Request) {
     });
   }
 
-  const body = await req.json().catch(() => null);
-  const updates = parseDraftUpdates(body);
+  const parsedBody = await parseJsonRequest(req);
+  if (!parsedBody.ok) return parsedBody.response;
+  const updates = parseDraftUpdates(parsedBody.data);
   if (!updates) {
     return NextResponse.json(
       {
