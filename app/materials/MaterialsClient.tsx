@@ -43,6 +43,7 @@ const FEATURED_CARDS: HubCard[] = [
     description: "Most-popular, community-favourite, and other textbooks.",
     href: "/materials/textbooks",
     Icon: BookOpen,
+    proposal: "textbook",
   },
 ];
 
@@ -114,6 +115,7 @@ export default function MaterialsClient({
                 title="Mathematics Textbooks"
                 href="/materials/textbooks"
                 Icon={BookOpen}
+                proposal="textbook"
                 completed={0}
                 total={0}
                 progressPercentage={0}
