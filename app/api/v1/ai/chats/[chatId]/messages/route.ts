@@ -9,6 +9,8 @@ import {
 import { sendChatMessageSchema } from "@/lib/ai/chats/schemas";
 import { enforceAiRequestLimits } from "@/lib/security/rate-limit";
 
+export const maxDuration = 30;
+
 interface RouteContext {
   params: Promise<{ chatId: string }>;
 }
