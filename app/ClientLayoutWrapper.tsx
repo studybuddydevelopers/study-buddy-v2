@@ -32,7 +32,7 @@ export default function ClientLayoutWrapper({
       />
 
       {/* Page content */}
-      <div className="pb-16 md:pb-0">
+      <div className="pb-16 min-[1110px]:pb-0">
         <Suspense>
           {children}
         </Suspense>
@@ -41,7 +41,7 @@ export default function ClientLayoutWrapper({
       <Footer />
 
       {isAuthenticated && (
-        <div className="md:hidden">
+        <div className="min-[1110px]:hidden">
           <BottomNav />
         </div>
       )}
