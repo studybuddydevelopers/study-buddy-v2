@@ -6,6 +6,7 @@ import {
   resourceRouteErrorResponse,
 } from "@/lib/resources/http";
 import { resourceApprovalSchema } from "@/lib/resources/schemas";
+import { parseJsonRequest } from "@/lib/security/request-body";
 
 interface RouteContext {
   params: Promise<{ resourceId: string }>;
@@ -15,15 +16,9 @@ export async function POST(req: Request, context: RouteContext) {
   const auth = await requireAdmin();
   if ("errorResponse" in auth) return auth.errorResponse;
 
-  let body: unknown;
-  try {
-    body = await req.json();
-  } catch {
-    return NextResponse.json(
-      { error: "INVALID_INPUT", message: "Invalid JSON body." },
-      { status: 400 }
-    );
-  }
+  const parsedBody = await parseJsonRequest(req);
+  if (!parsedBody.ok) return parsedBody.response;
+  const body = parsedBody.data;
 
   const parsed = resourceApprovalSchema.safeParse(body);
   if (!parsed.success) {
