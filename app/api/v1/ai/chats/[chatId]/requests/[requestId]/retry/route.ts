@@ -4,6 +4,8 @@ import { getChatService } from "@/lib/ai/chats/chat-service";
 import { chatRouteErrorResponse } from "@/lib/ai/chats/http";
 import { enforceAiRequestLimits } from "@/lib/security/rate-limit";
 
+export const maxDuration = 30;
+
 interface RouteContext {
   params: Promise<{ chatId: string; requestId: string }>;
 }
