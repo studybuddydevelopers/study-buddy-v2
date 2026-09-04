@@ -13,6 +13,8 @@ import {
 import { enforceAiRequestLimits } from "@/lib/security/rate-limit";
 import { openAiClientOptions } from "@/lib/security/timeouts";
 
+export const maxDuration = 30;
+
 export async function POST(
   req: Request,
   { params }: { params: Promise<{ id: string }> }
