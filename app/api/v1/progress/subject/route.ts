@@ -2,6 +2,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/auth";
+import { parseJsonObjectRequest } from "@/lib/security/request-body";
 
 export async function POST(req: Request) {
   // -------------------------------------
@@ -14,9 +15,13 @@ export async function POST(req: Request) {
   // -------------------------------------
   // 2. PARSE INPUT
   // -------------------------------------
-  const body = await req.json().catch(() => null);
-  const subjectId = body?.subjectId;
-  const progressPercentage = body?.progressPercentage;
+  const parsedBody = await parseJsonObjectRequest(req);
+  if (!parsedBody.ok) return parsedBody.response;
+  const subjectId =
+    typeof parsedBody.data.subjectId === "string"
+      ? parsedBody.data.subjectId
+      : undefined;
+  const progressPercentage = parsedBody.data.progressPercentage;
 
   if (!subjectId) {
     return NextResponse.json(
@@ -25,7 +30,10 @@ export async function POST(req: Request) {
     );
   }
 
-  if (progressPercentage == null || isNaN(progressPercentage)) {
+  if (
+    progressPercentage == null ||
+    !Number.isFinite(Number(progressPercentage))
+  ) {
     return NextResponse.json(
       { error: "progressPercentage is required and must be a number" },
       { status: 400 }
