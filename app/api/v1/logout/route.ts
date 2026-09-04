@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 import { getServerSupabaseConfig } from "@/lib/supabase/config";
+import { fetchWithTimeout } from "@/lib/security/timeouts";
 
 export async function POST(req: Request) {
   const res = NextResponse.json({ ok: true });
@@ -10,6 +11,7 @@ export async function POST(req: Request) {
     supabaseConfig.url,
     supabaseConfig.key,
     {
+      global: { fetch: fetchWithTimeout },
       cookies: {
         get(name) {
           return req.headers
