@@ -40,7 +40,7 @@ import StudyBuddyIcon, {
 export const metadata: Metadata = {
   title: "Icon Audit | Study Buddy",
   description:
-    "A visual inventory of Study Buddy UI icons with illustration-led SVG proposals.",
+    "Outstanding Study Buddy icon decisions, revisions and held proposals.",
 };
 
 type IconGroup =
@@ -780,19 +780,64 @@ const ICONS: IconDecision[] = [
   },
 ];
 
-const placementCount = ICONS.reduce(
+const FULLY_APPLIED_ICON_TITLES = new Set([
+  "Dashboard / Home",
+  "Study materials",
+  "Mock exams",
+  "Progress",
+  "AI chat",
+  "Forward / drill down",
+  "Personalised study plans",
+  "Practice tests",
+  "Expert guidance",
+  "Past questions",
+  "Flashcards",
+  "Learning analytics",
+  "New chat",
+  "Edit chat title",
+  "Delete chat",
+  "Data security",
+  "User rights",
+  "Reply time",
+  "Content feedback",
+]);
+
+function isAppliedPlacement(icon: IconDecision, location: IconLocation) {
+  if (FULLY_APPLIED_ICON_TITLES.has(icon.title)) return true;
+
+  if (icon.title === "Study support") {
+    return location.file !== "app/terms-of-service/page.tsx";
+  }
+
+  if (icon.title === "Security and trust") {
+    return location.file === "app/about-us/page.tsx";
+  }
+
+  return false;
+}
+
+const OPEN_ICONS = ICONS.flatMap((icon) => {
+  const locations = icon.locations.filter(
+    (location) => !isAppliedPlacement(icon, location),
+  );
+
+  return locations.length > 0 ? [{ ...icon, locations }] : [];
+});
+
+const placementCount = OPEN_ICONS.reduce(
   (total, icon) => total + icon.locations.length,
   0
 );
 
-const PAGE_SECTIONS = PAGE_GROUPS.map((page) => ({
+const PAGE_SECTIONS = PAGE_GROUPS.map((page, pageIndex) => ({
   ...page,
-  placements: ICONS.flatMap((icon) =>
+  pageNumber: pageIndex + 1,
+  placements: OPEN_ICONS.flatMap((icon) =>
     icon.locations
       .filter((location) => page.files.includes(location.file))
       .map((location) => ({ icon, location }))
   ),
-}));
+})).filter((page) => page.placements.length > 0);
 
 export default function IconAuditPage() {
   return (
@@ -805,22 +850,22 @@ export default function IconAuditPage() {
           </div>
           <div className="relative max-w-3xl">
             <p className="text-xs font-black uppercase tracking-[0.22em] text-[#6C3483]">
-              Page-by-page audit · approved replacements in progress
+              Page-by-page audit · outstanding decisions only
             </p>
             <h1 className="mt-3 text-3xl font-black leading-tight sm:text-5xl">
-              See every icon in the job it actually performs
+              Review only what is still outstanding
             </h1>
             <p className="mt-5 max-w-2xl text-sm font-medium leading-7 text-[#554C5B] sm:text-base">
-              The audit is grouped by website page. Each current icon is placed in a
-              small mock of its real UI context, then compared with an SVG concept
-              designed for that specific meaning and the homepage illustration style.
+              Applied replacements have been removed from this page. What remains is
+              grouped by website page and marked as either an approved current icon,
+              a concept needing revision, or an idea held for later review.
             </p>
           </div>
 
           <div className="relative mt-8 grid gap-3 sm:grid-cols-3">
-            <SummaryStat value={String(ICONS.length)} label="Icon decisions" />
-            <SummaryStat value={String(placementCount)} label="Documented placements" />
-            <SummaryStat value={String(PAGE_SECTIONS.length)} label="Page / UI groups" />
+            <SummaryStat value={String(OPEN_ICONS.length)} label="Open icon decisions" />
+            <SummaryStat value={String(placementCount)} label="Outstanding placements" />
+            <SummaryStat value={String(PAGE_SECTIONS.length)} label="Pages still to review" />
           </div>
         </header>
 
@@ -862,13 +907,13 @@ export default function IconAuditPage() {
           </div>
         </nav>
 
-        {PAGE_SECTIONS.map((page, pageIndex) => (
+        {PAGE_SECTIONS.map((page) => (
           <section key={page.id} id={page.id} className="mt-14 scroll-mt-8">
             <div className="border-b-2 border-[#17121C] pb-5">
               <div className="flex flex-wrap items-end justify-between gap-4">
                 <div>
                   <p className="text-xs font-black uppercase tracking-[0.18em] text-[#6C3483]">
-                    Page {String(pageIndex + 1).padStart(2, "0")} · {page.route}
+                    Page {String(page.pageNumber).padStart(2, "0")} · {page.route}
                   </p>
                   <h2 className="mt-1 text-2xl font-black sm:text-3xl">{page.title}</h2>
                 </div>
@@ -925,6 +970,8 @@ function IconComparisonCard({
   location: IconLocation;
   featured?: boolean;
 }) {
+  const decision = auditDecision(icon);
+
   return (
     <article
       className={`overflow-hidden rounded-3xl border bg-white shadow-sm ${
@@ -939,9 +986,14 @@ function IconComparisonCard({
             </p>
             <h3 className="mt-1 text-lg font-black">{icon.title}</h3>
           </div>
-          <span className="rounded-full bg-[#EEE9F1] px-3 py-1 text-[10px] font-black uppercase tracking-[0.12em] text-[#4D3A61]">
-            {icon.actualSize}px current slot
-          </span>
+          <div className="flex flex-wrap justify-end gap-2">
+            <span className={`rounded-full px-3 py-1 text-[10px] font-black uppercase tracking-[0.12em] ${auditDecisionClasses(decision)}`}>
+              {auditDecisionLabel(decision)}
+            </span>
+            <span className="rounded-full bg-[#EEE9F1] px-3 py-1 text-[10px] font-black uppercase tracking-[0.12em] text-[#4D3A61]">
+              {icon.actualSize}px current slot
+            </span>
+          </div>
         </div>
         <p className="mt-3 text-sm font-medium leading-6 text-[#62596A]">{location.context}</p>
         <code className="mt-2 block break-all text-[11px] font-bold text-[#6C3483]">
@@ -956,7 +1008,7 @@ function IconComparisonCard({
             <p className="text-[9px] font-bold uppercase tracking-[0.1em] text-[#777]">{icon.currentSource}</p>
           </div>
         </PreviewPanel>
-        <PreviewPanel label={icon.keepCurrent ? "Decision" : "New idea"} proposed>
+        <PreviewPanel label={auditProposalLabel(decision)} proposed>
           <div className="flex min-h-36 flex-col items-center justify-center gap-2 px-3 py-3">
             <ProposalArtwork icon={icon} size={76} expanded />
             <p className="text-center text-[9px] font-bold uppercase tracking-[0.1em] text-[#6C3483]">{icon.proposalName}</p>
@@ -978,7 +1030,7 @@ function IconComparisonCard({
 
         <div className="mt-5 rounded-2xl bg-[#F7F3F9] px-4 py-4">
           <p className="text-[10px] font-black uppercase tracking-[0.16em] text-[#6C3483]">
-            Why this proposal fits the job
+            {decision === "keep" ? "Why it stays" : decision === "revise" ? "Revision direction" : "Concept rationale"}
           </p>
           <p className="mt-2 text-sm leading-6 text-[#62596A]">{icon.rationale}</p>
         </div>
@@ -1014,6 +1066,43 @@ function proposalApproach(icon: IconDecision) {
   return familiarControls.has(icon.title)
     ? "Familiar control · illustrated"
     : "New contextual metaphor";
+}
+
+type AuditDecision = "keep" | "revise" | "held";
+
+const REVISION_TITLES = new Set([
+  "Textbooks",
+  "Progress explanation",
+  "Built for learners",
+  "Message sent confirmation",
+  "Low bandwidth",
+  "Data collected",
+  "Email contact",
+  "Send message",
+]);
+
+function auditDecision(icon: IconDecision): AuditDecision {
+  if (icon.keepCurrent) return "keep";
+  if (REVISION_TITLES.has(icon.title)) return "revise";
+  return "held";
+}
+
+function auditDecisionLabel(decision: AuditDecision) {
+  if (decision === "keep") return "Keep current";
+  if (decision === "revise") return "Needs revision";
+  return "Held for review";
+}
+
+function auditDecisionClasses(decision: AuditDecision) {
+  if (decision === "keep") return "bg-[#E5F3E9] text-[#225936]";
+  if (decision === "revise") return "bg-[#FFF0BD] text-[#6B4B00]";
+  return "bg-[#EEE9F1] text-[#4D3A61]";
+}
+
+function auditProposalLabel(decision: AuditDecision) {
+  if (decision === "keep") return "Decision";
+  if (decision === "revise") return "Revised concept";
+  return "Held concept";
 }
 
 function ProposalArtwork({
@@ -1078,6 +1167,7 @@ function UsagePreview({
   location: IconLocation;
   proposed: boolean;
 }) {
+  const decision = auditDecision(icon);
   const artwork = proposed && !icon.keepCurrent ? (
     <ProposalArtwork icon={icon} size={Math.max(icon.actualSize, 18)} />
   ) : (
@@ -1159,7 +1249,7 @@ function UsagePreview({
   return (
     <div>
       <p className={`mb-1.5 text-[9px] font-black uppercase tracking-[0.12em] ${proposed ? "text-[#6C3483]" : "text-[#777]"}`}>
-        {proposed ? (icon.keepCurrent ? "Keep current" : "Proposed") : "Current"}
+        {proposed ? auditProposalLabel(decision) : "Current"}
       </p>
       {surface}
     </div>
