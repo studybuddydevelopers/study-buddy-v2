@@ -819,9 +819,46 @@ function isAppliedPlacement(icon: IconDecision) {
   return false;
 }
 
+type AuditDecision = "keep" | "revise" | "held";
+
+const KEEP_CURRENT_TITLES = new Set([
+  "Profile",
+  "Notifications",
+  "Progress explanation",
+  "Auth encouragement",
+  "Send message",
+]);
+
+const REVISION_TITLES = new Set([
+  "Select expand / collapse",
+  "Button loading",
+  "Important restriction",
+]);
+
+function auditDecision(icon: IconDecision, location: IconLocation): AuditDecision {
+  if (KEEP_CURRENT_TITLES.has(icon.title)) return "keep";
+
+  if (icon.title === "Directional actions") {
+    if (location.file === "app/terms-of-service/page.tsx") return "revise";
+    if (
+      location.file === "app/about-us/page.tsx" ||
+      location.file === "app/contact-us/page.tsx" ||
+      location.file === "app/privacy-policy/page.tsx"
+    ) {
+      return "keep";
+    }
+
+    return "held";
+  }
+
+  if (REVISION_TITLES.has(icon.title)) return "revise";
+  return "held";
+}
+
 const OPEN_ICONS = ICONS.flatMap((icon) => {
   const locations = icon.locations.filter(
-    () => !isAppliedPlacement(icon),
+    (location) =>
+      !isAppliedPlacement(icon) && auditDecision(icon, location) !== "keep",
   );
 
   return locations.length > 0 ? [{ ...icon, locations }] : [];
@@ -859,9 +896,9 @@ export default function IconAuditPage() {
               Review only what is still outstanding
             </h1>
             <p className="mt-5 max-w-2xl text-sm font-medium leading-7 text-[#554C5B] sm:text-base">
-              Applied replacements have been removed from this page. What remains is
-              grouped by website page and marked as either an approved current icon,
-              a concept needing revision, or an idea held for later review.
+              Applied replacements and icons already approved to stay as they are have
+              been removed. What remains is grouped by website page and marked as
+              either needing revision or held for later review.
             </p>
           </div>
 
@@ -1073,42 +1110,6 @@ function proposalApproach(icon: IconDecision, decision: AuditDecision) {
   return familiarControls.has(icon.title)
     ? "Familiar control · illustrated"
     : "New contextual metaphor";
-}
-
-type AuditDecision = "keep" | "revise" | "held";
-
-const KEEP_CURRENT_TITLES = new Set([
-  "Profile",
-  "Notifications",
-  "Progress explanation",
-  "Auth encouragement",
-  "Send message",
-]);
-
-const REVISION_TITLES = new Set([
-  "Select expand / collapse",
-  "Button loading",
-  "Important restriction",
-]);
-
-function auditDecision(icon: IconDecision, location: IconLocation): AuditDecision {
-  if (KEEP_CURRENT_TITLES.has(icon.title)) return "keep";
-
-  if (icon.title === "Directional actions") {
-    if (location.file === "app/terms-of-service/page.tsx") return "revise";
-    if (
-      location.file === "app/about-us/page.tsx" ||
-      location.file === "app/contact-us/page.tsx" ||
-      location.file === "app/privacy-policy/page.tsx"
-    ) {
-      return "keep";
-    }
-
-    return "held";
-  }
-
-  if (REVISION_TITLES.has(icon.title)) return "revise";
-  return "held";
 }
 
 function auditDecisionLabel(decision: AuditDecision) {
