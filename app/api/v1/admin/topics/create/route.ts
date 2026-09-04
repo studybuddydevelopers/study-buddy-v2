@@ -3,6 +3,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireAdmin } from "@/lib/auth";
+import { parseJsonObjectRequest } from "@/lib/security/request-body";
 
 export async function POST(req: Request) {
   // -------------------------------------
@@ -14,12 +15,9 @@ export async function POST(req: Request) {
   // -------------------------------------
   // 2. PARSE JSON BODY
   // -------------------------------------
-  let body;
-  try {
-    body = await req.json();
-  } catch {
-    return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
-  }
+  const parsedBody = await parseJsonObjectRequest(req);
+  if (!parsedBody.ok) return parsedBody.response;
+  const body = parsedBody.data;
 
   const { subjectId, title, examOutlineRef, difficulty } = body;
 
@@ -40,14 +38,22 @@ export async function POST(req: Request) {
     );
   }
 
-  if (examOutlineRef && typeof examOutlineRef !== "string") {
+  if (
+    examOutlineRef !== undefined &&
+    examOutlineRef !== null &&
+    typeof examOutlineRef !== "string"
+  ) {
     return NextResponse.json(
       { error: "examOutlineRef must be a string" },
       { status: 400 }
     );
   }
 
-  if (difficulty !== undefined && typeof difficulty !== "number") {
+  if (
+    difficulty !== undefined &&
+    difficulty !== null &&
+    typeof difficulty !== "number"
+  ) {
     return NextResponse.json(
       { error: "difficulty must be a number" },
       { status: 400 }
@@ -75,8 +81,8 @@ export async function POST(req: Request) {
     data: {
       subjectId,
       title,
-      examOutlineRef: examOutlineRef ?? null,
-      difficulty: difficulty ?? null,
+      examOutlineRef: (examOutlineRef as string | null | undefined) ?? null,
+      difficulty: (difficulty as number | null | undefined) ?? null,
     },
   });
 
