@@ -1,4 +1,5 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
+import { fetchWithTimeout } from "@/lib/security/timeouts";
 
 let cachedAdminClient: SupabaseClient | null = null;
 
@@ -17,6 +18,7 @@ export function getSupabaseAdminClient() {
   }
 
   cachedAdminClient = createClient(url, secret, {
+    global: { fetch: fetchWithTimeout },
     auth: {
       autoRefreshToken: false,
       persistSession: false,
