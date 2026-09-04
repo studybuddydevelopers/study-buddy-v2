@@ -52,8 +52,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Invalid email address" }, { status: 400 });
   }
 
-  // Log for now — wire up email delivery (e.g. Resend/SendGrid) here when ready
-  console.log("[contact-form]", { name, email, subject, message });
+  console.info("[contact-form] accepted", { messageLength: message.length });
 
   return NextResponse.json({ success: true });
 }
