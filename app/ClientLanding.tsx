@@ -10,7 +10,7 @@ import Paragraph from "@/components/Paragraph";
 import Image from "@/components/Image";
 import Card from "@/components/Card";
 
-import { PiGraduationCapLight, PiShieldCheck } from "react-icons/pi";
+import { PiGraduationCapLight } from "react-icons/pi";
 import { HiOutlinePresentationChartBar, HiOutlineUserGroup } from "react-icons/hi";
 
 export default function ClientLanding() {
@@ -147,22 +147,6 @@ export default function ClientLanding() {
               <Paragraph variant="superMuted" className="w-56 text-left">
                 Connect with experienced tutors and mentors who can provide 
                 valuable insights and support throughout your preparation journey.
-              </Paragraph>
-            </Card>
-
-            {/* Card 4 */}
-            <Card className="w-fit" padding="xs" shadow="sm" hover>
-              <div className="flex items-center justify-center w-14 h-14 rounded-lg mb-4">
-                <PiShieldCheck strokeWidth={5} size={40} />
-              </div>
-
-              <Heading6 gutter="sm" weight="bold" className="text-left">
-                Secure and Reliable
-              </Heading6>
-
-              <Paragraph variant="superMuted" className="mt-2 w-56 text-left">
-                Our platform is built with security in mind, ensuring your data is 
-                protected and your learning experience is seamless and reliable.
               </Paragraph>
             </Card>
 
