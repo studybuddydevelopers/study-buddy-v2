@@ -2,21 +2,27 @@ import Link from "next/link";
 import {
   ArrowRight,
   Database,
-  LockKeyhole,
   Mail,
-  MessageCircle,
   ShieldCheck,
-  UserCheck,
 } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 import Button from "@/components/Button";
 import Heading1 from "@/components/Heading1";
 import Heading2 from "@/components/Heading2";
 import Paragraph from "@/components/Paragraph";
+import StudyBuddyIcon, {
+  type StudyBuddyIconName,
+} from "@/components/StudyBuddyIcon";
 
 const LAST_UPDATED = "20 July 2026";
 const CONTACT_EMAIL = "sbstudybuddy0@gmail.com";
 
-const summaryItems = [
+const summaryItems: {
+  title: string;
+  description: string;
+  icon?: LucideIcon;
+  proposal?: StudyBuddyIconName;
+}[] = [
   {
     title: "We collect learning data",
     description:
@@ -33,13 +39,13 @@ const summaryItems = [
     title: "Trusted services process data",
     description:
       "Supabase, OpenAI, Meta/WhatsApp, Paystack, and Vercel help us run the platform.",
-    icon: LockKeyhole,
+    proposal: "lock",
   },
   {
     title: "You can make privacy requests",
     description:
       "You can ask to access, correct, delete, object to, or export eligible account data.",
-    icon: UserCheck,
+    proposal: "userCheck",
   },
 ];
 
@@ -147,12 +153,16 @@ export default function PrivacyPolicyPage() {
       <section className="bg-accent-50">
         <div className="mx-auto max-w-6xl px-6 py-10">
           <div className="grid gap-4 md:grid-cols-4">
-            {summaryItems.map(({ title, description, icon: Icon }) => (
+            {summaryItems.map(({ title, description, icon: Icon, proposal }) => (
               <article
                 key={title}
                 className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm"
               >
-                <Icon className="mb-3 h-5 w-5 text-primary-600" aria-hidden="true" />
+                {proposal ? (
+                  <StudyBuddyIcon name={proposal} size={30} className="mb-3" />
+                ) : Icon ? (
+                  <Icon className="mb-3 h-5 w-5 text-primary-600" aria-hidden="true" />
+                ) : null}
                 <h2 className="text-sm font-bold text-gray-900">{title}</h2>
                 <p className="mt-2 text-sm leading-relaxed text-gray-700">
                   {description}
@@ -467,7 +477,7 @@ export default function PrivacyPolicyPage() {
                 variant="primary"
                 size="lg"
                 className="w-full sm:w-auto"
-                icon={<MessageCircle className="h-5 w-5" aria-hidden="true" />}
+                icon={<StudyBuddyIcon name="support" size={22} />}
               >
                 Contact us
               </Button>
