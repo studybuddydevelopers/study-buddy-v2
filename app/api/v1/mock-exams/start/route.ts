@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/auth";
 import { buildMockExamMcqChoices } from "@/lib/mock-exam-multiple-choice";
+import { parseJsonObjectRequest } from "@/lib/security/request-body";
 
 export async function POST(req: Request) {
   // -------------------------------------
@@ -15,8 +16,12 @@ export async function POST(req: Request) {
   // -------------------------------------
   // 2. INPUT
   // -------------------------------------
-  const body = await req.json().catch(() => null);
-  const templateId = body?.templateId;
+  const parsedBody = await parseJsonObjectRequest(req);
+  if (!parsedBody.ok) return parsedBody.response;
+  const templateId =
+    typeof parsedBody.data.templateId === "string"
+      ? parsedBody.data.templateId
+      : undefined;
 
   if (!templateId) {
     return NextResponse.json(
