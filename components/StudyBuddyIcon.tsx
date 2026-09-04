@@ -28,9 +28,10 @@ export type StudyBuddyIconName =
   | "checkbox"
   | "spinner"
   | "encouragement"
-  | "menu"
   | "arrow"
   | "success"
+  | "learnerSuccess"
+  | "messageSent"
   | "wifi"
   | "database"
   | "lock"
@@ -55,6 +56,7 @@ const PURPLE = "#6C3483";
 const DEEP_PURPLE = "#3B2A56";
 const LAVENDER = "#E9E6ED";
 const WARM = "#895033";
+const GOLD = "#F6CE46";
 const PAPER = "#FCFCFC";
 
 export default function StudyBuddyIcon({
@@ -226,10 +228,12 @@ function iconArtwork(name: StudyBuddyIconName) {
     case "textbook":
       return (
         <>
-          <path d="M15 14h30c4 0 6 2 6 6v31H20c-3 0-5-2-5-5Z" fill={PURPLE} />
-          <path d="M20 14v37M20 44h31" fill="none" />
-          <path d="M27 22h17M27 29h13" fill="none" stroke={PAPER} />
-          <path d="m42 14-5 8 5-1 4 3v-10" fill={WARM} />
+          <path d="M8 18c9-3 17-1 24 5v31c-7-5-15-7-24-4Z" fill={PAPER} />
+          <path d="M56 18c-9-3-17-1-24 5v31c7-5 15-7 24-4Z" fill={PURPLE} />
+          <path d="M32 23v31" fill="none" />
+          <path d="M13 27c5-1 10 0 14 2M13 34c5-1 10 0 14 2M37 29c4-2 9-2 14-1M37 36c4-2 9-2 14-1" fill="none" stroke={PURPLE} />
+          <path d="M7 50c10-2 18 0 25 5 7-5 15-7 25-5" fill="none" stroke={WARM} strokeWidth="4" />
+          <path d="m46 19-1 11-4-3-4 4 1-10" fill={GOLD} strokeWidth="1.6" />
         </>
       );
     case "analytics":
@@ -302,8 +306,8 @@ function iconArtwork(name: StudyBuddyIconName) {
       return (
         <>
           <circle cx="32" cy="32" r="21" fill={PURPLE} />
-          <path d="M25 26c1-5 4-8 9-8 6 0 9 3 9 8 0 7-9 7-9 14" fill="none" stroke={PAPER} strokeWidth="4" />
-          <circle cx="34" cy="48" r="2.5" fill={WARM} stroke="none" />
+          <path d="M23.5 25c.8-5.2 3.8-8 8.5-8 5.5 0 9 3.1 9 8 0 6.5-9 6.8-9 14" fill="none" stroke={PAPER} strokeWidth="4" />
+          <circle cx="32" cy="48" r="3" fill={GOLD} stroke={PAPER} strokeWidth="1" />
         </>
       );
     case "checkbox":
@@ -329,13 +333,6 @@ function iconArtwork(name: StudyBuddyIconName) {
           <path d="m49 12 1 5 5 1-5 2-1 5-2-5-5-2 5-1Z" fill={PURPLE} />
         </>
       );
-    case "menu":
-      return (
-        <>
-          <path d="M14 20h36M14 32h28M14 44h36" fill="none" stroke={PURPLE} strokeWidth="5" />
-          <circle cx="49" cy="32" r="3" fill={WARM} stroke="none" />
-        </>
-      );
     case "arrow":
       return (
         <>
@@ -351,20 +348,43 @@ function iconArtwork(name: StudyBuddyIconName) {
           <path d="m21 32 7 8 16-19" fill="none" stroke={PAPER} strokeWidth="4" />
         </>
       );
+    case "learnerSuccess":
+      return (
+        <>
+          <circle cx="30" cy="24" r="9" fill={WARM} />
+          <path d="M21 22c1-8 15-10 18 0-4 0-8-2-11-5-1 3-4 5-7 5Z" fill={INK} />
+          <path d="M14 52c1-12 7-19 16-19s15 7 16 19Z" fill={PURPLE} />
+          <path d="m48 12 2.2 4.5 5 .7-3.6 3.5.9 5-4.5-2.4-4.5 2.4.9-5-3.6-3.5 5-.7Z" fill={GOLD} strokeWidth="1.5" />
+          <path d="M26 27c2.5 2 5.5 2 8 0" fill="none" />
+        </>
+      );
+    case "messageSent":
+      return (
+        <>
+          <path d="M11 22h36l6 6v25H11Z" fill={PURPLE} />
+          <path d="m12 26 20 15 20-15M12 51l14-14M52 51 40 37" fill="none" stroke={PAPER} />
+          <circle cx="47" cy="19" r="10" fill={PAPER} />
+          <path d="m42 19 4 4 7-9" fill="none" stroke={PURPLE} strokeWidth="3" />
+        </>
+      );
     case "wifi":
       return (
         <>
           <path d="M10 25c13-12 31-12 44 0M17 33c9-8 21-8 30 0M24 41c5-4 11-4 16 0" fill="none" stroke={PURPLE} strokeWidth="4" />
-          <circle cx="32" cy="49" r="4" fill={WARM} />
+          <circle cx="32" cy="49" r="4" fill={GOLD} />
+          <path d="M48 18v19m-6-6 6 6 6-6" fill="none" stroke={GOLD} strokeWidth="3.5" />
         </>
       );
     case "database":
       return (
         <>
-          <ellipse cx="32" cy="18" rx="18" ry="7" fill={PURPLE} />
-          <path d="M14 18v13c0 4 8 7 18 7s18-3 18-7V18" fill={PAPER} />
-          <path d="M14 31v13c0 4 8 7 18 7s18-3 18-7V31" fill={PURPLE} />
-          <path d="M20 42c5 2 12 3 18 1" fill="none" stroke={PAPER} />
+          <path d="M15 13h34v42H15Z" fill={PAPER} />
+          <path d="M24 10h16v8H24Z" fill={PURPLE} />
+          <circle cx="25" cy="29" r="6" fill={WARM} />
+          <path d="M17 42c1-6 4-9 8-9s7 3 8 9Z" fill={PURPLE} />
+          <path d="M36 27h8M36 34h8M36 41h8" fill="none" stroke={PURPLE} />
+          <circle cx="42" cy="48" r="4" fill={GOLD} />
+          <path d="m40 48 1.5 1.5 3-3" fill="none" stroke={INK} strokeWidth="1.6" />
         </>
       );
     case "lock":
@@ -388,10 +408,10 @@ function iconArtwork(name: StudyBuddyIconName) {
     case "mail":
       return (
         <>
-          <rect x="10" y="18" width="44" height="31" rx="5" fill={PAPER} />
-          <path d="m11 21 21 16 21-16" fill={PURPLE} />
-          <path d="m11 47 15-14M53 47 38 33" fill="none" />
-          <circle cx="47" cy="23" r="4" fill={WARM} />
+          <path d="M17 11h30v31H17Z" fill={PAPER} />
+          <path d="M23 20h18M23 27h13" fill="none" stroke={PURPLE} />
+          <path d="M9 27h46v26H9Z" fill={PURPLE} />
+          <path d="m10 29 22 16 22-16M10 51l16-12M54 51 38 39" fill="none" stroke={PAPER} />
         </>
       );
     case "warning":
@@ -439,9 +459,10 @@ function iconArtwork(name: StudyBuddyIconName) {
     case "send":
       return (
         <>
-          <path d="m8 29 47-17-13 42-10-17-17 8Z" fill={PURPLE} />
-          <path d="m32 37 23-25" fill="none" stroke={PAPER} strokeWidth="3" />
-          <path d="M11 52h14" fill="none" stroke={WARM} strokeWidth="4" />
+          <rect x="9" y="22" width="34" height="27" rx="4" fill={PAPER} />
+          <path d="m10 25 16 13 16-13M10 47l12-12" fill="none" stroke={PURPLE} />
+          <path d="M31 32h23m-8-8 8 8-8 8" fill="none" stroke={PURPLE} strokeWidth="4" />
+          <circle cx="15" cy="51" r="3" fill={GOLD} stroke="none" />
         </>
       );
   }
