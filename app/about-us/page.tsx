@@ -4,7 +4,6 @@ import {
   BookOpen,
   CheckCircle2,
   ShieldCheck,
-  Wifi,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import Button from "@/components/Button";
@@ -216,7 +215,7 @@ export default function AboutUsPage() {
         <div className="mx-auto grid max-w-6xl gap-8 px-6 py-14 lg:grid-cols-2">
           <div>
             <div className="mb-4 inline-flex h-10 w-10 items-center justify-center rounded-lg bg-white text-secondary-600 shadow-sm">
-              <Wifi className="h-5 w-5" aria-hidden="true" />
+              <StudyBuddyIcon name="wifi" size={32} />
             </div>
             <Heading2 gutter="sm">Built for real student conditions</Heading2>
             <Paragraph className="leading-relaxed text-gray-700">
