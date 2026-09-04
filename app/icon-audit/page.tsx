@@ -608,16 +608,16 @@ const ICONS: IconDecision[] = [
     ],
   },
   {
-    title: "Built for learners",
+    title: "WAEC learning workflows",
     group: "Trust, status & support",
     currentSource: "Lucide · CheckCircle2",
     current: <CheckCircle2 {...lucideProps} />,
     actualSize: 20,
     proposal: "learnerSuccess",
     proposalName: "Learner-first badge",
-    rationale: "The revised mark centres a learner and a study spark, which suits a learner-first principle better than a generic completion tick.",
+    rationale: "This is the third card in the four-card principles strip beneath the About-page hero. The learner-and-study-spark concept is still awaiting a decision for that exact sentence.",
     locations: [
-      { file: "app/about-us/page.tsx", context: "About-page principle cards." },
+      { file: "app/about-us/page.tsx", context: "‘Built around WAEC-style learning workflows’ — the third principle card directly beneath the About-page hero." },
     ],
   },
   {
@@ -792,33 +792,36 @@ const FULLY_APPLIED_ICON_TITLES = new Set([
   "Expert guidance",
   "Past questions",
   "Flashcards",
+  "Textbooks",
   "Learning analytics",
+  "Study support",
   "New chat",
   "Edit chat title",
   "Delete chat",
+  "Password visibility",
+  "Selected option",
+  "Security and trust",
+  "Message sent confirmation",
+  "Low bandwidth",
+  "Data collected",
   "Data security",
   "User rights",
+  "Email contact",
+  "Subscriptions and payments",
+  "Fair terms",
   "Reply time",
   "Content feedback",
 ]);
 
-function isAppliedPlacement(icon: IconDecision, location: IconLocation) {
+function isAppliedPlacement(icon: IconDecision) {
   if (FULLY_APPLIED_ICON_TITLES.has(icon.title)) return true;
-
-  if (icon.title === "Study support") {
-    return location.file !== "app/terms-of-service/page.tsx";
-  }
-
-  if (icon.title === "Security and trust") {
-    return location.file === "app/about-us/page.tsx";
-  }
 
   return false;
 }
 
 const OPEN_ICONS = ICONS.flatMap((icon) => {
   const locations = icon.locations.filter(
-    (location) => !isAppliedPlacement(icon, location),
+    () => !isAppliedPlacement(icon),
   );
 
   return locations.length > 0 ? [{ ...icon, locations }] : [];
@@ -970,7 +973,7 @@ function IconComparisonCard({
   location: IconLocation;
   featured?: boolean;
 }) {
-  const decision = auditDecision(icon);
+  const decision = auditDecision(icon, location);
 
   return (
     <article
@@ -982,7 +985,7 @@ function IconComparisonCard({
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div className="min-w-0">
             <p className="text-[10px] font-black uppercase tracking-[0.16em] text-[#6C3483]">
-              {proposalApproach(icon)}
+              {proposalApproach(icon, decision)}
             </p>
             <h3 className="mt-1 text-lg font-black">{icon.title}</h3>
           </div>
@@ -1010,8 +1013,10 @@ function IconComparisonCard({
         </PreviewPanel>
         <PreviewPanel label={auditProposalLabel(decision)} proposed>
           <div className="flex min-h-36 flex-col items-center justify-center gap-2 px-3 py-3">
-            <ProposalArtwork icon={icon} size={76} expanded />
-            <p className="text-center text-[9px] font-bold uppercase tracking-[0.1em] text-[#6C3483]">{icon.proposalName}</p>
+            {decision === "keep" ? icon.current : <ProposalArtwork icon={icon} size={76} expanded />}
+            <p className="text-center text-[9px] font-bold uppercase tracking-[0.1em] text-[#6C3483]">
+              {decision === "keep" ? `Keep existing ${icon.title}` : icon.proposalName}
+            </p>
             {["Personalised study plans", "Practice tests", "Expert guidance"].includes(icon.title) && (
               <p className="text-center text-[9px] font-bold text-[#895033]">Full illustration · card layout must expand</p>
             )}
@@ -1032,15 +1037,17 @@ function IconComparisonCard({
           <p className="text-[10px] font-black uppercase tracking-[0.16em] text-[#6C3483]">
             {decision === "keep" ? "Why it stays" : decision === "revise" ? "Revision direction" : "Concept rationale"}
           </p>
-          <p className="mt-2 text-sm leading-6 text-[#62596A]">{icon.rationale}</p>
+          <p className="mt-2 text-sm leading-6 text-[#62596A]">
+            {decision === "keep" ? "Approved to remain unchanged in this placement." : icon.rationale}
+          </p>
         </div>
       </div>
     </article>
   );
 }
 
-function proposalApproach(icon: IconDecision) {
-  if (icon.keepCurrent) return "Approved · keep current";
+function proposalApproach(icon: IconDecision, decision: AuditDecision) {
+  if (decision === "keep") return "Approved · keep current";
 
   const familiarControls = new Set([
     "Dashboard / Home",
@@ -1070,19 +1077,36 @@ function proposalApproach(icon: IconDecision) {
 
 type AuditDecision = "keep" | "revise" | "held";
 
-const REVISION_TITLES = new Set([
-  "Textbooks",
+const KEEP_CURRENT_TITLES = new Set([
+  "Profile",
+  "Notifications",
   "Progress explanation",
-  "Built for learners",
-  "Message sent confirmation",
-  "Low bandwidth",
-  "Data collected",
-  "Email contact",
+  "Auth encouragement",
   "Send message",
 ]);
 
-function auditDecision(icon: IconDecision): AuditDecision {
-  if (icon.keepCurrent) return "keep";
+const REVISION_TITLES = new Set([
+  "Select expand / collapse",
+  "Button loading",
+  "Important restriction",
+]);
+
+function auditDecision(icon: IconDecision, location: IconLocation): AuditDecision {
+  if (KEEP_CURRENT_TITLES.has(icon.title)) return "keep";
+
+  if (icon.title === "Directional actions") {
+    if (location.file === "app/terms-of-service/page.tsx") return "revise";
+    if (
+      location.file === "app/about-us/page.tsx" ||
+      location.file === "app/contact-us/page.tsx" ||
+      location.file === "app/privacy-policy/page.tsx"
+    ) {
+      return "keep";
+    }
+
+    return "held";
+  }
+
   if (REVISION_TITLES.has(icon.title)) return "revise";
   return "held";
 }
@@ -1167,8 +1191,8 @@ function UsagePreview({
   location: IconLocation;
   proposed: boolean;
 }) {
-  const decision = auditDecision(icon);
-  const artwork = proposed && !icon.keepCurrent ? (
+  const decision = auditDecision(icon, location);
+  const artwork = proposed && decision !== "keep" ? (
     <ProposalArtwork icon={icon} size={Math.max(icon.actualSize, 18)} />
   ) : (
     <CurrentIconAtSize icon={icon} />
@@ -1335,8 +1359,8 @@ function usageCopy(icon: IconDecision, location: IconLocation) {
     if (location.file.includes("contact-us")) heading = "Your privacy";
   } else if (icon.title === "Study support") {
     heading = location.file.includes("about-us") ? "Study support" : "Contact Study Buddy";
-  } else if (icon.title === "Built for learners") {
-    heading = "Built for learners";
+  } else if (icon.title === "WAEC learning workflows") {
+    heading = "Built around WAEC-style learning workflows";
   } else if (icon.title === "Message sent confirmation") {
     heading = "Message sent";
   } else if (icon.title === "Directional actions") {
