@@ -2,7 +2,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { MessageCircle, Pencil, Plus, Trash2 } from "lucide-react";
+import StudyBuddyIcon from "@/components/StudyBuddyIcon";
 import Heading1 from "@/components/Heading1";
 import Paragraph from "@/components/Paragraph";
 import Button from "@/components/Button";
@@ -549,7 +549,7 @@ export default function ChatClient() {
           variant="primary"
           onClick={() => void createChat()}
           loading={savingChat}
-          icon={<Plus size={18} />}
+          icon={<StudyBuddyIcon name="plus" size={20} />}
         >
           New Chat
         </Button>
@@ -579,7 +579,7 @@ export default function ChatClient() {
                   }`}
                 >
                   <span className="flex items-center gap-2">
-                    <MessageCircle size={16} />
+                    <StudyBuddyIcon name="chat" size={20} />
                     <span className="font-semibold truncate">{chat.title}</span>
                   </span>
                   <span className="block text-xs text-gray-500 truncate mt-1">
@@ -613,7 +613,7 @@ export default function ChatClient() {
                     size="sm"
                     onClick={() => void patchSelectedChat({ title: titleDraft })}
                     disabled={savingChat || !titleDraft.trim()}
-                    icon={<Pencil size={16} />}
+                    icon={<StudyBuddyIcon name="pencil" size={18} />}
                   >
                     Save
                   </Button>
@@ -622,7 +622,7 @@ export default function ChatClient() {
                     size="sm"
                     onClick={() => void deleteSelectedChat()}
                     disabled={savingChat}
-                    icon={<Trash2 size={16} />}
+                    icon={<StudyBuddyIcon name="trash" size={18} />}
                     ariaLabel="Delete chat"
                   />
                 </div>
