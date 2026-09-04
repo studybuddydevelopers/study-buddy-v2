@@ -10,9 +10,6 @@ import Paragraph from "@/components/Paragraph";
 import Image from "@/components/Image";
 import Card from "@/components/Card";
 
-import { PiGraduationCapLight } from "react-icons/pi";
-import { HiOutlinePresentationChartBar, HiOutlineUserGroup } from "react-icons/hi";
-
 export default function ClientLanding() {
   const router = useRouter();
   const [loadingStart, setLoadingStart] = useState(false);
@@ -100,51 +97,66 @@ export default function ClientLanding() {
             Why Choose Study Buddy?
           </Heading1>
 
-          <div className="flex gap-6 justify-center flex-wrap lg:w-max left-[-3em] position-relative">
+          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
 
             {/* Card 1 */}
-            <Card className="w-fit" padding="xs" shadow="sm" hover>
-              <div className="flex items-center justify-center w-14 h-14 rounded-lg mb-4">
-                <PiGraduationCapLight strokeWidth={10} size={40} />
-              </div>
+            <Card className="h-full w-full" padding="xs" shadow="sm" hover>
+              <Image
+                src="/icon-audit/proposal-source/study-plan"
+                alt="Student selecting activities for a personalised study plan"
+                width={3000}
+                height={2250}
+                rounded="xl"
+                className="mb-5 !h-40 !w-full bg-primary-50 object-contain"
+              />
 
               <Heading6 gutter="sm" weight="bold" className="text-left">
                 Personalized Study Plans
               </Heading6>
 
-              <Paragraph variant="superMuted" className="w-56 text-left">
+              <Paragraph variant="superMuted" className="text-left">
                 Get a study plan tailored to your learning style and pace, ensuring 
                 you cover all the necessary material effectively.
               </Paragraph>
             </Card>
 
             {/* Card 2 */}
-            <Card className="w-fit" padding="xs" shadow="sm" hover>
-              <div className="flex items-center justify-center w-14 h-14 rounded-lg mb-4">
-                <HiOutlinePresentationChartBar size={40} />
-              </div>
+            <Card className="h-full w-full" padding="xs" shadow="sm" hover>
+              <Image
+                src="/icon-audit/proposal-source/practice-tests"
+                alt="Student completing a timed online practice test"
+                width={3000}
+                height={2250}
+                rounded="xl"
+                className="mb-5 !h-40 !w-full bg-primary-50 object-contain"
+              />
 
               <Heading6 gutter="sm" weight="bold" className="max-w-48 text-left">
                 Comprehensive Practice Tests
               </Heading6>
 
-              <Paragraph variant="superMuted" className="w-56 text-left">
+              <Paragraph variant="superMuted" className="text-left">
                 Take full-length WAEC practice exams that replicate test-day conditions,
                 empowering you to build confidence, track progress, and improve your score.
               </Paragraph>
             </Card>
 
             {/* Card 3 */}
-            <Card className="w-fit" padding="xs" shadow="sm" hover>
-              <div className="flex items-center justify-center w-14 h-14 rounded-lg mb-4">
-                <HiOutlineUserGroup size={40} />
-              </div>
+            <Card className="h-full w-full" padding="xs" shadow="sm" hover>
+              <Image
+                src="/icon-audit/proposal-source/expert-guidance"
+                alt="Student following a guidance pathway towards success"
+                width={3000}
+                height={2250}
+                rounded="xl"
+                className="mb-5 !h-40 !w-full bg-primary-50 object-contain"
+              />
 
               <Heading6 gutter="sm" weight="bold" className="text-left">
                 Expert Guidance
               </Heading6>
 
-              <Paragraph variant="superMuted" className="w-56 text-left">
+              <Paragraph variant="superMuted" className="text-left">
                 Connect with experienced tutors and mentors who can provide 
                 valuable insights and support throughout your preparation journey.
               </Paragraph>
