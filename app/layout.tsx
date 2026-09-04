@@ -5,6 +5,7 @@ import { cookies } from "next/headers";
 import { createServerClient } from "@supabase/ssr";
 import { Metadata } from "next";
 import { getServerSupabaseConfig } from "@/lib/supabase/config";
+import { fetchWithTimeout } from "@/lib/security/timeouts";
 
 export const runtime = "nodejs"; // <-- required
 
@@ -22,6 +23,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
     supabaseConfig.url,
     supabaseConfig.key,
     {
+      global: { fetch: fetchWithTimeout },
       cookies: {
         get(name) {
           return cookieStore.get(name)?.value;
