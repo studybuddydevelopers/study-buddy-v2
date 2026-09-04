@@ -232,7 +232,7 @@ function iconArtwork(name: StudyBuddyIconName) {
           <path d="M56 18c-9-3-17-1-24 5v31c7-5 15-7 24-4Z" fill={PURPLE} />
           <path d="M32 23v31" fill="none" />
           <path d="M13 27c5-1 10 0 14 2M13 34c5-1 10 0 14 2M37 29c4-2 9-2 14-1M37 36c4-2 9-2 14-1" fill="none" stroke={PURPLE} />
-          <path d="M7 50c10-2 18 0 25 5 7-5 15-7 25-5" fill="none" stroke={WARM} strokeWidth="4" />
+          <path d="M7 50c10-2 18 0 25 5 7-5 15-7 25-5M56 18v32" fill="none" stroke={WARM} strokeWidth="4" />
           <path d="m46 19-1 11-4-3-4 4 1-10" fill={GOLD} strokeWidth="1.6" />
         </>
       );
