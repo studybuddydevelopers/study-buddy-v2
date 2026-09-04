@@ -4,10 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import {
   ArrowRight,
-  CheckCircle2,
-  Mail,
   Send,
-  ShieldCheck,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import Button from "@/components/Button";
@@ -44,7 +41,7 @@ const supportNotes: {
     title: "Account help",
     description:
       "Include the email on your account and what you were trying to do.",
-    icon: ShieldCheck,
+    proposal: "shield",
   },
   {
     title: "Content feedback",
@@ -154,7 +151,7 @@ export default function ContactUsPage() {
               href="mailto:sbstudybuddy0@gmail.com"
               className="rounded-lg border border-gray-200 bg-accent-50 p-4 text-gray-900 transition hover:border-primary-300 hover:bg-primary-50"
             >
-              <Mail className="mb-3 h-5 w-5 text-primary-600" aria-hidden="true" />
+              <StudyBuddyIcon name="mail" size={30} className="mb-3" />
               <p className="text-sm font-semibold">Email</p>
               <p className="mt-1 break-all text-sm text-gray-700">
                 sbstudybuddy0@gmail.com
@@ -164,10 +161,7 @@ export default function ContactUsPage() {
               href="/privacy-policy"
               className="rounded-lg border border-gray-200 bg-accent-50 p-4 text-gray-900 transition hover:border-primary-300 hover:bg-primary-50"
             >
-              <ShieldCheck
-                className="mb-3 h-5 w-5 text-primary-600"
-                aria-hidden="true"
-              />
+              <StudyBuddyIcon name="shield" size={30} className="mb-3" />
               <p className="text-sm font-semibold">Privacy</p>
               <p className="mt-1 text-sm text-gray-700">
                 Review how student and account data is handled.
@@ -182,10 +176,7 @@ export default function ContactUsPage() {
           <div className="rounded-lg border border-gray-200 bg-white p-5 shadow-sm sm:p-6">
             {sent ? (
               <div className="flex min-h-[420px] flex-col items-center justify-center text-center">
-                <CheckCircle2
-                  className="mb-4 h-12 w-12 text-green-600"
-                  aria-hidden="true"
-                />
+                <StudyBuddyIcon name="messageSent" size={68} className="mb-4" />
                 <Heading2 gutter="sm" className="text-green-800">
                   Message sent
                 </Heading2>
