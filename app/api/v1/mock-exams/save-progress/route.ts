@@ -2,15 +2,20 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/auth";
+import { parseJsonObjectRequest } from "@/lib/security/request-body";
 
 export async function POST(req: Request) {
   const auth = await requireUser();
   if ("errorResponse" in auth) return auth.errorResponse;
   const { dbUser } = auth;
 
-  const body = await req.json().catch(() => null);
-  const instanceId = body?.instanceId;
-  const answers = body?.answers;
+  const parsedBody = await parseJsonObjectRequest(req);
+  if (!parsedBody.ok) return parsedBody.response;
+  const instanceId =
+    typeof parsedBody.data.instanceId === "string"
+      ? parsedBody.data.instanceId
+      : undefined;
+  const answers = parsedBody.data.answers;
 
   if (!instanceId) {
     return NextResponse.json(
@@ -53,23 +58,34 @@ export async function POST(req: Request) {
 
   const answerMap = new Map(instance.answers.map((a) => [a.id, a]));
 
-  for (const { answerId, userAnswer } of answers) {
-    if (!answerId || typeof userAnswer !== "string") {
+  const normalizedAnswers: Array<{ answerId: string; userAnswer: string }> = [];
+  for (const answer of answers) {
+    if (
+      !answer ||
+      typeof answer !== "object" ||
+      Array.isArray(answer) ||
+      !("answerId" in answer) ||
+      typeof answer.answerId !== "string" ||
+      !("userAnswer" in answer) ||
+      typeof answer.userAnswer !== "string"
+    ) {
       return NextResponse.json(
         { error: "Each answer must include answerId and userAnswer" },
         { status: 400 }
       );
     }
+    const { answerId, userAnswer } = answer;
     if (!answerMap.has(answerId)) {
       return NextResponse.json(
         { error: `Invalid answerId: ${answerId}` },
         { status: 400 }
       );
     }
+    normalizedAnswers.push({ answerId, userAnswer });
   }
 
   await prisma.$transaction(
-    answers.map(({ answerId, userAnswer }: { answerId: string; userAnswer: string }) =>
+    normalizedAnswers.map(({ answerId, userAnswer }) =>
       prisma.mockExamAnswer.update({
         where: { id: answerId },
         data: { userAnswer },
