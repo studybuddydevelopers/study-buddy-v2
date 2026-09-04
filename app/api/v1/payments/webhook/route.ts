@@ -2,13 +2,19 @@
 import { prisma } from "@/lib/prisma";
 import { NextResponse } from "next/server";
 import crypto from "crypto";
+import {
+  parseTextRequest,
+  REQUEST_LIMITS,
+} from "@/lib/security/request-body";
 
 export async function POST(req: Request) {
   try {
     // -----------------------------------------------------
     // 1. Read raw body (Paystack requires raw payload)
     // -----------------------------------------------------
-    const rawBody = await req.text();
+    const parsedBody = await parseTextRequest(req, REQUEST_LIMITS.webhook);
+    if (!parsedBody.ok) return parsedBody.response;
+    const rawBody = parsedBody.data;
 
     // -----------------------------------------------------
     // 2. Validate Paystack signature
