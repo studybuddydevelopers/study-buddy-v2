@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/auth";
 import { isRecord } from "@/lib/type-utils";
+import { parseJsonObjectRequest } from "@/lib/security/request-body";
 
 interface ProgressUpdateInput {
   subjectId: string;
@@ -34,8 +35,9 @@ export async function POST(req: Request) {
   // -----------------------------------------
   // 2. PARSE INPUT
   // -----------------------------------------
-  const body: unknown = await req.json().catch(() => null);
-  const rawUpdates = isRecord(body) ? body.updates : undefined;
+  const parsedBody = await parseJsonObjectRequest(req);
+  if (!parsedBody.ok) return parsedBody.response;
+  const rawUpdates = parsedBody.data.updates;
 
   if (!Array.isArray(rawUpdates) || rawUpdates.length === 0) {
     return NextResponse.json(
