@@ -5,6 +5,8 @@ import { getOrCreateWhatsAppUser } from "@/lib/whatsapp-user";
 import { getOrCreateWhatsAppThread } from "@/lib/whatsapp-thread";
 import OpenAI from "openai";
 import type { ChatCompletionMessageParam } from "openai/resources/chat/completions";
+import { enforceAiAccountLimits } from "@/lib/security/rate-limit";
+import { openAiClientOptions } from "@/lib/security/timeouts";
 
 const SYSTEM_PROMPT =
   "You are Study Buddy, an AI tutor helping Nigerian secondary school students prepare for WAEC exams. " +
@@ -69,7 +71,10 @@ async function generateAiReply(aiQuestionId: string): Promise<string> {
     })),
   ];
 
-  const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY! });
+  const client = new OpenAI({
+    apiKey: process.env.OPENAI_API_KEY!,
+    ...openAiClientOptions(),
+  });
 
   try {
     const completion = await client.chat.completions.create({
@@ -129,6 +134,10 @@ export async function handleIncomingMessage(
       break;
     case "ai":
     default:
+      if (await enforceAiAccountLimits(userId)) {
+        reply = "You've reached the AI usage limit. Please try again later.";
+        break;
+      }
       reply = await generateAiReply(aiQuestionId);
       break;
   }
