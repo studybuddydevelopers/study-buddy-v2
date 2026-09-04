@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireAdmin } from "@/lib/auth";
 import { getPagination, getPaginationMeta } from "@/lib/pagination";
+import { parseJsonObjectRequest } from "@/lib/security/request-body";
 
 export async function GET(
   req: Request,
@@ -82,8 +83,12 @@ export async function POST(
   // -------------------------------------
   // 2. PARSE INPUT
   // -------------------------------------
-  const body = await req.json().catch(() => null);
-  const userId = body?.userId;
+  const parsedBody = await parseJsonObjectRequest(req);
+  if (!parsedBody.ok) return parsedBody.response;
+  const userId =
+    typeof parsedBody.data.userId === "string"
+      ? parsedBody.data.userId
+      : undefined;
 
   if (!userId) {
     return NextResponse.json(
