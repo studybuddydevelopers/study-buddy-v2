@@ -24,7 +24,7 @@ export default function Footer({
   return (
     <footer className="bg-accent-500 py-6 text-center text-sm mt-2 pb-0">
       {/* Top links */}
-      <nav className="flex justify-around space-x-8 mb-3">
+      <nav className="mb-4 flex flex-col items-center gap-3 px-6 min-[769px]:flex-row min-[769px]:justify-around min-[769px]:gap-8">
         {links.map((link) => (
           <a
             key={link.href}
