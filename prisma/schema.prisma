@@ -158,6 +158,7 @@ model User {
   practiceSessions  PracticeQuizSession[]
   mockExams         MockExamInstance[]
   recommendations   Recommendation[]
+  aiDailyUsage      AiDailyUsage[]
   progress          ProgressTrack[]
   subscriptions     Subscription[]
   schoolStudents    SchoolStudent[]
@@ -167,6 +168,35 @@ model User {
 
   @@index([createdAt], map: "User_createdAt_idx")
   @@index([isAdmin, createdAt], map: "User_isAdmin_createdAt_idx")
+}
+
+// =========================================================
+//  SECURITY + ABUSE CONTROLS
+// =========================================================
+
+model RateLimitBucket {
+  id          String   @id @db.VarChar(64)
+  scope       String   @db.VarChar(96)
+  count       Int      @default(1)
+  windowStart DateTime
+  expiresAt   DateTime
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([expiresAt], map: "RateLimitBucket_expiresAt_idx")
+}
+
+model AiDailyUsage {
+  userId       String
+  usageDate    DateTime @db.Date
+  requestCount Int      @default(0)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([userId, usageDate])
+  @@index([usageDate], map: "AiDailyUsage_usageDate_idx")
 }
 
 model UserProfile {
