@@ -32,13 +32,21 @@ export default function ClientLayoutWrapper({
       />
 
       {/* Page content */}
-      <div className="pb-16 min-[1110px]:pb-0">
+      <div>
         <Suspense>
           {children}
         </Suspense>
       </div>
 
-      <Footer />
+      <div
+        className={
+          isAuthenticated
+            ? "bg-accent-500 pb-16 min-[1110px]:pb-0"
+            : undefined
+        }
+      >
+        <Footer />
+      </div>
 
       {isAuthenticated && (
         <div className="min-[1110px]:hidden">
