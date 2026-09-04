@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getErrorMessage } from "@/lib/type-utils";
 import OpenAI from "openai";
+import { openAiClientOptions } from "@/lib/security/timeouts";
 
 // Simple cron endpoint: call with a secret header every 24h from a scheduler
 export async function POST(req: Request) {
@@ -12,7 +13,10 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY! });
+  const client = new OpenAI({
+    apiKey: process.env.OPENAI_API_KEY!,
+    ...openAiClientOptions(),
+  });
 
   const users = await prisma.user.findMany({ select: { id: true } });
   const now = Date.now();
