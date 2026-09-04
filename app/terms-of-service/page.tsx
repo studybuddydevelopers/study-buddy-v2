@@ -3,21 +3,25 @@ import {
   AlertTriangle,
   ArrowRight,
   BookOpen,
-  CreditCard,
-  Mail,
-  MessageCircle,
-  Scale,
-  ShieldCheck,
 } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 import Button from "@/components/Button";
 import Heading1 from "@/components/Heading1";
 import Heading2 from "@/components/Heading2";
 import Paragraph from "@/components/Paragraph";
+import StudyBuddyIcon, {
+  type StudyBuddyIconName,
+} from "@/components/StudyBuddyIcon";
 
 const LAST_UPDATED = "20 July 2026";
 const CONTACT_EMAIL = "sbstudybuddy0@gmail.com";
 
-const summaryItems = [
+const summaryItems: {
+  title: string;
+  description: string;
+  icon?: LucideIcon;
+  proposal?: StudyBuddyIconName;
+}[] = [
   {
     title: "Use Study Buddy for learning",
     description:
@@ -28,19 +32,19 @@ const summaryItems = [
     title: "Keep accounts safe",
     description:
       "Do not share login details, access another account, scrape private data, or disrupt the service.",
-    icon: ShieldCheck,
+    proposal: "shield",
   },
   {
     title: "AI is study support",
     description:
       "AI responses can help explain ideas, but they may be incomplete or wrong and should not replace teachers.",
-    icon: MessageCircle,
+    proposal: "support",
   },
   {
     title: "Paid features may change",
     description:
       "Where paid features are offered, billing is handled by payment providers such as Paystack.",
-    icon: CreditCard,
+    proposal: "card",
   },
 ];
 
@@ -96,7 +100,7 @@ export default function TermsOfServicePage() {
         <div className="mx-auto grid max-w-6xl gap-8 px-6 py-14 lg:grid-cols-[1fr_320px] lg:items-end lg:py-16">
           <div>
             <div className="mb-5 inline-flex items-center gap-2 rounded-lg border border-primary-200 bg-primary-50 px-3 py-2 text-sm font-semibold text-primary-700">
-              <Scale className="h-4 w-4" aria-hidden="true" />
+              <StudyBuddyIcon name="scale" size={22} />
               Product terms
             </div>
             <Heading1 gutter="sm">Terms of Service</Heading1>
@@ -122,7 +126,7 @@ export default function TermsOfServicePage() {
               href={`mailto:${CONTACT_EMAIL}`}
               className="mt-4 inline-flex items-center gap-2 text-sm font-semibold text-primary-700 hover:underline"
             >
-              <Mail className="h-4 w-4" aria-hidden="true" />
+              <StudyBuddyIcon name="mail" size={22} />
               {CONTACT_EMAIL}
             </a>
           </div>
@@ -132,12 +136,16 @@ export default function TermsOfServicePage() {
       <section className="bg-accent-50">
         <div className="mx-auto max-w-6xl px-6 py-10">
           <div className="grid gap-4 md:grid-cols-4">
-            {summaryItems.map(({ title, description, icon: Icon }) => (
+            {summaryItems.map(({ title, description, icon: Icon, proposal }) => (
               <article
                 key={title}
                 className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm"
               >
-                <Icon className="mb-3 h-5 w-5 text-primary-600" aria-hidden="true" />
+                {proposal ? (
+                  <StudyBuddyIcon name={proposal} size={30} className="mb-3" />
+                ) : Icon ? (
+                  <Icon className="mb-3 h-5 w-5 text-primary-600" aria-hidden="true" />
+                ) : null}
                 <h2 className="text-sm font-bold text-gray-900">{title}</h2>
                 <p className="mt-2 text-sm leading-relaxed text-gray-700">
                   {description}
@@ -388,7 +396,7 @@ export default function TermsOfServicePage() {
                 variant="primary"
                 size="lg"
                 className="w-full sm:w-auto"
-                icon={<MessageCircle className="h-5 w-5" aria-hidden="true" />}
+                icon={<StudyBuddyIcon name="support" size={22} />}
               >
                 Contact us
               </Button>
