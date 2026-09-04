@@ -6,20 +6,15 @@ import {
   resourceRouteErrorResponse,
 } from "@/lib/resources/http";
 import { migratePastQuestionsSchema } from "@/lib/resources/schemas";
+import { parseJsonRequest } from "@/lib/security/request-body";
 
 export async function POST(req: Request) {
   const auth = await requireAdmin();
   if ("errorResponse" in auth) return auth.errorResponse;
 
-  let body: unknown;
-  try {
-    body = await req.json();
-  } catch {
-    return NextResponse.json(
-      { error: "INVALID_INPUT", message: "Invalid JSON body." },
-      { status: 400 }
-    );
-  }
+  const parsedBody = await parseJsonRequest(req);
+  if (!parsedBody.ok) return parsedBody.response;
+  const body = parsedBody.data;
 
   const parsed = migratePastQuestionsSchema.safeParse(body);
   if (!parsed.success) {
