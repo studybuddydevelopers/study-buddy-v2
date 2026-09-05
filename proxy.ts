@@ -3,6 +3,8 @@ import type { NextRequest } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 import { getServerSupabaseConfig } from "@/lib/supabase/config";
 import { fetchWithTimeout } from "@/lib/security/timeouts";
+import { validateCookieMutationOrigin } from "@/lib/security/csrf";
+import { logSecurityEvent } from "@/lib/security/audit-log";
 
 const protectedPaths = [
   "/dashboard",
@@ -34,28 +36,62 @@ const MAX_API_BODY_BYTES = 30 * 1024 * 1024;
 
 export async function proxy(req: NextRequest) {
   const pathname = req.nextUrl.pathname;
+  const nonce = Buffer.from(crypto.randomUUID()).toString("base64");
+  const contentSecurityPolicy = buildContentSecurityPolicy(nonce);
 
   if (
     process.env.NODE_ENV === "production" &&
     developmentOnlyPaths.some((path) => pathMatches(pathname, path))
   ) {
-    return new NextResponse("Not Found", {
-      status: 404,
-      headers: { "Cache-Control": "no-store" },
-    });
-  }
-
-  if (pathname.startsWith("/api/") && requestBodyIsTooLarge(req)) {
-    return NextResponse.json(
-      {
-        error: "REQUEST_TOO_LARGE",
-        message: "Request body must be 30 MB or smaller.",
-      },
-      { status: 413, headers: { "Cache-Control": "no-store" } }
+    return withContentSecurityPolicy(
+      new NextResponse("Not Found", {
+        status: 404,
+        headers: { "Cache-Control": "no-store" },
+      }),
+      contentSecurityPolicy
     );
   }
 
-  const res = NextResponse.next();
+  const csrfValidation = validateCookieMutationOrigin(req);
+  if (!csrfValidation.ok) {
+    logSecurityEvent("csrf_validation_failed", "warn", {
+      reason: csrfValidation.reason,
+      method: req.method,
+      path: pathname,
+    });
+    return withContentSecurityPolicy(
+      NextResponse.json(
+        {
+          error: "CSRF_VALIDATION_FAILED",
+          message: "The request origin could not be verified.",
+        },
+        { status: 403, headers: { "Cache-Control": "no-store" } }
+      ),
+      contentSecurityPolicy
+    );
+  }
+
+  if (pathname.startsWith("/api/") && requestBodyIsTooLarge(req)) {
+    return withContentSecurityPolicy(
+      NextResponse.json(
+        {
+          error: "REQUEST_TOO_LARGE",
+          message: "Request body must be 30 MB or smaller.",
+        },
+        { status: 413, headers: { "Cache-Control": "no-store" } }
+      ),
+      contentSecurityPolicy
+    );
+  }
+
+  const requestHeaders = new Headers(req.headers);
+  requestHeaders.set("x-nonce", nonce);
+  requestHeaders.set("Content-Security-Policy", contentSecurityPolicy);
+
+  const res = withContentSecurityPolicy(
+    NextResponse.next({ request: { headers: requestHeaders } }),
+    contentSecurityPolicy
+  );
   const supabaseConfig = getServerSupabaseConfig();
 
   const supabase = createServerClient(
@@ -84,11 +120,17 @@ export async function proxy(req: NextRequest) {
   } = await supabase.auth.getUser();
 
   if (protectedPaths.some((path) => pathMatches(pathname, path)) && !user) {
-    return NextResponse.redirect(new URL("/unauthorized", req.url));
+    return withContentSecurityPolicy(
+      NextResponse.redirect(new URL("/unauthorized", req.url)),
+      contentSecurityPolicy
+    );
   }
 
   if (guestOnlyPaths.some((path) => pathMatches(pathname, path)) && user) {
-    return NextResponse.redirect(new URL("/already-logged-in", req.url));
+    return withContentSecurityPolicy(
+      NextResponse.redirect(new URL("/already-logged-in", req.url)),
+      contentSecurityPolicy
+    );
   }
 
   return res;
@@ -96,6 +138,35 @@ export async function proxy(req: NextRequest) {
 
 function pathMatches(pathname: string, prefix: string) {
   return pathname === prefix || pathname.startsWith(`${prefix}/`);
+}
+
+function buildContentSecurityPolicy(nonce: string) {
+  const isDevelopment = process.env.NODE_ENV === "development";
+
+  return [
+    "default-src 'self'",
+    `script-src 'self' 'nonce-${nonce}' 'strict-dynamic'${isDevelopment ? " 'unsafe-eval'" : ""} https://challenges.cloudflare.com https://*.hcaptcha.com`,
+    "script-src-attr 'none'",
+    "style-src 'self' 'unsafe-inline' https://*.hcaptcha.com",
+    "img-src 'self' data: blob: https:",
+    "font-src 'self' data:",
+    "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://challenges.cloudflare.com https://*.hcaptcha.com",
+    "frame-src https://challenges.cloudflare.com https://*.hcaptcha.com",
+    "worker-src 'self' blob:",
+    "object-src 'none'",
+    "base-uri 'self'",
+    "form-action 'self'",
+    "frame-ancestors 'none'",
+    ...(!isDevelopment ? ["upgrade-insecure-requests"] : []),
+  ].join("; ");
+}
+
+function withContentSecurityPolicy(
+  response: NextResponse,
+  contentSecurityPolicy: string
+) {
+  response.headers.set("Content-Security-Policy", contentSecurityPolicy);
+  return response;
 }
 
 function requestBodyIsTooLarge(req: NextRequest) {
