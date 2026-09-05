@@ -13,6 +13,10 @@ import {
   getClientIp,
 } from "@/lib/security/rate-limit";
 import { fetchWithTimeout } from "@/lib/security/timeouts";
+import {
+  logSecurityEvent,
+  securityFingerprint,
+} from "@/lib/security/audit-log";
 
 export async function POST(req: Request) {
   const parsedBody = await parseJsonRequest(req, REQUEST_LIMITS.publicFormJson);
@@ -93,6 +97,11 @@ export async function POST(req: Request) {
   }
 
   if (error || !data?.user) {
+    logSecurityEvent("login_failed", "warn", {
+      accountFingerprint: securityFingerprint(identifier),
+      ipFingerprint: securityFingerprint(getClientIp(req.headers)),
+      loginKind: isEmail ? "email" : "phone",
+    });
     return NextResponse.json(
       { error: error?.message ?? "Login failed" },
       { status: 401 }
