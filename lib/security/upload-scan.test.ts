@@ -8,8 +8,10 @@ vi.mock("node:net", () => ({
 }));
 
 import {
+  assertPdfHasNoActiveContent,
   parseClamAvReply,
   scanBufferWithClamAv,
+  validateDocxContainer,
   validateUploadSignature,
 } from "./upload-scan";
 
@@ -71,6 +73,21 @@ describe("upload security", () => {
         "image"
       )
     ).toThrowError(expect.objectContaining({ code: "INVALID_FILE_SIGNATURE" }));
+  });
+
+  it("rejects active content that survives PDF reconstruction", () => {
+    expect(() =>
+      assertPdfHasNoActiveContent(
+        Buffer.from("%PDF-1.7\n1 0 obj << /OpenAction 2 0 R >>\n%%EOF")
+      )
+    ).toThrowError(expect.objectContaining({ code: "CONTENT_DISARM_FAILED" }));
+  });
+
+  it("requires a bounded DOCX document.xml ZIP entry", () => {
+    expect(() => validateDocxContainer(docxEntry(1024))).not.toThrow();
+    expect(() => validateDocxContainer(docxEntry(9 * 1024 * 1024))).toThrowError(
+      expect.objectContaining({ code: "INVALID_FILE_SIGNATURE" })
+    );
   });
 
   it("classifies clamd responses without exposing malware names", () => {
@@ -135,6 +152,20 @@ describe("upload security", () => {
 
 function file(name: string, mimeType: string, contents: string) {
   return { name, mimeType, buffer: Buffer.from(contents) };
+}
+
+function docxEntry(declaredUncompressedSize: number) {
+  const name = Buffer.from("word/document.xml");
+  const data = Buffer.from("x");
+  const header = Buffer.alloc(30);
+  header.writeUInt32LE(0x04034b50, 0);
+  header.writeUInt16LE(0, 6);
+  header.writeUInt16LE(0, 8);
+  header.writeUInt32LE(data.byteLength, 18);
+  header.writeUInt32LE(declaredUncompressedSize, 22);
+  header.writeUInt16LE(name.byteLength, 26);
+  header.writeUInt16LE(0, 28);
+  return Buffer.concat([header, name, data]);
 }
 
 class FakeClamAvSocket extends EventEmitter {
