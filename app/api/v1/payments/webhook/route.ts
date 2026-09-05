@@ -61,7 +61,9 @@ export async function POST(req: Request) {
     const userId = data.metadata?.userId; // send from frontend
 
     if (!userId) {
-      console.warn("⚠️ Paystack webhook missing metadata.userId");
+      logSecurityEvent("payment_webhook_missing_user", "warn", {
+        provider: "paystack",
+      });
       return NextResponse.json({ received: true });
     }
 
@@ -93,8 +95,10 @@ export async function POST(req: Request) {
     // 6. Respond OK (required by Paystack)
     // -----------------------------------------------------
     return NextResponse.json({ success: true });
-  } catch (error) {
-    console.error("PAYSTACK WEBHOOK ERROR:", error);
+  } catch {
+    logSecurityEvent("payment_webhook_processing_failed", "error", {
+      provider: "paystack",
+    });
     return NextResponse.json({ error: "Webhook error" }, { status: 500 });
   }
 }
