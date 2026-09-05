@@ -11,6 +11,7 @@ import {
 import { fetchWithTimeout } from "@/lib/security/timeouts";
 import { validateAndScanUpload } from "@/lib/security/upload-scan";
 import { uploadSecurityErrorResponse } from "@/lib/security/upload-response";
+import { randomUUID } from "node:crypto";
 
 export async function POST(req: Request) {
   // ----------------------------------------
@@ -125,7 +126,8 @@ export async function POST(req: Request) {
       );
     }
 
-    const filePath = `past-questions/${subjectId}/${Date.now()}-${image.name}`;
+    const extension = image.type === "image/png" ? "png" : "jpg";
+    const filePath = `past-questions/${subjectId}/${randomUUID()}.${extension}`;
 
     const { error: uploadError } = await supabase.storage
       .from("past-questions")
