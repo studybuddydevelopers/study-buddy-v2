@@ -35,6 +35,7 @@ const TEXT_MIME_TYPES = new Set([
 
 const DOCX_MIME_TYPE =
   "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+const MAX_DOCX_DOCUMENT_XML_BYTES = 8 * 1024 * 1024;
 
 export function extractDocument(input: ExtractInput): ExtractionResult {
   const mimeType = normalizeMime(input.mimeType, input.fileName);
@@ -173,7 +174,9 @@ function readZipEntry(buffer: Buffer, entryName: string) {
     }
 
     const compressionMethod = buffer.readUInt16LE(offset + 8);
+    const flags = buffer.readUInt16LE(offset + 6);
     const compressedSize = buffer.readUInt32LE(offset + 18);
+    const uncompressedSize = buffer.readUInt32LE(offset + 22);
     const fileNameLength = buffer.readUInt16LE(offset + 26);
     const extraLength = buffer.readUInt16LE(offset + 28);
     const nameStart = offset + 30;
@@ -182,16 +185,33 @@ function readZipEntry(buffer: Buffer, entryName: string) {
     const dataStart = nameEnd + extraLength;
     const dataEnd = dataStart + compressedSize;
 
-    if (dataEnd > buffer.length || compressedSize === 0) {
+    if (
+      dataEnd > buffer.length ||
+      compressedSize === 0 ||
+      flags & 0x1 ||
+      flags & 0x8
+    ) {
       offset = Math.max(offset + 1, dataStart);
       continue;
     }
 
     if (name === entryName) {
+      if (
+        uncompressedSize === 0 ||
+        uncompressedSize > MAX_DOCX_DOCUMENT_XML_BYTES
+      ) {
+        return null;
+      }
       const compressed = buffer.subarray(dataStart, dataEnd);
       if (compressionMethod === 0) return compressed.toString("utf8");
       if (compressionMethod === 8) {
-        return inflateRawSync(compressed).toString("utf8");
+        try {
+          return inflateRawSync(compressed, {
+            maxOutputLength: MAX_DOCX_DOCUMENT_XML_BYTES,
+          }).toString("utf8");
+        } catch {
+          return null;
+        }
       }
       return null;
     }
