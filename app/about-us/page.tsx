@@ -149,17 +149,27 @@ export default function AboutUsPage() {
 
       <section className="bg-accent-50">
         <div className="mx-auto max-w-6xl px-6 py-12">
-          <div className="grid gap-4 md:grid-cols-4">
-            {principles.map(({ label, icon }) => (
-              <div
+          <div className="space-y-5">
+            {principles.map(({ label, icon }, index) => (
+              <article
                 key={label}
-                className="flex items-start gap-3 rounded-lg border border-gray-200 bg-white p-4"
+                className="overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm"
               >
-                <StudyBuddyIcon name={icon} size={38} className="shrink-0" />
-                <p className="text-sm font-medium leading-relaxed text-gray-800">
-                  {label}
-                </p>
-              </div>
+                <div
+                  className={`flex flex-col md:min-h-40 ${
+                    index % 2 === 0 ? "md:flex-row" : "md:flex-row-reverse"
+                  }`}
+                >
+                  <div className="flex items-center justify-center bg-primary-50 p-6 md:w-[28%]">
+                    <StudyBuddyIcon name={icon} size={38} />
+                  </div>
+                  <div className="flex flex-1 items-center px-6 py-7 sm:px-10">
+                    <h3 className="text-xl font-bold leading-snug text-gray-900 sm:text-2xl">
+                      {label}
+                    </h3>
+                  </div>
+                </div>
+              </article>
             ))}
           </div>
         </div>
