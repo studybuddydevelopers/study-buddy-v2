@@ -384,7 +384,14 @@ export default function TermsOfServicePage() {
               available where required by Nigerian consumer law, including where
               a paid service is not supplied as agreed, and in any additional
               circumstances stated at checkout. Nothing in these terms removes
-              a statutory cancellation, refund, or redress right.
+              a statutory cancellation, refund, or redress right. See our{" "}
+              <Link
+                href="/refund-policy"
+                className="font-medium text-primary-600 hover:underline"
+              >
+                Refund and Cancellation Policy
+              </Link>{" "}
+              for the request process.
             </p>
           </TermsSection>
 
@@ -474,6 +481,14 @@ export default function TermsOfServicePage() {
               explains what personal data we collect, our lawful bases, how AI
               and other providers process data, children&apos;s privacy, retention,
               international transfers, and how to exercise privacy rights.
+              Students and families can also read the shorter{" "}
+              <Link
+                href="/parent-student-privacy"
+                className="font-medium text-primary-600 hover:underline"
+              >
+                Parent and Student Privacy Notice
+              </Link>
+              .
             </p>
           </TermsSection>
 
