@@ -154,7 +154,7 @@ export default function PrivacyPolicyPage() {
                 className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm"
               >
                 {proposal ? (
-                  <StudyBuddyIcon name={proposal} size={30} className="mb-3" />
+                  <StudyBuddyIcon name={proposal} size={60} className="mb-3" />
                 ) : Icon ? (
                   <Icon className="mb-3 h-5 w-5 text-primary-600" aria-hidden="true" />
                 ) : null}
