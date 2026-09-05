@@ -9,6 +9,8 @@ import {
   REQUEST_LIMITS,
 } from "@/lib/security/request-body";
 import { fetchWithTimeout } from "@/lib/security/timeouts";
+import { validateAndScanUpload } from "@/lib/security/upload-scan";
+import { uploadSecurityErrorResponse } from "@/lib/security/upload-response";
 
 export async function POST(req: Request) {
   // -------------------------------------
@@ -48,6 +50,16 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Subject not found" }, { status: 404 });
   }
 
+  let buffer: Buffer;
+  try {
+    buffer = await validateAndScanUpload(file, "pdf");
+  } catch (error) {
+    return (
+      uploadSecurityErrorResponse(error) ??
+      NextResponse.json({ error: "Upload validation failed" }, { status: 500 })
+    );
+  }
+
   // -------------------------------------
   // 4. CREATE EDITABLE RESPONSE
   // -------------------------------------
@@ -80,9 +92,6 @@ export async function POST(req: Request) {
   // -------------------------------------
   // 5. UPLOAD TO STORAGE
   // -------------------------------------
-  const arrayBuffer = await file.arrayBuffer();
-  const buffer = Buffer.from(arrayBuffer);
-
   const filePath = `curriculum/${subjectId}/${Date.now()}-${file.name}`;
 
   const { error: uploadError } = await supabase.storage
