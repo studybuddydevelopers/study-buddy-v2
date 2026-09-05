@@ -81,9 +81,7 @@ export async function requireAdmin() {
   return { user, dbUser };
 }
 
-export async function hasAdminAccess(user: { id: string; isAdmin: boolean }) {
-  if (!user.isAdmin) return false;
-
+export async function hasAdminAccess(user: { id: string }) {
   const adminRecord = await prisma.adminUser.findUnique({
     where: { userId: user.id },
     select: { id: true },
