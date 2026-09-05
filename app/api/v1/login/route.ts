@@ -79,24 +79,26 @@ export async function POST(req: Request) {
   // --------------------------
   const isEmail = /\S+@\S+\.\S+/.test(identifier);
 
-  let error;
-  let data;
-
-  if (isEmail) {
-    ({ error, data } = await supabase.auth.signInWithPassword({
-      email: identifier,
-      password,
-      options: { captchaToken },
-    }));
-  } else {
-    ({ error, data } = await supabase.auth.signInWithPassword({
-      phone: identifier,
-      password,
-      options: { captchaToken },
-    }));
+  let loginSucceeded = false;
+  try {
+    const result = isEmail
+      ? await supabase.auth.signInWithPassword({
+          email: identifier,
+          password,
+          options: { captchaToken },
+        })
+      : await supabase.auth.signInWithPassword({
+          phone: identifier,
+          password,
+          options: { captchaToken },
+        });
+    loginSucceeded = !result.error && Boolean(result.data?.user);
+  } catch {
+    // Network/provider failures deliberately use the same outward response as
+    // rejected credentials. Never expose upstream authentication diagnostics.
   }
 
-  if (error || !data?.user) {
+  if (!loginSucceeded) {
     logSecurityEvent("login_failed", "warn", {
       accountFingerprint: securityFingerprint(identifier),
       ipFingerprint: securityFingerprint(getClientIp(req.headers)),
