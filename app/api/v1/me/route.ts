@@ -42,7 +42,7 @@ export async function GET() {
   return NextResponse.json({
     id: userData.id,
     createdAt: userData.createdAt,
-    isAdmin: userData.isAdmin && Boolean(userData.adminUser),
+    isAdmin: Boolean(userData.adminUser),
 
     profile: userData.profile
       ? {
