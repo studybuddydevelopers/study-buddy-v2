@@ -678,9 +678,9 @@ const ICONS: IconDecision[] = [
     currentSource: "Lucide · UserCheck",
     current: <UserCheck {...lucideProps} />,
     actualSize: 20,
-    proposal: "userCheck",
-    proposalName: "Learner with approval seal",
-    rationale: "The student portrait keeps privacy rights centred on the person rather than the checkbox.",
+    proposal: "privacyRequest",
+    proposalName: "Learner data request",
+    rationale: "A learner record with a clear outward action arrow communicates access, correction and export requests directly.",
     locations: [
       { file: "app/privacy-policy/page.tsx", context: "‘Your choices and rights’ summary card." },
     ],
