@@ -1,4 +1,12 @@
+import { EventEmitter } from "node:events";
 import { afterEach, describe, expect, it, vi } from "vitest";
+
+const netMock = vi.hoisted(() => ({ createConnection: vi.fn() }));
+
+vi.mock("node:net", () => ({
+  createConnection: netMock.createConnection,
+}));
+
 import {
   parseClamAvReply,
   scanBufferWithClamAv,
@@ -6,7 +14,10 @@ import {
 } from "./upload-scan";
 
 describe("upload security", () => {
-  afterEach(() => vi.unstubAllEnvs());
+  afterEach(() => {
+    vi.unstubAllEnvs();
+    netMock.createConnection.mockReset();
+  });
 
   it("accepts a PDF with matching header and EOF marker", () => {
     expect(() =>
@@ -72,6 +83,34 @@ describe("upload security", () => {
     );
   });
 
+  it("streams length-prefixed file bytes to clamd", async () => {
+    vi.stubEnv("CLAMAV_HOST", "clamav.railway.internal");
+    const socket = new FakeClamAvSocket("stream: OK\0");
+    netMock.createConnection.mockReturnValue(socket);
+
+    await scanBufferWithClamAv(Buffer.from("file-bytes"));
+
+    expect(netMock.createConnection).toHaveBeenCalledWith({
+      host: "clamav.railway.internal",
+      port: 3310,
+    });
+    expect(socket.writes[0]?.toString()).toBe("zINSTREAM\0");
+    expect(socket.writes[1]?.readUInt32BE(0)).toBe(10);
+    expect(socket.writes[2]?.toString()).toBe("file-bytes");
+    expect(socket.writes[3]).toEqual(Buffer.alloc(4));
+  });
+
+  it("rejects a file when clamd reports a malware signature", async () => {
+    vi.stubEnv("CLAMAV_HOST", "clamav.railway.internal");
+    netMock.createConnection.mockReturnValue(
+      new FakeClamAvSocket("stream: Test-Signature FOUND\0")
+    );
+
+    await expect(scanBufferWithClamAv(Buffer.from("file"))).rejects.toEqual(
+      expect.objectContaining({ code: "MALWARE_DETECTED", status: 422 })
+    );
+  });
+
   it("fails closed in production when clamd is not configured", async () => {
     vi.stubEnv("NODE_ENV", "production");
     vi.stubEnv("CLAMAV_HOST", "");
@@ -96,4 +135,30 @@ describe("upload security", () => {
 
 function file(name: string, mimeType: string, contents: string) {
   return { name, mimeType, buffer: Buffer.from(contents) };
+}
+
+class FakeClamAvSocket extends EventEmitter {
+  readonly writes: Buffer[] = [];
+
+  constructor(private readonly reply: string) {
+    super();
+    queueMicrotask(() => this.emit("connect"));
+  }
+
+  setTimeout() {
+    return this;
+  }
+
+  write(value: Buffer) {
+    const copy = Buffer.from(value);
+    this.writes.push(copy);
+    if (copy.byteLength === 4 && copy.readUInt32BE(0) === 0) {
+      queueMicrotask(() => this.emit("data", Buffer.from(this.reply)));
+    }
+    return true;
+  }
+
+  destroy() {
+    return this;
+  }
 }
