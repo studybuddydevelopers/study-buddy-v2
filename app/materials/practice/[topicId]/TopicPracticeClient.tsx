@@ -266,28 +266,6 @@ function ConfettiBurst() {
       aria-hidden="true"
       className="pointer-events-none absolute inset-0 overflow-hidden"
     >
-      <style>{`
-        @keyframes practice-confetti-fall {
-          0% {
-            opacity: 0;
-            transform: translate3d(0, -32px, 0) rotate(var(--confetti-start-rotation));
-          }
-          12% {
-            opacity: 1;
-          }
-          100% {
-            opacity: 0;
-            transform: translate3d(var(--confetti-drift), 300px, 0) rotate(var(--confetti-end-rotation));
-          }
-        }
-
-        @media (prefers-reduced-motion: reduce) {
-          .practice-confetti-piece {
-            animation: none !important;
-            opacity: 0.35;
-          }
-        }
-      `}</style>
       {CONFETTI_PIECES.map((piece) => {
         const drift = ((piece % 7) - 3) * 18;
         const style: ConfettiStyle = {
