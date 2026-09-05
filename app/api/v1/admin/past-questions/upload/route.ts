@@ -9,6 +9,8 @@ import {
   REQUEST_LIMITS,
 } from "@/lib/security/request-body";
 import { fetchWithTimeout } from "@/lib/security/timeouts";
+import { validateAndScanUpload } from "@/lib/security/upload-scan";
+import { uploadSecurityErrorResponse } from "@/lib/security/upload-response";
 
 export async function POST(req: Request) {
   // ----------------------------------------
@@ -113,8 +115,15 @@ export async function POST(req: Request) {
       return res;
     }
 
-    const arrayBuffer = await image.arrayBuffer();
-    const buffer = Buffer.from(arrayBuffer);
+    let buffer: Buffer;
+    try {
+      buffer = await validateAndScanUpload(image, "image");
+    } catch (error) {
+      return (
+        uploadSecurityErrorResponse(error) ??
+        NextResponse.json({ error: "Upload validation failed" }, { status: 500 })
+      );
+    }
 
     const filePath = `past-questions/${subjectId}/${Date.now()}-${image.name}`;
 
