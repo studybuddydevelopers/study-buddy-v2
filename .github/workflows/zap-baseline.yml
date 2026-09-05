@@ -1,0 +1,36 @@
+name: Staging OWASP ZAP baseline
+
+on:
+  workflow_dispatch:
+    inputs:
+      target_url:
+        description: Optional HTTPS staging URL (otherwise uses the STAGING_URL repository variable)
+        required: false
+        type: string
+  schedule:
+    - cron: "17 3 * * 1"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: staging-zap-baseline
+  cancel-in-progress: true
+
+jobs:
+  scan:
+    if: >-
+      ${{ (github.event_name == 'workflow_dispatch' &&
+      (inputs.target_url != '' || vars.STAGING_URL != '')) ||
+      (github.event_name == 'schedule' && vars.STAGING_URL != '') }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: ZAP passive and spider scan
+        uses: zaproxy/action-baseline@6c5a007541891231cd9e0ddec25d4f25c59c9874 # v0.15.0
+        with:
+          target: ${{ inputs.target_url || vars.STAGING_URL }}
+          allow_issue_writing: false
+          fail_action: true
+          artifact_name: zap-staging-report
+          cmd_options: -a -m 5
