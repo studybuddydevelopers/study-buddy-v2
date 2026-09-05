@@ -23,7 +23,9 @@ describe("production route controls", () => {
     const csp = response.headers.get("Content-Security-Policy");
     expect(csp).toMatch(/script-src [^;]*'nonce-[^']+' [^;]*'strict-dynamic'/);
     expect(csp?.match(/script-src [^;]*/)?.[0]).not.toContain("'unsafe-inline'");
-    expect(csp).toContain("style-src 'self' 'unsafe-inline'");
+    expect(csp).toMatch(/style-src 'self' 'nonce-[^']+'/);
+    expect(csp?.match(/style-src [^;]*/)?.[0]).not.toContain("'unsafe-inline'");
+    expect(csp).toContain("style-src-attr 'unsafe-inline'");
   });
 
   it("rejects declared oversized API requests before authentication", async () => {
