@@ -4,7 +4,7 @@ API v1 Reference
 Conventions
 -----------
 - All endpoints respond with JSON; errors use `{ "error": string }` and relevant HTTP status.
-- Auth uses Supabase session cookies. `requireUser` blocks unauthenticated requests (401). `requireAdmin` additionally requires `isAdmin` and an `adminUser` row (403).
+- Auth uses Supabase session cookies. `requireUser` blocks unauthenticated requests (401). `requireAdmin` uses the matching `AdminUser` row as the sole admin authority (403 when absent).
 - Unsafe API requests carrying a Supabase session cookie require an exact trusted `Origin`; signed webhooks and the secret-authenticated recommendation cron are exempt from cookie CSRF handling.
 - Paths are shown relative to `/api/v1`.
 
