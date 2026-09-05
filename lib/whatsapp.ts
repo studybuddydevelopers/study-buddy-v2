@@ -156,10 +156,8 @@ export async function sendWhatsAppText(to: string, body: string) {
   );
 
   if (!response.ok) {
-    const errorBody = await response.text();
-    throw new Error(
-      `WhatsApp send failed (${response.status}): ${errorBody}`
-    );
+    await response.body?.cancel();
+    throw new Error(`WhatsApp send failed with status ${response.status}.`);
   }
 
   return response.json();
