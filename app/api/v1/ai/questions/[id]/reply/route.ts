@@ -3,7 +3,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/auth";
-import { getErrorMessage, getString, isRecord } from "@/lib/type-utils";
+import { getString, isRecord } from "@/lib/type-utils";
 import OpenAI from "openai";
 import type { ChatCompletionMessageParam } from "openai/resources/chat/completions";
 import {
@@ -12,6 +12,10 @@ import {
 } from "@/lib/security/request-body";
 import { enforceAiRequestLimits } from "@/lib/security/rate-limit";
 import { openAiClientOptions } from "@/lib/security/timeouts";
+import {
+  globalAiBudgetErrorResponse,
+  withGlobalAiTokenBudget,
+} from "@/lib/security/ai-budget";
 
 export const maxDuration = 30;
 
@@ -116,23 +120,27 @@ export async function POST(
   let aiText = "";
 
   try {
-    const completion = await client.chat.completions.create({
-      model: "gpt-4o-mini",
-      messages: openAIMessages,
-      max_tokens: 500,
-      temperature: 0.5,
+    const completion = await withGlobalAiTokenBudget({
+      promptMaterial: openAIMessages,
+      maxOutputTokens: 500,
+      operation: () => client.chat.completions.create({
+        model: "gpt-4o-mini",
+        messages: openAIMessages,
+        max_tokens: 500,
+        temperature: 0.5,
+      }),
+      readActualTokens: (result) => result.usage?.total_tokens,
     });
 
     aiText =
       completion.choices?.[0]?.message?.content ||
       "I'm sorry — I couldn't generate a response.";
   } catch (err: unknown) {
+    const budgetResponse = globalAiBudgetErrorResponse(err);
+    if (budgetResponse) return budgetResponse;
     return NextResponse.json(
-      {
-        error: "AI response generation failed",
-        details: getErrorMessage(err),
-      },
-      { status: 500 }
+      { error: "AI response generation failed" },
+      { status: 502 }
     );
   }
 
