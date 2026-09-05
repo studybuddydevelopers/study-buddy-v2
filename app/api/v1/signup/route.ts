@@ -104,7 +104,10 @@ export async function POST(req: Request) {
   });
 
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 400 });
+    return NextResponse.json(
+      { error: "Sign-up could not be completed with those details." },
+      { status: 400 }
+    );
   }
 
   const userId = data.user?.id;
