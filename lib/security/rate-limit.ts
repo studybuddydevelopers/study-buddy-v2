@@ -2,6 +2,7 @@ import { createHash, createHmac } from "node:crypto";
 import { Prisma } from "@prisma/client";
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { logSecurityEvent } from "@/lib/security/audit-log";
 
 const MINUTE_MS = 60_000;
 const DEFAULT_AUTHENTICATED_ACCOUNT_LIMIT = 300;
@@ -23,6 +24,8 @@ interface RateLimitResult {
   limit: number;
   remaining: number;
   resetAt: Date;
+  scope: string;
+  firstRejection: boolean;
 }
 
 export function getClientIp(requestHeaders: Headers) {
@@ -172,6 +175,8 @@ async function consumeRateLimit(rule: RateLimitRule): Promise<RateLimitResult> {
     limit: rule.limit,
     remaining: Math.max(0, rule.limit - count),
     resetAt,
+    scope: rule.scope,
+    firstRejection: count === rule.limit + 1,
   };
 }
 
@@ -189,7 +194,14 @@ async function consumeDailyAiQuota(
 
   if (safeUnits > limit) {
     return rateLimitResponse(
-      { allowed: false, limit, remaining: 0, resetAt },
+      {
+        allowed: false,
+        limit,
+        remaining: 0,
+        resetAt,
+        scope: "ai:daily",
+        firstRejection: true,
+      },
       "Daily AI quota reached. Try again tomorrow."
     );
   }
@@ -208,12 +220,17 @@ async function consumeDailyAiQuota(
 
   const count = rows[0]?.requestCount;
   if (count === undefined || count > limit) {
-    return rateLimitResponse({
-      allowed: false,
-      limit,
-      remaining: 0,
-      resetAt,
-    }, "Daily AI quota reached. Try again tomorrow.");
+    return rateLimitResponse(
+      {
+        allowed: false,
+        limit,
+        remaining: 0,
+        resetAt,
+        scope: "ai:daily",
+        firstRejection: true,
+      },
+      "Daily AI quota reached. Try again tomorrow."
+    );
   }
 
   return null;
@@ -227,6 +244,14 @@ function rateLimitResponse(
     1,
     Math.ceil((result.resetAt.getTime() - Date.now()) / 1000)
   );
+
+  if (result.firstRejection) {
+    logSecurityEvent("rate_limit_exceeded", "warn", {
+      scope: result.scope,
+      limit: result.limit,
+      retryAfterSeconds: retryAfter,
+    });
+  }
 
   return NextResponse.json(
     { error: "RATE_LIMITED", message },
