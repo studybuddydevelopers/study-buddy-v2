@@ -5,6 +5,7 @@ Conventions
 -----------
 - All endpoints respond with JSON; errors use `{ "error": string }` and relevant HTTP status.
 - Auth uses Supabase session cookies. `requireUser` blocks unauthenticated requests (401). `requireAdmin` additionally requires `isAdmin` and an `adminUser` row (403).
+- Unsafe API requests carrying a Supabase session cookie require an exact trusted `Origin`; signed webhooks and the secret-authenticated recommendation cron are exempt from cookie CSRF handling.
 - Paths are shown relative to `/api/v1`.
 
 Auth & Account
@@ -83,15 +84,15 @@ Admin Content
 -------------
 - POST `/admin/subjects/create` (admin) — Body: `name` (req), `examCode?`, `description?`. Returns created subject.
 - POST `/admin/topics/create` (admin) — Body: `subjectId`, `title` (req), `examOutlineRef?`, `difficulty?`. Returns created topic.
-- POST `/admin/curriculum/upload` (admin) — Multipart form: `subjectId`, `file` (PDF). Uploads to Supabase storage and records `{ id, subjectId, fileUrl, uploadedAt }`.
-- POST `/admin/past-questions/upload` (admin) — Multipart form with `subjectId`, `questionText`, `answerText` (req); optional `topicId`, `explanationText`, `year`, `questionNumber`, `difficulty`, `image` (png/jpeg). Uploads image if provided, creates question record, returns stored fields.
+- POST `/admin/curriculum/upload` (admin) — Multipart form: `subjectId`, `file` (PDF). Validates the PDF signature and malware-scans it before uploading to Supabase storage; records `{ id, subjectId, fileUrl, uploadedAt }`.
+- POST `/admin/past-questions/upload` (admin) — Multipart form with `subjectId`, `questionText`, `answerText` (req); optional `topicId`, `explanationText`, `year`, `questionNumber`, `difficulty`, `image` (png/jpeg). Validates the image signature/type and malware-scans it before upload, creates the question record, and returns stored fields.
 - POST `/admin/past-questions/batch` (admin) — Body: array of past-question objects (`subjectId`, `questionText`, `answerText`, optional metadata). Inserts each and returns per-index results plus counts.
 - GET `/admin/users/query` (admin) — Query: `search?`, `isAdmin?=true|false`, `page?=1`, `pageSize?=20` (max 50). Returns paginated users with limited profile info.
 
 Admin Resources (Stage 2)
 -------------------------
 - GET `/admin/resources` (admin) — Query: `page?=1`, `pageSize?=20` (max 50), `sourceKind?`, `processingStatus?`, `approvalStatus?`, `subjectId?`, `topicId?`. Lists resources ordered by `updatedAt DESC, id DESC`.
-- POST `/admin/resources` (admin) — Multipart form: `file` (PDF, DOCX, Markdown, or plain text), optional `title`, `description`, `subjectId`, `topicId`, `provenance`, `usageRights`. Stores the file in the private resource bucket and creates a `Resource` with `processingStatus = UPLOADED` and `approvalStatus = PENDING_REVIEW`.
+- POST `/admin/resources` (admin) — Multipart form: `file` (PDF, DOCX, Markdown, or plain text), optional `title`, `description`, `subjectId`, `topicId`, `provenance`, `usageRights`. Validates supported file signatures where available, malware-scans every file, stores it in the private resource bucket, and creates a `Resource` with `processingStatus = UPLOADED` and `approvalStatus = PENDING_REVIEW`.
 - GET `/admin/resources/:resourceId` (admin) — Returns resource metadata plus up to 100 active-version chunks ordered by `chunkIndex`.
 - POST `/admin/resources/:resourceId/process` (admin) — Downloads the private object server-side, extracts text, creates versioned structure-aware chunks, and marks the resource `PROCESSED` or `FAILED`. Successful changed content activates a replacement chunk version; failed reprocessing preserves the previous active version.
 - POST `/admin/resources/:resourceId/approval` (admin) — Body: `{ action: "APPROVE" | "REJECT", notes? }`. Approves only successfully processed resources with usable active chunks or rejects with notes.
