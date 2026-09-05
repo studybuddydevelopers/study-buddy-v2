@@ -7,6 +7,11 @@ import OpenAI from "openai";
 import type { ChatCompletionMessageParam } from "openai/resources/chat/completions";
 import { enforceAiAccountLimits } from "@/lib/security/rate-limit";
 import { openAiClientOptions } from "@/lib/security/timeouts";
+import { logSecurityEvent } from "@/lib/security/audit-log";
+import {
+  GlobalAiBudgetExceededError,
+  withGlobalAiTokenBudget,
+} from "@/lib/security/ai-budget";
 
 const SYSTEM_PROMPT =
   "You are Study Buddy, an AI tutor helping Nigerian secondary school students prepare for WAEC exams. " +
@@ -77,19 +82,27 @@ async function generateAiReply(aiQuestionId: string): Promise<string> {
   });
 
   try {
-    const completion = await client.chat.completions.create({
-      model: "gpt-4o-mini",
-      messages: openAIMessages,
-      max_tokens: 300,
-      temperature: 0.4,
+    const completion = await withGlobalAiTokenBudget({
+      promptMaterial: openAIMessages,
+      maxOutputTokens: 300,
+      operation: () => client.chat.completions.create({
+        model: "gpt-4o-mini",
+        messages: openAIMessages,
+        max_tokens: 300,
+        temperature: 0.4,
+      }),
+      readActualTokens: (result) => result.usage?.total_tokens,
     });
 
     return (
       completion.choices?.[0]?.message?.content ||
       "Sorry, I couldn't generate a response. Please try again."
     );
-  } catch (err) {
-    console.error("WHATSAPP AI REPLY ERROR:", err);
+  } catch (error) {
+    if (error instanceof GlobalAiBudgetExceededError) {
+      return "The AI service has reached its daily usage limit. Please try again tomorrow.";
+    }
+    logSecurityEvent("whatsapp_ai_generation_failed", "error");
     return "Sorry, something went wrong on my end. Please try again in a moment.";
   }
 }
