@@ -144,7 +144,6 @@ enum SubscriptionStatus {
 model User {
   id            String   @id @default(uuid())
   createdAt     DateTime @default(now())
-  isAdmin       Boolean  @default(false)
   whatsappPhone String?  @unique // wa_id, digits only e.g. "2348012345678" — set for WhatsApp-only accounts
 
   adminUser AdminUser?
@@ -167,7 +166,6 @@ model User {
   approvedResources Resource[]            @relation("ResourceApprovedBy")
 
   @@index([createdAt], map: "User_createdAt_idx")
-  @@index([isAdmin, createdAt], map: "User_isAdmin_createdAt_idx")
 }
 
 // =========================================================
@@ -197,6 +195,17 @@ model AiDailyUsage {
 
   @@id([userId, usageDate])
   @@index([usageDate], map: "AiDailyUsage_usageDate_idx")
+}
+
+/// One row per UTC day. Provider calls reserve an upper-bound token amount
+/// before execution, then replace the reservation with reported usage.
+model AiGlobalDailyUsage {
+  usageDate       DateTime @id @db.Date
+  reservedTokens  Int      @default(0)
+  consumedTokens  Int      @default(0)
+  requestCount    Int      @default(0)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 }
 
 model UserProfile {
