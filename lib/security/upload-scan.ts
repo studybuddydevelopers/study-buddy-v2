@@ -174,6 +174,7 @@ function sendClamAvInstream(
     const rejectUnavailable = (message: string) => {
       if (settled) return;
       settled = true;
+      clearTimeout(deadline);
       socket.destroy();
       reject(scannerUnavailable(message));
     };
@@ -181,10 +182,15 @@ function sendClamAvInstream(
     const finish = () => {
       if (settled) return;
       settled = true;
+      clearTimeout(deadline);
       socket.destroy();
       resolve(Buffer.concat(replyChunks).toString("utf8"));
     };
 
+    const deadline = setTimeout(() => {
+      rejectUnavailable("The malware scan timed out.");
+    }, timeoutMs);
+    deadline.unref?.();
     socket.setTimeout(timeoutMs);
     socket.once("timeout", () => {
       rejectUnavailable("The malware scan timed out.");
