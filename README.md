@@ -45,17 +45,24 @@ Study Buddy v2 is a Next.js learning platform for exam preparation. It combines 
 ## Deployment Security TODOs
 
 - [ ] Correct `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` in the production environment so it contains the Supabase publishable key rather than the project URL.
-- [ ] Rotate the exposed Supabase database credentials, then update `DATABASE_URL` and `DIRECT_URL` everywhere they are configured before deploying.
+- [ ] Rotate the exposed Supabase database credentials and OpenAI API key, then update every deployment/CI environment where they are configured before deploying.
 
 ## Deployment Security Operations
 
 - Cookie-authenticated API mutations require an exact trusted `Origin` match.
   Set `APP_ORIGIN` to the production site's canonical HTTPS origin.
 - Admin PDF/image/resource uploads are checked using file magic bytes and then
-  malware-scanned before storage. Production uploads fail closed when ClamAV is
-  unavailable.
-- Admin access requires both `User.isAdmin = true` and a matching `AdminUser`
-  record; there is no public promotion endpoint.
+  malware-scanned before storage. PDFs are reconstructed with Ghostscript and
+  the sanitized output is scanned again. Production uploads fail closed when
+  ClamAV or required PDF reconstruction is unavailable.
+- `AdminUser` is the only source of admin authority; the duplicate `User.isAdmin`
+  field has been removed. There is no public promotion endpoint.
+- A distributed UTC-daily AI token circuit breaker reserves an upper bound
+  before every provider call. Configure `AI_GLOBAL_DAILY_TOKEN_BUDGET` for the
+  maximum total across all users and Railway replicas.
+- Dependabot checks npm and GitHub Actions dependencies, TruffleHog scans pushed
+  changes and pull requests for secrets, and the weekly ZAP baseline workflow
+  scans the URL in the `STAGING_URL` GitHub repository variable.
 - Railway deployment topology, ClamAV setup, structured security-log filters,
   alert thresholds, AI-cost monitoring, and edge-WAF guidance are documented in
   [`docs/RAILWAY_SECURITY_OPERATIONS.md`](/Users/efeon/study-buddy-v2/docs/RAILWAY_SECURITY_OPERATIONS.md).
