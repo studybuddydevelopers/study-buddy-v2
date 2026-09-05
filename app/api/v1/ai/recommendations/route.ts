@@ -3,7 +3,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/auth";
-import { getErrorMessage, getString, isRecord } from "@/lib/type-utils";
+import { getString, isRecord } from "@/lib/type-utils";
 import OpenAI from "openai";
 import { Recommendation } from "@prisma/client";
 import {
@@ -12,6 +12,11 @@ import {
 } from "@/lib/security/request-body";
 import { enforceAiRequestLimits } from "@/lib/security/rate-limit";
 import { openAiClientOptions } from "@/lib/security/timeouts";
+import {
+  globalAiBudgetErrorResponse,
+  withGlobalAiTokenBudget,
+} from "@/lib/security/ai-budget";
+import { logSecurityEvent } from "@/lib/security/audit-log";
 
 export const maxDuration = 30;
 
@@ -24,11 +29,17 @@ async function generateRecommendationText(prompt: string) {
     ...openAiClientOptions(),
   });
 
-  const completion = await client.chat.completions.create({
-    model: "gpt-4o-mini",
-    messages: [{ role: "user", content: prompt }],
-    max_tokens: 300,
-    temperature: 0.4,
+  const messages = [{ role: "user" as const, content: prompt }];
+  const completion = await withGlobalAiTokenBudget({
+    promptMaterial: messages,
+    maxOutputTokens: 300,
+    operation: () => client.chat.completions.create({
+      model: "gpt-4o-mini",
+      messages,
+      max_tokens: 300,
+      temperature: 0.4,
+    }),
+    readActualTokens: (result) => result.usage?.total_tokens,
   });
 
   return (
@@ -89,8 +100,6 @@ export async function GET(req: Request) {
   // -------------------------------------
   const progressContext = await buildProgressContext(dbUser.id);
   const { summary: progressSummary, ranked } = progressContext;
-  console.log("progressContext: ", progressContext);
-  console.log("progressSummary: ", progressSummary);
 
   let generated: string[] = [];
   const apiKey = process.env.OPENAI_API_KEY;
@@ -109,7 +118,6 @@ export async function GET(req: Request) {
             ranked[idx] ||
             ranked[(idx + 1) % (ranked.length || 1)] ||
             "any weak subject";
-          console.log("focus: ", focus);
           const prompt = `
 You are StudyBuddy AI. Generate one concise study recommendation (1-3 sentences).
 Make it specific, actionable, and tied to the subject(s). Avoid repeating the same advice across multiple recommendations.
@@ -117,22 +125,19 @@ User progress: ${progressSummary}
 Focus this recommendation on: ${focus}
 If no progress data, suggest a smart starting point.
 Include a concrete action and target (e.g., number of questions, time block). Output only the recommendation text.`;
-          console.log("prompt: ", prompt);
 
           return generateRecommendationText(prompt);
         })
       );
     } catch (err: unknown) {
-      console.log(
-        "There is an error that occured, err: ",
-        getErrorMessage(err)
-      );
+      const budgetResponse = globalAiBudgetErrorResponse(err);
+      if (budgetResponse) return budgetResponse;
+      logSecurityEvent("ai_recommendation_generation_failed", "error");
       generated = [
         "Review your lowest-progress subject today and complete one focused practice set.",
       ];
     }
   } else {
-    console.log("There is no opeani key")
     generated = [
       "Start with your weakest subject and aim for one focused practice block today.",
     ];
@@ -239,20 +244,28 @@ Output ONLY the recommendation text.
   let recommendationText = "";
 
   try {
-    const completion = await client.chat.completions.create({
-      model: "gpt-4o-mini",
-      messages: [{ role: "user", content: prompt }],
-      max_tokens: 300,
-      temperature: 0.4,
+    const messages = [{ role: "user" as const, content: prompt }];
+    const completion = await withGlobalAiTokenBudget({
+      promptMaterial: messages,
+      maxOutputTokens: 300,
+      operation: () => client.chat.completions.create({
+        model: "gpt-4o-mini",
+        messages,
+        max_tokens: 300,
+        temperature: 0.4,
+      }),
+      readActualTokens: (result) => result.usage?.total_tokens,
     });
 
     recommendationText =
       completion.choices?.[0]?.message?.content ||
       "I'm sorry — I couldn't generate a recommendation.";
   } catch (err: unknown) {
+    const budgetResponse = globalAiBudgetErrorResponse(err);
+    if (budgetResponse) return budgetResponse;
     return NextResponse.json(
-      { error: "AI generation failed", details: getErrorMessage(err) },
-      { status: 500 }
+      { error: "AI generation failed" },
+      { status: 502 }
     );
   }
 
