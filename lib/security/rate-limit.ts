@@ -1,4 +1,5 @@
 import { createHash, createHmac } from "node:crypto";
+import { isIP } from "node:net";
 import { Prisma } from "@prisma/client";
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
@@ -309,7 +310,16 @@ function bucketId(scope: string, identifier: string, windowStartMs: number) {
 
 function firstHeaderIp(value: string | null) {
   const first = value?.split(",")[0]?.trim();
-  return first && first.length <= 64 ? first : null;
+  if (!first || first.length > 64) return null;
+
+  // X-Forwarded-For normally contains a bare address, but tolerate the common
+  // bracketed IPv6 and IPv4-with-port representations without accepting an
+  // arbitrary attacker-controlled bucket identifier.
+  const bracketedIpv6 = first.match(/^\[([^\]]+)\](?::\d{1,5})?$/)?.[1];
+  const ipv4WithPort = first.match(/^(\d{1,3}(?:\.\d{1,3}){3}):\d{1,5}$/)?.[1];
+  const candidate = bracketedIpv6 ?? ipv4WithPort ?? first;
+
+  return isIP(candidate) ? candidate.toLowerCase() : null;
 }
 
 function positiveIntegerFromEnv(name: string, fallback: number) {
