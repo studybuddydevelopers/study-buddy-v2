@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireAdmin } from "@/lib/auth";
 import { getPagination, getPaginationMeta } from "@/lib/pagination";
+import { logSecurityEvent } from "@/lib/security/audit-log";
 import { parseJsonObjectRequest } from "@/lib/security/request-body";
 
 export async function GET(
@@ -158,7 +159,7 @@ export async function POST(
       );
     }
 
-    console.error("SCHOOL STUDENT CREATE ERROR:", err);
+    logSecurityEvent("school_student_create_failed", "error");
     return NextResponse.json(
       { error: "Failed adding student to school" },
       { status: 500 }
