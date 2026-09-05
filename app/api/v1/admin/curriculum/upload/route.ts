@@ -11,6 +11,7 @@ import {
 import { fetchWithTimeout } from "@/lib/security/timeouts";
 import { validateAndScanUpload } from "@/lib/security/upload-scan";
 import { uploadSecurityErrorResponse } from "@/lib/security/upload-response";
+import { randomUUID } from "node:crypto";
 
 export async function POST(req: Request) {
   // -------------------------------------
@@ -92,7 +93,7 @@ export async function POST(req: Request) {
   // -------------------------------------
   // 5. UPLOAD TO STORAGE
   // -------------------------------------
-  const filePath = `curriculum/${subjectId}/${Date.now()}-${file.name}`;
+  const filePath = `curriculum/${subjectId}/${randomUUID()}.pdf`;
 
   const { error: uploadError } = await supabase.storage
     .from("curriculum")
