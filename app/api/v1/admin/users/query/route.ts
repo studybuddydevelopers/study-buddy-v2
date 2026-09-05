@@ -38,10 +38,10 @@ export async function GET(req: Request) {
   }
 
   if (isAdminFilter === "true") {
-    where.isAdmin = true;
+    where.adminUser = { isNot: null };
   }
   if (isAdminFilter === "false") {
-    where.isAdmin = false;
+    where.adminUser = { is: null };
   }
 
   // -------------------------------------
@@ -67,7 +67,7 @@ export async function GET(req: Request) {
   const formatted = users.map((u) => ({
     id: u.id,
     createdAt: u.createdAt,
-    isAdmin: u.isAdmin,
+    isAdmin: Boolean(u.adminUser),
     profile: u.profile
       ? {
           firstName: u.profile.firstName,
