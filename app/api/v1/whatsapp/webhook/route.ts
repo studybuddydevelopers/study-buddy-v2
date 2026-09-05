@@ -66,18 +66,22 @@ export async function POST(req: Request) {
     // 6. Fire and forget — process messages after returning 200.
     (async () => {
       for (const message of messages) {
-        console.log(`WhatsApp message from ${message.from}:`, message.text);
-
         if (message.text) {
-          const reply = await handleIncomingMessage(message.from, message.text);
-          await sendWhatsAppText(message.from, reply);
+          try {
+            const reply = await handleIncomingMessage(message.from, message.text);
+            await sendWhatsAppText(message.from, reply);
+          } catch {
+            logSecurityEvent("whatsapp_message_processing_failed", "error", {
+              messageFingerprint: securityFingerprint(message.id),
+            });
+          }
         }
       }
     })();
 
     return response;
-  } catch (error) {
-    console.error("WHATSAPP WEBHOOK ERROR:", error);
+  } catch {
+    logSecurityEvent("whatsapp_webhook_processing_failed", "error");
     return NextResponse.json({ error: "Webhook error" }, { status: 500 });
   }
 }
