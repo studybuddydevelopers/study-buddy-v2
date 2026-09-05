@@ -296,9 +296,10 @@ export async function reconstructPdf(buffer: Buffer) {
       ],
       {
         shell: false,
-        stdio: ["pipe", "pipe", "pipe"],
+        stdio: "pipe",
         env: {
           PATH: process.env.PATH,
+          NODE_ENV: process.env.NODE_ENV,
           LANG: "C",
           LC_ALL: "C",
           TMPDIR: process.env.TMPDIR,
