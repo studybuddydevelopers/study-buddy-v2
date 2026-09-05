@@ -1,5 +1,10 @@
 import OpenAI from "openai";
 import { openAiClientOptions } from "@/lib/security/timeouts";
+import {
+  GlobalAiBudgetExceededError,
+  GlobalAiBudgetUnavailableError,
+  withGlobalAiTokenBudget,
+} from "@/lib/security/ai-budget";
 import { EmbeddingProviderError } from "./errors";
 import type { EmbeddingProvider } from "./types";
 
@@ -30,10 +35,15 @@ export class OpenAIEmbeddingProvider implements EmbeddingProvider {
 
   async embedDocuments(texts: string[]) {
     try {
-      const response = await this.client.embeddings.create({
-        model: this.model,
-        input: texts,
-        dimensions: this.dimensions,
+      const response = await withGlobalAiTokenBudget({
+        promptMaterial: texts,
+        maxOutputTokens: 0,
+        operation: () => this.client.embeddings.create({
+          model: this.model,
+          input: texts,
+          dimensions: this.dimensions,
+        }),
+        readActualTokens: (result) => result.usage?.total_tokens,
       });
       return response.data.map((item) => item.embedding);
     } catch (error) {
@@ -66,6 +76,13 @@ function readPositiveInt(value: string | undefined, fallback: number) {
 }
 
 function mapOpenAIEmbeddingError(error: unknown) {
+  if (error instanceof GlobalAiBudgetExceededError) {
+    return new EmbeddingProviderError("RATE_LIMITED");
+  }
+  if (error instanceof GlobalAiBudgetUnavailableError) {
+    return new EmbeddingProviderError("PROVIDER_ERROR");
+  }
+
   const status =
     typeof error === "object" && error && "status" in error
       ? Number((error as { status?: unknown }).status)
