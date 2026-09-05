@@ -614,8 +614,8 @@ const ICONS: IconDecision[] = [
     current: <CheckCircle2 {...lucideProps} />,
     actualSize: 20,
     proposal: "learnerSuccess",
-    proposalName: "Learner-first badge",
-    rationale: "This is the third card in the four-card principles strip beneath the About-page hero. The learner-and-study-spark concept is still awaiting a decision for that exact sentence.",
+    proposalName: "WAEC study workflow",
+    rationale: "A WAEC paper, connected study steps and a final check make the structured learning workflow explicit.",
     locations: [
       { file: "app/about-us/page.tsx", context: "‘Built around WAEC-style learning workflows’ — the third principle card directly beneath the About-page hero." },
     ],
@@ -801,6 +801,7 @@ const FULLY_APPLIED_ICON_TITLES = new Set([
   "Password visibility",
   "Selected option",
   "Security and trust",
+  "WAEC learning workflows",
   "Message sent confirmation",
   "Low bandwidth",
   "Data collected",
