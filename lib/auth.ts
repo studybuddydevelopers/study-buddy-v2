@@ -72,17 +72,22 @@ export async function requireAdmin() {
 
   const { user, dbUser } = base;
 
-  const adminRecord = await prisma.adminUser.findUnique({
-    where: { userId: dbUser.id },
-  });
-
-  const isAdmin = dbUser.isAdmin && !!adminRecord;
-
-  if (!isAdmin) {
+  if (!(await hasAdminAccess(dbUser))) {
     return {
       errorResponse: NextResponse.json({ error: "Forbidden" }, { status: 403 }),
     };
   }
 
   return { user, dbUser };
+}
+
+export async function hasAdminAccess(user: { id: string; isAdmin: boolean }) {
+  if (!user.isAdmin) return false;
+
+  const adminRecord = await prisma.adminUser.findUnique({
+    where: { userId: user.id },
+    select: { id: true },
+  });
+
+  return Boolean(adminRecord);
 }
