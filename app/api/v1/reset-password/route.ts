@@ -76,12 +76,18 @@ export async function POST(req: Request) {
   );
 
   // Supabase stores the PKCE verifier on this response before emailing the link.
-  const { error } = await supabase.auth.resetPasswordForEmail(email, {
-    redirectTo: passwordResetRedirectUrl(req),
-    captchaToken,
-  });
+  let failed = false;
+  try {
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: passwordResetRedirectUrl(req),
+      captchaToken,
+    });
+    failed = Boolean(error);
+  } catch {
+    failed = true;
+  }
 
-  if (error) {
+  if (failed) {
     // Deliberately return the same response for missing accounts, provider
     // throttling, and accepted requests to prevent account enumeration.
     logSecurityEvent("password_reset_request_failed", "warn", {
