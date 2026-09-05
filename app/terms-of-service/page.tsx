@@ -13,7 +13,7 @@ import StudyBuddyIcon, {
   type StudyBuddyIconName,
 } from "@/components/StudyBuddyIcon";
 
-const LAST_UPDATED = "20 July 2026";
+const LAST_UPDATED = "5 September 2026";
 const CONTACT_EMAIL = "sbstudybuddy0@gmail.com";
 
 const summaryItems: {
@@ -54,13 +54,17 @@ const navItems = [
   ["The service", "the-service"],
   ["Accounts", "accounts"],
   ["Acceptable use", "acceptable-use"],
+  ["Your content", "your-content"],
   ["AI features", "ai-features"],
   ["Study content", "study-content"],
   ["Payments", "payments"],
+  ["Third-party services", "third-party-services"],
   ["Availability", "availability"],
   ["Ending access", "ending-access"],
   ["Liability", "liability"],
+  ["Privacy", "privacy"],
   ["Changes", "changes"],
+  ["Law and disputes", "law-and-disputes"],
   ["Contact", "contact"],
 ] as const;
 
