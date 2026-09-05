@@ -445,7 +445,14 @@ export default function PrivacyPolicyPage() {
               enable cloud draft saving, the draft is also stored with your
               account. CAPTCHA providers may use their own necessary technologies
               to assess abuse. Study Buddy does not currently use advertising or
-              behavioural-tracking cookies.
+              behavioural-tracking cookies. See our{" "}
+              <Link
+                href="/cookie-policy"
+                className="font-medium text-primary-600 hover:underline"
+              >
+                Cookie and Local Storage Policy
+              </Link>{" "}
+              for more detail.
             </p>
           </PolicySection>
 
@@ -477,6 +484,13 @@ export default function PrivacyPolicyPage() {
               >
                 {CONTACT_EMAIL}
               </a>
+              . Families can also read our shorter{" "}
+              <Link
+                href="/parent-student-privacy"
+                className="font-medium text-primary-600 hover:underline"
+              >
+                Parent and Student Privacy Notice
+              </Link>
               .
             </p>
           </PolicySection>
