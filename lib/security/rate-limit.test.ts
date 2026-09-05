@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const prismaMocks = vi.hoisted(() => ({
   queryRaw: vi.fn(),
@@ -24,8 +24,22 @@ describe("rate limiting", () => {
     prismaMocks.deleteMany.mockResolvedValue({ count: 0 });
   });
 
+  afterEach(() => vi.unstubAllEnvs());
+
   it("uses the first platform-forwarded client IP", () => {
+    vi.stubEnv("TRUSTED_PROXY_PROVIDER", "railway");
     const headers = new Headers({
+      "x-forwarded-for": "203.0.113.8, 10.0.0.2",
+    });
+
+    expect(getClientIp(headers)).toBe("203.0.113.8");
+  });
+
+  it("ignores spoofable Cloudflare and X-Real-IP headers on Railway", () => {
+    vi.stubEnv("TRUSTED_PROXY_PROVIDER", "railway");
+    const headers = new Headers({
+      "cf-connecting-ip": "198.51.100.9",
+      "x-real-ip": "198.51.100.10",
       "x-forwarded-for": "203.0.113.8, 10.0.0.2",
     });
 
@@ -57,7 +71,7 @@ describe("rate limiting", () => {
 
     const response = await enforceAiRequestLimits({
       accountId: "user-1",
-      requestHeaders: new Headers({ "x-real-ip": "203.0.113.9" }),
+      requestHeaders: new Headers({ "x-forwarded-for": "203.0.113.9" }),
     });
 
     expect(prismaMocks.queryRaw).toHaveBeenCalledTimes(3);
