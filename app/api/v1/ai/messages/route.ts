@@ -1,7 +1,7 @@
 // app/api/v1/ai/messages/route.ts
 import { NextResponse } from "next/server";
 import { requireUser } from "@/lib/auth";
-import { getErrorMessage, getString, isRecord } from "@/lib/type-utils";
+import { getString, isRecord } from "@/lib/type-utils";
 import OpenAI from "openai";
 import {
   parseJsonRequest,
@@ -9,6 +9,10 @@ import {
 } from "@/lib/security/request-body";
 import { enforceAiRequestLimits } from "@/lib/security/rate-limit";
 import { openAiClientOptions } from "@/lib/security/timeouts";
+import {
+  globalAiBudgetErrorResponse,
+  withGlobalAiTokenBudget,
+} from "@/lib/security/ai-budget";
 
 export const maxDuration = 30;
 
@@ -89,25 +93,33 @@ ${topicId ? `Topic ID: ${topicId}` : ""}
   });
 
   let aiText = "";
+  const openAIMessages = [
+    { role: "system" as const, content: systemPrompt },
+    { role: "user" as const, content: userPrompt },
+  ];
 
   try {
-    const completion = await client.chat.completions.create({
-      model: "gpt-4o-mini",
-      messages: [
-        { role: "system", content: systemPrompt },
-        { role: "user", content: userPrompt },
-      ],
-      max_tokens: 180,
-      temperature: 0.3,
+    const completion = await withGlobalAiTokenBudget({
+      promptMaterial: openAIMessages,
+      maxOutputTokens: 180,
+      operation: () => client.chat.completions.create({
+        model: "gpt-4o-mini",
+        messages: openAIMessages,
+        max_tokens: 180,
+        temperature: 0.3,
+      }),
+      readActualTokens: (result) => result.usage?.total_tokens,
     });
 
     aiText =
       completion.choices?.[0]?.message?.content ||
       "I'm sorry — I couldn't generate a response.";
   } catch (err: unknown) {
+    const budgetResponse = globalAiBudgetErrorResponse(err);
+    if (budgetResponse) return budgetResponse;
     return NextResponse.json(
-      { error: "AI generation failed", details: getErrorMessage(err) },
-      { status: 500 }
+      { error: "AI generation failed" },
+      { status: 502 }
     );
   }
 
