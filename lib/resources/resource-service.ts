@@ -18,6 +18,7 @@ import { hashContent, buildResourceChunks } from "./chunking";
 import { extractDocument } from "./extraction";
 import { ResourceServiceError } from "./errors";
 import { buildResourceChunkSearchText } from "./retrieval/search-text";
+import { validateAndScanUpload } from "@/lib/security/upload-scan";
 import type {
   ListResourcesInput,
   ResourceApprovalInput,
@@ -120,8 +121,7 @@ export class ResourceService {
     validateUpload(file);
     await this.validateSubjectTopic(input.subjectId, input.topicId);
 
-    const arrayBuffer = await file.arrayBuffer();
-    const buffer = Buffer.from(arrayBuffer);
+    const buffer = await validateAndScanUpload(file, "auto");
     const mimeType = getFileMimeType(file);
     const contentHash = hashContent(buffer);
     const title = cleanTitle(input.title || file.name);
