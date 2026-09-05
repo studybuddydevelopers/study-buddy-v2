@@ -10,6 +10,11 @@ import {
   parseTextRequest,
   REQUEST_LIMITS,
 } from "@/lib/security/request-body";
+import {
+  logSecurityEvent,
+  securityFingerprint,
+} from "@/lib/security/audit-log";
+import { getClientIp } from "@/lib/security/rate-limit";
 
 // -----------------------------------------------------
 // GET — Meta's one-time webhook verification handshake.
@@ -41,6 +46,10 @@ export async function POST(req: Request) {
     // 2. Verify the request came from Meta.
     const signature = req.headers.get("x-hub-signature-256");
     if (!verifyWhatsAppSignature(rawBody, signature)) {
+      logSecurityEvent("webhook_signature_failed", "warn", {
+        provider: "whatsapp",
+        ipFingerprint: securityFingerprint(getClientIp(req.headers)),
+      });
       return NextResponse.json({ error: "Invalid signature" }, { status: 401 });
     }
 
