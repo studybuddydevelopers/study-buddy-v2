@@ -1,8 +1,5 @@
 import Link from "next/link";
-import {
-  ArrowRight,
-  ShieldCheck,
-} from "lucide-react";
+import { ArrowRight } from "lucide-react";
 import Button from "@/components/Button";
 import Heading1 from "@/components/Heading1";
 import Heading2 from "@/components/Heading2";
@@ -202,31 +199,40 @@ export default function AboutUsPage() {
       </section>
 
       <section className="border-y border-gray-200 bg-accent-50">
-        <div className="mx-auto grid max-w-6xl gap-8 px-6 py-14 lg:grid-cols-2">
-          <div>
-            <div className="mb-4 inline-flex h-10 w-10 items-center justify-center rounded-lg bg-white text-secondary-600 shadow-sm">
-              <StudyBuddyIcon name="wifi" size={32} />
+        <div className="mx-auto max-w-6xl space-y-7 px-6 py-14">
+          <article className="overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm">
+            <div className="flex flex-col md:min-h-64 md:flex-row">
+              <div className="flex items-center justify-center bg-primary-50 p-8 md:w-[40%]">
+                <StudyBuddyIcon name="wifi" size={160} />
+              </div>
+              <div className="flex flex-1 flex-col justify-center px-6 py-8 sm:px-10 md:py-10">
+                <Heading2 gutter="sm">Built for real student conditions</Heading2>
+                <Paragraph className="max-w-2xl leading-relaxed text-gray-700">
+                  Study Buddy is being optimised for students who may study on
+                  mobile data, shared devices, or slower connections. Low-data
+                  settings, smaller payloads, and careful loading behaviour are part
+                  of the product direction.
+                </Paragraph>
+              </div>
             </div>
-            <Heading2 gutter="sm">Built for real student conditions</Heading2>
-            <Paragraph className="leading-relaxed text-gray-700">
-              Study Buddy is being optimised for students who may study on
-              mobile data, shared devices, or slower connections. Low-data
-              settings, smaller payloads, and careful loading behaviour are part
-              of the product direction.
-            </Paragraph>
-          </div>
-          <div>
-            <div className="mb-4 inline-flex h-10 w-10 items-center justify-center rounded-lg bg-white text-secondary-600 shadow-sm">
-              <ShieldCheck className="h-5 w-5" aria-hidden="true" />
+          </article>
+
+          <article className="overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm">
+            <div className="flex flex-col md:min-h-64 md:flex-row-reverse">
+              <div className="flex items-center justify-center bg-primary-50 p-8 md:w-[40%]">
+                <StudyBuddyIcon name="shield" size={160} />
+              </div>
+              <div className="flex flex-1 flex-col justify-center px-6 py-8 sm:px-10 md:py-10">
+                <Heading2 gutter="sm">Careful with AI claims</Heading2>
+                <Paragraph className="max-w-2xl leading-relaxed text-gray-700">
+                  We are keeping the live chatbot as a persistent general AI study
+                  assistant. Resource-grounded answers, citations, and advanced
+                  tutoring modes will only be enabled after they pass safety and
+                  quality validation.
+                </Paragraph>
+              </div>
             </div>
-            <Heading2 gutter="sm">Careful with AI claims</Heading2>
-            <Paragraph className="leading-relaxed text-gray-700">
-              We are keeping the live chatbot as a persistent general AI study
-              assistant. Resource-grounded answers, citations, and advanced
-              tutoring modes will only be enabled after they pass safety and
-              quality validation.
-            </Paragraph>
-          </div>
+          </article>
         </div>
       </section>
 
