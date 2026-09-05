@@ -42,6 +42,11 @@ Study Buddy v2 is a Next.js learning platform for exam preparation. It combines 
 - Sheets data integration: integrate data from sheets into the app through a controlled import/sync workflow, with validation and duplicate handling before records are saved.
 - Dashboard page revamp: redesign the dashboard so next actions, weak topics, streaks, recommendations, and last-session entry points are clearer and less cluttered.
 
+## Deployment Security TODOs
+
+- [ ] Correct `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` in the production environment so it contains the Supabase publishable key rather than the project URL.
+- [ ] Rotate the exposed Supabase database credentials, then update `DATABASE_URL` and `DIRECT_URL` everywhere they are configured before deploying.
+
 ## Bandwidth And Low-Data Improvements
 
 Implemented/expected low-bandwidth behavior:
