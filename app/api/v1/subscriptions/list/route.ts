@@ -5,7 +5,7 @@ import {
   SubscriptionStatus,
 } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
-import { requireUser } from "@/lib/auth";
+import { hasAdminAccess, requireUser } from "@/lib/auth";
 import { getPagination, getPaginationMeta } from "@/lib/pagination";
 
 function isSubscriptionStatus(value: string): value is SubscriptionStatus {
@@ -26,6 +26,7 @@ export async function GET(req: Request) {
   if ("errorResponse" in auth) return auth.errorResponse;
 
   const { dbUser } = auth;
+  const isAdmin = await hasAdminAccess(dbUser);
 
   // ---------------------------------------------------------
   // 2. PARSE QUERY PARAMS
@@ -42,7 +43,7 @@ export async function GET(req: Request) {
   const where: Prisma.SubscriptionWhereInput = {};
 
   // User role determines what they can query
-  if (dbUser.isAdmin) {
+  if (isAdmin) {
     // Admin can filter by any user
     if (userIdParam) where.userId = userIdParam;
   } else {
