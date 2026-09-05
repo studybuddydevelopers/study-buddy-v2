@@ -200,12 +200,12 @@ model AiDailyUsage {
 /// One row per UTC day. Provider calls reserve an upper-bound token amount
 /// before execution, then replace the reservation with reported usage.
 model AiGlobalDailyUsage {
-  usageDate       DateTime @id @db.Date
-  reservedTokens  Int      @default(0)
-  consumedTokens  Int      @default(0)
-  requestCount    Int      @default(0)
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  usageDate      DateTime @id @db.Date
+  reservedTokens Int      @default(0)
+  consumedTokens Int      @default(0)
+  requestCount   Int      @default(0)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
 }
 
 model UserProfile {
