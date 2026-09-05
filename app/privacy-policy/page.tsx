@@ -40,7 +40,7 @@ const summaryItems: {
     title: "You can make privacy requests",
     description:
       "You can ask to access, correct, delete, object to, or export eligible account data.",
-    proposal: "userCheck",
+    proposal: "privacyRequest",
   },
 ];
 
