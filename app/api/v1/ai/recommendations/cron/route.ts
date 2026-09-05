@@ -1,9 +1,10 @@
 // app/api/v1/ai/recommendations/cron/route.ts
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getErrorMessage } from "@/lib/type-utils";
 import OpenAI from "openai";
 import { openAiClientOptions } from "@/lib/security/timeouts";
+import { withGlobalAiTokenBudget } from "@/lib/security/ai-budget";
+import { logSecurityEvent, securityFingerprint } from "@/lib/security/audit-log";
 
 // Simple cron endpoint: call with a secret header every 24h from a scheduler
 export async function POST(req: Request) {
@@ -58,11 +59,17 @@ User progress: ${progressSummary}
 If no progress data, suggest a smart starting point.
 Output only the recommendation text.`;
 
-      const completion = await client.chat.completions.create({
-        model: "gpt-4o-mini",
-        messages: [{ role: "user", content: prompt }],
-        max_tokens: 200,
-        temperature: 0.4,
+      const messages = [{ role: "user" as const, content: prompt }];
+      const completion = await withGlobalAiTokenBudget({
+        promptMaterial: messages,
+        maxOutputTokens: 200,
+        operation: () => client.chat.completions.create({
+          model: "gpt-4o-mini",
+          messages,
+          max_tokens: 200,
+          temperature: 0.4,
+        }),
+        readActualTokens: (result) => result.usage?.total_tokens,
       });
 
       const recommendationText =
@@ -77,8 +84,11 @@ Output only the recommendation text.`;
       });
 
       created.push(user.id);
-    } catch (err: unknown) {
-      errors.push({ userId: user.id, error: getErrorMessage(err) });
+    } catch {
+      logSecurityEvent("ai_recommendation_cron_user_failed", "warn", {
+        accountFingerprint: securityFingerprint(user.id),
+      });
+      errors.push({ userId: user.id, error: "Generation failed" });
     }
   }
 
