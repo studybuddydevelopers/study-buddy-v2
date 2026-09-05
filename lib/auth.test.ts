@@ -15,21 +15,16 @@ import { hasAdminAccess } from "./auth";
 describe("admin authorization", () => {
   beforeEach(() => dbMock.findAdmin.mockReset());
 
-  it("rejects an admin row when the user flag is false", async () => {
-    expect(await hasAdminAccess({ id: "user-1", isAdmin: false })).toBe(false);
-    expect(dbMock.findAdmin).not.toHaveBeenCalled();
-  });
-
-  it("rejects an admin flag without a matching admin row", async () => {
+  it("rejects a user without a matching admin row", async () => {
     dbMock.findAdmin.mockResolvedValue(null);
 
-    expect(await hasAdminAccess({ id: "user-1", isAdmin: true })).toBe(false);
+    expect(await hasAdminAccess({ id: "user-1" })).toBe(false);
   });
 
-  it("requires both the user flag and the matching admin row", async () => {
+  it("uses the AdminUser row as the single source of admin access", async () => {
     dbMock.findAdmin.mockResolvedValue({ id: "admin-1" });
 
-    expect(await hasAdminAccess({ id: "user-1", isAdmin: true })).toBe(true);
+    expect(await hasAdminAccess({ id: "user-1" })).toBe(true);
     expect(dbMock.findAdmin).toHaveBeenCalledWith({
       where: { userId: "user-1" },
       select: { id: true },
