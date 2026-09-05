@@ -28,10 +28,17 @@ deployment-specific values:
 NODE_ENV=production
 APP_ORIGIN=https://app.example.com
 CSRF_TRUSTED_ORIGINS=
+TRUSTED_PROXY_PROVIDER=railway
+AI_GLOBAL_BUDGET_ENABLED=true
+AI_GLOBAL_DAILY_TOKEN_BUDGET=1000000
 MALWARE_SCAN_REQUIRED=true
 CLAMAV_HOST=clamav.railway.internal
 CLAMAV_PORT=3310
 CLAMAV_TIMEOUT_MS=20000
+PDF_CDR_REQUIRED=true
+PDF_CDR_COMMAND=gs
+PDF_CDR_TIMEOUT_MS=20000
+PDF_CDR_MAX_OUTPUT_BYTES=31457280
 ```
 
 `APP_ORIGIN` is mandatory for browser mutations carrying a Supabase session
@@ -40,6 +47,11 @@ are rejected with `403 CSRF_VALIDATION_FAILED`. Only add another exact origin to
 `CSRF_TRUSTED_ORIGINS` when an intentional browser frontend needs it. Signed
 Paystack/WhatsApp webhooks and the secret-authenticated recommendation cron are
 excluded because they do not authenticate with browser cookies.
+
+`TRUSTED_PROXY_PROVIDER=railway` makes the rate limiter use only the first
+address in Railway's `X-Forwarded-For` chain. It intentionally ignores
+`X-Real-IP`, Cloudflare, and Vercel headers in this topology so a client cannot
+choose whichever forwarding header is most convenient to spoof.
 
 ## Private ClamAV service
 
@@ -58,8 +70,17 @@ excluded because they do not authenticate with browser cookies.
 The app sends each bounded upload with clamd's `INSTREAM` protocol before any
 Supabase Storage write. Production scanning fails closed. PDF, PNG, JPEG, and
 DOCX container magic bytes are checked first; PDFs and images also require their
-expected end markers and matching declared type/extension. Plain text and
-Markdown have no reliable magic bytes, but are still malware-scanned.
+expected end markers and matching declared type/extension. DOCX extraction has
+strict ZIP-entry, encrypted/layout, advertised-size, and decompressed-output
+limits. Plain text and Markdown have no reliable magic bytes, but are still
+malware-scanned.
+
+PDFs are reconstructed through Ghostscript with `-dSAFER`, bounded execution
+time and output size, and no shell. The original is scanned, the reconstructed
+PDF is checked for active actions/embedded content, and the exact reconstructed
+bytes are scanned again before storage. `railpack.json` installs Ghostscript in
+the Railway runtime image. CDR lowers risk but is not a proof that a document is
+harmless, so keep ClamAV and least-privilege storage as separate layers.
 
 ClamAV's official documentation describes the
 [Docker images](https://docs.clamav.net/manual/Installing/Docker.html) and
@@ -71,18 +92,16 @@ sizing it lower.
 ## Admin-account support
 
 Admin authorization already exists. `requireAdmin()` accepts an account only
-when both conditions are true:
-
-1. the matching `User.isAdmin` field is `true`; and
-2. an `AdminUser` row exists for that same `userId`.
+when an `AdminUser` row exists for that `User.id`. The former duplicate
+`User.isAdmin` Boolean was removed so the two authorization sources cannot
+drift apart.
 
 Admin API routes use this guard. There is deliberately no public admin-promotion
 endpoint, but there is not yet a dedicated bootstrap CLI or admin-management UI.
 Provision the first administrator directly through a restricted database
-session, updating both records in one transaction. Use the Supabase Auth user ID
-that already exists in the `User` table, set a meaningful `AdminUser.role`, and
-verify `/api/v1/me` reports `isAdmin: true`. Never let a signup payload set this
-flag.
+session. Use the Supabase Auth user ID that already exists in the `User` table,
+insert its `AdminUser` row with a meaningful operational role, and verify
+`/api/v1/me` reports `isAdmin: true`. Never let a signup payload create this row.
 
 ## Security event monitoring
 
@@ -97,6 +116,8 @@ attributes automatically. Useful Log Explorer filters are:
 @securityEvent:csrf_validation_failed
 @securityEvent:malware_detected
 @securityEvent:malware_scanner_unavailable
+@securityEvent:pdf_content_disarm_failed
+@securityEvent:ai_global_daily_budget_exhausted
 ```
 
 Login account and source-IP identifiers are HMAC-based pseudonyms, so repeated
@@ -112,6 +133,8 @@ Start with these thresholds and tune them against normal traffic:
 | Webhook signature failures | 3 per provider in 5 minutes | Sustained failures or a jump after secret rotation; verify provider secret/configuration |
 | Malware detected | Any event | Block is automatic; inspect the admin account and source workflow |
 | Scanner unavailable | Any event | Page immediately because production uploads are unavailable by design |
+| PDF CDR failure/unavailable | Any event | Inspect the file or runtime installation; do not bypass the production fail-closed setting |
+| Global AI budget exhausted | Any event | Provider calls stop automatically; inspect usage and deliberately raise the limit only if justified |
 
 Railway provides searchable HTTP and structured logs, but its native threshold
 monitors cover CPU, RAM, disk, and network egress rather than application log
@@ -135,8 +158,30 @@ and [native monitor limits](https://docs.railway.com/observability).
   `outputTokens` totals. The database totals help identify accounts and models,
   but provider Costs remain the billing source of truth and include work outside
   persistent chat.
-- The existing `AI_DAILY_USER_QUOTA` is a hard per-account request quota, not a
-  monetary cap.
+- `AI_DAILY_USER_QUOTA` remains a hard per-account request quota. In addition,
+  `AI_GLOBAL_DAILY_TOKEN_BUDGET` is an app-enforced, distributed hard stop across
+  all accounts and replicas. Calls atomically reserve a conservative token upper
+  bound before contacting the provider and settle against reported usage. It
+  resets at 00:00 UTC and fails closed if its database guard is unavailable.
+- Tokens are a stable enforcement unit, not an exact currency amount. Translate
+  the chosen token ceiling from your most expensive enabled model, leave a cost
+  margin, and keep provider-side cost alerts because model pricing and traffic
+  outside this app are not represented by the token table.
+
+## Automated repository and staging checks
+
+- Dependabot opens grouped weekly npm updates and monthly GitHub Actions updates.
+- TruffleHog scans each pull request and push to `main`; it also supports a full
+  manual history scan. Any historical credential it finds must be rotated, not
+  merely deleted from the latest commit.
+- Set the GitHub Actions repository variable `STAGING_URL` to the public HTTPS
+  Railway staging URL. The OWASP ZAP baseline workflow runs every Monday and can
+  also be launched manually with an alternate target. It is a non-destructive
+  spider/passive scan, fails the workflow on alerts, and uploads its report.
+- Never point the ZAP workflow at production. Seed staging with fake data and
+  use separate provider credentials. The baseline scan covers anonymously
+  reachable pages; authenticated testing needs a separately reviewed ZAP auth
+  configuration.
 
 OpenAI references: [project budget behavior](https://help.openai.com/en/articles/9186755-managing-your-work-in-the-api-platform-with-projects.eps)
 and the [Usage and Costs APIs](https://platform.openai.com/docs/api-reference/usage/audio_transcriptions_object).
