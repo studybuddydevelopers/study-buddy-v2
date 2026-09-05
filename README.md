@@ -47,6 +47,19 @@ Study Buddy v2 is a Next.js learning platform for exam preparation. It combines 
 - [ ] Correct `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` in the production environment so it contains the Supabase publishable key rather than the project URL.
 - [ ] Rotate the exposed Supabase database credentials, then update `DATABASE_URL` and `DIRECT_URL` everywhere they are configured before deploying.
 
+## Deployment Security Operations
+
+- Cookie-authenticated API mutations require an exact trusted `Origin` match.
+  Set `APP_ORIGIN` to the production site's canonical HTTPS origin.
+- Admin PDF/image/resource uploads are checked using file magic bytes and then
+  malware-scanned before storage. Production uploads fail closed when ClamAV is
+  unavailable.
+- Admin access requires both `User.isAdmin = true` and a matching `AdminUser`
+  record; there is no public promotion endpoint.
+- Railway deployment topology, ClamAV setup, structured security-log filters,
+  alert thresholds, AI-cost monitoring, and edge-WAF guidance are documented in
+  [`docs/RAILWAY_SECURITY_OPERATIONS.md`](/Users/efeon/study-buddy-v2/docs/RAILWAY_SECURITY_OPERATIONS.md).
+
 ## Bandwidth And Low-Data Improvements
 
 Implemented/expected low-bandwidth behavior:
@@ -327,8 +340,9 @@ npx prisma db seed
 
 ## Dependency Notes
 
-- Next.js is currently using `16.3.0-canary.92` because the latest stable release available during the audit still reported a moderate `npm audit` issue through Next's nested `postcss` dependency. Re-check this periodically and move back to a stable patched Next.js release once `npm audit --audit-level=moderate` stays clean.
-- Avoid blindly running `npm audit fix --force` for this issue; npm suggested a breaking downgrade to Next 9 instead of a safe patch.
+- Next.js is pinned through the stable `^16.3.4` range. Continue running
+  `npm audit --audit-level=moderate` and the full test/build checks before
+  dependency deployments.
 
 ## Environment
 
@@ -354,12 +368,21 @@ The app expects environment variables for:
 - CAPTCHA frontend config when Supabase Auth CAPTCHA is enabled:
   - `NEXT_PUBLIC_CAPTCHA_PROVIDER=hcaptcha` or `NEXT_PUBLIC_CAPTCHA_PROVIDER=turnstile`
   - `NEXT_PUBLIC_CAPTCHA_SITE_KEY=...`
+- production application origin and optional additional CSRF origins:
+  - `APP_ORIGIN=https://app.example.com`
+  - `CSRF_TRUSTED_ORIGINS=`
+- private ClamAV upload scanning:
+  - `MALWARE_SCAN_REQUIRED=true`
+  - `CLAMAV_HOST=clamav.railway.internal`
+  - `CLAMAV_PORT=3310`
+  - `CLAMAV_TIMEOUT_MS=20000`
 
 ## Recommended Docs
 
 - [`CODEBASE_BREAKDOWN.md`](/Users/efeon/study-buddy-v2/CODEBASE_BREAKDOWN.md): broad codebase map
 - [`docs/WEBSITE_GUIDE.md`](/Users/efeon/study-buddy-v2/docs/WEBSITE_GUIDE.md): path-by-path app walkthrough
 - [`docs/PERFORMANCE_AND_LOW_DATA_RULEBOOK.md`](/Users/efeon/study-buddy-v2/docs/PERFORMANCE_AND_LOW_DATA_RULEBOOK.md): mandatory performance, bandwidth, low-data, and resilience rules for future LLM/code changes
+- [`docs/RAILWAY_SECURITY_OPERATIONS.md`](/Users/efeon/study-buddy-v2/docs/RAILWAY_SECURITY_OPERATIONS.md): Railway topology, private ClamAV scanning, monitoring/alerts, and edge protection
 - [`docs/AI_CHAT_STAGE_1_MIGRATION.md`](/Users/efeon/study-buddy-v2/docs/AI_CHAT_STAGE_1_MIGRATION.md): persistent chat migration, lifecycle, retry, and rollback notes
 - [`docs/RESOURCE_INGESTION_STAGE_2.md`](/Users/efeon/study-buddy-v2/docs/RESOURCE_INGESTION_STAGE_2.md): admin resource ingestion, extraction, approval, and past-question migration notes
 - [`docs/RESOURCE_RETRIEVAL_STAGE_3.md`](/Users/efeon/study-buddy-v2/docs/RESOURCE_RETRIEVAL_STAGE_3.md): retrieval, embeddings, evaluation, activation, and rollback notes
