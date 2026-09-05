@@ -170,7 +170,7 @@ export class ResourceService {
           storagePath,
           originalFileName: file.name,
           mimeType,
-          byteSize: file.size,
+          byteSize: buffer.byteLength,
           contentHash,
           version,
           processingStatus: ResourceProcessingStatus.UPLOADED,
