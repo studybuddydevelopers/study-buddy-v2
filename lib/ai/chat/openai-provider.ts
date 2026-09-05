@@ -1,6 +1,11 @@
 import { AiGenerationFailureCode } from "@prisma/client";
 import OpenAI from "openai";
 import { openAiClientOptions } from "@/lib/security/timeouts";
+import {
+  GlobalAiBudgetExceededError,
+  GlobalAiBudgetUnavailableError,
+  withGlobalAiTokenBudget,
+} from "@/lib/security/ai-budget";
 import { ChatProviderError } from "./errors";
 import type {
   ChatModelProvider,
@@ -26,6 +31,13 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 }
 
 function mapOpenAIError(error: unknown) {
+  if (error instanceof GlobalAiBudgetExceededError) {
+    return AiGenerationFailureCode.RATE_LIMITED;
+  }
+  if (error instanceof GlobalAiBudgetUnavailableError) {
+    return AiGenerationFailureCode.PROVIDER_ERROR;
+  }
+
   if (isRecord(error)) {
     const status = error.status;
     if (status === 429) {
@@ -66,14 +78,21 @@ export class OpenAIChatModelProvider implements ChatModelProvider {
 
   async generate(input: GenerateInput): Promise<GenerateResult> {
     try {
-      const completion = await this.client.chat.completions.create({
-        model: this.model,
-        messages: input.messages.map((message) => ({
-          role: message.role,
-          content: message.content,
-        })),
-        temperature: input.temperature ?? 0.3,
-        max_tokens: input.maxOutputTokens ?? 500,
+      const messages = input.messages.map((message) => ({
+        role: message.role,
+        content: message.content,
+      }));
+      const maxOutputTokens = input.maxOutputTokens ?? 500;
+      const completion = await withGlobalAiTokenBudget({
+        promptMaterial: messages,
+        maxOutputTokens,
+        operation: () => this.client.chat.completions.create({
+          model: this.model,
+          messages,
+          temperature: input.temperature ?? 0.3,
+          max_tokens: maxOutputTokens,
+        }),
+        readActualTokens: (result) => result.usage?.total_tokens,
       });
 
       return {
@@ -95,9 +114,13 @@ export class OpenAIChatModelProvider implements ChatModelProvider {
     input: StructuredGenerateInput
   ): Promise<StructuredGenerateResult> {
     try {
-      const completion = await this.client.chat.completions.create(
-        buildOpenAIStructuredChatRequest(input, this.model)
-      );
+      const request = buildOpenAIStructuredChatRequest(input, this.model);
+      const completion = await withGlobalAiTokenBudget({
+        promptMaterial: request.messages,
+        maxOutputTokens: request.max_tokens,
+        operation: () => this.client.chat.completions.create(request),
+        readActualTokens: (result) => result.usage?.total_tokens,
+      });
 
       return parseOpenAIStructuredChatCompletion(completion, this.model);
     } catch (error) {
