@@ -1,0 +1,172 @@
+import type { Metadata } from "next";
+import PolicyDocumentPage, {
+  type PolicyDocumentSection,
+} from "@/components/PolicyDocumentPage";
+
+const LAST_UPDATED = "5 September 2026";
+const CONTACT_EMAIL = "sbstudybuddy0@gmail.com";
+
+export const metadata: Metadata = {
+  title: "Refund and Cancellation Policy | Study Buddy",
+  description:
+    "How Study Buddy subscription cancellations, duplicate charges, failed payments, and refunds are handled.",
+};
+
+const sections: PolicyDocumentSection[] = [
+  {
+    id: "scope",
+    title: "Scope",
+    content: (
+      <p>
+        This policy applies when Study Buddy offers a paid plan, subscription,
+        or other paid digital service directly to a customer. It forms part of
+        our Terms of Service. If checkout presents additional plan-specific
+        terms, those terms also apply, but they do not remove rights that cannot
+        lawfully be excluded.
+      </p>
+    ),
+  },
+  {
+    id: "before-payment",
+    title: "Information shown before payment",
+    content: (
+      <>
+        <p>Before taking payment, we will show the material purchase details:</p>
+        <ul>
+          <li>the total price and currency, including applicable taxes;</li>
+          <li>the plan features, limits, and billing period;</li>
+          <li>whether the payment is one-off or recurring;</li>
+          <li>the renewal date and frequency, if it renews;</li>
+          <li>how to cancel and when cancellation takes effect; and</li>
+          <li>any plan-specific refund condition.</li>
+        </ul>
+        <p>
+          A subscription will renew automatically only when that is clearly
+          disclosed and authorised before purchase.
+        </p>
+      </>
+    ),
+  },
+  {
+    id: "cancellation",
+    title: "Cancelling a subscription",
+    content: (
+      <>
+        <p>
+          If recurring subscriptions are enabled, you may cancel future renewal
+          through the account method shown at purchase. Until an in-product
+          cancellation control is available, email{" "}
+          <a href={`mailto:${CONTACT_EMAIL}`}>{CONTACT_EMAIL}</a> from the address
+          connected to the account and include the payment reference.
+        </p>
+        <p>
+          Cancellation normally stops the next renewal. Unless checkout states
+          otherwise, access continues until the end of the period already paid
+          for. We will not charge a cancellation fee unless it was disclosed in
+          advance and is reasonable and lawful.
+        </p>
+      </>
+    ),
+  },
+  {
+    id: "refunds",
+    title: "When a refund may be available",
+    content: (
+      <>
+        <p>We will investigate and provide an appropriate remedy when:</p>
+        <ul>
+          <li>you were charged more than once for the same purchase;</li>
+          <li>payment was taken but the paid service was not provided;</li>
+          <li>we discontinue a prepaid service before the paid period ends;</li>
+          <li>a payment was unauthorised and verified as such;</li>
+          <li>a technical failure makes the paid service materially unusable; or</li>
+          <li>Nigerian consumer law otherwise requires cancellation or refund.</li>
+        </ul>
+        <p>
+          A change of mind does not automatically require a refund after a
+          digital service has been made available, unless the checkout terms or
+          applicable law provide one. We will assess requests fairly and will
+          not apply a blanket no-refund rule where the law provides a remedy.
+        </p>
+      </>
+    ),
+  },
+  {
+    id: "request",
+    title: "How to request a refund",
+    content: (
+      <>
+        <p>
+          Email <a href={`mailto:${CONTACT_EMAIL}`}>{CONTACT_EMAIL}</a> with the
+          subject “Refund request” and provide:
+        </p>
+        <ul>
+          <li>the account email or phone number;</li>
+          <li>the Paystack or Study Buddy payment reference;</li>
+          <li>the payment date and amount;</li>
+          <li>the reason for the request; and</li>
+          <li>supporting evidence, such as a duplicate debit, where relevant.</li>
+        </ul>
+        <p>
+          Do not email a full card number, PIN, password, one-time code, or bank
+          login details. We may ask for limited additional information to verify
+          the account or transaction.
+        </p>
+      </>
+    ),
+  },
+  {
+    id: "processing",
+    title: "Review and payment processing",
+    content: (
+      <>
+        <p>
+          We will acknowledge a request, investigate it, and explain the outcome
+          within a reasonable period. If approved, the refund will normally be
+          returned through the original payment method. The time it takes to
+          appear after initiation depends on Paystack, the bank, and the payment
+          method.
+        </p>
+        <p>
+          Provider fees or reasonable deductions will be applied only when
+          lawfully permitted and clearly explained. A failed or reversed payment
+          that Study Buddy never received is not a refund, but we will help you
+          identify the appropriate provider or bank process.
+        </p>
+      </>
+    ),
+  },
+  {
+    id: "consumer-rights",
+    title: "Consumer rights and complaints",
+    content: (
+      <p>
+        Nothing in this policy limits a right or remedy under the Federal
+        Competition and Consumer Protection Act or other applicable law. If we
+        cannot resolve your complaint, you may use the{" "}
+        <a
+          href="https://fccpc.gov.ng/consumers/complaint-handling/"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          Federal Competition and Consumer Protection Commission complaint
+          process
+        </a>
+        .
+      </p>
+    ),
+  },
+];
+
+export default function RefundPolicyPage() {
+  return (
+    <PolicyDocumentPage
+      title="Refund and Cancellation Policy"
+      eyebrow="Payments and subscriptions"
+      introduction="This policy explains how to stop a future Study Buddy subscription renewal and when a payment may qualify for a refund or another remedy."
+      icon="card"
+      lastUpdated={LAST_UPDATED}
+      sections={sections}
+    />
+  );
+}
