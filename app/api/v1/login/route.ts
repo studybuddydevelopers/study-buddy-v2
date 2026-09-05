@@ -103,7 +103,7 @@ export async function POST(req: Request) {
       loginKind: isEmail ? "email" : "phone",
     });
     return NextResponse.json(
-      { error: error?.message ?? "Login failed" },
+      { error: "Invalid email/phone number or password." },
       { status: 401 }
     );
   }
