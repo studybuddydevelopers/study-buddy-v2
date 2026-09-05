@@ -164,7 +164,7 @@ export default function AboutUsPage() {
                     <StudyBuddyIcon name={icon} size={38} />
                   </div>
                   <div className="flex flex-1 items-center px-6 py-7 sm:px-10">
-                    <h3 className="text-xl font-bold leading-snug text-gray-900 sm:text-2xl">
+                    <h3 className="text-sm font-medium leading-relaxed text-gray-800">
                       {label}
                     </h3>
                   </div>
