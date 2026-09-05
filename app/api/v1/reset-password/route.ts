@@ -12,6 +12,10 @@ import {
   getClientIp,
 } from "@/lib/security/rate-limit";
 import { fetchWithTimeout } from "@/lib/security/timeouts";
+import {
+  logSecurityEvent,
+  securityFingerprint,
+} from "@/lib/security/audit-log";
 
 export async function POST(req: Request) {
   const parsedBody = await parseJsonRequest(req, REQUEST_LIMITS.publicFormJson);
@@ -73,13 +77,35 @@ export async function POST(req: Request) {
 
   // Supabase stores the PKCE verifier on this response before emailing the link.
   const { error } = await supabase.auth.resetPasswordForEmail(email, {
-    redirectTo: new URL("/auth/password-reset", req.url).toString(),
+    redirectTo: passwordResetRedirectUrl(req),
     captchaToken,
   });
 
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 400 });
+    // Deliberately return the same response for missing accounts, provider
+    // throttling, and accepted requests to prevent account enumeration.
+    logSecurityEvent("password_reset_request_failed", "warn", {
+      accountFingerprint: securityFingerprint(email),
+      ipFingerprint: securityFingerprint(getClientIp(req.headers)),
+    });
   }
 
   return res;
+}
+
+function passwordResetRedirectUrl(req: Request) {
+  const configuredOrigin = process.env.APP_ORIGIN?.trim();
+  if (configuredOrigin) {
+    try {
+      return new URL("/auth/password-reset", configuredOrigin).toString();
+    } catch {
+      // Fall through only outside production; production configuration errors
+      // must not make an attacker-controlled Host header authoritative.
+    }
+  }
+
+  if (process.env.NODE_ENV === "production") {
+    throw new Error("APP_ORIGIN must be a valid absolute URL in production.");
+  }
+  return new URL("/auth/password-reset", req.url).toString();
 }
