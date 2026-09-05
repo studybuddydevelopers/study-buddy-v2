@@ -41,6 +41,24 @@ PDF_CDR_TIMEOUT_MS=20000
 PDF_CDR_MAX_OUTPUT_BYTES=31457280
 ```
 
+Use different PostgreSQL credentials for `DATABASE_URL` and `DIRECT_URL`.
+`DATABASE_URL` is the pooled runtime connection used by the generated Prisma
+client. `DIRECT_URL` is the direct owner connection used only by Prisma Migrate.
+The currently configured runtime role is still `postgres` and has `CREATEDB`,
+`CREATEROLE`, and `BYPASSRLS`, so replacing it is a pre-launch task, not an
+optional cleanup.
+
+This app performs authorization in its server routes rather than passing each
+Supabase user's identity into PostgreSQL. A practical runtime role therefore
+needs access to all application rows (commonly `BYPASSRLS`) but should have only
+`USAGE` on the `public` schema, CRUD on the required tables, and sequence usage.
+It must not own the schema/tables or have superuser, database/role creation,
+replication, or DDL rights. Have the migration owner grant matching default
+privileges for future tables/sequences. Put the restricted pooled credential in
+the Railway web service and keep the owner credential in a separately controlled
+migration job where possible. Test this against staging before switching
+production because a missed table or sequence grant will fail closed.
+
 `APP_ORIGIN` is mandatory for browser mutations carrying a Supabase session
 cookie. Requests with no `Origin`, `Origin: null`, or a different exact origin
 are rejected with `403 CSRF_VALIDATION_FAILED`. Only add another exact origin to
