@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { resourceErrorResponse } from "./errors";
+import { uploadSecurityErrorResponse } from "@/lib/security/upload-response";
 
 const REDACTED_RESOURCE_FIELDS = new Set(["storageBucket", "storagePath"]);
 
@@ -8,6 +9,9 @@ export function resourceJsonResponse(body: unknown, init?: ResponseInit) {
 }
 
 export function resourceRouteErrorResponse(error: unknown) {
+  const uploadResponse = uploadSecurityErrorResponse(error);
+  if (uploadResponse) return uploadResponse;
+
   const safe = resourceErrorResponse(error);
   return NextResponse.json(safe.body, { status: safe.status });
 }
