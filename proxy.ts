@@ -142,12 +142,19 @@ function pathMatches(pathname: string, prefix: string) {
 
 function buildContentSecurityPolicy(nonce: string) {
   const isDevelopment = process.env.NODE_ENV === "development";
+  const styleSource = isDevelopment
+    ? "style-src 'self' 'unsafe-inline' https://*.hcaptcha.com"
+    : `style-src 'self' 'nonce-${nonce}' https://*.hcaptcha.com`;
 
   return [
     "default-src 'self'",
     `script-src 'self' 'nonce-${nonce}' 'strict-dynamic'${isDevelopment ? " 'unsafe-eval'" : ""} https://challenges.cloudflare.com https://*.hcaptcha.com`,
     "script-src-attr 'none'",
-    "style-src 'self' 'unsafe-inline' https://*.hcaptcha.com",
+    styleSource,
+    // React still renders a small number of dynamic style attributes. Keep the
+    // exception scoped to attributes instead of allowing arbitrary <style>
+    // blocks. Remove this after those attributes have moved to CSS classes.
+    "style-src-attr 'unsafe-inline'",
     "img-src 'self' data: blob: https:",
     "font-src 'self' data:",
     "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://challenges.cloudflare.com https://*.hcaptcha.com",
