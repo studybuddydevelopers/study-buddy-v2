@@ -59,6 +59,14 @@ the Railway web service and keep the owner credential in a separately controlled
 migration job where possible. Test this against staging before switching
 production because a missed table or sequence grant will fail closed.
 
+For Railway's persistent Next.js container, use Supabase's Supavisor **Session
+pooler** URI on port `5432` for `DATABASE_URL`, with the username changed to the
+dedicated runtime role. Do not append `pgbouncer=true` in session mode. Keep the
+connection limit small per Railway replica. Transaction mode on port `6543` is
+available for serverless/short-lived runtimes, but requires `pgbouncer=true`.
+`prisma generate` and the web runtime do not require `DIRECT_URL`; store that
+owner credential only in the separately controlled migration job or CI secret.
+
 `APP_ORIGIN` is mandatory for browser mutations carrying a Supabase session
 cookie. Requests with no `Origin`, `Origin: null`, or a different exact origin
 are rejected with `403 CSRF_VALIDATION_FAILED`. Only add another exact origin to
