@@ -135,14 +135,15 @@ export async function POST(req: Request) {
       { status: 500 }
     );
   }
+  const persistedUserId = userId;
 
   try {
     // 2. Seed Prisma DB
     await prisma.$transaction([
       prisma.user.upsert({
-        where: { id: userId },
+        where: { id: persistedUserId },
         create: {
-          id: userId,
+          id: persistedUserId,
           profile: {
             create: {
               firstName,
@@ -152,11 +153,12 @@ export async function POST(req: Request) {
               preferredSubjects: [],
             },
           },
+        },
         update: {},
       }),
       prisma.userSettings.upsert({
-        where: { userId },
-        create: { userId },
+        where: { userId: persistedUserId },
+        create: { userId: persistedUserId },
         update: {},
       }),
     ]);
@@ -165,14 +167,14 @@ export async function POST(req: Request) {
     const subjects = await prisma.subject.findMany({ select: { id: true } });
     if (subjects.length > 0) {
       const existing = await prisma.progressTrack.findMany({
-        where: { userId },
+        where: { userId: persistedUserId },
         select: { subjectId: true },
       });
       const existingSet = new Set(existing.map((entry) => entry.subjectId));
       const newTracks = subjects
         .filter((subject) => !existingSet.has(subject.id))
         .map((subject) => ({
-          userId,
+          userId: persistedUserId,
           subjectId: subject.id,
           progressPercentage: 0,
         }));
