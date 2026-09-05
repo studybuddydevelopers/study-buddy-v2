@@ -200,7 +200,9 @@ export default function TermsOfServicePage() {
               .
             </p>
             <p>
-              If you do not agree with these terms, do not use the platform.
+              If you use Study Buddy on behalf of a school or other organisation,
+              you confirm that you are authorised to accept these terms for it.
+              If you do not agree, do not create an account or use the service.
             </p>
           </TermsSection>
 
@@ -208,12 +210,16 @@ export default function TermsOfServicePage() {
             <p>
               Study Buddy AI is intended for students, parents or guardians,
               teachers, schools, and other users involved in exam preparation.
-              Students under 18 should use the service with permission from a
-              parent, guardian, or school where required.
+              You must have the legal capacity and authority needed to agree to
+              these terms.
             </p>
             <p>
-              You are responsible for making sure the information you provide is
-              accurate and that your use of the service is lawful where you are.
+              If you are under 18, a parent or guardian, or an authorised school
+              acting lawfully, must authorise your account where required. The
+              responsible adult should review these terms and our Privacy Policy
+              with you and supervise appropriate use. By authorising a child&apos;s
+              account, the adult confirms that they have authority to do so and
+              accepts responsibility for that authorisation.
             </p>
           </TermsSection>
 
@@ -232,6 +238,11 @@ export default function TermsOfServicePage() {
           </TermsSection>
 
           <TermsSection id="accounts" title="4. Accounts and security">
+            <p>
+              Give us accurate, current information and update it when needed.
+              Unless we approve a different arrangement for a school, each
+              account is for one user and may not be transferred.
+            </p>
             <ul className="list-disc space-y-2 pl-5">
               <ListItem>
                 Keep your password and login information private.
@@ -247,6 +258,11 @@ export default function TermsOfServicePage() {
                 account or data.
               </ListItem>
             </ul>
+            <p>
+              You are responsible for activity carried out through your account
+              unless it results from our failure to use reasonable security or
+              another circumstance for which the law makes us responsible.
+            </p>
           </TermsSection>
 
           <TermsSection id="acceptable-use" title="5. Acceptable use">
@@ -273,9 +289,32 @@ export default function TermsOfServicePage() {
                 violates intellectual-property rights or these terms.
               </ListItem>
             </ul>
+            <p>
+              We may use proportionate technical and human measures to detect,
+              investigate, and respond to suspected misuse.
+            </p>
           </TermsSection>
 
-          <TermsSection id="ai-features" title="6. AI features">
+          <TermsSection id="your-content" title="6. Your content">
+            <p>
+              You keep any ownership rights you have in messages, answers,
+              profile content, feedback, and other material you submit. You give
+              Study Buddy a limited, non-exclusive licence to host, copy,
+              process, transmit, and display that content only as reasonably
+              needed to provide, secure, support, and improve the service in
+              accordance with our Privacy Policy. This licence ends when the
+              content is deleted from our systems, except for lawful retention,
+              backups, and anonymised information.
+            </p>
+            <p>
+              You confirm that you have the rights and permissions needed to
+              submit content. Do not submit confidential information, personal
+              data about another person, copyrighted exam materials, or other
+              protected content unless you are authorised to do so.
+            </p>
+          </TermsSection>
+
+          <TermsSection id="ai-features" title="7. AI features">
             <p>
               Study Buddy includes AI study support. AI responses can be useful,
               but they may be incomplete, outdated, or wrong. You should check
@@ -283,20 +322,23 @@ export default function TermsOfServicePage() {
               materials, or other reliable sources.
             </p>
             <p>
-              The live chatbot should currently be treated as a persistent
-              general AI study assistant. Resource-grounded answers, citations,
-              and advanced tutoring modes should not be treated as available
-              until they are enabled in the product after validation.
+              The live chatbot is a persistent general AI study assistant.
+              Features described as experimental, resource-grounded, cited, or
+              advanced are available only when they are visibly enabled in the
+              product. AI features do not replace a teacher, examiner, medical
+              professional, lawyer, or other qualified adviser.
             </p>
             <p>
-              We may review AI usage patterns to protect the service, prevent
-              misuse, and improve safety. Do not try to make the AI reveal
-              private system instructions, credentials, account data, or content
-              that you are not authorised to access.
+              AI prompts and relevant context are processed by providers such as
+              OpenAI as explained in our Privacy Policy. Do not include passwords,
+              payment-card details, health information, or other sensitive data.
+              We may monitor AI usage patterns to protect the service and improve
+              safety. Do not try to make the AI reveal private instructions,
+              credentials, account data, or unauthorised content.
             </p>
           </TermsSection>
 
-          <TermsSection id="study-content" title="7. Study content">
+          <TermsSection id="study-content" title="8. Study content and licences">
             <p>
               Practice questions, explanations, mock exams, flashcards,
               textbooks, and other materials are provided for study support. We
@@ -307,44 +349,88 @@ export default function TermsOfServicePage() {
               that appears incorrect, contact us with the subject, topic, and
               question details so we can review it.
             </p>
+            <p>
+              Study Buddy and its licensors own the service, software, branding,
+              and platform content, except for content identified as belonging
+              to someone else. We give you a limited, revocable, non-transferable
+              licence to use the service and its content for personal,
+              non-commercial learning, or for authorised educational use under a
+              school arrangement. References to WAEC or other examination bodies
+              describe the learning context and do not by themselves imply
+              endorsement or affiliation.
+            </p>
           </TermsSection>
 
-          <TermsSection id="payments" title="8. Payments and subscriptions">
+          <TermsSection id="payments" title="9. Payments, renewals, and refunds">
             <p>
               If paid plans or subscriptions are available, prices, billing
-              periods, plan limits, and renewal terms will be shown during the
-              purchase flow. Payment processing may be handled by third-party
-              providers such as Paystack.
+              periods, taxes, plan limits, and any renewal terms will be shown
+              before you pay. By completing checkout, you authorise the stated
+              charge through a payment provider such as Paystack. A subscription
+              will renew automatically only if that was clearly disclosed and
+              authorised during purchase.
             </p>
             <p>
               We do not store card numbers or bank details. Payment providers
-              may process the information required to complete billing.
+              process the information required to complete billing, while we
+              retain transaction references, amounts, currency, status, and plan
+              information.
+            </p>
+            <p>
+              If recurring billing is offered, you may cancel future renewal
+              using the method shown in the service or by contacting us before
+              the next billing date. Cancellation does not normally reverse a
+              completed charge or remove access already paid for. Refunds are
+              available where required by Nigerian consumer law, including where
+              a paid service is not supplied as agreed, and in any additional
+              circumstances stated at checkout. Nothing in these terms removes
+              a statutory cancellation, refund, or redress right.
             </p>
           </TermsSection>
 
-          <TermsSection id="availability" title="9. Availability and changes">
+          <TermsSection
+            id="third-party-services"
+            title="10. Third-party services and links"
+          >
+            <p>
+              Study Buddy relies on third parties for hosting, authentication,
+              AI processing, messaging, CAPTCHA, and payments. Your use of a
+              third-party service may also be governed by that provider&apos;s terms
+              and privacy notice. We are responsible for choosing and managing
+              our providers as required by law, but we do not control independent
+              third-party websites, networks, or services.
+            </p>
+          </TermsSection>
+
+          <TermsSection id="availability" title="11. Availability and changes">
             <p>
               We aim to keep Study Buddy available, but the service may be
               interrupted by maintenance, network issues, provider outages, or
               changes to third-party services. Features, content, pricing, and
-              limits may change as the product develops.
+              limits may change as the product develops. We will give reasonable
+              notice before a change that materially reduces an active paid plan
+              where it is practical and legally required.
             </p>
           </TermsSection>
 
-          <TermsSection id="ending-access" title="10. Ending or limiting access">
+          <TermsSection id="ending-access" title="12. Ending or limiting access">
             <p>
               We may suspend, restrict, or terminate access if an account
               violates these terms, creates security risk, abuses AI features,
               attempts unauthorised access, or harms other users or the service.
+              Where reasonable, we will consider the seriousness of the issue and
+              give notice or an opportunity to correct it before termination.
             </p>
             <p>
               You may stop using Study Buddy at any time. For account deletion
               or privacy requests, contact us through the contact page or by
-              email.
+              email. If we discontinue a paid service before the end of a prepaid
+              period for reasons unrelated to your breach, we will provide the
+              remedy required by applicable law.
             </p>
           </TermsSection>
 
-          <TermsSection id="liability" title="11. Important limitations">
+          <TermsSection id="liability" title="13. Service standards and liability">
             <div className="rounded-lg border border-amber-200 bg-amber-50 p-4">
               <div className="flex gap-3">
                 <AlertTriangle
@@ -359,22 +445,61 @@ export default function TermsOfServicePage() {
               </div>
             </div>
             <p>
-              To the extent permitted by law, Study Buddy is provided as-is and
-              we are not responsible for indirect loss, exam outcomes, missed
-              deadlines, or decisions made only from platform output.
+              We will provide the service with reasonable care and skill. We do
+              not promise that every feature will always be available, uninterrupted,
+              secure, or error-free, or that study content and AI output will
+              always be accurate. You remain responsible for checking important
+              information and meeting exam or school deadlines.
+            </p>
+            <p>
+              To the extent permitted by law, Study Buddy is not responsible for
+              losses that were not reasonably foreseeable, indirect or
+              consequential losses, exam outcomes, or decisions made solely from
+              unverified AI output. Nothing in these terms excludes or limits
+              liability, remedies, warranties, or consumer rights that cannot
+              lawfully be excluded or limited, including rights under the Federal
+              Competition and Consumer Protection Act.
             </p>
           </TermsSection>
 
-          <TermsSection id="changes" title="12. Changes to these terms">
+          <TermsSection id="privacy" title="14. Privacy">
+            <p>
+              Our{" "}
+              <Link
+                href="/privacy-policy"
+                className="font-medium text-primary-600 hover:underline"
+              >
+                Privacy Policy
+              </Link>{" "}
+              explains what personal data we collect, our lawful bases, how AI
+              and other providers process data, children&apos;s privacy, retention,
+              international transfers, and how to exercise privacy rights.
+            </p>
+          </TermsSection>
+
+          <TermsSection id="changes" title="15. Changes to these terms">
             <p>
               We may update these terms as the platform changes. When we do, we
-              will update the Last updated date on this page. If a change is
-              material, we may provide additional notice through the product or
-              by email.
+              will update the Last updated date above. If a change is material,
+              we will provide reasonable notice through the product or by email.
+              Changes apply from their stated effective date. If you do not agree
+              to a material change, you may stop using the service and cancel a
+              future subscription renewal before it takes effect.
             </p>
           </TermsSection>
 
-          <TermsSection id="contact" title="13. Contact">
+          <TermsSection id="law-and-disputes" title="16. Nigerian law and disputes">
+            <p>
+              These terms are governed by the laws of the Federal Republic of
+              Nigeria. If a dispute arises, please contact us first so we can try
+              to resolve it fairly. If it cannot be resolved, either party may
+              use the courts with jurisdiction in Nigeria. This does not prevent
+              you from making a complaint to a competent regulator or using any
+              other remedy available under consumer or data-protection law.
+            </p>
+          </TermsSection>
+
+          <TermsSection id="contact" title="17. Contact and complaints">
             <p>
               If you need help with your account or have questions about these
               terms, contact Study Buddy AI:
@@ -392,6 +517,19 @@ export default function TermsOfServicePage() {
               </p>
               <p className="mt-1">Nigeria</p>
             </div>
+            <p>
+              Nigerian consumers may also use the{" "}
+              <a
+                href="https://fccpc.gov.ng/consumers/complaint-handling/"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="font-medium text-primary-600 hover:underline"
+              >
+                Federal Competition and Consumer Protection Commission complaint
+                process
+              </a>
+              .
+            </p>
           </TermsSection>
 
           <div className="flex flex-col gap-3 py-8 sm:flex-row">
