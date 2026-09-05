@@ -9,7 +9,7 @@ import StudyBuddyIcon, {
   type StudyBuddyIconName,
 } from "@/components/StudyBuddyIcon";
 
-const LAST_UPDATED = "20 July 2026";
+const LAST_UPDATED = "5 September 2026";
 const CONTACT_EMAIL = "sbstudybuddy0@gmail.com";
 
 const summaryItems: {
@@ -47,13 +47,15 @@ const summaryItems: {
 const navItems = [
   ["Who we are", "who-we-are"],
   ["Information we collect", "information-we-collect"],
-  ["How we use data", "how-we-use-data"],
-  ["Storage and security", "storage-and-security"],
-  ["Third-party services", "third-party-services"],
-  ["Cookies", "cookies"],
+  ["Why we use it", "how-we-use-data"],
+  ["AI and personalisation", "ai-and-personalisation"],
+  ["Who receives data", "third-party-services"],
+  ["International transfers", "international-transfers"],
+  ["Cookies and local storage", "cookies"],
   ["Children's privacy", "childrens-privacy"],
-  ["Your rights", "your-rights"],
   ["Retention", "retention"],
+  ["Your rights", "your-rights"],
+  ["Security", "storage-and-security"],
   ["Changes", "changes"],
   ["Contact", "contact"],
 ] as const;
@@ -199,10 +201,17 @@ export default function PrivacyPolicyPage() {
               help Nigerian secondary school students prepare for the West
               African Senior School Certificate Examination (WAEC) and related
               assessments. We operate the Study Buddy AI website and related
-              messaging services, including a WhatsApp tutoring bot.
+              services, including our AI chat and WhatsApp tutoring bot.
             </p>
             <p>
-              For privacy questions, contact us at{" "}
+              Study Buddy AI is the data controller for personal data processed
+              for accounts provided directly by us. If a school arranges your
+              access, the school may also be a data controller for information
+              it asks us to process. In that case, you should also read the
+              school&apos;s privacy notice.
+            </p>
+            <p>
+              For privacy questions or requests, contact us at{" "}
               <a
                 href={`mailto:${CONTACT_EMAIL}`}
                 className="font-medium text-primary-600 hover:underline"
@@ -217,110 +226,140 @@ export default function PrivacyPolicyPage() {
             id="information-we-collect"
             title="2. Information we collect"
           >
-            <p>
-              We collect only what is necessary to deliver and improve our
-              service:
-            </p>
+            <p>Depending on how you use Study Buddy, we may collect:</p>
             <ul className="list-disc space-y-2 pl-5">
               <ListItem>
-                <strong>Account information:</strong> first name, last names,
-                email address, and phone number when you register.
+                <strong>Account and identity information:</strong> first name,
+                optional middle names, last names, email address, phone number,
+                authentication identifiers, and account status.
+              </ListItem>
+              <ListItem>
+                <strong>Profile and study preferences:</strong> profile image,
+                grade level, exam year, preferred subjects, school affiliation
+                where applicable, low-data preference, and whether cloud draft
+                saving is enabled.
               </ListItem>
               <ListItem>
                 <strong>Study activity:</strong> questions you attempt, answers
-                you submit, topics you practise, mock exam scores, and session
-                timing.
+                and drafts you submit, topics you practise, mock exam scores,
+                flashcard or resource activity, recommendations, progress, and
+                session timing.
               </ListItem>
               <ListItem>
                 <strong>AI conversations:</strong> messages you send to our AI
-                tutoring chatbot on the web platform or via WhatsApp.
+                tutoring features and the responses generated, including model
+                and token-usage information.
               </ListItem>
               <ListItem>
-                <strong>WhatsApp number:</strong> stored when you use the
-                WhatsApp bot so we can link conversations to your account.
+                <strong>WhatsApp information:</strong> your WhatsApp number or
+                sender identifier and messages when you use the WhatsApp bot.
               </ListItem>
               <ListItem>
-                <strong>Usage data:</strong> pages visited, features used,
-                device type, browser, and IP address collected automatically by
-                hosting infrastructure.
+                <strong>Payment records:</strong> transaction reference, amount,
+                currency, payment status, subscription plan, and dates. Paystack
+                processes the card, bank, or other payment details needed to
+                complete payment; Study Buddy does not store full card or bank
+                account details.
               </ListItem>
               <ListItem>
-                <strong>Payment information:</strong> subscription payments are
-                processed by Paystack. We do not store card numbers or bank
-                details.
-              </ListItem>
-            </ul>
-          </PolicySection>
-
-          <PolicySection id="how-we-use-data" title="3. How we use your data">
-            <ul className="list-disc space-y-2 pl-5">
-              <ListItem>
-                Provide your personalised dashboard, progress tracking, and AI
-                study recommendations.
+                <strong>Support information:</strong> your name, email, subject,
+                message, and any information you choose to include when you
+                contact us.
               </ListItem>
               <ListItem>
-                Generate AI tutoring responses through OpenAI.
-              </ListItem>
-              <ListItem>
-                Send account emails, including verification, password reset,
-                and important service notices.
-              </ListItem>
-              <ListItem>
-                Improve our question bank, topic structure, and platform using
-                anonymised aggregate data.
-              </ListItem>
-              <ListItem>
-                Detect and prevent fraud, abuse, or unauthorised access.
-              </ListItem>
-              <ListItem>
-                Comply with applicable Nigerian law and regulatory
-                requirements.
+                <strong>Device, usage, and security information:</strong> IP
+                address, browser or device information, request timestamps,
+                pages or features used, CAPTCHA results, security events, and
+                rate-limit records produced by our app and hosting providers.
               </ListItem>
             </ul>
             <p>
-              We do <strong>not</strong> sell your personal data to third
-              parties, and we do not use your data for targeted advertising.
+              We receive this information from you, your use of the service,
+              your parent, guardian, or school where applicable, and the service
+              providers described below. Practice drafts may remain only in
+              your browser unless you turn on cloud draft saving.
             </p>
           </PolicySection>
 
           <PolicySection
-            id="storage-and-security"
-            title="4. Data storage and security"
+            id="how-we-use-data"
+            title="3. Why we use your data and our lawful bases"
           >
             <p>
-              Your data is stored in a PostgreSQL database hosted on Supabase,
-              with servers currently located in the European Union. By using
-              Study Buddy AI, you consent to this international transfer.
+              We process personal data only when we have a lawful basis under
+              applicable data-protection law:
             </p>
-            <p>We apply industry-standard protections:</p>
             <ul className="list-disc space-y-2 pl-5">
               <ListItem>
-                Passwords are never stored in plain text. Authentication is
-                handled by Supabase Auth with bcrypt hashing.
-              </ListItem>
-              <ListItem>All data in transit is encrypted via HTTPS/TLS.</ListItem>
-              <ListItem>
-                Database access is restricted to application services. No direct
-                public database access is permitted.
+                <strong>To provide the service and take requested steps:</strong>{" "}
+                create and secure accounts; provide practice, mock exams,
+                saved drafts, progress tracking, AI support, WhatsApp tutoring,
+                subscriptions, and support. We rely on performance of our
+                agreement with you or steps you request before entering it.
               </ListItem>
               <ListItem>
-                We apply the principle of least privilege so each service
-                accesses only the data it requires.
+                <strong>For our legitimate interests:</strong> protect accounts,
+                prevent fraud and misuse, maintain and troubleshoot the service,
+                understand feature performance, and improve learning content.
+                We balance these interests against your rights and expectations.
+              </ListItem>
+              <ListItem>
+                <strong>To comply with law:</strong> keep required financial and
+                compliance records, respond to lawful requests, and protect the
+                rights and safety of users and others.
+              </ListItem>
+              <ListItem>
+                <strong>With consent:</strong> where consent is the appropriate
+                basis, including a parent&apos;s or guardian&apos;s valid consent for a
+                child where required. You may withdraw consent, but this does
+                not affect earlier lawful processing.
               </ListItem>
             </ul>
             <p>
-              No online system is 100% secure. If you suspect unauthorised
-              access to your account, contact us immediately.
+              We do <strong>not</strong> sell your personal data to third
+              parties, and we do not use it for targeted advertising. We may use
+              data that has been irreversibly anonymised or combined so it no
+              longer identifies a person to understand and improve the service.
+            </p>
+          </PolicySection>
+
+          <PolicySection
+            id="ai-and-personalisation"
+            title="4. AI and personalisation"
+          >
+            <p>
+              When you use AI features, the prompt, relevant conversation
+              history, and limited learning context may be sent to OpenAI to
+              generate a response. Web and WhatsApp conversations may also be
+              stored by Study Buddy so you can continue a conversation and so
+              we can operate, secure, and improve the feature. OpenAI may keep
+              API content and related logs under its own service terms and data
+              controls.
+            </p>
+            <p>
+              Study Buddy uses learning activity to produce progress summaries
+              and recommendations. These features are intended to support study;
+              they do not make admission, grading, employment, credit, or other
+              decisions with legal or similarly significant effects. You may ask
+              us to explain or review a personalised result. AI responses can be
+              wrong, so do not rely on them as the only source for an important
+              decision.
+            </p>
+            <p>
+              Do not include passwords, payment-card details, health information,
+              or other sensitive personal data in an AI or WhatsApp message. Do
+              not submit another person&apos;s personal data unless you are allowed
+              to do so.
             </p>
           </PolicySection>
 
           <PolicySection
             id="third-party-services"
-            title="5. Third-party services"
+            title="5. Who receives your data"
           >
             <p>
-              We use the following services to operate the platform. Each has
-              its own privacy policy:
+              We share data only as needed to provide, secure, and lawfully
+              operate Study Buddy. Our main service providers are:
             </p>
             <ul className="list-disc space-y-2 pl-5">
               <ListItem>
@@ -332,15 +371,16 @@ export default function PrivacyPolicyPage() {
               </ListItem>
               <ListItem>
                 <strong>OpenAI</strong> for AI tutoring chatbot responses and
-                recommendations. Messages you send to AI features are
-                transmitted to OpenAI for processing.{" "}
+                recommendations. Relevant prompts and conversation context are
+                transmitted for processing.{" "}
                 <ExternalPolicyLink href="https://openai.com/policies/privacy-policy">
                   OpenAI privacy policy
                 </ExternalPolicyLink>
               </ListItem>
               <ListItem>
                 <strong>Meta/WhatsApp Cloud API</strong> if you use our
-                WhatsApp tutoring bot.{" "}
+                WhatsApp tutoring bot. Meta receives message and account-routing
+                information needed to deliver messages.{" "}
                 <ExternalPolicyLink href="https://www.whatsapp.com/legal/privacy-policy">
                   WhatsApp privacy policy
                 </ExternalPolicyLink>
@@ -359,97 +399,211 @@ export default function PrivacyPolicyPage() {
                   Vercel privacy policy
                 </ExternalPolicyLink>
               </ListItem>
-            </ul>
-          </PolicySection>
-
-          <PolicySection id="cookies" title="6. Cookies and local storage">
-            <p>
-              We use session cookies set by Supabase Auth to keep you logged in.
-              These are strictly necessary. Without them, the platform cannot
-              function. We do not use third-party tracking cookies or
-              advertising cookies.
-            </p>
-          </PolicySection>
-
-          <PolicySection id="childrens-privacy" title="7. Children's privacy">
-            <p>
-              Study Buddy AI is designed for secondary school students, some of
-              whom may be under 18. We do not knowingly collect more personal
-              data than is necessary to provide the service. We do not display
-              advertising, and we do not share student data with advertisers.
-            </p>
-            <p>
-              If you are a parent or guardian and believe your child has
-              provided personal data without your consent, contact us at{" "}
-              <a
-                href={`mailto:${CONTACT_EMAIL}`}
-                className="font-medium text-primary-600 hover:underline"
-              >
-                {CONTACT_EMAIL}
-              </a>{" "}
-              and we will delete the data promptly.
-            </p>
-          </PolicySection>
-
-          <PolicySection id="your-rights" title="8. Your rights">
-            <p>You have the right to:</p>
-            <ul className="list-disc space-y-2 pl-5">
               <ListItem>
-                <strong>Access:</strong> request a copy of the personal data we
-                hold about you.
-              </ListItem>
-              <ListItem>
-                <strong>Correction:</strong> ask us to correct inaccurate data.
-              </ListItem>
-              <ListItem>
-                <strong>Deletion:</strong> request that we delete your account
-                and associated data.
-              </ListItem>
-              <ListItem>
-                <strong>Objection:</strong> object to processing you believe is
-                unlawful.
-              </ListItem>
-              <ListItem>
-                <strong>Portability:</strong> receive your study history and
-                account data in a machine-readable format.
+                <strong>Cloudflare Turnstile or hCaptcha</strong> for bot and
+                abuse prevention on account and recovery forms. The configured
+                provider may receive device, browser, and network information.{" "}
+                <ExternalPolicyLink href="https://www.cloudflare.com/privacypolicy/">
+                  Cloudflare privacy policy
+                </ExternalPolicyLink>{" "}
+                and{" "}
+                <ExternalPolicyLink href="https://www.hcaptcha.com/privacy">
+                  hCaptcha privacy policy
+                </ExternalPolicyLink>
               </ListItem>
             </ul>
             <p>
-              To exercise any of these rights, email{" "}
+              If your account is connected to a school, authorised school staff
+              may receive account, participation, or learning information within
+              the school service. We may also disclose data when required by law,
+              to protect users or the service, or as part of a business
+              reorganisation with appropriate confidentiality safeguards. We do
+              not share student data with advertisers.
+            </p>
+          </PolicySection>
+
+          <PolicySection
+            id="international-transfers"
+            title="6. International data transfers"
+          >
+            <p>
+              Some providers may process personal data outside Nigeria. The
+              location can depend on our provider configuration and their
+              infrastructure. Where Nigerian law requires it, we use a permitted
+              transfer basis and appropriate safeguards, such as an adequacy
+              decision, contractual protections, or another lawful mechanism.
+              Contact us if you would like information about the safeguards
+              relevant to your data.
+            </p>
+          </PolicySection>
+
+          <PolicySection id="cookies" title="7. Cookies and local storage">
+            <p>
+              We use essential authentication and security cookies to keep you
+              signed in and protect requests. The app can also use browser local
+              storage to keep unfinished practice answers on your device. If you
+              enable cloud draft saving, the draft is also stored with your
+              account. CAPTCHA providers may use their own necessary technologies
+              to assess abuse. Study Buddy does not currently use advertising or
+              behavioural-tracking cookies.
+            </p>
+          </PolicySection>
+
+          <PolicySection id="childrens-privacy" title="8. Children's privacy">
+            <p>
+              Study Buddy is designed for secondary school learners, including
+              children under 18. An account for a child must be authorised by a
+              parent or guardian, or by an authorised school acting lawfully,
+              where consent or authorisation is required. The adult or school
+              should review these terms and this policy with the learner and
+              supervise appropriate use. We may request reasonable evidence of
+              age, relationship, or authority.
+            </p>
+            <p>
+              We seek to limit children&apos;s data to what is reasonably needed for
+              learning, account safety, and the service requested. We do not
+              show targeted advertising or sell student data. If we learn that a
+              child&apos;s data was collected without required authorisation, we may
+              restrict the account and delete or anonymise the data unless a
+              different lawful basis requires us to keep it.
+            </p>
+            <p>
+              A parent or guardian may contact us to ask about, correct, or
+              delete a child&apos;s data, subject to the child&apos;s own rights and any
+              lawful school arrangement. Email{" "}
               <a
                 href={`mailto:${CONTACT_EMAIL}`}
                 className="font-medium text-primary-600 hover:underline"
               >
                 {CONTACT_EMAIL}
               </a>
-              . We will respond within 30 days.
+              .
             </p>
           </PolicySection>
 
-          <PolicySection id="retention" title="9. Data retention">
+          <PolicySection id="retention" title="9. How long we keep data">
             <p>
-              We retain your account data for as long as your account is active.
-              If you delete your account, we will remove your personal
-              information within 30 days, except where we are required by law to
-              retain certain records.
+              We keep personal data only for as long as reasonably necessary for
+              the purpose for which it was collected, including providing the
+              account, resolving disputes, preventing abuse, enforcing our
+              agreements, and meeting legal, tax, accounting, or regulatory
+              duties. The period depends on the type of data and why we hold it.
             </p>
+            <ul className="list-disc space-y-2 pl-5">
+              <ListItem>
+                Account, profile, learning, and AI-chat records are generally
+                kept while the account or relevant feature remains active and
+                until they are deleted, anonymised, or no longer needed.
+              </ListItem>
+              <ListItem>
+                A chat deleted in the product is removed from account view.
+                Related records may remain while we process deletion or where
+                they are needed for security, disputes, backups, or law.
+              </ListItem>
+              <ListItem>
+                Payment and transaction records may be kept for the period
+                required by financial, tax, fraud-prevention, and consumer law.
+              </ListItem>
+              <ListItem>
+                Local practice drafts remain on your device until submitted,
+                cleared, or removed through browser controls.
+              </ListItem>
+            </ul>
             <p>
-              Anonymised, aggregated study statistics, such as pass rates per
-              topic, may be retained indefinitely to improve the platform.
+              When retention is no longer justified, we delete or anonymise the
+              data. Anonymised statistics that cannot reasonably identify a
+              person may be retained for research and service improvement.
+              Providers may apply their own lawful retention periods.
             </p>
           </PolicySection>
 
-          <PolicySection id="changes" title="10. Changes to this policy">
+          <PolicySection id="your-rights" title="10. Your privacy rights">
+            <p>You have the right to:</p>
+            <ul className="list-disc space-y-2 pl-5">
+              <ListItem>
+                be informed about processing and request access to your personal
+                data;
+              </ListItem>
+              <ListItem>
+                correct inaccurate or incomplete data;
+              </ListItem>
+              <ListItem>
+                request deletion when the law allows it;
+              </ListItem>
+              <ListItem>
+                object to or ask us to restrict certain processing;
+              </ListItem>
+              <ListItem>
+                withdraw consent at any time where processing relies on consent;
+              </ListItem>
+              <ListItem>
+                receive eligible data in a structured, commonly used,
+                machine-readable format and ask for portability where applicable;
+              </ListItem>
+              <ListItem>
+                request human review of a solely automated decision that has a
+                legal or similarly significant effect; and
+              </ListItem>
+              <ListItem>
+                complain to the Nigeria Data Protection Commission (NDPC).
+              </ListItem>
+            </ul>
+            <p>
+              To exercise a right, email{" "}
+              <a
+                href={`mailto:${CONTACT_EMAIL}`}
+                className="font-medium text-primary-600 hover:underline"
+              >
+                {CONTACT_EMAIL}
+              </a>
+              . Tell us what you are requesting and which account is involved.
+              We may need to verify your identity or authority before acting. We
+              will respond without undue delay and within the period required by
+              applicable law. Some rights have lawful exceptions, which we will
+              explain if they apply.
+            </p>
+            <p>
+              You can also contact or complain to the{" "}
+              <ExternalPolicyLink href="https://www.ndpc.gov.ng/contact/">
+                Nigeria Data Protection Commission
+              </ExternalPolicyLink>
+              . We encourage you to contact us first so we can try to resolve
+              the issue.
+            </p>
+          </PolicySection>
+
+          <PolicySection
+            id="storage-and-security"
+            title="11. Data storage and security"
+          >
+            <p>
+              Study Buddy uses Supabase for authentication and database
+              services and Vercel for application hosting. We use measures
+              designed to protect personal data, including HTTPS/TLS in transit,
+              access controls, service authentication, rate limiting, and
+              security monitoring. Supabase Auth manages password credentials;
+              Study Buddy does not store plaintext passwords in its application
+              database.
+            </p>
+            <p>
+              No online service is completely secure. If we become aware of a
+              personal-data breach, we will investigate and notify affected
+              people and the NDPC when required by law. Contact us immediately
+              if you suspect unauthorised access to your account.
+            </p>
+          </PolicySection>
+
+          <PolicySection id="changes" title="12. Changes to this policy">
             <p>
               We may update this policy from time to time. When we do, we will
-              update the Last updated date at the top of this page and, for
-              material changes, notify you by email. Continued use of Study
-              Buddy AI after the effective date constitutes your acceptance of
-              the revised policy.
+              update the Last updated date above. If a change materially affects
+              how we use personal data, we will provide an appropriate notice in
+              the service or by email and request consent again where the law
+              requires it.
             </p>
           </PolicySection>
 
-          <PolicySection id="contact" title="11. Contact">
+          <PolicySection id="contact" title="13. Contact">
             <p>For privacy-related questions or requests:</p>
             <div className="rounded-lg border border-gray-200 bg-accent-50 p-5 text-sm">
               <p className="font-semibold text-gray-900">Study Buddy AI</p>
