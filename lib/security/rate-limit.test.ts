@@ -46,6 +46,17 @@ describe("rate limiting", () => {
     expect(getClientIp(headers)).toBe("203.0.113.8");
   });
 
+  it("rejects malformed forwarded identifiers and normalizes bracketed IPv6", () => {
+    vi.stubEnv("TRUSTED_PROXY_PROVIDER", "railway");
+
+    expect(
+      getClientIp(new Headers({ "x-forwarded-for": "not-an-ip, 10.0.0.2" }))
+    ).toBe("unknown");
+    expect(
+      getClientIp(new Headers({ "x-forwarded-for": "[2001:DB8::1]:443" }))
+    ).toBe("2001:db8::1");
+  });
+
   it("returns standard 429 metadata when a bucket is exhausted", async () => {
     prismaMocks.queryRaw.mockResolvedValue([{ count: 3 }]);
 
