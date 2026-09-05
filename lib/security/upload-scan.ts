@@ -1,9 +1,15 @@
 import { createConnection } from "node:net";
+import { spawn } from "node:child_process";
 
 const DEFAULT_CLAMAV_PORT = 3310;
 const DEFAULT_CLAMAV_TIMEOUT_MS = 20_000;
 const CLAMAV_CHUNK_BYTES = 64 * 1024;
 const MAX_CLAMAV_REPLY_BYTES = 16 * 1024;
+const DEFAULT_PDF_CDR_TIMEOUT_MS = 20_000;
+const DEFAULT_PDF_CDR_MAX_OUTPUT_BYTES = 30 * 1024 * 1024;
+const MAX_PDF_CDR_STDERR_BYTES = 32 * 1024;
+const MAX_DOCX_DOCUMENT_XML_BYTES = 8 * 1024 * 1024;
+const MAX_DOCX_ENTRIES = 2_000;
 
 const PDF_HEADER = Buffer.from("%PDF-");
 const PDF_EOF = Buffer.from("%%EOF");
@@ -19,7 +25,9 @@ export type ExpectedUploadType = "auto" | "pdf" | "image";
 export type UploadSecurityErrorCode =
   | "INVALID_FILE_SIGNATURE"
   | "MALWARE_DETECTED"
-  | "MALWARE_SCANNER_UNAVAILABLE";
+  | "MALWARE_SCANNER_UNAVAILABLE"
+  | "CONTENT_DISARM_FAILED"
+  | "CONTENT_DISARM_UNAVAILABLE";
 
 interface UploadFileLike {
   name: string;
@@ -42,25 +50,40 @@ export class UploadSecurityError extends Error {
     this.name = "UploadSecurityError";
     this.code = code;
     this.status =
-      code === "MALWARE_SCANNER_UNAVAILABLE"
+      code === "MALWARE_SCANNER_UNAVAILABLE" ||
+      code === "CONTENT_DISARM_UNAVAILABLE"
         ? 503
-        : code === "MALWARE_DETECTED"
+        : code === "MALWARE_DETECTED" || code === "CONTENT_DISARM_FAILED"
           ? 422
           : 400;
   }
 }
 
-/** Validate the declared file type, inspect magic bytes, then scan the bytes. */
+/** Validate, scan, reconstruct PDFs, then scan the bytes that will be stored. */
 export async function validateAndScanUpload(
   file: UploadFileLike,
   expectedType: ExpectedUploadType = "auto"
 ) {
-  const buffer = Buffer.from(await file.arrayBuffer());
+  let buffer = Buffer.from(await file.arrayBuffer());
   validateUploadSignature(
     { name: file.name, mimeType: file.type, buffer },
     expectedType
   );
   await scanBufferWithClamAv(buffer);
+
+  if (detectFileType(buffer) === "pdf") {
+    const reconstructed = await reconstructPdf(buffer);
+    if (reconstructed !== buffer) {
+      buffer = reconstructed;
+      validateUploadSignature(
+        { name: file.name, mimeType: "application/pdf", buffer },
+        "pdf"
+      );
+      assertPdfHasNoActiveContent(buffer);
+      await scanBufferWithClamAv(buffer);
+    }
+  }
+
   return buffer;
 }
 
@@ -112,6 +135,7 @@ export function validateUploadSignature(
     if (detected !== "zip") {
       throw invalidSignature("The uploaded file is not a valid DOCX container.");
     }
+    validateDocxContainer(input.buffer);
   }
 }
 
@@ -230,6 +254,200 @@ function sendClamAvInstream(
       socket.write(Buffer.alloc(4));
     });
   });
+}
+
+export async function reconstructPdf(buffer: Buffer) {
+  const configured = process.env.PDF_CDR_REQUIRED?.trim().toLowerCase();
+  const required =
+    configured === "true" ||
+    (configured !== "false" && process.env.NODE_ENV === "production");
+  const configuredCommand = process.env.PDF_CDR_COMMAND?.trim();
+
+  if (!required && !configuredCommand) return buffer;
+
+  const command = configuredCommand || "gs";
+  const timeoutMs = boundedInteger(
+    process.env.PDF_CDR_TIMEOUT_MS,
+    DEFAULT_PDF_CDR_TIMEOUT_MS,
+    1_000,
+    120_000
+  );
+  const maxOutputBytes = boundedInteger(
+    process.env.PDF_CDR_MAX_OUTPUT_BYTES,
+    DEFAULT_PDF_CDR_MAX_OUTPUT_BYTES,
+    1_024,
+    100 * 1024 * 1024
+  );
+
+  return new Promise<Buffer>((resolve, reject) => {
+    const child = spawn(
+      command,
+      [
+        "-q",
+        "-dSAFER",
+        "-dBATCH",
+        "-dNOPAUSE",
+        "-dCompatibilityLevel=1.7",
+        "-sDEVICE=pdfwrite",
+        "-dDetectDuplicateImages=true",
+        "-dCompressFonts=true",
+        "-sOutputFile=-",
+        "-",
+      ],
+      {
+        shell: false,
+        stdio: ["pipe", "pipe", "pipe"],
+        env: {
+          PATH: process.env.PATH,
+          LANG: "C",
+          LC_ALL: "C",
+          TMPDIR: process.env.TMPDIR,
+        },
+      }
+    );
+    const output: Buffer[] = [];
+    let outputBytes = 0;
+    let stderrBytes = 0;
+    let settled = false;
+
+    const finishWithError = (error: UploadSecurityError) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(deadline);
+      child.kill("SIGKILL");
+      reject(error);
+    };
+
+    const deadline = setTimeout(() => {
+      finishWithError(
+        new UploadSecurityError(
+          "CONTENT_DISARM_FAILED",
+          "The PDF reconstruction timed out."
+        )
+      );
+    }, timeoutMs);
+    deadline.unref?.();
+
+    child.once("error", (error: NodeJS.ErrnoException) => {
+      finishWithError(
+        new UploadSecurityError(
+          "CONTENT_DISARM_UNAVAILABLE",
+          error.code === "ENOENT"
+            ? "The PDF reconstruction service is not installed."
+            : "The PDF reconstruction service is unavailable."
+        )
+      );
+    });
+    child.stdout.on("data", (chunk: Buffer) => {
+      outputBytes += chunk.byteLength;
+      if (outputBytes > maxOutputBytes) {
+        finishWithError(
+          new UploadSecurityError(
+            "CONTENT_DISARM_FAILED",
+            "The reconstructed PDF exceeded the safe output limit."
+          )
+        );
+        return;
+      }
+      output.push(Buffer.from(chunk));
+    });
+    child.stderr.on("data", (chunk: Buffer) => {
+      stderrBytes += chunk.byteLength;
+      if (stderrBytes > MAX_PDF_CDR_STDERR_BYTES) {
+        finishWithError(
+          new UploadSecurityError(
+            "CONTENT_DISARM_FAILED",
+            "The PDF reconstruction service returned excessive diagnostics."
+          )
+        );
+      }
+    });
+    child.once("close", (code) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(deadline);
+      if (code !== 0 || outputBytes === 0) {
+        reject(
+          new UploadSecurityError(
+            "CONTENT_DISARM_FAILED",
+            "The PDF could not be safely reconstructed."
+          )
+        );
+        return;
+      }
+      resolve(Buffer.concat(output, outputBytes));
+    });
+    child.stdin.once("error", () => {
+      // The close/error handlers produce the normalized failure response.
+    });
+    child.stdin.end(buffer);
+  });
+}
+
+export function assertPdfHasNoActiveContent(buffer: Buffer) {
+  const normalizedNames = buffer
+    .toString("latin1")
+    .replace(/#([0-9a-f]{2})/gi, (_match, hex: string) =>
+      String.fromCharCode(Number.parseInt(hex, 16))
+    );
+  const activeNames =
+    /\/(?:JavaScript|JS|OpenAction|AA|Launch|EmbeddedFile|RichMedia|XFA)\b/i;
+  if (activeNames.test(normalizedNames)) {
+    throw new UploadSecurityError(
+      "CONTENT_DISARM_FAILED",
+      "The reconstructed PDF still contains active content."
+    );
+  }
+}
+
+export function validateDocxContainer(buffer: Buffer) {
+  let offset = 0;
+  let entries = 0;
+  let foundDocumentXml = false;
+
+  while (offset + 30 <= buffer.byteLength && entries < MAX_DOCX_ENTRIES) {
+    if (buffer.readUInt32LE(offset) !== 0x04034b50) {
+      offset += 1;
+      continue;
+    }
+
+    entries += 1;
+    const flags = buffer.readUInt16LE(offset + 6);
+    const compressedSize = buffer.readUInt32LE(offset + 18);
+    const uncompressedSize = buffer.readUInt32LE(offset + 22);
+    const fileNameLength = buffer.readUInt16LE(offset + 26);
+    const extraLength = buffer.readUInt16LE(offset + 28);
+    const nameStart = offset + 30;
+    const nameEnd = nameStart + fileNameLength;
+    const dataStart = nameEnd + extraLength;
+    const dataEnd = dataStart + compressedSize;
+
+    if (
+      flags & 0x1 ||
+      flags & 0x8 ||
+      nameEnd > buffer.byteLength ||
+      dataEnd > buffer.byteLength
+    ) {
+      throw invalidSignature("The DOCX container uses an unsupported ZIP layout.");
+    }
+
+    const name = buffer.subarray(nameStart, nameEnd).toString("utf8");
+    if (name === "word/document.xml") {
+      foundDocumentXml = true;
+      if (
+        uncompressedSize === 0 ||
+        uncompressedSize > MAX_DOCX_DOCUMENT_XML_BYTES
+      ) {
+        throw invalidSignature("The DOCX document content exceeds the safe limit.");
+      }
+    }
+
+    offset = dataEnd;
+  }
+
+  if (!foundDocumentXml || entries >= MAX_DOCX_ENTRIES) {
+    throw invalidSignature("The uploaded ZIP is not a supported DOCX document.");
+  }
 }
 
 function detectFileType(buffer: Buffer) {
