@@ -46,6 +46,7 @@ Study Buddy v2 is a Next.js learning platform for exam preparation. It combines 
 
 - [ ] Correct `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` in the production environment so it contains the Supabase publishable key rather than the project URL.
 - [ ] Rotate the exposed Supabase database credentials and OpenAI API key, then update every deployment/CI environment where they are configured before deploying.
+- [ ] Replace production `DATABASE_URL`'s current `postgres` role with a dedicated runtime role that has data access but no `SUPERUSER`, `CREATEDB`, `CREATEROLE`, replication, ownership, or DDL privileges. Keep the migration-owner `DIRECT_URL` out of the normal web runtime where the deployment setup permits it.
 
 ## Deployment Security Operations
 
