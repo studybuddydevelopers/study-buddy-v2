@@ -36,6 +36,7 @@ export type StudyBuddyIconName =
   | "database"
   | "lock"
   | "userCheck"
+  | "privacyRequest"
   | "mail"
   | "warning"
   | "card"
@@ -412,6 +413,18 @@ function iconArtwork(name: StudyBuddyIconName) {
           <path d="M9 51c1-11 7-17 16-17 6 0 11 3 14 8" fill={PURPLE} />
           <circle cx="45" cy="41" r="10" fill={PAPER} />
           <path d="m39 41 4 4 8-10" fill="none" stroke={PURPLE} strokeWidth="3" />
+        </>
+      );
+    case "privacyRequest":
+      return (
+        <>
+          <path d="M10 12h34v41H10Z" fill={PAPER} />
+          <path d="M16 9h22v7H16Z" fill={PURPLE} />
+          <circle cx="25" cy="27" r="7" fill={WARM} />
+          <path d="M14 44c1-9 5-13 11-13s10 4 11 13Z" fill={PURPLE} />
+          <circle cx="38" cy="44" r="4" fill={GOLD} />
+          <path d="M38 44h17" fill="none" stroke={PURPLE} strokeWidth="5" />
+          <path d="m48 36 8 8-8 8" fill="none" stroke={PURPLE} strokeWidth="5" />
         </>
       );
     case "mail":
