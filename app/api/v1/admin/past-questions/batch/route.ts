@@ -2,7 +2,8 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireAdmin } from "@/lib/auth";
-import { getErrorMessage, isRecord } from "@/lib/type-utils";
+import { isRecord } from "@/lib/type-utils";
+import { logSecurityEvent } from "@/lib/security/audit-log";
 import {
   parseJsonRequest,
   REQUEST_LIMITS,
@@ -146,11 +147,14 @@ export async function POST(req: Request) {
         success: true,
         id: record.id,
       });
-    } catch (err: unknown) {
+    } catch {
+      logSecurityEvent("admin_batch_write_failed", "error", {
+        batchIndex: i,
+      });
       results.push({
         index: i,
         success: false,
-        error: getErrorMessage(err, "Database error"),
+        error: "The question could not be saved.",
       });
     }
   }
