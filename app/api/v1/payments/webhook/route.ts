@@ -6,6 +6,11 @@ import {
   parseTextRequest,
   REQUEST_LIMITS,
 } from "@/lib/security/request-body";
+import {
+  logSecurityEvent,
+  securityFingerprint,
+} from "@/lib/security/audit-log";
+import { getClientIp } from "@/lib/security/rate-limit";
 
 export async function POST(req: Request) {
   try {
@@ -26,7 +31,11 @@ export async function POST(req: Request) {
       .update(rawBody)
       .digest("hex");
 
-    if (signature !== expectedSignature) {
+    if (!signaturesMatch(signature, expectedSignature)) {
+      logSecurityEvent("webhook_signature_failed", "warn", {
+        provider: "paystack",
+        ipFingerprint: securityFingerprint(getClientIp(req.headers)),
+      });
       return NextResponse.json(
         { error: "Invalid Paystack signature" },
         { status: 401 }
@@ -88,4 +97,15 @@ export async function POST(req: Request) {
     console.error("PAYSTACK WEBHOOK ERROR:", error);
     return NextResponse.json({ error: "Webhook error" }, { status: 500 });
   }
+}
+
+function signaturesMatch(received: string | null, expected: string) {
+  if (!received || !/^[a-f0-9]{128}$/i.test(received)) return false;
+
+  const receivedBytes = Buffer.from(received, "hex");
+  const expectedBytes = Buffer.from(expected, "hex");
+  return (
+    receivedBytes.byteLength === expectedBytes.byteLength &&
+    crypto.timingSafeEqual(receivedBytes, expectedBytes)
+  );
 }
