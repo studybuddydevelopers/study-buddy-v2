@@ -1,0 +1,77 @@
+# Record of Processing Activities
+
+Status: initial Article 24 accountability record — owners and final decisions
+pending  
+Controller: Study Buddy AI; replace with exact legal entity and address  
+Privacy contact: `sbstudybuddy0@gmail.com`  
+Last reviewed: 5 September 2026
+
+This record must be maintained as the product changes. “Pending” is a work item,
+not approval to process. Confirm the controller/processor role, lawful basis,
+retention, provider region, and transfer safeguard before production use.
+
+## Controller processing
+
+| ID | Activity and purpose | Data subjects and data | Preliminary basis | Recipients/transfers | Retention | Owner/status |
+| --- | --- | --- | --- | --- | --- | --- |
+| ROPA-01 | Register, authenticate, recover and secure user accounts | Students/adults; name, email, phone, auth ID, session and security data | Contract/requested steps; legitimate interests for security; child authority where required | Supabase, CAPTCHA, hosting; regions pending | Account life plus approved deletion/security periods | Auth owner pending; child workflow blocked |
+| ROPA-02 | Maintain learner profile and preferences | Students; name, phone, grade, exam year, subjects, avatar, settings | Contract/requested service | Supabase/PostgreSQL, hosting | Account life plus approved deletion period | Product owner pending |
+| ROPA-03 | Deliver practice questions, drafts and explanations | Students; question IDs, answers, drafts, results, session/activity data | Contract/requested service; legitimate interests for reliability | Supabase/PostgreSQL; browser local storage | See retention schedule; cloud/local controls apply | Learning owner pending |
+| ROPA-04 | Deliver and grade mock exams | Students; template/instance IDs, answers, timing, score and completion status | Contract/requested service | Supabase/PostgreSQL, hosting | See retention schedule | Learning owner pending |
+| ROPA-05 | Calculate progress and recommendations | Students; attempts, scores, subjects, topics, usage and recommendation records | Contract; legitimate interests subject to balancing | Supabase/PostgreSQL; OpenAI where recommendation generation uses it | Account life; review/anonymisation period pending | DPIA required; human-review route pending |
+| ROPA-06 | Provide persistent web AI chat | Students/adults; prompts, relevant context, responses, provider/model/token data, status/failure data | Contract/requested feature; security legitimate interests | OpenAI, Supabase, hosting; international transfer pending | Until deletion/account closure; hard-purge target pending | High risk; safety and deletion gates open |
+| ROPA-07 | Provide WhatsApp tutoring | Students/adults; WhatsApp number/sender ID, messages, responses, thread/account link | Contract/requested feature; valid messaging/child authority as applicable | Meta/WhatsApp, OpenAI, Supabase, hosting | Proposed activity period pending approval | Opt-in, deletion and child controls pending |
+| ROPA-08 | Manage subscriptions and payment verification | Subscribers/payers; user ID, plan, reference, amount, currency, status and dates | Contract; legal obligation; fraud-prevention legitimate interests | Paystack, Supabase, hosting, financial/regulatory recipients where legally required | Statutory period to be confirmed | Finance owner and refund operations pending |
+| ROPA-09 | Provide support and handle complaints/rights | Students, adults, schools; name, email, subject, message, identity/authority evidence, correspondence and decision | Contract; legal obligation; legitimate interests | Hosting/email/support providers when approved; regulators where required | Proposed 12 months after closure unless hold; approve | Privacy/support owner pending |
+| ROPA-10 | Prevent fraud, abuse and security incidents | All users/attackers; IP/network data, account ID, timestamps, CAPTCHA, rate limits, audit/security events | Legitimate interests; legal obligation where applicable | Hosting, Supabase, CAPTCHA, security advisers/regulators where required | Proposed short operational periods/12-month logs; approve | Security owner pending |
+| ROPA-11 | Operate school membership and approved reporting | Students, parents, school staff; school, role, membership, approved learning fields | School/direct contract and documented school/child basis | Named school and approved providers | Membership/account term plus approved offboarding | Role and visibility matrix blocked |
+| ROPA-12 | Manage learning resources and rights | Administrators/content owners; staff IDs, uploaded content, source, approval and processing records | Contract/legitimate interests; legal obligations for rights disputes | Supabase storage, hosting, extraction/security tools | Licence/service period plus dispute record | Provenance/rights register incomplete |
+| ROPA-13 | Improve service with aggregate analysis | Users; product/learning events transformed into aggregate or anonymised statistics | Legitimate interests; consent if future non-essential tracking requires it | Internal team and approved analytics provider only if onboarded | Review annually; retain only if effectively anonymised | No behavioural analytics approved |
+| ROPA-14 | Communicate account and important service notices | Account users/authorisers; email/phone, notice type, delivery event | Contract; legal obligation; legitimate interests | Supabase Auth email; Resend planned; Meta for WhatsApp | Delivery/provider period pending | SMTP provider not finalised |
+
+## Processor activities for schools
+
+These entries apply only where the signed role analysis concludes that Study
+Buddy acts as the School’s processor.
+
+| ID | School instruction | Data | Sub-processors | Retention/return | Status |
+| --- | --- | --- | --- | --- | --- |
+| PROC-01 | Create/manage school-linked learner membership | Student identity, school, class/grade and membership | Supabase and approved hosting | Signed school schedule required | Pending |
+| PROC-02 | Present approved student participation/progress to authorised staff | Approved answers, results, progress and activity fields | Supabase and approved hosting | Signed school schedule required | Pending |
+| PROC-03 | Assist School with student/parent rights requests | Relevant account data and request evidence | Approved support/hosting providers | Delete assistance copy after case/approved period | Pending |
+| PROC-04 | Return/delete School data on exit | All data in agreed scope | Supabase, hosting, backup providers | Exact active/backup periods required | Pending |
+
+## Special/high-risk processing flags
+
+- Children and other vulnerable learners: yes
+- Profiling/recommendations: yes
+- AI/new technology: yes
+- Systematic learning history: yes
+- Potential sensitive data in free-text: foreseeable, not requested
+- Solely automated legally significant decisions: no intended use
+- Advertising or sale of personal data: no
+- Biometric identification: no intended use
+- Full card/bank data stored by Study Buddy: no intended use
+- International processing: likely; exact countries and mechanisms pending
+
+## Rights and controls
+
+| Requirement | Current route/control | Gap |
+| --- | --- | --- |
+| Notice | Privacy Policy and Parent/Student Notice | Show age-appropriate notice in the actual authorisation flow |
+| Access/copy | Email/contact request | Build secure request register and export process |
+| Correction | Some profile fields editable; email request | Define correction for results, school links and AI metadata |
+| Deletion | Chat soft delete; email account request | Implement hard deletion and self-service account closure |
+| Restriction/objection | Email request | Add operational flags and downstream provider handling |
+| Consent withdrawal | Email request | Implement immutable authorisation events and feature restriction |
+| Portability | Email request | Define machine-readable export and authentication |
+| Automated decision review | Email request | Define owner, evidence, response and correction path |
+| Complaint | Email, NDPC route in Privacy Policy | Implement case ownership and deadline tracking |
+
+## Review triggers
+
+Review this record before adding a provider, data field, analytics/advertising,
+new AI model/use case, tutor marketplace, mobile app, school report, sensitive
+data use, new country, materially different retention, or new data recipient.
+Reconcile it against the Prisma schema, API routes, provider dashboards, live
+environment, public notices, DPIA, retention schedule, and signed contracts.
