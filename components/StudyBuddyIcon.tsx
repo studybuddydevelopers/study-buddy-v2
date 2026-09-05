@@ -351,11 +351,20 @@ function iconArtwork(name: StudyBuddyIconName) {
     case "learnerSuccess":
       return (
         <>
-          <circle cx="30" cy="24" r="9" fill={WARM} />
-          <path d="M21 22c1-8 15-10 18 0-4 0-8-2-11-5-1 3-4 5-7 5Z" fill={INK} />
-          <path d="M14 52c1-12 7-19 16-19s15 7 16 19Z" fill={PURPLE} />
-          <path d="m48 12 2.2 4.5 5 .7-3.6 3.5.9 5-4.5-2.4-4.5 2.4.9-5-3.6-3.5 5-.7Z" fill={GOLD} strokeWidth="1.5" />
-          <path d="M26 27c2.5 2 5.5 2 8 0" fill="none" />
+          <path d="M14 11h31l7 8v34H14Z" fill={PAPER} />
+          <path d="M45 11v9h7" fill={GOLD} />
+          <path
+            d="m21 24 2.5 9 3.5-7 3.5 7 2.5-9"
+            fill="none"
+            stroke={PURPLE}
+            strokeWidth="3.2"
+          />
+          <path d="M21 40h10M21 46h8" fill="none" stroke={DEEP_PURPLE} />
+          <path d="M40 27v19" fill="none" stroke={WARM} strokeWidth="3" />
+          <circle cx="40" cy="27" r="4" fill={PURPLE} />
+          <circle cx="40" cy="36.5" r="4" fill={GOLD} />
+          <circle cx="40" cy="46" r="5" fill={PURPLE} />
+          <path d="m37.5 46 1.8 2 3.6-4" fill="none" stroke={PAPER} strokeWidth="2" />
         </>
       );
     case "messageSent":
