@@ -29,14 +29,44 @@ interface RateLimitResult {
 }
 
 export function getClientIp(requestHeaders: Headers) {
-  const platformIp = firstHeaderIp(
-    requestHeaders.get("x-vercel-forwarded-for") ||
-      requestHeaders.get("cf-connecting-ip") ||
-      requestHeaders.get("x-real-ip")
-  );
-  if (platformIp) return platformIp;
+  const provider = configuredProxyProvider();
 
-  return firstHeaderIp(requestHeaders.get("x-forwarded-for")) || "unknown";
+  if (provider === "railway") {
+    return firstHeaderIp(requestHeaders.get("x-forwarded-for")) || "unknown";
+  }
+  if (provider === "cloudflare") {
+    return firstHeaderIp(requestHeaders.get("cf-connecting-ip")) || "unknown";
+  }
+  if (provider === "vercel") {
+    return firstHeaderIp(requestHeaders.get("x-vercel-forwarded-for")) || "unknown";
+  }
+  if (provider === "direct") return "unknown";
+
+  // Development/test fallback. Production should select a trusted provider so
+  // arbitrary forwarding headers are never treated as authoritative.
+  return (
+    firstHeaderIp(requestHeaders.get("x-forwarded-for")) ||
+    firstHeaderIp(requestHeaders.get("x-real-ip")) ||
+    "unknown"
+  );
+}
+
+function configuredProxyProvider() {
+  const configured = process.env.TRUSTED_PROXY_PROVIDER?.trim().toLowerCase();
+  if (
+    configured === "railway" ||
+    configured === "cloudflare" ||
+    configured === "vercel" ||
+    configured === "direct"
+  ) {
+    return configured;
+  }
+
+  if (process.env.RAILWAY_ENVIRONMENT_ID || process.env.RAILWAY_SERVICE_ID) {
+    return "railway";
+  }
+  if (process.env.VERCEL) return "vercel";
+  return process.env.NODE_ENV === "production" ? "direct" : "development";
 }
 
 export async function enforceRateLimitRules(rules: RateLimitRule[]) {
