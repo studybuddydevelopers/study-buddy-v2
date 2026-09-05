@@ -1,6 +1,7 @@
 // app/api/v1/mock-exams/mock-exam-templates/route.ts
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { logSecurityEvent } from "@/lib/security/audit-log";
 
 export async function GET() {
   try {
@@ -32,8 +33,8 @@ export async function GET() {
         subject: t.subject,
       }))
     );
-  } catch (err) {
-    console.error("[MOCK_EXAM_TEMPLATES_GET]", err);
+  } catch {
+    logSecurityEvent("mock_exam_templates_load_failed", "error");
     return NextResponse.json(
       { error: "Failed to fetch mock exam templates" },
       { status: 500 }
