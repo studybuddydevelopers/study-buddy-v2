@@ -7,7 +7,10 @@ export function uploadSecurityErrorResponse(error: unknown) {
 
   logSecurityEvent(
     uploadSecurityEvent(error.code),
-    error.code === "MALWARE_SCANNER_UNAVAILABLE" ? "error" : "warn",
+    error.code === "MALWARE_SCANNER_UNAVAILABLE" ||
+      error.code === "CONTENT_DISARM_UNAVAILABLE"
+      ? "error"
+      : "warn",
     { errorCode: error.code }
   );
 
@@ -24,6 +27,10 @@ function uploadSecurityEvent(code: UploadSecurityError["code"]) {
   if (code === "MALWARE_DETECTED") return "malware_detected";
   if (code === "MALWARE_SCANNER_UNAVAILABLE") {
     return "malware_scanner_unavailable";
+  }
+  if (code === "CONTENT_DISARM_FAILED") return "pdf_content_disarm_failed";
+  if (code === "CONTENT_DISARM_UNAVAILABLE") {
+    return "pdf_content_disarm_unavailable";
   }
   return "invalid_file_signature";
 }
