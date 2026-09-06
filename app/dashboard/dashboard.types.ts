@@ -119,32 +119,72 @@ export interface AIRecommendation {
 export interface TopicBreakdown {
   topicId: string;
   topicTitle: string;
+  subjectName: string;
   totalQuestions: number;
   attempted: number;
   correct: number;
   accuracyPct: number;
+  lastAttemptAt: string | null;
 }
 
 export interface WeeklyActivityDay {
   day: string;   // "Mon", "Tue", …
   date: string;  // "2026-07-14"
   count: number;
+  correct: number;
 }
 
-export interface WeakestTopic {
+export interface RecommendedTopic extends TopicBreakdown {
+  reason: "focus" | "continue" | "explore";
+}
+
+export interface AvailableTopic {
   topicId: string;
   topicTitle: string;
-  correct: number;
-  attempted: number;
-  accuracyPct: number;
+  subjectName: string;
+}
+
+export interface InProgressMock {
+  instanceId: string;
+  title: string;
+  subjectName: string;
+  answeredCount: number;
+  questionCount: number;
+  startedAt: string;
+}
+
+export interface PracticeDraftSummary {
+  topicId: string;
+  topicTitle: string;
+  subjectName: string;
+  savedAnswerCount: number;
+  updatedAt: string;
+}
+
+export interface WeeklySummary {
+  questionsAttempted: number;
+  correctAnswers: number;
+  accuracyPct: number | null;
+  activeDays: number;
+}
+
+export interface TodaySummary {
+  questionsAttempted: number;
+  mockExamsCompleted: number;
+  aiQuestionsAsked: number;
 }
 
 export interface DashboardStats {
+  availableTopics: AvailableTopic[];
   topicBreakdown: TopicBreakdown[];
+  focusTopics: TopicBreakdown[];
+  recommendedTopic: RecommendedTopic | null;
   weeklyActivity: WeeklyActivityDay[];
+  weeklySummary: WeeklySummary;
+  todaySummary: TodaySummary;
   streakDays: number;
-  weakestTopic: WeakestTopic | null;
-  lastInProgressMock: { instanceId: string } | null;
+  lastInProgressMock: InProgressMock | null;
+  resumePractice: PracticeDraftSummary | null;
 }
 
 // ── Props ────────────────────────────────────────────────────────────────────
