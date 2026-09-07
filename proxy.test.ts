@@ -11,6 +11,7 @@ describe("production route controls", () => {
     "/new-logo-preview",
     "/cube-usage-audit",
     "/demo-showcase",
+    "/api/v1/whatsapp/webhook",
   ])("returns 404 for %s in production", async (pathname) => {
     vi.stubEnv("NODE_ENV", "production");
 
@@ -39,6 +40,24 @@ describe("production route controls", () => {
     expect(response.status).toBe(413);
     expect(response.headers.get("Content-Security-Policy")).toContain(
       "script-src 'self' 'nonce-"
+    );
+  });
+
+  it("allows the Railway health check without an external auth lookup", async () => {
+    vi.stubEnv("NODE_ENV", "production");
+    vi.stubEnv("SUPABASE_URL", "");
+    vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", "");
+    vi.stubEnv("SUPABASE_PUBLISHABLE_KEY", "");
+    vi.stubEnv("NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY", "");
+
+    const response = await proxy(
+      new NextRequest("https://healthcheck.railway.app/api/health")
+    );
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get("x-middleware-next")).toBe("1");
+    expect(response.headers.get("Content-Security-Policy")).toContain(
+      "default-src 'self'"
     );
   });
 
