@@ -1,6 +1,7 @@
 import { Suspense } from "react";
 import ClientLayoutWrapper from "./ClientLayoutWrapper";
 import "./globals.css";
+import "katex/dist/katex.min.css";
 import { cookies } from "next/headers";
 import { createServerClient } from "@supabase/ssr";
 import { Metadata } from "next";
