@@ -10,6 +10,10 @@ against the linked vendor documentation on 2026-09-05.
   service a `<service-name>.railway.internal` hostname inside the environment.
 - Add a custom HTTPS domain to the web service. Set `APP_ORIGIN` to that exact
   origin, including the `https://` scheme and no path.
+- In the web service settings, set the Healthcheck Path to `/api/health`. This
+  endpoint checks process liveness without depending on Supabase Auth. Railway
+  uses deployment health checks to gate traffic switching; configure separate
+  uptime monitoring for continuous availability alerts.
 - Do not add a public domain or TCP proxy to ClamAV. Its TCP protocol is not
   authenticated or encrypted and is suitable here only over Railway's private
   network.
@@ -17,7 +21,8 @@ against the linked vendor documentation on 2026-09-05.
   test credentials for preview environments.
 
 Railway references: [production lockdown](https://docs.railway.com/guides/lock-down-production-project),
-[private networking and domains](https://docs.railway.com/networking/domains/working-with-domains).
+[private networking and domains](https://docs.railway.com/networking/domains/working-with-domains),
+and [deployment health checks](https://docs.railway.com/deployments/healthchecks).
 
 ## Required web-service variables
 
