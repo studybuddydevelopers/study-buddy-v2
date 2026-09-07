@@ -24,14 +24,16 @@ const guestOnlyPaths = [
   "/check-email",
 ];
 
-const developmentOnlyPaths = [
+const productionDisabledPaths = [
   "/icon-audit",
   "/temp-logo-preview",
   "/new-logo-preview",
   "/cube-usage-audit",
   "/demo-showcase",
+  "/api/v1/whatsapp/webhook",
 ];
 
+const HEALTH_CHECK_PATH = "/api/health";
 const MAX_API_BODY_BYTES = 30 * 1024 * 1024;
 
 export async function proxy(req: NextRequest) {
@@ -41,7 +43,7 @@ export async function proxy(req: NextRequest) {
 
   if (
     process.env.NODE_ENV === "production" &&
-    developmentOnlyPaths.some((path) => pathMatches(pathname, path))
+    productionDisabledPaths.some((path) => pathMatches(pathname, path))
   ) {
     return withContentSecurityPolicy(
       new NextResponse("Not Found", {
@@ -92,6 +94,11 @@ export async function proxy(req: NextRequest) {
     NextResponse.next({ request: { headers: requestHeaders } }),
     contentSecurityPolicy
   );
+
+  // Railway only needs process liveness here. Avoid making deployment health
+  // depend on an external Supabase Auth request.
+  if (pathname === HEALTH_CHECK_PATH) return res;
+
   const supabaseConfig = getServerSupabaseConfig();
 
   const supabase = createServerClient(
