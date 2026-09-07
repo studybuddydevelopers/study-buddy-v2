@@ -16,10 +16,16 @@ describe("normalizeMarkdownMath", () => {
     );
   });
 
-  it("wraps bare union and intersection commands as inline maths", () => {
-    expect(normalizeMarkdownMath("A \\cup B and C \\cap D")).toBe(
-      "A $\\cup$ B and C $\\cap$ D"
+  it("wraps common bare symbolic commands as inline maths", () => {
+    expect(normalizeMarkdownMath("A \\cup B, x \\leq 4 and y \\neq 2")).toBe(
+      "A $\\cup$ B, x $\\leq$ 4 and y $\\neq$ 2"
     );
+  });
+
+  it("wraps common bare grouped expressions", () => {
+    expect(
+      normalizeMarkdownMath("Use \\frac{1}{2}, \\sqrt{x} and \\vec{v}.")
+    ).toBe("Use $\\frac{1}{2}$, $\\sqrt{x}$ and $\\vec{v}$.");
   });
 
   it("does not nest delimiters around commands already inside maths", () => {
@@ -31,6 +37,14 @@ describe("normalizeMarkdownMath", () => {
   it("preserves fenced and inline code examples", () => {
     const markdown = "`\\cup`\n\n```tex\nA \\cap B\n```";
     expect(normalizeMarkdownMath(markdown)).toBe(markdown);
+  });
+
+  it("protects currency amounts without disturbing numeric maths", () => {
+    expect(normalizeMarkdownMath("It costs $5 and $10 per month.")).toBe(
+      "It costs \\$5 and \\$10 per month."
+    );
+    expect(normalizeMarkdownMath("The value is $2 + 1$."))
+      .toBe("The value is $2 + 1$.");
   });
 
   it("produces KaTeX markup for union and intersection symbols", () => {
