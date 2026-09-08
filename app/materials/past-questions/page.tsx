@@ -1,12 +1,13 @@
-import type { Metadata } from "next";
+import { createPageMetadata } from "@/lib/site-metadata";
 import { getMaterialsOverview } from "../materials-data";
 import PastQuestionsClient from "./PastQuestionsClient";
 
-export const metadata: Metadata = {
-  title: "Past Questions | Study Buddy",
+export const metadata = createPageMetadata({
+  title: "Past Questions",
   description:
-    "Practise WAEC-style past questions by subject and strengthen the topics that need more work.",
-};
+    "Choose a subject, practise WAEC-style past questions and use your results to identify the topics that need more revision.",
+  index: false,
+});
 
 export default async function PastQuestionsPage() {
   const subjects = await getMaterialsOverview();
