@@ -1,4 +1,3 @@
-import type { Metadata } from "next";
 import PolicyDocumentPage, {
   type PolicyDocumentSection,
 } from "@/components/PolicyDocumentPage";
@@ -6,15 +5,17 @@ import {
   COMPANY_REGISTRATION_NUMBER,
   LEGAL_ENTITY_NAME,
 } from "@/lib/legal-entity";
+import { createPageMetadata } from "@/lib/site-metadata";
 
 const LAST_UPDATED = "8 September 2026";
 const CONTACT_EMAIL = "sbstudybuddy0@gmail.com";
 
-export const metadata: Metadata = {
-  title: "Refund and Cancellation Policy | Study Buddy",
+export const metadata = createPageMetadata({
+  title: "Refund and Cancellation Policy",
   description:
-    "How Study Buddy subscription cancellations, duplicate charges, failed payments, and refunds are handled.",
-};
+    "Learn how to cancel a Study Buddy subscription, when a refund may be available, how to request one and how payment issues are reviewed.",
+  path: "/refund-policy",
+});
 
 const sections: PolicyDocumentSection[] = [
   {
