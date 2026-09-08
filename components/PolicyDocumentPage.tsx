@@ -5,6 +5,7 @@ import Paragraph from "@/components/Paragraph";
 import StudyBuddyIcon, {
   type StudyBuddyIconName,
 } from "@/components/StudyBuddyIcon";
+import { SUPPORT_EMAIL } from "@/lib/legal-entity";
 
 export interface PolicyDocumentSection {
   id: string;
@@ -19,9 +20,8 @@ interface PolicyDocumentPageProps {
   icon: StudyBuddyIconName;
   lastUpdated: string;
   sections: PolicyDocumentSection[];
+  contactEmail?: string;
 }
-
-const CONTACT_EMAIL = "sbstudybuddy0@gmail.com";
 
 export default function PolicyDocumentPage({
   title,
@@ -30,6 +30,7 @@ export default function PolicyDocumentPage({
   icon,
   lastUpdated,
   sections,
+  contactEmail = SUPPORT_EMAIL,
 }: Readonly<PolicyDocumentPageProps>) {
   return (
     <div className="flex-1 w-full">
@@ -58,11 +59,11 @@ export default function PolicyDocumentPage({
               {lastUpdated}
             </p>
             <a
-              href={`mailto:${CONTACT_EMAIL}`}
+              href={`mailto:${contactEmail}`}
               className="mt-4 inline-flex items-center gap-2 text-sm font-semibold text-primary-700 hover:underline"
             >
               <StudyBuddyIcon name="mail" size={22} />
-              {CONTACT_EMAIL}
+              {contactEmail}
             </a>
           </div>
         </div>
