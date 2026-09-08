@@ -22,7 +22,7 @@ export const metadata: Metadata = {
 
 export default function TemporaryLogoPreviewPage() {
   return (
-    <main className="min-h-screen bg-[#F8F9FA] text-[#171717]">
+    <div className="min-h-screen bg-[#F8F9FA] text-[#171717]">
       <section className="mx-auto w-full max-w-6xl px-5 py-10 sm:px-8 sm:py-14">
         <div className="mb-8 flex flex-wrap items-end justify-between gap-4">
           <div>
@@ -178,7 +178,7 @@ export default function TemporaryLogoPreviewPage() {
           Website asset: /images/study-buddy-students.svg
         </p>
       </section>
-    </main>
+    </div>
   );
 }
 
