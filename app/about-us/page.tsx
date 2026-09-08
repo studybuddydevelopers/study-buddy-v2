@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 import Button from "@/components/Button";
@@ -12,6 +13,12 @@ import {
   COMPANY_REGISTRATION_NUMBER,
   LEGAL_ENTITY_NAME,
 } from "@/lib/legal-entity";
+
+export const metadata: Metadata = {
+  title: "About Us | Study Buddy",
+  description:
+    "Learn how Study Buddy is building practical, responsible WAEC preparation tools around the realities of Nigerian students.",
+};
 
 interface ProductArea {
   title: string;
@@ -52,7 +59,7 @@ const principles: { label: string; icon: StudyBuddyIconName }[] = [
 
 export default function AboutUsPage() {
   return (
-    <main className="flex-1 w-full">
+    <div className="flex-1 w-full">
       <section className="border-b border-gray-200 bg-white">
         <div className="mx-auto grid max-w-6xl gap-10 px-6 py-14 lg:grid-cols-[1.05fr_0.95fr] lg:items-center lg:py-16">
           <div className="max-w-3xl">
@@ -273,6 +280,6 @@ export default function AboutUsPage() {
           </Link>
         </div>
       </section>
-    </main>
+    </div>
   );
 }
