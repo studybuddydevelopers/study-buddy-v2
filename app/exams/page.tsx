@@ -1,8 +1,15 @@
 // app/exams/page.tsx
 
+import type { Metadata } from "next";
 import { cookies } from "next/headers";
 import { getBaseUrl } from "@/lib/getBaseUrl";
 import MockExamsClient, { MockExamTemplate } from "./MockExamsClient";
+
+export const metadata: Metadata = {
+  title: "Mock Exams | Study Buddy",
+  description:
+    "Take timed, WAEC-style mock exams and use the results to focus your next round of revision.",
+};
 
 export default async function ExamsPage() {
   const cookieStore = await cookies();
