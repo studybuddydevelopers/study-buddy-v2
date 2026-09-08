@@ -8,8 +8,13 @@ import Paragraph from "@/components/Paragraph";
 import StudyBuddyIcon, {
   type StudyBuddyIconName,
 } from "@/components/StudyBuddyIcon";
+import {
+  COMPANY_REGISTRATION_NUMBER,
+  LEGAL_ENTITY_NAME,
+  REGISTERED_OFFICE_ADDRESS,
+} from "@/lib/legal-entity";
 
-const LAST_UPDATED = "5 September 2026";
+const LAST_UPDATED = "8 September 2026";
 const CONTACT_EMAIL = "sbstudybuddy0@gmail.com";
 
 const summaryItems: {
@@ -33,7 +38,7 @@ const summaryItems: {
   {
     title: "Trusted services process data",
     description:
-      "Supabase, OpenAI, Meta/WhatsApp, Paystack, and Vercel help us run the platform.",
+      "Supabase, OpenAI, Meta/WhatsApp, Paystack, Railway, and Cloudflare help us run the platform.",
     proposal: "lock",
   },
   {
@@ -200,15 +205,17 @@ export default function PrivacyPolicyPage() {
               Study Buddy AI is an educational technology platform designed to
               help Nigerian secondary school students prepare for the West
               African Senior School Certificate Examination (WAEC) and related
-              assessments. We operate the Study Buddy AI website and related
-              services, including our AI chat and WhatsApp tutoring bot.
+              assessments. Study Buddy AI is operated by {LEGAL_ENTITY_NAME}, a
+              Nigerian private company limited by shares with company
+              registration number RC {COMPANY_REGISTRATION_NUMBER}. Our
+              registered office is {REGISTERED_OFFICE_ADDRESS}.
             </p>
             <p>
-              Study Buddy AI is the data controller for personal data processed
-              for accounts provided directly by us. If a school arranges your
-              access, the school may also be a data controller for information
-              it asks us to process. In that case, you should also read the
-              school&apos;s privacy notice.
+              {LEGAL_ENTITY_NAME} is the data controller for personal data
+              processed for accounts provided directly by us. If a school
+              arranges your access, the school may also be a data controller for
+              information it asks us to process. In that case, you should also
+              read the school&apos;s privacy notice.
             </p>
             <p>
               For privacy questions or requests, contact us at{" "}
@@ -393,10 +400,20 @@ export default function PrivacyPolicyPage() {
                 </ExternalPolicyLink>
               </ListItem>
               <ListItem>
-                <strong>Vercel</strong> for web application hosting. Vercel may
-                receive standard server logs, including IP addresses.{" "}
-                <ExternalPolicyLink href="https://vercel.com/legal/privacy-policy">
-                  Vercel privacy policy
+                <strong>Railway</strong> for web application hosting. Railway
+                may receive standard server and network logs, including IP
+                addresses.{" "}
+                <ExternalPolicyLink href="https://railway.com/legal/privacy">
+                  Railway privacy policy
+                </ExternalPolicyLink>
+              </ListItem>
+              <ListItem>
+                <strong>Cloudflare</strong> for authoritative DNS, proxying,
+                transport security, and network-abuse protection. Cloudflare may
+                process IP addresses and request metadata needed to provide
+                those services.{" "}
+                <ExternalPolicyLink href="https://www.cloudflare.com/privacypolicy/">
+                  Cloudflare privacy policy
                 </ExternalPolicyLink>
               </ListItem>
               <ListItem>
@@ -592,11 +609,12 @@ export default function PrivacyPolicyPage() {
           >
             <p>
               Study Buddy uses Supabase for authentication and database
-              services and Vercel for application hosting. We use measures
-              designed to protect personal data, including HTTPS/TLS in transit,
-              access controls, service authentication, rate limiting, and
-              security monitoring. Supabase Auth manages password credentials;
-              Study Buddy does not store plaintext passwords in its application
+              services, Railway for application hosting, and Cloudflare for DNS,
+              proxying, and network protection. We use measures designed to
+              protect personal data, including HTTPS/TLS in transit, access
+              controls, service authentication, rate limiting, and security
+              monitoring. Supabase Auth manages password credentials; Study
+              Buddy does not store plaintext passwords in its application
               database.
             </p>
             <p>
@@ -620,7 +638,10 @@ export default function PrivacyPolicyPage() {
           <PolicySection id="contact" title="13. Contact">
             <p>For privacy-related questions or requests:</p>
             <div className="rounded-lg border border-gray-200 bg-accent-50 p-5 text-sm">
-              <p className="font-semibold text-gray-900">Study Buddy AI</p>
+              <p className="font-semibold text-gray-900">
+                {LEGAL_ENTITY_NAME}
+              </p>
+              <p className="mt-1">RC {COMPANY_REGISTRATION_NUMBER}</p>
               <p className="mt-1">
                 Email:{" "}
                 <a
@@ -630,7 +651,7 @@ export default function PrivacyPolicyPage() {
                   {CONTACT_EMAIL}
                 </a>
               </p>
-              <p className="mt-1">Nigeria</p>
+              <p className="mt-1">Registered office: {REGISTERED_OFFICE_ADDRESS}</p>
             </div>
           </PolicySection>
 
