@@ -131,7 +131,7 @@ export default function ContactUsPage() {
   };
 
   return (
-    <main className="flex-1 w-full">
+    <div className="flex-1 w-full">
       <section className="border-b border-gray-200 bg-white">
         <div className="mx-auto grid max-w-6xl gap-10 px-6 py-14 lg:grid-cols-[0.95fr_1.05fr] lg:items-end lg:py-16">
           <div>
@@ -378,6 +378,6 @@ export default function ContactUsPage() {
           </aside>
         </div>
       </section>
-    </main>
+    </div>
   );
 }
