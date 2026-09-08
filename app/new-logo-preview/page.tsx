@@ -1,8 +1,8 @@
-import type { Metadata } from "next";
 import type { ReactNode } from "react";
 import Image from "@/components/Image";
 import Logo from "@/components/Logo";
 import SbSequentialFillPreview from "@/components/SbSequentialFillPreview";
+import { createPageMetadata } from "@/lib/site-metadata";
 
 const MARK_SRC = "/images/proposed-sb-mark.svg";
 
@@ -48,11 +48,12 @@ const BACKGROUND_TESTS = [
   { label: "Current purple", color: "#6247AA", text: "#FFFFFF", result: "Low contrast" },
 ] as const;
 
-export const metadata: Metadata = {
-  title: "SB Logo Constraint Preview | Study Buddy",
+export const metadata = createPageMetadata({
+  title: "SB Logo Constraint Preview",
   description:
-    "The proposed SB-only mark shown under the current Study Buddy cube logo constraints.",
-};
+    "Preview the SB-only mark at the sizes, colours, backgrounds and animation settings previously used by the Study Buddy cube logo.",
+  index: false,
+});
 
 export default function NewLogoPreviewPage() {
   return (
