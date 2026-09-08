@@ -1,10 +1,11 @@
-import type { Metadata } from "next";
+import { createPageMetadata } from "@/lib/site-metadata";
 
-export const metadata: Metadata = {
-  title: "Contact Us | Study Buddy",
+export const metadata = createPageMetadata({
+  title: "Contact Us",
   description:
-    "Contact Study Buddy for account help, learning support, privacy questions, content corrections, or general enquiries.",
-};
+    "Contact the Study Buddy team for account support, learning help, privacy requests, content corrections, accessibility needs or general enquiries.",
+  path: "/contact-us",
+});
 
 export default function ContactUsLayout({
   children,
