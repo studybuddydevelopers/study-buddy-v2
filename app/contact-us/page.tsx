@@ -16,19 +16,51 @@ import StudyBuddyIcon, {
   type StudyBuddyIconName,
 } from "@/components/StudyBuddyIcon";
 import {
+  BILLING_EMAIL,
   COMPANY_REGISTRATION_NUMBER,
+  GENERAL_EMAIL,
   LEGAL_ENTITY_NAME,
+  PRIVACY_EMAIL,
   REGISTERED_OFFICE_ADDRESS,
+  SECURITY_EMAIL,
+  SUPPORT_EMAIL,
 } from "@/lib/legal-entity";
 
-const SUBJECTS = [
-  "General enquiry",
-  "Technical support",
-  "Account & billing",
-  "Partnerships & schools",
-  "Content feedback",
-  "Privacy & data",
-  "Other",
+const SUBJECT_RECIPIENTS: Record<string, string> = {
+  "General enquiry": GENERAL_EMAIL,
+  "Technical support": SUPPORT_EMAIL,
+  "Account support": SUPPORT_EMAIL,
+  "Billing or refund": BILLING_EMAIL,
+  "Partnerships & schools": GENERAL_EMAIL,
+  "Content feedback": SUPPORT_EMAIL,
+  "Privacy & data": PRIVACY_EMAIL,
+  "Security vulnerability": SECURITY_EMAIL,
+  Other: GENERAL_EMAIL,
+};
+
+const SUBJECTS = Object.keys(SUBJECT_RECIPIENTS);
+
+const contactChannels = [
+  {
+    label: "User and account support",
+    email: SUPPORT_EMAIL,
+  },
+  {
+    label: "General enquiries and partnerships",
+    email: GENERAL_EMAIL,
+  },
+  {
+    label: "Payments and refunds",
+    email: BILLING_EMAIL,
+  },
+  {
+    label: "Data access and deletion requests",
+    email: PRIVACY_EMAIL,
+  },
+  {
+    label: "Vulnerability reports",
+    email: SECURITY_EMAIL,
+  },
 ];
 
 const supportNotes: {
@@ -71,9 +103,7 @@ export default function ContactUsPage() {
     subject: false,
     message: false,
   });
-  const [loading, setLoading] = useState(false);
-  const [sent, setSent] = useState(false);
-  const [serverError, setServerError] = useState("");
+  const [emailPrepared, setEmailPrepared] = useState(false);
 
   const emailRe = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   const errors: Record<Field, string> = {
@@ -96,38 +126,26 @@ export default function ContactUsPage() {
   };
 
   const resetForm = () => {
-    setSent(false);
-    setServerError("");
+    setEmailPrepared(false);
     setForm({ name: "", email: "", subject: "", message: "" });
     setTouched({ name: false, email: false, subject: false, message: false });
   };
 
-  const handleSubmit = async () => {
+  const handleSubmit = () => {
     setTouched({ name: true, email: true, subject: true, message: true });
     if (!isValid) return;
 
-    setLoading(true);
-    setServerError("");
+    const recipient = SUBJECT_RECIPIENTS[form.subject] ?? GENERAL_EMAIL;
+    const subject = `[Study Buddy] ${form.subject}`;
+    const body = [
+      `Name: ${form.name.trim()}`,
+      `Reply email: ${form.email.trim()}`,
+      "",
+      form.message.trim(),
+    ].join("\n");
 
-    try {
-      const res = await fetch("/api/v1/contact", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(form),
-      });
-
-      if (!res.ok) {
-        const data = await res.json().catch(() => null);
-        setServerError(data?.error || "Something went wrong. Please try again.");
-        return;
-      }
-
-      setSent(true);
-    } catch {
-      setServerError("Network error. Please check your connection and try again.");
-    } finally {
-      setLoading(false);
-    }
+    setEmailPrepared(true);
+    window.location.href = `mailto:${recipient}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
   };
 
   return (
@@ -153,25 +171,25 @@ export default function ContactUsPage() {
 
           <div className="grid gap-3 sm:grid-cols-2">
             <a
-              href="mailto:sbstudybuddy0@gmail.com"
+              href={`mailto:${GENERAL_EMAIL}`}
               className="rounded-lg border border-gray-200 bg-accent-50 p-4 text-gray-900 transition hover:border-primary-300 hover:bg-primary-50"
             >
               <StudyBuddyIcon name="mail" size={30} className="mb-3" />
-              <p className="text-sm font-semibold">Email</p>
+              <p className="text-sm font-semibold">General and partnerships</p>
               <p className="mt-1 break-all text-sm text-gray-700">
-                sbstudybuddy0@gmail.com
+                {GENERAL_EMAIL}
               </p>
             </a>
-            <Link
-              href="/privacy-policy"
+            <a
+              href={`mailto:${SUPPORT_EMAIL}`}
               className="rounded-lg border border-gray-200 bg-accent-50 p-4 text-gray-900 transition hover:border-primary-300 hover:bg-primary-50"
             >
-              <StudyBuddyIcon name="shield" size={30} className="mb-3" />
-              <p className="text-sm font-semibold">Privacy</p>
-              <p className="mt-1 text-sm text-gray-700">
-                Review how student and account data is handled.
+              <StudyBuddyIcon name="support" size={30} className="mb-3" />
+              <p className="text-sm font-semibold">User and account support</p>
+              <p className="mt-1 break-all text-sm text-gray-700">
+                {SUPPORT_EMAIL}
               </p>
-            </Link>
+            </a>
           </div>
         </div>
       </section>
@@ -179,18 +197,21 @@ export default function ContactUsPage() {
       <section className="bg-accent-50">
         <div className="mx-auto grid max-w-6xl gap-8 px-6 py-12 lg:grid-cols-[1fr_340px] lg:py-14">
           <div className="rounded-lg border border-gray-200 bg-white p-5 shadow-sm sm:p-6">
-            {sent ? (
+            {emailPrepared ? (
               <div className="flex min-h-[420px] flex-col items-center justify-center text-center">
                 <StudyBuddyIcon name="messageSent" size={68} className="mb-4" />
                 <Heading2 gutter="sm" className="text-green-800">
-                  Message sent
+                  Email draft prepared
                 </Heading2>
                 <Paragraph variant="muted" className="max-w-md">
-                  Thanks for reaching out. We will reply to{" "}
+                  Your email app should open a draft addressed to{" "}
+                  <span className="font-semibold text-gray-900">
+                    {SUBJECT_RECIPIENTS[form.subject] ?? GENERAL_EMAIL}
+                  </span>
+                  . Review it and press Send. We will reply to{" "}
                   <span className="font-semibold text-gray-900">
                     {form.email}
-                  </span>{" "}
-                  within one business day.
+                  </span>.
                 </Paragraph>
                 <Button
                   variant="outline"
@@ -198,7 +219,7 @@ export default function ContactUsPage() {
                   className="mt-4"
                   onClick={resetForm}
                 >
-                  Send another message
+                  Prepare another email
                 </Button>
               </div>
             ) : (
@@ -303,25 +324,14 @@ export default function ContactUsPage() {
                   )}
                 </div>
 
-                {serverError && (
-                  <div
-                    role="alert"
-                    className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700"
-                  >
-                    {serverError}
-                  </div>
-                )}
-
                 <Button
                   variant="primary"
                   size="lg"
-                  loading={loading}
-                  disabled={loading}
                   onClick={handleSubmit}
                   icon={<Send className="h-5 w-5" aria-hidden="true" />}
                   className="w-full sm:w-auto"
                 >
-                  Send message
+                  Open email app
                 </Button>
               </div>
             )}
@@ -342,6 +352,26 @@ export default function ContactUsPage() {
               <p className="mt-1 text-sm leading-relaxed text-gray-700">
                 Registered office: {REGISTERED_OFFICE_ADDRESS}
               </p>
+            </div>
+
+            <div className="rounded-lg border border-gray-200 bg-white p-5 shadow-sm">
+              <StudyBuddyIcon name="mail" size={30} className="mb-3" />
+              <h2 className="text-base font-bold text-gray-900">
+                Email directory
+              </h2>
+              <ul className="mt-3 space-y-3">
+                {contactChannels.map(({ label, email }) => (
+                  <li key={email}>
+                    <p className="text-xs font-semibold text-gray-600">{label}</p>
+                    <a
+                      href={`mailto:${email}`}
+                      className="break-all text-sm font-medium text-primary-700 hover:underline"
+                    >
+                      {email}
+                    </a>
+                  </li>
+                ))}
+              </ul>
             </div>
 
             {supportNotes.map(({ title, description, icon: Icon, proposal }) => (
