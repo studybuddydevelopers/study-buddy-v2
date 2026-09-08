@@ -1,15 +1,32 @@
 "use client";
 
 import { useState, type ReactNode } from "react";
-import ReactMarkdown, { type Components } from "react-markdown";
+import { createMathPlugin } from "@streamdown/math";
 import rehypeHighlight from "rehype-highlight";
-import rehypeKatex from "rehype-katex";
-import rehypeRaw from "rehype-raw";
-import rehypeSanitize from "rehype-sanitize";
 import remarkBreaks from "remark-breaks";
-import remarkGfm from "remark-gfm";
-import remarkMath from "remark-math";
+import {
+  Streamdown,
+  defaultRehypePlugins,
+  defaultRemarkPlugins,
+  type Components,
+  type StreamdownProps,
+} from "streamdown";
 import { normalizeMarkdownMath } from "@/lib/markdown-math";
+
+const chatMathPlugin = createMathPlugin({
+  errorColor: "#B42318",
+  singleDollarTextMath: true,
+});
+
+const chatRemarkPlugins: NonNullable<StreamdownProps["remarkPlugins"]> = [
+  ...Object.values(defaultRemarkPlugins),
+  remarkBreaks,
+];
+
+const chatRehypePlugins: NonNullable<StreamdownProps["rehypePlugins"]> = [
+  ...Object.values(defaultRehypePlugins),
+  [rehypeHighlight, { detect: false, plainText: ["mermaid"] }],
+];
 
 function textFromNode(node: ReactNode): string {
   if (typeof node === "string" || typeof node === "number") return String(node);
@@ -116,23 +133,23 @@ const markdownComponents: Components = {
   hr() {
     return <hr className="my-4 border-gray-300" />;
   },
+  strong({ children }) {
+    return <strong>{children}</strong>;
+  },
 };
 
 export default function ChatMarkdown({ markdown }: { markdown: string }) {
   return (
-    <div className="chat-markdown max-w-none break-words text-left [&_.katex-display]:my-3 [&_.katex-display]:max-w-full [&_.katex-display]:overflow-x-auto [&_.katex-display]:overflow-y-hidden [&_.task-list-item]:list-none [&_.task-list-item]:pl-0 [&_a]:font-medium [&_a]:text-primary-700 [&_a]:underline [&_code]:rounded [&_code]:bg-black/5 [&_code]:px-1 [&_del]:text-gray-500 [&_li]:my-1 [&_li]:pl-1 [&_ol]:my-2 [&_ol]:list-decimal [&_ol]:pl-5 [&_p]:my-1 [&_pre_code]:bg-transparent [&_pre_code]:p-0 [&_strong]:font-semibold [&_tbody_tr:nth-child(even)]:bg-gray-50 [&_td]:border-t [&_td]:border-gray-200 [&_td]:px-3 [&_td]:py-2 [&_th]:bg-[#F7F0FA] [&_th]:px-3 [&_th]:py-2 [&_th]:text-left [&_th]:font-semibold [&_ul]:my-2 [&_ul]:list-disc [&_ul]:pl-5">
-      <ReactMarkdown
-        remarkPlugins={[remarkGfm, remarkBreaks, remarkMath]}
-        rehypePlugins={[
-          rehypeRaw,
-          rehypeSanitize,
-          [rehypeKatex, { strict: false, throwOnError: false, errorColor: "#B42318" }],
-          [rehypeHighlight, { detect: false, plainText: ["mermaid"] }],
-        ]}
-        components={markdownComponents}
-      >
-        {normalizeMarkdownMath(markdown)}
-      </ReactMarkdown>
-    </div>
+    <Streamdown
+      className="chat-markdown max-w-none break-words text-left [&_.katex-display]:my-3 [&_.katex-display]:max-w-full [&_.katex-display]:overflow-x-auto [&_.katex-display]:overflow-y-hidden [&_.task-list-item]:list-none [&_.task-list-item]:pl-0 [&_a]:font-medium [&_a]:text-primary-700 [&_a]:underline [&_code]:rounded [&_code]:bg-black/5 [&_code]:px-1 [&_del]:text-gray-500 [&_li]:my-1 [&_li]:pl-1 [&_ol]:my-2 [&_ol]:list-decimal [&_ol]:pl-5 [&_p]:my-1 [&_pre_code]:bg-transparent [&_pre_code]:p-0 [&_strong]:font-semibold [&_tbody_tr:nth-child(even)]:bg-gray-50 [&_td]:border-t [&_td]:border-gray-200 [&_td]:px-3 [&_td]:py-2 [&_th]:bg-[#F7F0FA] [&_th]:px-3 [&_th]:py-2 [&_th]:text-left [&_th]:font-semibold [&_ul]:my-2 [&_ul]:list-disc [&_ul]:pl-5"
+      components={markdownComponents}
+      controls={false}
+      mode="static"
+      plugins={{ math: chatMathPlugin }}
+      rehypePlugins={chatRehypePlugins}
+      remarkPlugins={chatRemarkPlugins}
+    >
+      {normalizeMarkdownMath(markdown)}
+    </Streamdown>
   );
 }
