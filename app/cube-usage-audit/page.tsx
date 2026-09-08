@@ -1,4 +1,3 @@
-import type { Metadata } from "next";
 import type { ReactNode } from "react";
 import Image from "@/components/Image";
 import Logo from "@/components/Logo";
@@ -7,12 +6,14 @@ import {
   SbEqualizerLoadingPattern,
   SbSplashMotionPattern,
 } from "@/components/SbSequentialFillPreview";
+import { createPageMetadata } from "@/lib/site-metadata";
 
-export const metadata: Metadata = {
-  title: "Logo Replacement Audit | Study Buddy",
+export const metadata = createPageMetadata({
+  title: "Logo Replacement Audit",
   description:
-    "A visual record of every completed Study Buddy cube replacement.",
-};
+    "Review the completed Study Buddy cube replacements and compare each logo treatment in its original interface context.",
+  index: false,
+});
 
 export default function CubeUsageAuditPage() {
   return (
