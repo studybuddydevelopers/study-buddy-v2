@@ -3,7 +3,7 @@
 Status: initial register — contracts, production configuration, and transfer
 assessments require verification  
 Owner: to be appointed  
-Last reviewed: 5 September 2026
+Last reviewed: 8 September 2026
 
 ## Instructions
 
@@ -24,8 +24,8 @@ some data and a processor for other data.
 | OpenAI | AI prompts, relevant chat/learning context, responses, model/token metadata | Processor/service provider for API content, subject to contract details | Active in code; API data-control and region settings not verified | Record business terms/DPA, opt-in training state, abuse-monitoring retention, sub-processors, deletion and transfer basis | Pending approval |
 | Meta / WhatsApp Cloud API | WhatsApp number/sender ID, routing metadata, message content | Likely separate/independent and processor roles depending activity | Active in code when configured; regions not verified | Confirm business terms, lawful WhatsApp opt-in, retention, complaint/deletion route and transfer basis | Pending approval |
 | Paystack | Payer/account identifiers, transaction reference, amount, currency, status, payment instrument data held by Paystack | Payment provider/independent controller and processor roles depending activity | Payment verification/webhook code exists; live merchant configuration not verified | Record merchant terms, privacy terms, dispute/refund process, retention, PCI responsibilities and incident contact | Pending approval before paid launch |
-| Vercel | Web hosting, request/network logs, deployment data | Processor/service provider | Privacy Policy names Vercel; actual production hosting must be confirmed | Record DPA, regions, log retention, sub-processors, deletion, transfer and incident contacts | Deployment decision pending |
-| Railway | Application/database deployment may be used according to operational documentation | Processor/service provider | Railway operational documentation exists; actual production scope must be confirmed against Vercel wording | Resolve hosting architecture, then record DPA, region, logs, backups, deletion and transfers | Deployment decision pending |
+| Railway | Application hosting, request/network logs and deployment data | Processor/service provider | Confirmed production application host | Record DPA/terms, region, log retention, sub-processors, deletion, transfer and incident contacts | Hosting confirmed; privacy review pending |
+| Cloudflare | Authoritative DNS, reverse proxy, TLS and network-abuse protection; IP addresses and request metadata | Processor/service provider and possible independent security purposes, subject to contract | Confirmed active for the production domain | Record DPA/terms, proxy/log settings, retention, sub-processors, deletion, transfers and incident contact | Infrastructure use confirmed; privacy review pending |
 | Cloudflare Turnstile | CAPTCHA token, browser/device/network signals | Provider with contractual role to confirm | Current environment configuration previously indicated Turnstile; verify production | Record terms/privacy, data fields, retention, sub-processors, accessibility route and transfer basis | Pending approval |
 | hCaptcha | Alternative CAPTCHA token and browser/device/network signals | Provider with contractual role to confirm | Supported in code as an alternative; do not list as active unless configured | Same checks as Turnstile; remove unused integration or keep register current | Conditional |
 | Resend | Planned custom SMTP for authentication email | Processor/service provider | Recommended in README; not confirmed active | DPA, sending region, event/log retention, sub-processors, suppression handling and transfer basis | Pending before activation |
