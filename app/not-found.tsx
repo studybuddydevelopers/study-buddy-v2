@@ -1,6 +1,12 @@
+import type { Metadata } from "next";
 import Heading1 from "@/components/Heading1";
 import Paragraph from "@/components/Paragraph";
 import NotFoundClient from "./NotFoundClient";
+
+export const metadata: Metadata = {
+  title: "Page Not Found | Study Buddy",
+  description: "The requested Study Buddy page could not be found.",
+};
 
 export default async function NotFound() {
   // Simulate a server delay
