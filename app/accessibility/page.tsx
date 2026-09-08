@@ -1,16 +1,17 @@
-import type { Metadata } from "next";
 import PolicyDocumentPage, {
   type PolicyDocumentSection,
 } from "@/components/PolicyDocumentPage";
+import { createPageMetadata } from "@/lib/site-metadata";
 
 const LAST_UPDATED = "5 September 2026";
 const CONTACT_EMAIL = "sbstudybuddy0@gmail.com";
 
-export const metadata: Metadata = {
-  title: "Accessibility Statement | Study Buddy",
+export const metadata = createPageMetadata({
+  title: "Accessibility Statement",
   description:
-    "Study Buddy's accessibility aims, current limitations, and process for requesting help.",
-};
+    "Read Study Buddy's accessibility commitments, known limitations, supported features and ways to request an accessible alternative or report a problem.",
+  path: "/accessibility",
+});
 
 const sections: PolicyDocumentSection[] = [
   {
