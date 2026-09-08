@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Heading2 from "@/components/Heading2";
 import TextField from "@/components/TextField";
 import Button from "@/components/Button";
+import FormErrorMessage from "@/components/FormErrorMessage";
 import LogoName from "@/components/LogoName";
 import { SbSplashMotionPattern } from "@/components/SbSequentialFillPreview";
 import CaptchaChallenge, {
@@ -13,6 +14,7 @@ import CaptchaChallenge, {
 } from "@/components/CaptchaChallenge";
 import { FaHandPeace, FaHandPointDown } from "react-icons/fa6";
 import { FaHandPaper } from "react-icons/fa";
+import { readResponseError } from "@/lib/client-response-error";
 
 const HAND_ICONS = [FaHandPeace, FaHandPaper, FaHandPointDown];
 
@@ -21,6 +23,7 @@ export default function LoginClient() {
   const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
+  const [formError, setFormError] = useState("");
   const [touchedIdentifier, setTouchedIdentifier] = useState(false);
   const [touchedPassword, setTouchedPassword] = useState(false);
   const [captchaToken, setCaptchaToken] = useState<string | null>(null);
@@ -42,32 +45,44 @@ export default function LoginClient() {
   const passwordError = touchedPassword ? getPasswordError(password) : "";
 
   const handleLogin = async () => {
+    if (loading) return;
+
     setTouchedIdentifier(true);
     setTouchedPassword(true);
+    setFormError("");
     if (getIdentifierError(identifier) || getPasswordError(password)) return;
     if (captchaEnabled && !captchaToken) {
-      alert("Please complete the CAPTCHA challenge.");
+      setFormError("Please complete the CAPTCHA challenge.");
       return;
     }
 
     setLoading(true);
+    try {
+      const response = await fetch("/api/v1/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ identifier, password, captchaToken }),
+      });
 
-    const response = await fetch("/api/v1/login", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ identifier, password, captchaToken }),
-    });
+      if (!response.ok) {
+        setFormError(
+          await readResponseError(
+            response,
+            "We couldn't log you in. Please try again."
+          )
+        );
+        return;
+      }
 
-    setLoading(false);
-    captchaRef.current?.reset();
-
-    if (!response.ok) {
-      const { error } = await response.json();
-      alert(error || "Login failed");
-      return;
+      router.push("/dashboard");
+    } catch {
+      setFormError(
+        "We couldn't log you in. Check your connection and try again."
+      );
+    } finally {
+      setLoading(false);
+      captchaRef.current?.reset();
     }
-
-    router.push("/dashboard");
   };
 
   const [index, setIndex] = useState(0);
@@ -122,7 +137,10 @@ export default function LoginClient() {
             placeholder="Enter your email or phone number"
             value={identifier}
             onFocus={() => setTouchedIdentifier(true)}
-            onChange={(e) => setIdentifier(e.target.value)}
+            onChange={(e) => {
+              setIdentifier(e.target.value);
+              setFormError("");
+            }}
             error={touchedIdentifier ? identifierError : ""}
             required
           />
@@ -133,7 +151,10 @@ export default function LoginClient() {
             placeholder="Enter your password"
             value={password}
             onFocus={() => setTouchedPassword(true)}
-            onChange={(e) => setPassword(e.target.value)}
+            onChange={(e) => {
+              setPassword(e.target.value);
+              setFormError("");
+            }}
             error={touchedPassword ? passwordError : ""}
             required
           />
@@ -147,8 +168,13 @@ export default function LoginClient() {
 
           <CaptchaChallenge
             ref={captchaRef}
-            onTokenChange={setCaptchaToken}
+            onTokenChange={(token) => {
+              setCaptchaToken(token);
+              if (token) setFormError("");
+            }}
           />
+
+          <FormErrorMessage id="login-form-error" message={formError} />
 
           <Button
             variant="primary"
