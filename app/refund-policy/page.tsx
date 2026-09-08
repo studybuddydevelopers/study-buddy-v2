@@ -2,13 +2,13 @@ import PolicyDocumentPage, {
   type PolicyDocumentSection,
 } from "@/components/PolicyDocumentPage";
 import {
+  BILLING_EMAIL,
   COMPANY_REGISTRATION_NUMBER,
   LEGAL_ENTITY_NAME,
 } from "@/lib/legal-entity";
 import { createPageMetadata } from "@/lib/site-metadata";
 
 const LAST_UPDATED = "8 September 2026";
-const CONTACT_EMAIL = "sbstudybuddy0@gmail.com";
 
 export const metadata = createPageMetadata({
   title: "Refund and Cancellation Policy",
@@ -62,7 +62,7 @@ const sections: PolicyDocumentSection[] = [
           If recurring subscriptions are enabled, you may cancel future renewal
           through the account method shown at purchase. Until an in-product
           cancellation control is available, email{" "}
-          <a href={`mailto:${CONTACT_EMAIL}`}>{CONTACT_EMAIL}</a> from the address
+          <a href={`mailto:${BILLING_EMAIL}`}>{BILLING_EMAIL}</a> from the address
           connected to the account and include the payment reference.
         </p>
         <p>
@@ -103,7 +103,7 @@ const sections: PolicyDocumentSection[] = [
     content: (
       <>
         <p>
-          Email <a href={`mailto:${CONTACT_EMAIL}`}>{CONTACT_EMAIL}</a> with the
+          Email <a href={`mailto:${BILLING_EMAIL}`}>{BILLING_EMAIL}</a> with the
           subject “Refund request” and provide:
         </p>
         <ul>
@@ -173,6 +173,7 @@ export default function RefundPolicyPage() {
       icon="card"
       lastUpdated={LAST_UPDATED}
       sections={sections}
+      contactEmail={BILLING_EMAIL}
     />
   );
 }
