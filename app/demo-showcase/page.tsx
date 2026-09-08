@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import { createPageMetadata } from "@/lib/site-metadata";
 import Logo from '@/components/Logo';
 import BadgeDemo from '@/demo/BadgeDemo';
 import ButtonsDemo from '@/demo/ButtonsDemo';
@@ -18,11 +18,12 @@ import TableDemo from '@/demo/TableDemo';
 import TextFieldDemo from '@/demo/TextFieldDemo';
 import TypographyDemo from '@/demo/TypographyDemo';
 
-export const metadata: Metadata = {
-  title: "Component Showcase | Study Buddy",
+export const metadata = createPageMetadata({
+  title: "Component Showcase",
   description:
-    "An internal showcase of Study Buddy interface components and visual states.",
-};
+    "Review Study Buddy interface components, typography, controls, navigation and visual states in the internal design-system showcase.",
+  index: false,
+});
 
 export default async function DemoShowCasePage() {
   await new Promise(r => setTimeout(r, 1000)); // simulate loading
