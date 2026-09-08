@@ -1,9 +1,16 @@
 // app/exams/[instanceId]/page.tsx
 
+import type { Metadata } from "next";
 import { cookies } from "next/headers";
 import { notFound } from "next/navigation";
 import { getBaseUrl } from "@/lib/getBaseUrl";
 import ExamInstanceClient from "../ExamInstanceClient";
+
+export const metadata: Metadata = {
+  title: "Mock Exam Session | Study Buddy",
+  description:
+    "Complete your Study Buddy mock exam session and submit your answers for review.",
+};
 
 export default async function ExamInstancePage({
   params,
