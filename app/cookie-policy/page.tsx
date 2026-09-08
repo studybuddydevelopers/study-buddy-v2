@@ -1,16 +1,17 @@
 import Link from "next/link";
-import type { Metadata } from "next";
 import PolicyDocumentPage, {
   type PolicyDocumentSection,
 } from "@/components/PolicyDocumentPage";
+import { createPageMetadata } from "@/lib/site-metadata";
 
 const LAST_UPDATED = "5 September 2026";
 
-export const metadata: Metadata = {
-  title: "Cookie and Local Storage Policy | Study Buddy",
+export const metadata = createPageMetadata({
+  title: "Cookie and Local Storage Policy",
   description:
-    "How Study Buddy uses essential cookies, local practice drafts, and CAPTCHA technologies.",
-};
+    "Learn which cookies and local-storage technologies Study Buddy uses, why essential storage is needed and which controls are available to you.",
+  path: "/cookie-policy",
+});
 
 const sections: PolicyDocumentSection[] = [
   {
