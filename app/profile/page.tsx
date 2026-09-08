@@ -1,15 +1,16 @@
-import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import Image from "@/components/Image";
 import { requireUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { createPageMetadata } from "@/lib/site-metadata";
 
-export const metadata: Metadata = {
-  title: "Profile | Study Buddy",
+export const metadata = createPageMetadata({
+  title: "Learner Profile",
   description:
-    "View your Study Buddy learner profile, school level, exam year, and account details.",
-};
+    "View the learner details connected to your Study Buddy account, including your name, school level, exam year and profile image.",
+  index: false,
+});
 
 export default async function ProfilePage() {
   const auth = await requireUser();
