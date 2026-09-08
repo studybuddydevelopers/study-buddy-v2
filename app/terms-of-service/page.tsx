@@ -1,4 +1,3 @@
-import type { Metadata } from "next";
 import Link from "next/link";
 import {
   AlertTriangle,
@@ -18,12 +17,14 @@ import {
   LEGAL_ENTITY_NAME,
   REGISTERED_OFFICE_ADDRESS,
 } from "@/lib/legal-entity";
+import { createPageMetadata } from "@/lib/site-metadata";
 
-export const metadata: Metadata = {
-  title: "Terms of Service | Study Buddy",
+export const metadata = createPageMetadata({
+  title: "Terms of Service",
   description:
-    "Read the terms that govern Study Buddy accounts, learning content, AI features, payments, acceptable use, and access to the service.",
-};
+    "Read the rules for Study Buddy accounts, learning content, AI features, payments, acceptable use, service availability and dispute handling.",
+  path: "/terms-of-service",
+});
 
 const LAST_UPDATED = "8 September 2026";
 const CONTACT_EMAIL = "sbstudybuddy0@gmail.com";
