@@ -1,4 +1,3 @@
-import type { Metadata } from "next";
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
@@ -14,12 +13,14 @@ import {
   LEGAL_ENTITY_NAME,
   REGISTERED_OFFICE_ADDRESS,
 } from "@/lib/legal-entity";
+import { createPageMetadata } from "@/lib/site-metadata";
 
-export const metadata: Metadata = {
-  title: "Privacy Policy | Study Buddy",
+export const metadata = createPageMetadata({
+  title: "Privacy Policy",
   description:
-    "Read how Study Buddy collects, uses, stores, shares, and protects personal information and how you can exercise your privacy rights.",
-};
+    "Learn what personal information Study Buddy collects, why it is used, who receives it, how long it is kept and how to exercise your privacy rights.",
+  path: "/privacy-policy",
+});
 
 const LAST_UPDATED = "8 September 2026";
 const CONTACT_EMAIL = "sbstudybuddy0@gmail.com";
