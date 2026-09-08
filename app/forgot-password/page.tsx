@@ -1,13 +1,14 @@
 // app/forgot-password/page.tsx
 
-import type { Metadata } from "next";
+import { createPageMetadata } from "@/lib/site-metadata";
 import ForgotPasswordClient from "./ForgotPasswordClient";
 
-export const metadata: Metadata = {
-  title: "Reset Your Password | Study Buddy",
+export const metadata = createPageMetadata({
+  title: "Reset Your Password",
   description:
-    "Request a secure Study Buddy password-reset link and regain access to your account.",
-};
+    "Request a secure password-reset link for your Study Buddy account and follow the email instructions to regain access.",
+  index: false,
+});
 
 export default async function ForgotPasswordPage() {
   // Optional: simulate SSR delay
