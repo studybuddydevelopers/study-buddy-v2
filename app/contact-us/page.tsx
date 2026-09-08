@@ -15,6 +15,11 @@ import TextField from "@/components/TextField";
 import StudyBuddyIcon, {
   type StudyBuddyIconName,
 } from "@/components/StudyBuddyIcon";
+import {
+  COMPANY_REGISTRATION_NUMBER,
+  LEGAL_ENTITY_NAME,
+  REGISTERED_OFFICE_ADDRESS,
+} from "@/lib/legal-entity";
 
 const SUBJECTS = [
   "General enquiry",
@@ -323,6 +328,22 @@ export default function ContactUsPage() {
           </div>
 
           <aside className="space-y-4">
+            <div className="rounded-lg border border-gray-200 bg-white p-5 shadow-sm">
+              <StudyBuddyIcon name="document" size={30} className="mb-3" />
+              <h2 className="text-base font-bold text-gray-900">
+                Company details
+              </h2>
+              <p className="mt-2 text-sm font-semibold leading-relaxed text-gray-900">
+                {LEGAL_ENTITY_NAME}
+              </p>
+              <p className="mt-1 text-sm leading-relaxed text-gray-700">
+                RC {COMPANY_REGISTRATION_NUMBER}
+              </p>
+              <p className="mt-1 text-sm leading-relaxed text-gray-700">
+                Registered office: {REGISTERED_OFFICE_ADDRESS}
+              </p>
+            </div>
+
             {supportNotes.map(({ title, description, icon: Icon, proposal }) => (
               <div
                 key={title}
