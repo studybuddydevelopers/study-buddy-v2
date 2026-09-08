@@ -1,17 +1,18 @@
 import Link from "next/link";
-import type { Metadata } from "next";
 import PolicyDocumentPage, {
   type PolicyDocumentSection,
 } from "@/components/PolicyDocumentPage";
+import { createPageMetadata } from "@/lib/site-metadata";
 
 const LAST_UPDATED = "5 September 2026";
 const CONTACT_EMAIL = "sbstudybuddy0@gmail.com";
 
-export const metadata: Metadata = {
-  title: "AI Safety and Responsible Use | Study Buddy",
+export const metadata = createPageMetadata({
+  title: "AI Safety and Responsible Use",
   description:
-    "Rules and safety guidance for using Study Buddy's AI learning features.",
-};
+    "Understand what Study Buddy's AI can and cannot do, how to use it safely and honestly, and how to report an unsafe or incorrect response.",
+  path: "/ai-safety",
+});
 
 const sections: PolicyDocumentSection[] = [
   {
