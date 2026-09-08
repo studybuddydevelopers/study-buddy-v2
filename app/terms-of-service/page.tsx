@@ -12,8 +12,13 @@ import Paragraph from "@/components/Paragraph";
 import StudyBuddyIcon, {
   type StudyBuddyIconName,
 } from "@/components/StudyBuddyIcon";
+import {
+  COMPANY_REGISTRATION_NUMBER,
+  LEGAL_ENTITY_NAME,
+  REGISTERED_OFFICE_ADDRESS,
+} from "@/lib/legal-entity";
 
-const LAST_UPDATED = "5 September 2026";
+const LAST_UPDATED = "8 September 2026";
 const CONTACT_EMAIL = "sbstudybuddy0@gmail.com";
 
 const summaryItems: {
@@ -198,6 +203,11 @@ export default function TermsOfServicePage() {
                 Privacy Policy
               </Link>
               .
+            </p>
+            <p>
+              These terms form an agreement between you and {LEGAL_ENTITY_NAME}
+              (RC {COMPANY_REGISTRATION_NUMBER}), the Nigerian company that
+              operates Study Buddy AI.
             </p>
             <p>
               If you use Study Buddy on behalf of a school or other organisation,
@@ -520,7 +530,10 @@ export default function TermsOfServicePage() {
               terms, contact Study Buddy AI:
             </p>
             <div className="rounded-lg border border-gray-200 bg-accent-50 p-5 text-sm">
-              <p className="font-semibold text-gray-900">Study Buddy AI</p>
+              <p className="font-semibold text-gray-900">
+                {LEGAL_ENTITY_NAME}
+              </p>
+              <p className="mt-1">RC {COMPANY_REGISTRATION_NUMBER}</p>
               <p className="mt-1">
                 Email:{" "}
                 <a
@@ -530,7 +543,7 @@ export default function TermsOfServicePage() {
                   {CONTACT_EMAIL}
                 </a>
               </p>
-              <p className="mt-1">Nigeria</p>
+              <p className="mt-1">Registered office: {REGISTERED_OFFICE_ADDRESS}</p>
             </div>
             <p>
               Nigerian consumers may also use the{" "}
