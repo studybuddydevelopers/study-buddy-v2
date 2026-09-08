@@ -1,4 +1,3 @@
-import type { Metadata } from "next";
 import Image from "next/image";
 import type { ReactNode } from "react";
 import {
@@ -36,12 +35,14 @@ import { PiGraduationCapLight, PiShieldCheck } from "react-icons/pi";
 import StudyBuddyIcon, {
   type StudyBuddyIconName,
 } from "@/components/StudyBuddyIcon";
+import { createPageMetadata } from "@/lib/site-metadata";
 
-export const metadata: Metadata = {
-  title: "Icon Audit | Study Buddy",
+export const metadata = createPageMetadata({
+  title: "Icon Audit",
   description:
-    "Outstanding Study Buddy icon decisions, revisions and held proposals.",
-};
+    "Review outstanding Study Buddy icon decisions, requested revisions, held proposals and the interface context for each remaining asset.",
+  index: false,
+});
 
 type IconGroup =
   | "Navigation & wayfinding"
