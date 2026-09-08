@@ -4,7 +4,7 @@ import PolicyDocumentPage, {
 } from "@/components/PolicyDocumentPage";
 import { createPageMetadata } from "@/lib/site-metadata";
 
-const LAST_UPDATED = "5 September 2026";
+const LAST_UPDATED = "8 September 2026";
 
 export const metadata = createPageMetadata({
   title: "Cookie and Local Storage Policy",
