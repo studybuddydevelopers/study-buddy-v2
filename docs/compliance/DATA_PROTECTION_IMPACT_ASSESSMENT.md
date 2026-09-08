@@ -2,6 +2,7 @@
 
 Status: preliminary working assessment — not approved for launch  
 Assessment date: 5 September 2026  
+Last updated: 8 September 2026
 Assessment owner: to be appointed  
 Approver: co-founders and qualified Nigerian privacy adviser  
 Next review: before production launch and after any material processing change
@@ -63,7 +64,7 @@ However, accidental sensitive-data submission remains a foreseeable risk.
 | WhatsApp tutoring | WhatsApp sender and messages | Meta/WhatsApp, Study Buddy, OpenAI | Linked number, thread and messages |
 | Payments | Subscriber and Paystack | Paystack and Study Buddy | Reference, amount, currency, status and subscription record |
 | School services | Student and school | Study Buddy and authorised school users | Membership and approved school-view data |
-| Hosting/security | User device and requests | Vercel, Supabase, CAPTCHA and Study Buddy | Technical logs, rate-limit buckets and incident evidence |
+| Hosting/security | User device and requests | Railway, Cloudflare, Supabase, CAPTCHA and Study Buddy | Technical logs, rate-limit buckets and incident evidence |
 
 The exact provider regions, sub-processors, transfer mechanisms, and contract
 settings must be entered in the processor register before approval.
@@ -139,7 +140,8 @@ decisions, and reasons when a recommendation is not adopted.
 
 ## 9. Launch gates
 
-- [ ] Exact legal controller identity, address, and privacy contact approved.
+- [x] Exact legal controller identity, RC number, and registered office confirmed.
+- [ ] Responsible privacy contact approved.
 - [ ] Age and parental/school authorisation design approved and implemented.
 - [ ] Data inventory and lawful-basis record completed.
 - [ ] Staff and school access matrix implemented and tested.
