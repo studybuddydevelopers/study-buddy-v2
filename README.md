@@ -47,16 +47,18 @@ Study Buddy v2 is a Next.js learning platform for exam preparation. It combines 
 The repository contains a practical compliance draft for the current product,
 not a declaration that Study Buddy has completed legal review or regulatory
 registration. Public wording must remain aligned with the production service.
-The exact company identity, child-authorisation model, retention periods,
-provider regions/contracts, payment rules, and school visibility still require
-co-founder decisions and qualified Nigerian legal/privacy review.
+The company identity and registered office have been confirmed from the CAC
+incorporation records. The responsible privacy contact, child-authorisation
+model, retention periods, provider regions/contracts, payment rules, and school
+visibility still require co-founder decisions and qualified Nigerian
+legal/privacy review.
 
 ### Public pages
 
 | Page | Current status | Why it must be updated later |
 | --- | --- | --- |
-| [`/privacy-policy`](/Users/efeon/study-buddy-v2/app/privacy-policy/page.tsx) | Updated for current account, learning, AI, WhatsApp, school, payment, CAPTCHA and provider data flows | Add the registered controller name/address, approved retention periods, confirmed provider regions/transfer mechanisms and final child-authorisation process |
-| [`/terms-of-service`](/Users/efeon/study-buddy-v2/app/terms-of-service/page.tsx) | Updated for minors, AI, user content, payments, consumer rights and Nigerian law | Add the contracting legal entity and final commercial terms; legal review is required before paid/school launch |
+| [`/privacy-policy`](/Users/efeon/study-buddy-v2/app/privacy-policy/page.tsx) | Identifies the registered controller and current Railway/Cloudflare hosting, and covers current account, learning, AI, WhatsApp, school, payment and CAPTCHA data flows | Add the approved privacy contact, retention periods, confirmed provider regions/transfer mechanisms and final child-authorisation process |
+| [`/terms-of-service`](/Users/efeon/study-buddy-v2/app/terms-of-service/page.tsx) | Identifies the contracting legal entity and covers minors, AI, user content, payments, consumer rights and Nigerian law | Add the final commercial terms; legal review is required before paid/school launch |
 | [`/refund-policy`](/Users/efeon/study-buddy-v2/app/refund-policy/page.tsx) | Implemented with a lawful request and complaint framework | Confirm automatic renewal, discretionary refund window, cancellation UI, processing targets and any plan-specific rules before accepting payment |
 | [`/parent-student-privacy`](/Users/efeon/study-buddy-v2/app/parent-student-privacy/page.tsx) | Implemented as an age-appropriate summary | The page expressly notes that verified authorisation is not finished; update after the age threshold, parent/school authority and verification flow are approved and built |
 | [`/ai-safety`](/Users/efeon/study-buddy-v2/app/ai-safety/page.tsx) | Implemented with limitations, privacy, academic-integrity, prohibited-use and reporting rules | Update after child-safety evaluation, reporting UI, staff-review authority, escalation owners and any new AI model/use case are approved |
@@ -75,7 +77,7 @@ also link directly to the detailed notices relevant to their sections.
 | [`PARENTAL_AUTHORIZATION_RECORD.md`](/Users/efeon/study-buddy-v2/docs/compliance/PARENTAL_AUTHORIZATION_RECORD.md) | Required fields, workflow, withdrawal, access rules and acceptance tests | It is a specification, not a live register; the age/authority decisions and secure database/product workflow do not yet exist |
 | [`DATA_RETENTION_AND_DELETION_SCHEDULE.md`](/Users/efeon/study-buddy-v2/docs/compliance/DATA_RETENTION_AND_DELETION_SCHEDULE.md) | Data-category inventory, proposed periods, deletion steps, legal-hold and ownership rules | Periods need legal/finance approval; account deletion, chat hard purge, cloud-draft expiry, backup expiry and deletion evidence are not implemented |
 | [`PERSONAL_DATA_BREACH_RESPONSE_PLAN.md`](/Users/efeon/study-buddy-v2/docs/compliance/PERSONAL_DATA_BREACH_RESPONSE_PLAN.md) | Incident stages, statutory decision clock, risk assessment, notice content, child safeguards and closure process | Names, secure channels, provider contacts, breach register location and exercise evidence require organisational setup outside the codebase |
-| [`PROCESSOR_AND_VENDOR_REGISTER.md`](/Users/efeon/study-buddy-v2/docs/compliance/PROCESSOR_AND_VENDOR_REGISTER.md) | Initial register for Supabase, OpenAI, Meta, Paystack, hosting, CAPTCHA, email and source-control providers | Contracts/DPAs cannot be created by code; production regions, sub-processors, retention, transfer safeguards and whether Vercel or Railway hosts production must be verified in provider accounts |
+| [`PROCESSOR_AND_VENDOR_REGISTER.md`](/Users/efeon/study-buddy-v2/docs/compliance/PROCESSOR_AND_VENDOR_REGISTER.md) | Initial register for Supabase, OpenAI, Meta, Paystack, Railway, Cloudflare, CAPTCHA, email and source-control providers | Contracts/DPAs cannot be created by code; production regions, sub-processors, retention and transfer safeguards must be verified in provider accounts |
 | [`SCHOOL_DATA_PROCESSING_SCHEDULE.md`](/Users/efeon/study-buddy-v2/docs/compliance/SCHOOL_DATA_PROCESSING_SCHEDULE.md) | Contract template covering roles, instructions, visibility, security, rights, deletion, incidents and audit | It cannot be signed until both legal entities, controller/processor roles, exact staff visibility, service terms, contacts and retention periods are agreed |
 | [`RECORD_OF_PROCESSING_ACTIVITIES.md`](/Users/efeon/study-buddy-v2/docs/compliance/RECORD_OF_PROCESSING_ACTIVITIES.md) | Initial inventory of current controller and possible school-processor activities | Replace preliminary bases/roles with approved decisions and reconcile it against production provider dashboards and configuration before launch |
 
@@ -83,7 +85,8 @@ also link directly to the detailed notices relevant to their sections.
 
 These items cannot be solved by publishing policies and remain launch work:
 
-- [ ] Insert the registered company name, number, address and responsible privacy contact.
+- [x] Insert the registered company name, RC number and registered office.
+- [ ] Approve and publish the responsible privacy contact.
 - [ ] Decide the independent-use age and valid parent/guardian/school authority model.
 - [ ] Build age assurance, verifiable authorisation, withdrawal and immutable audit records.
 - [ ] Build self-service account deletion and permanent chat/account purge workflows.
@@ -99,9 +102,9 @@ These items cannot be solved by publishing policies and remain launch work:
 
 ## Deployment Security TODOs
 
-- [ ] Correct `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` in the production environment so it contains the Supabase publishable key rather than the project URL.
-- [ ] Rotate the exposed Supabase database credentials and OpenAI API key, then update every deployment/CI environment where they are configured before deploying.
-- [ ] Replace production `DATABASE_URL`'s current `postgres` role with a dedicated runtime role that has data access but no `SUPERUSER`, `CREATEDB`, `CREATEROLE`, replication, ownership, or DDL privileges. Keep the migration-owner `DIRECT_URL` out of the normal web runtime where the deployment setup permits it.
+- [x] Correct `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` in the production environment so it contains the Supabase publishable key rather than the project URL.
+- [x] Rotate the exposed Supabase database credentials and OpenAI API key, then update every deployment/CI environment where they are configured before deploying.
+- [x] Replace production `DATABASE_URL`'s `postgres` role with a dedicated runtime role that has data access but no `SUPERUSER`, `CREATEDB`, `CREATEROLE`, replication, ownership, or DDL privileges. Keep the migration-owner `DIRECT_URL` out of the normal web runtime where the deployment setup permits it.
 
 ## Deployment Security Operations
 
