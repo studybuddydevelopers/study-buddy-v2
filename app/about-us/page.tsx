@@ -8,6 +8,10 @@ import Image from "@/components/Image";
 import StudyBuddyIcon, {
   type StudyBuddyIconName,
 } from "@/components/StudyBuddyIcon";
+import {
+  COMPANY_REGISTRATION_NUMBER,
+  LEGAL_ENTITY_NAME,
+} from "@/lib/legal-entity";
 
 interface ProductArea {
   title: string;
@@ -74,6 +78,10 @@ export default function AboutUsPage() {
               secondary school students who need affordable practice, clearer
               feedback, and a steady way to keep studying.
             </Paragraph>
+            <p className="mt-4 max-w-2xl text-sm leading-relaxed text-gray-600">
+              Study Buddy is operated by {LEGAL_ENTITY_NAME}, a Nigerian private
+              company limited by shares (RC {COMPANY_REGISTRATION_NUMBER}).
+            </p>
             <div className="mt-8 flex flex-col gap-3 sm:flex-row">
               <Link href="/sign-up">
                 <Button
