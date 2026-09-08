@@ -32,7 +32,7 @@ export default function PolicyDocumentPage({
   sections,
 }: Readonly<PolicyDocumentPageProps>) {
   return (
-    <main className="flex-1 w-full">
+    <div className="flex-1 w-full">
       <section className="border-b border-gray-200 bg-white">
         <div className="mx-auto grid max-w-6xl gap-8 px-6 py-14 lg:grid-cols-[1fr_320px] lg:items-end lg:py-16">
           <div>
@@ -125,6 +125,6 @@ export default function PolicyDocumentPage({
           </div>
         </div>
       </div>
-    </main>
+    </div>
   );
 }
