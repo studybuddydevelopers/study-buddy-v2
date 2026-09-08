@@ -32,11 +32,11 @@ export default function ClientLayoutWrapper({
       />
 
       {/* Page content */}
-      <div>
+      <main>
         <Suspense>
           {children}
         </Suspense>
-      </div>
+      </main>
 
       <div
         className={
