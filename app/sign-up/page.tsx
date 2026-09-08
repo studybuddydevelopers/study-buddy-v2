@@ -1,13 +1,14 @@
 // app/sign-up/page.tsx (SERVER COMPONENT)
 
-import type { Metadata } from "next";
+import { createPageMetadata } from "@/lib/site-metadata";
 import SignUpClient from "./SignUpClient";
 
-export const metadata: Metadata = {
-  title: "Create an Account | Study Buddy",
+export const metadata = createPageMetadata({
+  title: "Create an Account",
   description:
-    "Create your Study Buddy account and start building a personalised path towards your WAEC goals.",
-};
+    "Create a Study Buddy learner account to set your WAEC goals, access personalised revision tools and keep your study progress in one place.",
+  index: false,
+});
 
 export default function SignUpPage() {
   return <SignUpClient />;
