@@ -2,10 +2,10 @@ import Link from "next/link";
 import PolicyDocumentPage, {
   type PolicyDocumentSection,
 } from "@/components/PolicyDocumentPage";
+import { PRIVACY_EMAIL } from "@/lib/legal-entity";
 import { createPageMetadata } from "@/lib/site-metadata";
 
-const LAST_UPDATED = "5 September 2026";
-const CONTACT_EMAIL = "sbstudybuddy0@gmail.com";
+const LAST_UPDATED = "8 September 2026";
 
 export const metadata = createPageMetadata({
   title: "Parent and Student Privacy Notice",
@@ -133,7 +133,7 @@ const sections: PolicyDocumentSection[] = [
           Study Buddy&apos;s verified parental-authorisation workflow is still being
           finalised. Until it is available, a parent, guardian, or authorised
           school should contact{" "}
-          <a href={`mailto:${CONTACT_EMAIL}`}>{CONTACT_EMAIL}</a> before a child
+          <a href={`mailto:${PRIVACY_EMAIL}`}>{PRIVACY_EMAIL}</a> before a child
           creates an independently managed account. This notice does not replace
           the verification and consent controls that must be built into the
           product.
@@ -156,7 +156,7 @@ const sections: PolicyDocumentSection[] = [
           <li>delete eligible information or close an account.</li>
         </ul>
         <p>
-          Email <a href={`mailto:${CONTACT_EMAIL}`}>{CONTACT_EMAIL}</a>. We may
+          Email <a href={`mailto:${PRIVACY_EMAIL}`}>{PRIVACY_EMAIL}</a>. We may
           ask for information needed to verify identity and parental, guardian,
           or school authority. You may also complain to the{" "}
           <a
@@ -195,6 +195,7 @@ export default function ParentStudentPrivacyPage() {
       icon="learnerSuccess"
       lastUpdated={LAST_UPDATED}
       sections={sections}
+      contactEmail={PRIVACY_EMAIL}
     />
   );
 }
