@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
+import { createPageMetadata } from "@/lib/site-metadata";
 import CollectionComingSoon from "../../CollectionComingSoon";
 
 const TEXTBOOK_COLLECTIONS: Record<string, string> = {
@@ -16,12 +17,13 @@ export async function generateMetadata({
   const { collection } = await params;
   const title = TEXTBOOK_COLLECTIONS[collection];
 
-  return {
-    title: title ? `${title} Textbooks | Study Buddy` : "Textbooks | Study Buddy",
+  return createPageMetadata({
+    title: title ? `Textbooks: ${title}` : "Textbooks",
     description: title
-      ? `Browse the ${title} Study Buddy textbook collection for your WAEC subjects.`
-      : "Browse Study Buddy textbook collections for your WAEC subjects.",
-  };
+      ? `Browse the ${title} Study Buddy textbook collection for longer-form WAEC learning and revision resources.`
+      : "Browse Study Buddy textbook collections for longer-form WAEC learning and revision resources.",
+    index: false,
+  });
 }
 
 export default async function TextbookCollectionPage({
