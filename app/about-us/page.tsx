@@ -1,4 +1,3 @@
-import type { Metadata } from "next";
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 import Button from "@/components/Button";
@@ -13,12 +12,14 @@ import {
   COMPANY_REGISTRATION_NUMBER,
   LEGAL_ENTITY_NAME,
 } from "@/lib/legal-entity";
+import { createPageMetadata } from "@/lib/site-metadata";
 
-export const metadata: Metadata = {
-  title: "About Us | Study Buddy",
+export const metadata = createPageMetadata({
+  title: "About Us",
   description:
-    "Learn how Study Buddy is building practical, responsible WAEC preparation tools around the realities of Nigerian students.",
-};
+    "Learn why Study Buddy builds practical, responsible WAEC preparation around the connectivity, study needs and everyday realities of Nigerian secondary-school students.",
+  path: "/about-us",
+});
 
 interface ProductArea {
   title: string;
