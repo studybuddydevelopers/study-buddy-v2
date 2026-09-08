@@ -50,16 +50,16 @@ The repository contains a practical compliance draft for the current product,
 not a declaration that Study Buddy has completed legal review or regulatory
 registration. Public wording must remain aligned with the production service.
 The company identity and registered office have been confirmed from the CAC
-incorporation records. The responsible privacy contact, child-authorisation
-model, retention periods, provider regions/contracts, payment rules, and school
-visibility still require co-founder decisions and qualified Nigerian
-legal/privacy review.
+incorporation records. The public privacy mailbox is confirmed, while the named
+privacy lead, child-authorisation model, retention periods, provider
+regions/contracts, payment rules, and school visibility still require
+co-founder decisions and qualified Nigerian legal/privacy review.
 
 ### Public pages
 
 | Page | Current status | Why it must be updated later |
 | --- | --- | --- |
-| [`/privacy-policy`](/Users/efeon/study-buddy-v2/app/privacy-policy/page.tsx) | Identifies the registered controller and current Railway/Cloudflare hosting, and covers current account, learning, AI, WhatsApp, school, payment and CAPTCHA data flows | Add the approved privacy contact, retention periods, confirmed provider regions/transfer mechanisms and final child-authorisation process |
+| [`/privacy-policy`](/Users/efeon/study-buddy-v2/app/privacy-policy/page.tsx) | Identifies the registered controller, verified privacy mailbox and current Railway/Cloudflare hosting, and covers current account, learning, AI, WhatsApp, school, payment and CAPTCHA data flows | Add retention periods, confirmed provider regions/transfer mechanisms and the final child-authorisation process |
 | [`/terms-of-service`](/Users/efeon/study-buddy-v2/app/terms-of-service/page.tsx) | Identifies the contracting legal entity and covers minors, AI, user content, payments, consumer rights and Nigerian law | Add the final commercial terms; legal review is required before paid/school launch |
 | [`/refund-policy`](/Users/efeon/study-buddy-v2/app/refund-policy/page.tsx) | Implemented with a lawful request and complaint framework | Confirm automatic renewal, discretionary refund window, cancellation UI, processing targets and any plan-specific rules before accepting payment |
 | [`/parent-student-privacy`](/Users/efeon/study-buddy-v2/app/parent-student-privacy/page.tsx) | Implemented as an age-appropriate summary | The page expressly notes that verified authorisation is not finished; update after the age threshold, parent/school authority and verification flow are approved and built |
@@ -88,7 +88,8 @@ also link directly to the detailed notices relevant to their sections.
 These items cannot be solved by publishing policies and remain launch work:
 
 - [x] Insert the registered company name, RC number and registered office.
-- [ ] Approve and publish the responsible privacy contact.
+- [x] Publish the verified privacy-request mailbox (`privacy@studybuddyng.com`).
+- [ ] Appoint the named privacy lead or DPO responsible for that mailbox.
 - [ ] Decide the independent-use age and valid parent/guardian/school authority model.
 - [ ] Build age assurance, verifiable authorisation, withdrawal and immutable audit records.
 - [ ] Build self-service account deletion and permanent chat/account purge workflows.
