@@ -1,12 +1,13 @@
-import type { Metadata } from "next";
+import { createPageMetadata } from "@/lib/site-metadata";
 import { getMaterialsOverview } from "../materials-data";
 import TextbooksClient from "./TextbooksClient";
 
-export const metadata: Metadata = {
-  title: "Textbooks | Study Buddy",
+export const metadata = createPageMetadata({
+  title: "Textbooks",
   description:
-    "Explore Study Buddy textbook collections and find learning resources for your WAEC subjects.",
-};
+    "Choose a WAEC subject and browse Study Buddy textbook collections for longer-form explanations and revision resources.",
+  index: false,
+});
 
 export default async function TextbooksPage() {
   const subjects = await getMaterialsOverview();
