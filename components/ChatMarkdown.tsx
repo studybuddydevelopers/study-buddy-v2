@@ -120,7 +120,7 @@ const markdownComponents: Components = {
 
 export default function ChatMarkdown({ markdown }: { markdown: string }) {
   return (
-    <div className="max-w-none break-words text-left [&_.katex-display]:my-3 [&_.katex-display]:max-w-full [&_.katex-display]:overflow-x-auto [&_.katex-display]:overflow-y-hidden [&_.task-list-item]:list-none [&_.task-list-item]:pl-0 [&_a]:font-medium [&_a]:text-primary-700 [&_a]:underline [&_code]:rounded [&_code]:bg-black/5 [&_code]:px-1 [&_del]:text-gray-500 [&_li]:my-1 [&_li]:pl-1 [&_ol]:my-2 [&_ol]:list-decimal [&_ol]:pl-5 [&_p]:my-1 [&_pre_code]:bg-transparent [&_pre_code]:p-0 [&_strong]:font-semibold [&_tbody_tr:nth-child(even)]:bg-gray-50 [&_td]:border-t [&_td]:border-gray-200 [&_td]:px-3 [&_td]:py-2 [&_th]:bg-[#F7F0FA] [&_th]:px-3 [&_th]:py-2 [&_th]:text-left [&_th]:font-semibold [&_ul]:my-2 [&_ul]:list-disc [&_ul]:pl-5">
+    <div className="chat-markdown max-w-none break-words text-left [&_.katex-display]:my-3 [&_.katex-display]:max-w-full [&_.katex-display]:overflow-x-auto [&_.katex-display]:overflow-y-hidden [&_.task-list-item]:list-none [&_.task-list-item]:pl-0 [&_a]:font-medium [&_a]:text-primary-700 [&_a]:underline [&_code]:rounded [&_code]:bg-black/5 [&_code]:px-1 [&_del]:text-gray-500 [&_li]:my-1 [&_li]:pl-1 [&_ol]:my-2 [&_ol]:list-decimal [&_ol]:pl-5 [&_p]:my-1 [&_pre_code]:bg-transparent [&_pre_code]:p-0 [&_strong]:font-semibold [&_tbody_tr:nth-child(even)]:bg-gray-50 [&_td]:border-t [&_td]:border-gray-200 [&_td]:px-3 [&_td]:py-2 [&_th]:bg-[#F7F0FA] [&_th]:px-3 [&_th]:py-2 [&_th]:text-left [&_th]:font-semibold [&_ul]:my-2 [&_ul]:list-disc [&_ul]:pl-5">
       <ReactMarkdown
         remarkPlugins={[remarkGfm, remarkBreaks, remarkMath]}
         rehypePlugins={[
