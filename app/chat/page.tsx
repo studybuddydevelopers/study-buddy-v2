@@ -1,13 +1,14 @@
 // app/chat/page.tsx
 
-import type { Metadata } from "next";
+import { createPageMetadata } from "@/lib/site-metadata";
 import ChatClient from "./ChatClient";
 
-export const metadata: Metadata = {
-  title: "AI Study Chat | Study Buddy",
+export const metadata = createPageMetadata({
+  title: "AI Study Chat",
   description:
-    "Ask Study Buddy for explanations, guided practice, and study support while keeping AI limitations in view.",
-};
+    "Use Study Buddy's AI chat for explanations, guided practice and revision support while keeping its limitations and source guidance in view.",
+  index: false,
+});
 
 export default function ChatPage() {
   return <ChatClient />;
