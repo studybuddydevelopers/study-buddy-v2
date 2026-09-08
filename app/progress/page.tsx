@@ -1,14 +1,15 @@
-import type { Metadata } from "next";
 import { cookies } from "next/headers";
 import { getBaseUrl } from "@/lib/getBaseUrl";
 import ProgressClient from "./ProgressClient";
 import type { ProgressFullReport } from "@/app/dashboard/dashboard.types";
+import { createPageMetadata } from "@/lib/site-metadata";
 
-export const metadata: Metadata = {
-  title: "Learning Progress | Study Buddy",
+export const metadata = createPageMetadata({
+  title: "Learning Progress",
   description:
-    "Review your Study Buddy performance, subject progress, practice history, and areas to improve.",
-};
+    "Review your Study Buddy performance, subject and topic progress, practice history, recent activity and priority areas for improvement.",
+  index: false,
+});
 
 function firstQueryValue(value: string | string[] | undefined) {
   return Array.isArray(value) ? value[0] : value;
