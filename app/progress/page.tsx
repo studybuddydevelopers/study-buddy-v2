@@ -1,7 +1,14 @@
+import type { Metadata } from "next";
 import { cookies } from "next/headers";
 import { getBaseUrl } from "@/lib/getBaseUrl";
 import ProgressClient from "./ProgressClient";
 import type { ProgressFullReport } from "@/app/dashboard/dashboard.types";
+
+export const metadata: Metadata = {
+  title: "Learning Progress | Study Buddy",
+  description:
+    "Review your Study Buddy performance, subject progress, practice history, and areas to improve.",
+};
 
 function firstQueryValue(value: string | string[] | undefined) {
   return Array.isArray(value) ? value[0] : value;
