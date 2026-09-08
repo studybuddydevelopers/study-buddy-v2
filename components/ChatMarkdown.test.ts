@@ -17,6 +17,22 @@ describe("ChatMarkdown", () => {
     expect(html).toContain('class="mfrac"');
   });
 
+  it("renders over-escaped teaching content as lists, emphasis and maths", () => {
+    const html = render(String.raw`1\. Definition of a Set
+
+\- \*\*Intersection\*\*: $A \cap B$
+
+\\[ A $\cup$ B = \{x \mid x \in A\} \\]`);
+
+    expect(html).toContain('<div class="chat-markdown ');
+    expect(html).toContain("<ol>");
+    expect(html).toContain("<strong>Intersection</strong>");
+    expect(html).toContain("<mo>∩</mo>");
+    expect(html).toContain("<mo>∪</mo>");
+    expect(html).toContain("katex-display");
+    expect(html).not.toContain("katex-error");
+  });
+
   it("leaves currency as text instead of treating it as maths", () => {
     const html = render("It costs $5 and $10 per month.");
 
