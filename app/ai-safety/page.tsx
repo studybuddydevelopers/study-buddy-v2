@@ -2,10 +2,10 @@ import Link from "next/link";
 import PolicyDocumentPage, {
   type PolicyDocumentSection,
 } from "@/components/PolicyDocumentPage";
+import { SUPPORT_EMAIL } from "@/lib/legal-entity";
 import { createPageMetadata } from "@/lib/site-metadata";
 
-const LAST_UPDATED = "5 September 2026";
-const CONTACT_EMAIL = "sbstudybuddy0@gmail.com";
+const LAST_UPDATED = "8 September 2026";
 
 export const metadata = createPageMetadata({
   title: "AI Safety and Responsible Use",
@@ -135,7 +135,7 @@ const sections: PolicyDocumentSection[] = [
     content: (
       <>
         <p>
-          Email <a href={`mailto:${CONTACT_EMAIL}`}>{CONTACT_EMAIL}</a> with the
+          Email <a href={`mailto:${SUPPORT_EMAIL}`}>{SUPPORT_EMAIL}</a> with the
           subject “AI safety report”. Include the date, feature used, a short
           description, and a screenshot or conversation reference if safe to do
           so. Do not forward unnecessary personal or harmful material.
