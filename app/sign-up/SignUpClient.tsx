@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Heading2 from "@/components/Heading2";
 import TextField from "@/components/TextField";
 import Button from "@/components/Button";
+import FormErrorMessage from "@/components/FormErrorMessage";
 import LogoName from "@/components/LogoName";
 import { SbSplashMotionPattern } from "@/components/SbSequentialFillPreview";
 import CaptchaChallenge, {
@@ -13,6 +14,7 @@ import CaptchaChallenge, {
 } from "@/components/CaptchaChallenge";
 import { FaHandPeace, FaHandPointDown } from "react-icons/fa6";
 import { FaHandPaper } from "react-icons/fa";
+import { readResponseError } from "@/lib/client-response-error";
 
 const HAND_ICONS = [FaHandPeace, FaHandPaper, FaHandPointDown];
 
@@ -27,6 +29,7 @@ export default function SignUpClient() {
   const [confirmedPassword, setConfirmedPassword] = useState("");
   const [captchaToken, setCaptchaToken] = useState<string | null>(null);
   const captchaRef = useRef<CaptchaChallengeHandle | null>(null);
+  const [formError, setFormError] = useState("");
 
   const [touched, setTouched] = useState({
     firstName: false,
@@ -70,38 +73,49 @@ export default function SignUpClient() {
     confirmedPassword === password;
 
   const handleSignUp = async () => {
+    if (loading) return;
+    setFormError("");
     if (!isFormValid) return;
     if (captchaEnabled && !captchaToken) {
-      alert("Please complete the CAPTCHA challenge.");
+      setFormError("Please complete the CAPTCHA challenge.");
       return;
     }
 
     setLoading(true);
+    try {
+      const response = await fetch("/api/v1/signup", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          firstName,
+          middleNames,
+          lastNames,
+          email,
+          phoneNumber,
+          password,
+          captchaToken,
+        }),
+      });
 
-    const response = await fetch("/api/v1/signup", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        firstName,
-        middleNames,
-        lastNames,
-        email,
-        phoneNumber,
-        password,
-        captchaToken,
-      }),
-    });
+      if (!response.ok) {
+        setFormError(
+          await readResponseError(
+            response,
+            "We couldn't create your account. Please try again."
+          )
+        );
+        return;
+      }
 
-    setLoading(false);
-    captchaRef.current?.reset();
-
-    if (!response.ok) {
-      const { error } = await response.json();
-      alert(error || "Signup failed");
-      return;
+      router.push(`/verify-email?email=${encodeURIComponent(email)}`);
+    } catch {
+      setFormError(
+        "We couldn't create your account. Check your connection and try again."
+      );
+    } finally {
+      setLoading(false);
+      captchaRef.current?.reset();
     }
-
-    router.push(`/verify-email?email=${encodeURIComponent(email)}`);
   };
 
   const [index, setIndex] = useState(0);
@@ -151,7 +165,10 @@ export default function SignUpClient() {
               label="First Name"
               required
               value={firstName}
-              onChange={(e) => setFirstName(e.target.value)}
+              onChange={(e) => {
+                setFirstName(e.target.value);
+                setFormError("");
+              }}
               onFocus={() => setTouched((t) => ({ ...t, firstName: true }))}
               error={touched.firstName ? errors.firstName : ""}
               className="flex-1"
@@ -160,7 +177,10 @@ export default function SignUpClient() {
               label="Last Names"
               required
               value={lastNames}
-              onChange={(e) => setLastNames(e.target.value)}
+              onChange={(e) => {
+                setLastNames(e.target.value);
+                setFormError("");
+              }}
               onFocus={() => setTouched((t) => ({ ...t, lastNames: true }))}
               error={touched.lastNames ? errors.lastNames : ""}
               className="flex-1"
@@ -170,7 +190,10 @@ export default function SignUpClient() {
           <TextField
             label="Middle Names"
             value={middleNames}
-            onChange={(e) => setMiddleNames(e.target.value)}
+            onChange={(e) => {
+              setMiddleNames(e.target.value);
+              setFormError("");
+            }}
           />
 
           {/* Email + Phone — stacks on mobile */}
@@ -180,7 +203,10 @@ export default function SignUpClient() {
               required
               placeholder="Enter email"
               value={email}
-              onChange={(e) => setEmail(e.target.value)}
+              onChange={(e) => {
+                setEmail(e.target.value);
+                setFormError("");
+              }}
               onFocus={() => setTouched((t) => ({ ...t, email: true }))}
               error={touched.email ? errors.email : ""}
               className="flex-1"
@@ -190,7 +216,10 @@ export default function SignUpClient() {
               required
               placeholder="e.g. 08012345678"
               value={phoneNumber}
-              onChange={(e) => setPhoneNumber(e.target.value)}
+              onChange={(e) => {
+                setPhoneNumber(e.target.value);
+                setFormError("");
+              }}
               onFocus={() => setTouched((t) => ({ ...t, phoneNumber: true }))}
               error={touched.phoneNumber ? errors.phoneNumber : ""}
               className="flex-1"
@@ -204,7 +233,10 @@ export default function SignUpClient() {
               type="password"
               required
               value={password}
-              onChange={(e) => setPassword(e.target.value)}
+              onChange={(e) => {
+                setPassword(e.target.value);
+                setFormError("");
+              }}
               onFocus={() => setTouched((t) => ({ ...t, password: true }))}
               error={touched.password ? errors.password : ""}
               className="flex-1"
@@ -214,7 +246,10 @@ export default function SignUpClient() {
               type="password"
               required
               value={confirmedPassword}
-              onChange={(e) => setConfirmedPassword(e.target.value)}
+              onChange={(e) => {
+                setConfirmedPassword(e.target.value);
+                setFormError("");
+              }}
               onFocus={() =>
                 setTouched((t) => ({ ...t, confirmedPassword: true }))
               }
@@ -225,8 +260,13 @@ export default function SignUpClient() {
 
           <CaptchaChallenge
             ref={captchaRef}
-            onTokenChange={setCaptchaToken}
+            onTokenChange={(token) => {
+              setCaptchaToken(token);
+              if (token) setFormError("");
+            }}
           />
+
+          <FormErrorMessage id="signup-form-error" message={formError} />
 
           <Button
             variant="primary"
