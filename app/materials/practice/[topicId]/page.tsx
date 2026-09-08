@@ -1,7 +1,41 @@
+import type { Metadata } from "next";
+import { cache } from "react";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import TopicPracticeClient from "./TopicPracticeClient";
 import { MATERIALS_SUBJECT_LABELS } from "@/lib/materials-display";
+
+const getTopic = cache((topicId: string) =>
+  prisma.topic.findUnique({
+    where: { id: topicId },
+    include: { subject: true },
+  })
+);
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ topicId: string }>;
+}): Promise<Metadata> {
+  const { topicId } = await params;
+  const topic = topicId ? await getTopic(topicId) : null;
+
+  if (!topic) {
+    return {
+      title: "Topic Practice | Study Buddy",
+      description: "Practise WAEC-style questions by topic with Study Buddy.",
+    };
+  }
+
+  const examCode = topic.subject.examCode ?? "";
+  const subjectDisplayName =
+    (examCode && MATERIALS_SUBJECT_LABELS[examCode]) || topic.subject.name;
+
+  return {
+    title: `${topic.title} Practice | Study Buddy`,
+    description: `Practise ${topic.title} questions for ${subjectDisplayName} with Study Buddy.`,
+  };
+}
 
 export default async function TopicPracticePage({
   params,
@@ -14,10 +48,7 @@ export default async function TopicPracticePage({
     notFound();
   }
 
-  const topic = await prisma.topic.findUnique({
-    where: { id: topicId },
-    include: { subject: true },
-  });
+  const topic = await getTopic(topicId);
 
   if (!topic) {
     notFound();
