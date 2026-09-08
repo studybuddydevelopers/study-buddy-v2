@@ -1,10 +1,10 @@
 import PolicyDocumentPage, {
   type PolicyDocumentSection,
 } from "@/components/PolicyDocumentPage";
+import { SUPPORT_EMAIL } from "@/lib/legal-entity";
 import { createPageMetadata } from "@/lib/site-metadata";
 
-const LAST_UPDATED = "5 September 2026";
-const CONTACT_EMAIL = "sbstudybuddy0@gmail.com";
+const LAST_UPDATED = "8 September 2026";
 
 export const metadata = createPageMetadata({
   title: "Accessibility Statement",
@@ -70,7 +70,7 @@ const sections: PolicyDocumentSection[] = [
     content: (
       <p>
         If content or a feature is difficult to use, email{" "}
-        <a href={`mailto:${CONTACT_EMAIL}`}>{CONTACT_EMAIL}</a>. Tell us the page
+        <a href={`mailto:${SUPPORT_EMAIL}`}>{SUPPORT_EMAIL}</a>. Tell us the page
         or feature, what happened, the device or assistive technology used if you
         are comfortable sharing it, and the format or adjustment that would help.
         We will consider a reasonable accessible alternative while the issue is
