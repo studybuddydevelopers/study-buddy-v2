@@ -11,7 +11,9 @@ import StudyBuddyIcon, {
 import {
   COMPANY_REGISTRATION_NUMBER,
   LEGAL_ENTITY_NAME,
+  PRIVACY_EMAIL,
   REGISTERED_OFFICE_ADDRESS,
+  SECURITY_EMAIL,
 } from "@/lib/legal-entity";
 import { createPageMetadata } from "@/lib/site-metadata";
 
@@ -23,7 +25,6 @@ export const metadata = createPageMetadata({
 });
 
 const LAST_UPDATED = "8 September 2026";
-const CONTACT_EMAIL = "sbstudybuddy0@gmail.com";
 
 const summaryItems: {
   title: string;
@@ -150,11 +151,11 @@ export default function PrivacyPolicyPage() {
               {LAST_UPDATED}
             </p>
             <a
-              href={`mailto:${CONTACT_EMAIL}`}
+              href={`mailto:${PRIVACY_EMAIL}`}
               className="mt-4 inline-flex items-center gap-2 text-sm font-semibold text-primary-700 hover:underline"
             >
               <StudyBuddyIcon name="mail" size={22} />
-              {CONTACT_EMAIL}
+              {PRIVACY_EMAIL}
             </a>
           </div>
         </div>
@@ -228,10 +229,10 @@ export default function PrivacyPolicyPage() {
             <p>
               For privacy questions or requests, contact us at{" "}
               <a
-                href={`mailto:${CONTACT_EMAIL}`}
+                href={`mailto:${PRIVACY_EMAIL}`}
                 className="font-medium text-primary-600 hover:underline"
               >
-                {CONTACT_EMAIL}
+                {PRIVACY_EMAIL}
               </a>
               .
             </p>
@@ -504,10 +505,10 @@ export default function PrivacyPolicyPage() {
               delete a child&apos;s data, subject to the child&apos;s own rights and any
               lawful school arrangement. Email{" "}
               <a
-                href={`mailto:${CONTACT_EMAIL}`}
+                href={`mailto:${PRIVACY_EMAIL}`}
                 className="font-medium text-primary-600 hover:underline"
               >
-                {CONTACT_EMAIL}
+                {PRIVACY_EMAIL}
               </a>
               . Families can also read our shorter{" "}
               <Link
@@ -590,10 +591,10 @@ export default function PrivacyPolicyPage() {
             <p>
               To exercise a right, email{" "}
               <a
-                href={`mailto:${CONTACT_EMAIL}`}
+                href={`mailto:${PRIVACY_EMAIL}`}
                 className="font-medium text-primary-600 hover:underline"
               >
-                {CONTACT_EMAIL}
+                {PRIVACY_EMAIL}
               </a>
               . Tell us what you are requesting and which account is involved.
               We may need to verify your identity or authority before acting. We
@@ -631,6 +632,17 @@ export default function PrivacyPolicyPage() {
               people and the NDPC when required by law. Contact us immediately
               if you suspect unauthorised access to your account.
             </p>
+            <p>
+              To report a suspected technical vulnerability, email{" "}
+              <a
+                href={`mailto:${SECURITY_EMAIL}`}
+                className="font-medium text-primary-600 hover:underline"
+              >
+                {SECURITY_EMAIL}
+              </a>
+              . Please do not include unnecessary personal data or publicly
+              disclose an unresolved issue.
+            </p>
           </PolicySection>
 
           <PolicySection id="changes" title="12. Changes to this policy">
@@ -653,10 +665,10 @@ export default function PrivacyPolicyPage() {
               <p className="mt-1">
                 Email:{" "}
                 <a
-                  href={`mailto:${CONTACT_EMAIL}`}
+                  href={`mailto:${PRIVACY_EMAIL}`}
                   className="font-medium text-primary-600 hover:underline"
                 >
-                  {CONTACT_EMAIL}
+                  {PRIVACY_EMAIL}
                 </a>
               </p>
               <p className="mt-1">Registered office: {REGISTERED_OFFICE_ADDRESS}</p>
