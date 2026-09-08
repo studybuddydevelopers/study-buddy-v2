@@ -104,7 +104,7 @@ export default function ClientLanding() {
               <div className="flex flex-col md:min-h-72 md:flex-row">
                 <div className="flex items-center justify-center bg-primary-50 p-4 sm:p-6 md:w-[46%]">
                   <Image
-                    src="/icon-audit/proposal-source/study-plan"
+                    src="/images/study-plan.svg"
                     alt="Student selecting activities for a personalised study plan"
                     width={3000}
                     height={2250}
@@ -131,7 +131,7 @@ export default function ClientLanding() {
               <div className="flex flex-col md:min-h-72 md:flex-row-reverse">
                 <div className="flex items-center justify-center bg-primary-50 p-4 sm:p-6 md:w-[46%]">
                   <Image
-                    src="/icon-audit/proposal-source/practice-tests"
+                    src="/images/practice-tests.svg"
                     alt="Student completing a timed online practice test"
                     width={3000}
                     height={2250}
@@ -158,7 +158,7 @@ export default function ClientLanding() {
               <div className="flex flex-col md:min-h-72 md:flex-row">
                 <div className="flex items-center justify-center bg-primary-50 p-4 sm:p-6 md:w-[46%]">
                   <Image
-                    src="/icon-audit/proposal-source/expert-guidance"
+                    src="/images/expert-guidance.svg"
                     alt="Student following a guidance pathway towards success"
                     width={3000}
                     height={2250}
