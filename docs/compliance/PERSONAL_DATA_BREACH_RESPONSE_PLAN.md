@@ -38,7 +38,8 @@ Complete this table before launch and keep an offline copy.
 | Meta/WhatsApp escalation | Pending | Pending | Provider portal |
 | Paystack escalation | Pending | Pending | Provider portal |
 
-Privacy contact: `sbstudybuddy0@gmail.com`  
+Privacy contact: `privacy@studybuddyng.com`
+Security contact: `security@studybuddyng.com`
 NDPC contact: [ndpc.gov.ng/contact](https://www.ndpc.gov.ng/contact/)
 
 ## First report
