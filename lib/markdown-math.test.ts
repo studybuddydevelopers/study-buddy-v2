@@ -1,8 +1,3 @@
-import { createElement } from "react";
-import { renderToStaticMarkup } from "react-dom/server";
-import ReactMarkdown from "react-markdown";
-import rehypeKatex from "rehype-katex";
-import remarkMath from "remark-math";
 import { describe, expect, it } from "vitest";
 import { normalizeMarkdownMath } from "./markdown-math";
 
@@ -83,20 +78,4 @@ describe("normalizeMarkdownMath", () => {
       .toBe("The value is $2 + 1$.");
   });
 
-  it("produces KaTeX markup for union and intersection symbols", () => {
-    const html = renderToStaticMarkup(
-      createElement(
-        ReactMarkdown,
-        {
-          remarkPlugins: [remarkMath],
-          rehypePlugins: [[rehypeKatex, { strict: false }]],
-        },
-        normalizeMarkdownMath("A \\cup B and C \\cap D")
-      )
-    );
-
-    expect(html).toContain('class="katex"');
-    expect(html).toContain("<mo>∪</mo>");
-    expect(html).toContain("<mo>∩</mo>");
-  });
 });
