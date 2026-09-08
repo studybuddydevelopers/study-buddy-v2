@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
@@ -13,6 +14,12 @@ import {
   LEGAL_ENTITY_NAME,
   REGISTERED_OFFICE_ADDRESS,
 } from "@/lib/legal-entity";
+
+export const metadata: Metadata = {
+  title: "Privacy Policy | Study Buddy",
+  description:
+    "Read how Study Buddy collects, uses, stores, shares, and protects personal information and how you can exercise your privacy rights.",
+};
 
 const LAST_UPDATED = "8 September 2026";
 const CONTACT_EMAIL = "sbstudybuddy0@gmail.com";
@@ -115,7 +122,7 @@ function ExternalPolicyLink({
 
 export default function PrivacyPolicyPage() {
   return (
-    <main className="flex-1 w-full">
+    <div className="flex-1 w-full">
       <section className="border-b border-gray-200 bg-white">
         <div className="mx-auto grid max-w-6xl gap-8 px-6 py-14 lg:grid-cols-[1fr_320px] lg:items-end lg:py-16">
           <div>
@@ -679,6 +686,6 @@ export default function PrivacyPolicyPage() {
           </div>
         </div>
       </div>
-    </main>
+    </div>
   );
 }
