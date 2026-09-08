@@ -164,6 +164,28 @@
     aiAvatarCoinAppear 0.18s ease-out var(--ai-avatar-coin-delay, 0s) forwards;
 }
 
+/* Keep KaTeX's accessible MathML layer available to assistive technology but
+   never visible beside the typeset equation if its package CSS loads late. */
+.chat-markdown .katex .katex-mathml {
+  position: absolute !important;
+  width: 1px !important;
+  height: 1px !important;
+  padding: 0 !important;
+  margin: -1px !important;
+  overflow: hidden !important;
+  clip: rect(0, 0, 0, 0) !important;
+  clip-path: inset(50%) !important;
+  white-space: nowrap !important;
+  border: 0 !important;
+}
+
+.chat-markdown .katex-display > .katex {
+  display: block;
+  min-width: max-content;
+  text-align: center;
+  white-space: nowrap;
+}
+
 .ai-avatar-coin-loader--one {
   --ai-avatar-coin-delay: 0s;
 }
