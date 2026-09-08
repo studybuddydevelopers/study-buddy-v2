@@ -2,9 +2,9 @@
 
 Status: initial Article 24 accountability record — owners and final decisions
 pending  
-Controller: Study Buddy AI; replace with exact legal entity and address  
+Controller: STUDY BUDDY GLOBAL PROJECTS LIMITED (RC 9825797), 24 Anthony Enahoro Street, Utako, Abuja, FCT, Nigeria
 Privacy contact: `sbstudybuddy0@gmail.com`  
-Last reviewed: 5 September 2026
+Last reviewed: 8 September 2026
 
 This record must be maintained as the product changes. “Pending” is a work item,
 not approval to process. Confirm the controller/processor role, lawful basis,
