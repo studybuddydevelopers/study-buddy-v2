@@ -1,10 +1,11 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
+import { createPageMetadata } from "@/lib/site-metadata";
 import CollectionComingSoon from "../../CollectionComingSoon";
 
 const FLASHCARD_COLLECTIONS: Record<string, string> = {
-  community: "Community FlashCards",
-  standard: "Standard FlashCards",
+  community: "Community Flashcards",
+  standard: "Standard Flashcards",
 };
 
 export async function generateMetadata({
@@ -15,12 +16,13 @@ export async function generateMetadata({
   const { collection } = await params;
   const title = FLASHCARD_COLLECTIONS[collection];
 
-  return {
-    title: title ? `${title} | Study Buddy` : "Flashcards | Study Buddy",
+  return createPageMetadata({
+    title: title ?? "Flashcards",
     description: title
-      ? `Explore the ${title} collection of Study Buddy revision flashcards.`
-      : "Explore Study Buddy revision flashcard collections.",
-  };
+      ? `Review the ${title} collection for quick Study Buddy revision and recall practice.`
+      : "Browse Study Buddy flashcard collections for quick revision and recall practice.",
+    index: false,
+  });
 }
 
 export default async function FlashcardCollectionPage({
