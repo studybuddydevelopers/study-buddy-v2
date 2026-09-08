@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import TopicPracticeClient from "./TopicPracticeClient";
 import { MATERIALS_SUBJECT_LABELS } from "@/lib/materials-display";
+import { createPageMetadata } from "@/lib/site-metadata";
 
 const getTopic = cache((topicId: string) =>
   prisma.topic.findUnique({
@@ -21,20 +22,23 @@ export async function generateMetadata({
   const topic = topicId ? await getTopic(topicId) : null;
 
   if (!topic) {
-    return {
-      title: "Topic Practice | Study Buddy",
-      description: "Practise WAEC-style questions by topic with Study Buddy.",
-    };
+    return createPageMetadata({
+      title: "Topic Practice",
+      description:
+        "Practise WAEC-style questions by topic, review explanations and strengthen your understanding with Study Buddy.",
+      index: false,
+    });
   }
 
   const examCode = topic.subject.examCode ?? "";
   const subjectDisplayName =
     (examCode && MATERIALS_SUBJECT_LABELS[examCode]) || topic.subject.name;
 
-  return {
-    title: `${topic.title} Practice | Study Buddy`,
-    description: `Practise ${topic.title} questions for ${subjectDisplayName} with Study Buddy.`,
-  };
+  return createPageMetadata({
+    title: `${topic.title} Practice`,
+    description: `Practise WAEC-style ${topic.title} questions for ${subjectDisplayName}, review explanations and strengthen this topic with Study Buddy.`,
+    index: false,
+  });
 }
 
 export default async function TopicPracticePage({
