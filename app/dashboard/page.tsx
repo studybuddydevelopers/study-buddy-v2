@@ -1,16 +1,17 @@
 // app/dashboard/page.tsx
 
-import type { Metadata } from "next";
+import { createPageMetadata } from "@/lib/site-metadata";
 import DashboardClient from "./DashboardClient";
 import { cookies } from "next/headers";
 import { getBaseUrl } from "@/lib/getBaseUrl";
 import type { MeResponse, DashboardStats } from "./dashboard.types";
 
-export const metadata: Metadata = {
-  title: "Dashboard | Study Buddy",
+export const metadata = createPageMetadata({
+  title: "Dashboard",
   description:
-    "See your Study Buddy plan, recent activity, learning progress, and recommended next steps in one place.",
-};
+    "Open your personalised Study Buddy dashboard to see today's study plan, recent activity, progress highlights and recommended next steps.",
+  index: false,
+});
 
 export default async function DashboardPage() {
   const cookieStore = await cookies();
