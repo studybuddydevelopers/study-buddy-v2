@@ -2,7 +2,7 @@
 
 Status: operating draft — contact roster and regulator workflow pending  
 Owner: incident commander to be appointed  
-Last reviewed: 5 September 2026
+Last reviewed: 8 September 2026
 
 ## Purpose
 
@@ -32,7 +32,8 @@ Complete this table before launch and keep an offline copy.
 | External privacy adviser/DPCO | Pending | Pending | Pending |
 | Cyber-insurance contact | Not confirmed | Not confirmed | Not confirmed |
 | Supabase escalation | Pending | Pending | Provider portal |
-| Vercel escalation | Pending | Pending | Provider portal |
+| Railway escalation | Pending | Pending | Provider portal |
+| Cloudflare escalation | Pending | Pending | Provider portal |
 | OpenAI escalation | Pending | Pending | Provider portal |
 | Meta/WhatsApp escalation | Pending | Pending | Provider portal |
 | Paystack escalation | Pending | Pending | Provider portal |
