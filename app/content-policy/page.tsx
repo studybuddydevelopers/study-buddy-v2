@@ -2,10 +2,10 @@ import Link from "next/link";
 import PolicyDocumentPage, {
   type PolicyDocumentSection,
 } from "@/components/PolicyDocumentPage";
+import { SUPPORT_EMAIL } from "@/lib/legal-entity";
 import { createPageMetadata } from "@/lib/site-metadata";
 
-const LAST_UPDATED = "5 September 2026";
-const CONTACT_EMAIL = "sbstudybuddy0@gmail.com";
+const LAST_UPDATED = "8 September 2026";
 
 export const metadata = createPageMetadata({
   title: "Content and Copyright Policy",
@@ -97,7 +97,7 @@ const sections: PolicyDocumentSection[] = [
     content: (
       <p>
         To report an incorrect answer, explanation, mark scheme, topic mapping,
-        or source label, email <a href={`mailto:${CONTACT_EMAIL}`}>{CONTACT_EMAIL}</a>{" "}
+        or source label, email <a href={`mailto:${SUPPORT_EMAIL}`}>{SUPPORT_EMAIL}</a>{" "}
         with the subject, topic, page, question identifier, and a short
         explanation. We will review credible reports and may correct, qualify, or
         remove content while it is checked.
@@ -111,7 +111,7 @@ const sections: PolicyDocumentSection[] = [
       <>
         <p>
           A rights holder or authorised representative may email{" "}
-          <a href={`mailto:${CONTACT_EMAIL}`}>{CONTACT_EMAIL}</a> with:
+          <a href={`mailto:${SUPPORT_EMAIL}`}>{SUPPORT_EMAIL}</a> with:
         </p>
         <ul>
           <li>their name, organisation, and contact details;</li>
