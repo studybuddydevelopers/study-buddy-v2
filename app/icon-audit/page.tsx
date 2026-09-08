@@ -882,7 +882,7 @@ const PAGE_SECTIONS = PAGE_GROUPS.map((page, pageIndex) => ({
 
 export default function IconAuditPage() {
   return (
-    <main className="min-h-screen bg-[#F7F5F8] text-[#17121C]">
+    <div className="min-h-screen bg-[#F7F5F8] text-[#17121C]">
       <div className="mx-auto w-full max-w-7xl px-4 py-8 sm:px-7 sm:py-12">
         <header className="relative overflow-hidden rounded-[2rem] border-2 border-[#070405] bg-[#FCFCFC] px-6 py-8 shadow-[8px_8px_0_#3B2A56] sm:px-10 sm:py-11">
           <div className="absolute -right-12 -top-16 h-52 w-52 rounded-full bg-[#E9E6ED]" />
@@ -998,7 +998,7 @@ export default function IconAuditPage() {
           </p>
         </section>
       </div>
-    </main>
+    </div>
   );
 }
 
