@@ -591,7 +591,7 @@ export default function ChatClient() {
           )}
         </aside>
 
-        <main className="flex min-h-[calc(100vh-220px)] flex-col gap-3 lg:h-[calc(100vh-190px)] lg:min-h-0">
+        <div className="flex min-h-[calc(100vh-220px)] flex-col gap-3 lg:h-[calc(100vh-190px)] lg:min-h-0">
           <div className="border border-accent-200 rounded-2xl bg-white shadow-sm p-4 space-y-3">
             {selectedChat ? (
               <>
@@ -819,7 +819,7 @@ export default function ChatClient() {
               </Button>
             </div>
           </div>
-        </main>
+        </div>
       </div>
     </div>
   );
