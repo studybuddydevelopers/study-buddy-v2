@@ -6,15 +6,16 @@ import "katex/dist/katex.min.css";
 import "streamdown/styles.css";
 import { cookies } from "next/headers";
 import { createServerClient } from "@supabase/ssr";
-import { Metadata } from "next";
+import type { Metadata } from "next";
 import { getServerSupabaseConfig } from "@/lib/supabase/config";
 import { fetchWithTimeout } from "@/lib/security/timeouts";
 
 export const runtime = "nodejs"; // <-- required
 
 export const metadata: Metadata = {
-  title: "Study Buddy",
-  description: "The no 1 platform to get high grades at WAEC exams",
+  title: "Study Buddy | Smarter WAEC Exam Preparation",
+  description:
+    "Personalised WAEC study plans, practice questions, learning materials, and AI-powered study support for Nigerian students.",
   icons: ["/logo-icon.svg"],
 };
 
@@ -42,7 +43,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   return (
     <html lang="en">
       <body>
-        <main className="p-6 flex justify-between flex-col min-h-svh">
+        <div className="p-6 flex justify-between flex-col min-h-svh">
 
           {/* Provide the user instantly to the client wrapper */}
           <ClientLayoutWrapper isAuthenticated={!!user}>
@@ -54,7 +55,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
 
           </ClientLayoutWrapper>
 
-        </main>
+        </div>
       </body>
     </html>
   );
