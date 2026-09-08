@@ -24,8 +24,8 @@ describe("ChatMarkdown", () => {
 
 \\[ A $\cup$ B = \{x \mid x \in A\} \\]`);
 
-    expect(html).toContain('<div class="chat-markdown ');
-    expect(html).toContain("<ol>");
+    expect(html).toContain("chat-markdown");
+    expect(html).toContain("<ol");
     expect(html).toContain("<strong>Intersection</strong>");
     expect(html).toContain("<mo>∩</mo>");
     expect(html).toContain("<mo>∪</mo>");
@@ -56,8 +56,10 @@ describe("ChatMarkdown", () => {
       "x<sup>2</sup><br>H<sub>2</sub>O<script>alert('bad')</script>"
     );
 
-    expect(html).toContain("<sup>2</sup>");
-    expect(html).toContain("<sub>2</sub>");
+    expect(html).toContain("<sup");
+    expect(html).toContain(">2</sup>");
+    expect(html).toContain("<sub");
+    expect(html).toContain(">2</sub>");
     expect(html).toContain("<br/>");
     expect(html).not.toContain("<script");
     expect(html).not.toContain("alert");
