@@ -1,13 +1,14 @@
 // app/already-logged-in/page.tsx
 
-import type { Metadata } from "next";
+import { createPageMetadata } from "@/lib/site-metadata";
 import AlreadyLoggedInClient from "./AlreadyLoggedInClient";
 
-export const metadata: Metadata = {
-  title: "Already Logged In | Study Buddy",
+export const metadata = createPageMetadata({
+  title: "Already Logged In",
   description:
-    "You are already signed in to Study Buddy and can return to your learning dashboard.",
-};
+    "You are already signed in to Study Buddy; return to your dashboard to continue learning or switch accounts safely.",
+  index: false,
+});
 
 export default async function AlreadyLoggedInPage() {
   // Optional SSR delay like your example
