@@ -3,3 +3,9 @@ export const COMPANY_REGISTRATION_NUMBER = "9825797";
 export const REGISTERED_OFFICE_ADDRESS =
   "24 Anthony Enahoro Street, Utako, Abuja, FCT, Nigeria";
 export const INCORPORATION_DATE = "2 September 2026";
+
+export const SUPPORT_EMAIL = "support@studybuddyng.com";
+export const GENERAL_EMAIL = "hello@studybuddyng.com";
+export const BILLING_EMAIL = "billing@studybuddyng.com";
+export const PRIVACY_EMAIL = "privacy@studybuddyng.com";
+export const SECURITY_EMAIL = "security@studybuddyng.com";
