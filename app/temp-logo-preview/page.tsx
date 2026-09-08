@@ -1,5 +1,5 @@
-import type { Metadata } from "next";
 import Image from "@/components/Image";
+import { createPageMetadata } from "@/lib/site-metadata";
 
 const PREVIEW_SRC = "/temp-logo-preview/source";
 const SVG_WIDTH = 1265;
@@ -15,10 +15,12 @@ const LOGO_SIZE_TESTS = [
   { size: 64, use: "Illustrated mark", note: "Recommended minimum for this artwork" },
 ] as const;
 
-export const metadata: Metadata = {
-  title: "Temporary SVG Preview | Study Buddy",
-  description: "A temporary preview of the Study Buddy SVG artwork.",
-};
+export const metadata = createPageMetadata({
+  title: "Temporary SVG Preview",
+  description:
+    "Inspect the temporary Study Buddy SVG artwork at representative interface sizes and against relevant page backgrounds.",
+  index: false,
+});
 
 export default function TemporaryLogoPreviewPage() {
   return (
