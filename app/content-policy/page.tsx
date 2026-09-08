@@ -1,17 +1,18 @@
 import Link from "next/link";
-import type { Metadata } from "next";
 import PolicyDocumentPage, {
   type PolicyDocumentSection,
 } from "@/components/PolicyDocumentPage";
+import { createPageMetadata } from "@/lib/site-metadata";
 
 const LAST_UPDATED = "5 September 2026";
 const CONTACT_EMAIL = "sbstudybuddy0@gmail.com";
 
-export const metadata: Metadata = {
-  title: "Content and Copyright Policy | Study Buddy",
+export const metadata = createPageMetadata({
+  title: "Content and Copyright Policy",
   description:
-    "Rules for using, submitting, correcting, and reporting Study Buddy learning content.",
-};
+    "Learn how Study Buddy owns, licenses, reviews and corrects learning content, and how to report academic errors or copyright concerns.",
+  path: "/content-policy",
+});
 
 const sections: PolicyDocumentSection[] = [
   {
