@@ -11,6 +11,7 @@ Study Buddy v2 is a Next.js learning platform for exam preparation. It combines 
 - Prisma + PostgreSQL
 - Supabase Auth
 - OpenAI API
+- Streamdown + KaTeX for AI response rendering
 
 ## Core Product Areas
 
@@ -20,6 +21,7 @@ Study Buddy v2 is a Next.js learning platform for exam preparation. It combines 
 - Progress: subject progress, practice accuracy, and exam history
 - AI: quick chat, saved AI question threads, and study recommendations
 - AI Chat Stage 1: persistent general chat threads with provider-neutral generation, idempotent sends, retry-safe failures, and refresh-safe history. This is not yet resource-grounded RAG.
+- AI Chat presentation: streaming-safe Markdown, GitHub-flavoured Markdown, syntax-highlighted code, and inline/block LaTeX render through Streamdown and KaTeX. Chat-title actions use familiar white pencil and bin icons on filled action buttons.
 - AI Chat launch mode: use the Stage 1 persistent general chatbot as the production-ready chat experience. Keep grounded/resource-backed WAEC tutor mode disabled until the grounding validation gates pass.
 - Resource Ingestion Stage 2: admin-only private resource uploads, extraction, chunking, approval workflows, and legacy past-question migration reports. This is not retrieval or RAG yet.
 - Grounded Chat Stage 4: feature-gated TEACH responses that retrieve approved active StudyBuddy evidence, validate segment-based structured output, persist grounding attempts/citations, and show safe source previews. Disabled by default until evaluations pass.
@@ -369,8 +371,19 @@ Observed DB cleanup candidates, not automatically deleted:
 - Caught errors now use a shared `getErrorMessage` helper instead of `err: any`.
 - Supabase admin upload cookie callbacks now use typed cookie options from `@supabase/ssr`.
 - Internal client navigation warnings were fixed by using `useRouter().push()` instead of `window.location.href` for app routes.
+- App request interception uses the Next.js 16 [`proxy.ts`](/Users/efeon/study-buddy-v2/proxy.ts) convention.
 - `npm run lint`, `npx tsc --noEmit --pretty false`, `git diff --check`, and `npm run build` were verified after the cleanup.
-- `npm run build` still reports the repo-wide Next.js warning that the `middleware` file convention is deprecated in favor of `proxy`; it does not fail the build.
+
+## Frontend Accessibility, Metadata, And Form Feedback
+
+- The shared layout keeps the navbar and footer outside one page-content `<main>` landmark. Page and reusable policy components do not introduce nested main landmarks.
+- Every page route owns a specific browser title and description through [`lib/site-metadata.ts`](/Users/efeon/study-buddy-v2/lib/site-metadata.ts). A coverage test fails when a new page omits the shared metadata policy.
+- The shared metadata policy keeps the `| Study Buddy` title suffix consistent and generates matching Open Graph and X/Twitter titles and descriptions.
+- Public pages are indexable. Protected learning routes, authentication states, account pages, internal audits/previews, and the 404 page emit `noindex` metadata.
+- [`app/robots.ts`](/Users/efeon/study-buddy-v2/app/robots.ts) blocks non-public routes, while [`app/sitemap.ts`](/Users/efeon/study-buddy-v2/app/sitemap.ts) lists only public pages.
+- `APP_ORIGIN` supplies the production metadata base, canonical URLs, sitemap URLs, and robots host. Canonical and sitemap URLs are deliberately omitted when that trusted origin is not configured.
+- Login and sign-up failures render inside accessible `role="alert"` regions instead of disruptive browser `alert()` dialogs. CAPTCHA, rate-limit, API, and connection failures use the same inline treatment.
+- [`components/FormErrorMessage.tsx`](/Users/efeon/study-buddy-v2/components/FormErrorMessage.tsx) provides the shared visual and assistive-technology treatment, and [`lib/client-response-error.ts`](/Users/efeon/study-buddy-v2/lib/client-response-error.ts) safely prefers human-readable API messages over machine error codes.
 
 ## Local Setup
 
