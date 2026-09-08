@@ -1,6 +1,10 @@
 "use client";
 
 import Link from "next/link";
+import {
+  COMPANY_REGISTRATION_NUMBER,
+  LEGAL_ENTITY_NAME,
+} from "@/lib/legal-entity";
 
 interface FooterLink {
   label: string;
@@ -48,6 +52,9 @@ export default function Footer({
       {/* Copyright */}
       <p className="text-gray-500">
         © {year} {brand}. All rights reserved.
+      </p>
+      <p className="mt-1 px-6 text-xs text-gray-500">
+        {LEGAL_ENTITY_NAME} · RC {COMPANY_REGISTRATION_NUMBER}
       </p>
     </footer>
   );
