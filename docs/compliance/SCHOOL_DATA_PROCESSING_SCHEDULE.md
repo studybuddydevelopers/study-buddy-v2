@@ -1,7 +1,7 @@
 # School Data Processing Schedule
 
 Status: contract schedule template — not legal advice and not executed  
-Version: 0.1, 5 September 2026
+Version: 0.2, 8 September 2026
 
 This schedule is intended to attach to a signed service agreement between the
 Study Buddy contracting entity (“Study Buddy”) and a named school (“School”). A
@@ -13,7 +13,7 @@ visibility, retention, pricing, and liability terms are completed.
 
 | Item | Details |
 | --- | --- |
-| Study Buddy legal entity, number and address | Pending |
+| Study Buddy legal entity, number and address | STUDY BUDDY GLOBAL PROJECTS LIMITED (RC 9825797), 24 Anthony Enahoro Street, Utako, Abuja, FCT, Nigeria |
 | School legal name, registration and address | Pending |
 | Main service agreement and effective date | Pending |
 | Study Buddy privacy/security contact | Pending |
