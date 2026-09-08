@@ -2,8 +2,12 @@ import type { Metadata } from "next";
 import PolicyDocumentPage, {
   type PolicyDocumentSection,
 } from "@/components/PolicyDocumentPage";
+import {
+  COMPANY_REGISTRATION_NUMBER,
+  LEGAL_ENTITY_NAME,
+} from "@/lib/legal-entity";
 
-const LAST_UPDATED = "5 September 2026";
+const LAST_UPDATED = "8 September 2026";
 const CONTACT_EMAIL = "sbstudybuddy0@gmail.com";
 
 export const metadata: Metadata = {
@@ -18,11 +22,12 @@ const sections: PolicyDocumentSection[] = [
     title: "Scope",
     content: (
       <p>
-        This policy applies when Study Buddy offers a paid plan, subscription,
-        or other paid digital service directly to a customer. It forms part of
-        our Terms of Service. If checkout presents additional plan-specific
-        terms, those terms also apply, but they do not remove rights that cannot
-        lawfully be excluded.
+        This policy applies when {LEGAL_ENTITY_NAME} (RC{" "}
+        {COMPANY_REGISTRATION_NUMBER}), operating as Study Buddy, offers a paid
+        plan, subscription, or other paid digital service directly to a
+        customer. It forms part of our Terms of Service. If checkout presents
+        additional plan-specific terms, those terms also apply, but they do not
+        remove rights that cannot lawfully be excluded.
       </p>
     ),
   },
