@@ -2,6 +2,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { Pencil, Trash2 } from "lucide-react";
 import StudyBuddyIcon from "@/components/StudyBuddyIcon";
 import Heading1 from "@/components/Heading1";
 import Paragraph from "@/components/Paragraph";
@@ -609,11 +610,16 @@ export default function ChatClient() {
                     aria-label="Chat title"
                   />
                   <Button
-                    variant="outline"
+                    variant="primary"
                     size="sm"
                     onClick={() => void patchSelectedChat({ title: titleDraft })}
                     disabled={savingChat || !titleDraft.trim()}
-                    icon={<StudyBuddyIcon name="pencil" size={18} />}
+                    icon={
+                      <Pencil
+                        className="h-[18px] w-[18px] text-white"
+                        aria-hidden="true"
+                      />
+                    }
                   >
                     Save
                   </Button>
@@ -622,7 +628,12 @@ export default function ChatClient() {
                     size="sm"
                     onClick={() => void deleteSelectedChat()}
                     disabled={savingChat}
-                    icon={<StudyBuddyIcon name="trash" size={18} />}
+                    icon={
+                      <Trash2
+                        className="h-[18px] w-[18px] text-white"
+                        aria-hidden="true"
+                      />
+                    }
                     ariaLabel="Delete chat"
                   />
                 </div>
