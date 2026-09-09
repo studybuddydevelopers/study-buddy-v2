@@ -50,8 +50,9 @@ The repository contains a practical compliance draft for the current product,
 not a declaration that Study Buddy has completed legal review or regulatory
 registration. Public wording must remain aligned with the production service.
 The company identity and registered office have been confirmed from the CAC
-incorporation records. The public privacy mailbox is confirmed, while the named
-privacy lead, child-authorisation model, retention periods, provider
+incorporation records. The public privacy mailbox and its joint co-founder
+handlers, Nick Efe Oni and Chijindu Oreh, are confirmed. The formal privacy
+lead/DPO appointment, retention periods, provider
 regions/contracts, payment rules, and school visibility still require
 co-founder decisions and qualified Nigerian legal/privacy review.
 
@@ -59,10 +60,10 @@ co-founder decisions and qualified Nigerian legal/privacy review.
 
 | Page | Current status | Why it must be updated later |
 | --- | --- | --- |
-| [`/privacy-policy`](/Users/efeon/study-buddy-v2/app/privacy-policy/page.tsx) | Identifies the registered controller, verified privacy mailbox and current Railway/Cloudflare hosting, and covers current account, learning, AI, WhatsApp, school, payment and CAPTCHA data flows | Add retention periods, confirmed provider regions/transfer mechanisms and the final child-authorisation process |
+| [`/privacy-policy`](/Users/efeon/study-buddy-v2/app/privacy-policy/page.tsx) | Identifies the registered controller, verified privacy mailbox and current Railway/Cloudflare hosting, covers current data flows, and describes the implemented 13+/guardian-authorisation controls | Add retention periods and confirmed provider regions/transfer mechanisms |
 | [`/terms-of-service`](/Users/efeon/study-buddy-v2/app/terms-of-service/page.tsx) | Identifies the contracting legal entity and covers minors, AI, user content, payments, consumer rights and Nigerian law | Add the final commercial terms; legal review is required before paid/school launch |
 | [`/refund-policy`](/Users/efeon/study-buddy-v2/app/refund-policy/page.tsx) | Implemented with a lawful request and complaint framework | Confirm automatic renewal, discretionary refund window, cancellation UI, processing targets and any plan-specific rules before accepting payment |
-| [`/parent-student-privacy`](/Users/efeon/study-buddy-v2/app/parent-student-privacy/page.tsx) | Implemented as an age-appropriate summary | The page expressly notes that verified authorisation is not finished; update after the age threshold, parent/school authority and verification flow are approved and built |
+| [`/parent-student-privacy`](/Users/efeon/study-buddy-v2/app/parent-student-privacy/page.tsx) | Implemented as an age-appropriate summary of the live 13+ rule and guardian email decision flow | Re-review after qualified Nigerian legal/privacy advice or any material workflow change |
 | [`/ai-safety`](/Users/efeon/study-buddy-v2/app/ai-safety/page.tsx) | Implemented with limitations, privacy, academic-integrity, prohibited-use and reporting rules | Update after child-safety evaluation, reporting UI, staff-review authority, escalation owners and any new AI model/use case are approved |
 | [`/cookie-policy`](/Users/efeon/study-buddy-v2/app/cookie-policy/page.tsx) | Accurate for essential auth, local drafts and CAPTCHA; states that advertising/behavioural cookies are not currently used | Update and implement consent controls before adding non-essential analytics, advertising pixels, session replay or similar tracking |
 | [`/accessibility`](/Users/efeon/study-buddy-v2/app/accessibility/page.tsx) | Implemented without making an unsupported conformance claim | Add tested WCAG version, scope, methods, failures and remediation dates after an independent accessibility audit |
@@ -76,7 +77,7 @@ also link directly to the detailed notices relevant to their sections.
 | Document | What is complete | What cannot be completed yet and why |
 | --- | --- | --- |
 | [`DATA_PROTECTION_IMPACT_ASSESSMENT.md`](/Users/efeon/study-buddy-v2/docs/compliance/DATA_PROTECTION_IMPACT_ASSESSMENT.md) | Scope, data map, preliminary bases, necessity review, risk matrix, mitigations and launch gates | Formal approval requires student/parent/school consultation, named owners, implemented controls, provider evidence and written residual-risk sign-off |
-| [`PARENTAL_AUTHORIZATION_RECORD.md`](/Users/efeon/study-buddy-v2/docs/compliance/PARENTAL_AUTHORIZATION_RECORD.md) | Required fields, workflow, withdrawal, access rules and acceptance tests | It is a specification, not a live register; the age/authority decisions and secure database/product workflow do not yet exist |
+| [`PARENTAL_AUTHORIZATION_RECORD.md`](/Users/efeon/study-buddy-v2/docs/compliance/PARENTAL_AUTHORIZATION_RECORD.md) | Describes the implemented database record, guardian email decision workflow, feature scope and event history | Online guardian self-service withdrawal and retention automation remain pending; live records stay in the production database, never this repository |
 | [`DATA_RETENTION_AND_DELETION_SCHEDULE.md`](/Users/efeon/study-buddy-v2/docs/compliance/DATA_RETENTION_AND_DELETION_SCHEDULE.md) | Data-category inventory, proposed periods, deletion steps, legal-hold and ownership rules | Periods need legal/finance approval; account deletion, chat hard purge, cloud-draft expiry, backup expiry and deletion evidence are not implemented |
 | [`PERSONAL_DATA_BREACH_RESPONSE_PLAN.md`](/Users/efeon/study-buddy-v2/docs/compliance/PERSONAL_DATA_BREACH_RESPONSE_PLAN.md) | Incident stages, statutory decision clock, risk assessment, notice content, child safeguards and closure process | Names, secure channels, provider contacts, breach register location and exercise evidence require organisational setup outside the codebase |
 | [`PROCESSOR_AND_VENDOR_REGISTER.md`](/Users/efeon/study-buddy-v2/docs/compliance/PROCESSOR_AND_VENDOR_REGISTER.md) | Initial register for Supabase, OpenAI, Meta, Paystack, Railway, Cloudflare, CAPTCHA, email and source-control providers | Contracts/DPAs cannot be created by code; production regions, sub-processors, retention and transfer safeguards must be verified in provider accounts |
@@ -89,9 +90,11 @@ These items cannot be solved by publishing policies and remain launch work:
 
 - [x] Insert the registered company name, RC number and registered office.
 - [x] Publish the verified privacy-request mailbox (`privacy@studybuddyng.com`).
-- [ ] Appoint the named privacy lead or DPO responsible for that mailbox.
-- [ ] Decide the independent-use age and valid parent/guardian/school authority model.
-- [ ] Build age assurance, verifiable authorisation, withdrawal and immutable audit records.
+- [x] Assign privacy requests jointly to co-founders Nick Efe Oni and Chijindu Oreh.
+- [ ] Formally appoint a privacy lead or DPO; this is separate from sharing request-handling work.
+- [x] Set the product minimum to 13 and independent-account age to 18; ages 13–17 require a parent or legal guardian, not a school substitute.
+- [x] Build date-of-birth gating, restricted minor accounts, expiring one-time guardian email decisions, separately scoped AI permission, and append-only application events.
+- [ ] Add guardian self-service withdrawal; until then, verified withdrawal requests use `privacy@studybuddyng.com` and require an authorised operator to restrict the account and record the event.
 - [ ] Build self-service account deletion and permanent chat/account purge workflows.
 - [ ] Approve retention periods and automate expiry, backup ageing and deletion evidence.
 - [ ] Define and test school roles and field-level student visibility.
@@ -172,6 +175,16 @@ Future low-data work:
   - sender name: `Study Buddy`
 - Do not commit the Resend API key. Configure it only in the Supabase Dashboard under Authentication SMTP settings, or through the Supabase Management API using a secure local shell environment.
 - Verify the sending domain in Resend and configure SPF, DKIM, and DMARC before relying on password reset or verification emails in production.
+- Guardian authorisation email is sent directly by the app through Resend. Set
+  `RESEND_API_KEY`, `TRANSACTIONAL_EMAIL_FROM` (for example,
+  `Study Buddy Privacy <no-reply@updates.studybuddyng.com>`),
+  `TRANSACTIONAL_EMAIL_REPLY_TO=privacy@studybuddyng.com`, and
+  `GUARDIAN_AUTHORIZATION_TTL_HOURS=72` in Railway. The sender domain must be
+  verified in Resend. Prefer a dedicated sending subdomain such as
+  `updates.studybuddyng.com` so the existing Microsoft 365 mail domain keeps its
+  own reputation and DNS configuration. These values are separate from the
+  Supabase custom-SMTP settings used for account verification and password
+  recovery.
 - Prefer a Supabase recovery email template that uses `token_hash`; it works even when users open reset links in a different browser or device from where they requested the email:
 
 ```html
