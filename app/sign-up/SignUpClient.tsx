@@ -15,6 +15,7 @@ import CaptchaChallenge, {
 import { FaHandPeace, FaHandPointDown } from "react-icons/fa6";
 import { FaHandPaper } from "react-icons/fa";
 import { readResponseError } from "@/lib/client-response-error";
+import { latestAllowedBirthDate, parseBirthDate } from "@/lib/account-age";
 
 const HAND_ICONS = [FaHandPeace, FaHandPaper, FaHandPointDown];
 
@@ -27,6 +28,13 @@ export default function SignUpClient() {
   const [phoneNumber, setPhoneNumber] = useState("");
   const [password, setPassword] = useState("");
   const [confirmedPassword, setConfirmedPassword] = useState("");
+  const [dateOfBirth, setDateOfBirth] = useState("");
+  const [guardianName, setGuardianName] = useState("");
+  const [guardianEmail, setGuardianEmail] = useState("");
+  const [guardianRelationship, setGuardianRelationship] = useState<
+    "PARENT" | "LEGAL_GUARDIAN"
+  >("PARENT");
+  const [acceptedTerms, setAcceptedTerms] = useState(false);
   const [captchaToken, setCaptchaToken] = useState<string | null>(null);
   const captchaRef = useRef<CaptchaChallengeHandle | null>(null);
   const [formError, setFormError] = useState("");
@@ -38,12 +46,17 @@ export default function SignUpClient() {
     phoneNumber: false,
     password: false,
     confirmedPassword: false,
+    dateOfBirth: false,
+    guardianName: false,
+    guardianEmail: false,
   });
 
   const [loading, setLoading] = useState(false);
 
   const isValidEmail = (v: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v);
   const isValidPhone = (v: string) => /^[0-9+\-() ]{6,}$/.test(v);
+  const parsedBirthDate = dateOfBirth ? parseBirthDate(dateOfBirth) : null;
+  const isMinor = parsedBirthDate?.ok && parsedBirthDate.ageBand === "MINOR";
 
   const errors = {
     firstName: firstName ? "" : "First name is required",
@@ -62,6 +75,23 @@ export default function SignUpClient() {
       password.length < 6 ? "Password must be at least 6 characters" : "",
     confirmedPassword:
       confirmedPassword !== password ? "Passwords do not match" : "",
+    dateOfBirth: !dateOfBirth
+      ? "Date of birth is required"
+      : !parsedBirthDate?.ok
+        ? "Enter a valid date of birth"
+        : parsedBirthDate.ageBand === "TOO_YOUNG"
+          ? "Study Buddy accounts are available from age 13"
+          : "",
+    guardianName:
+      isMinor && guardianName.trim().length < 2
+        ? "Parent or legal guardian name is required"
+        : "",
+    guardianEmail:
+      isMinor && !isValidEmail(guardianEmail)
+        ? "Enter a valid parent or legal guardian email"
+        : isMinor && guardianEmail.trim().toLowerCase() === email.trim().toLowerCase()
+          ? "The guardian email must be different from the student email"
+          : "",
   };
 
   const isFormValid =
@@ -70,7 +100,14 @@ export default function SignUpClient() {
     isValidEmail(email) &&
     isValidPhone(phoneNumber) &&
     password.length >= 6 &&
-    confirmedPassword === password;
+    confirmedPassword === password &&
+    parsedBirthDate?.ok &&
+    parsedBirthDate.ageBand !== "TOO_YOUNG" &&
+    (!isMinor ||
+      (guardianName.trim().length >= 2 &&
+        isValidEmail(guardianEmail) &&
+        guardianEmail.trim().toLowerCase() !== email.trim().toLowerCase())) &&
+    acceptedTerms;
 
   const handleSignUp = async () => {
     if (loading) return;
@@ -93,6 +130,11 @@ export default function SignUpClient() {
           email,
           phoneNumber,
           password,
+          dateOfBirth,
+          guardianName: isMinor ? guardianName : undefined,
+          guardianEmail: isMinor ? guardianEmail : undefined,
+          guardianRelationship: isMinor ? guardianRelationship : undefined,
+          acceptedTerms,
           captchaToken,
         }),
       });
@@ -107,7 +149,10 @@ export default function SignUpClient() {
         return;
       }
 
-      router.push(`/verify-email?email=${encodeURIComponent(email)}`);
+      router.push(
+        response.headers.get("X-Study-Buddy-Next") ||
+          `/verify-email?email=${encodeURIComponent(email)}`
+      );
     } catch {
       setFormError(
         "We couldn't create your account. Check your connection and try again."
@@ -172,6 +217,7 @@ export default function SignUpClient() {
               onFocus={() => setTouched((t) => ({ ...t, firstName: true }))}
               error={touched.firstName ? errors.firstName : ""}
               className="flex-1"
+              autoComplete="given-name"
             />
             <TextField
               label="Last Names"
@@ -184,6 +230,7 @@ export default function SignUpClient() {
               onFocus={() => setTouched((t) => ({ ...t, lastNames: true }))}
               error={touched.lastNames ? errors.lastNames : ""}
               className="flex-1"
+              autoComplete="family-name"
             />
           </div>
 
@@ -194,6 +241,7 @@ export default function SignUpClient() {
               setMiddleNames(e.target.value);
               setFormError("");
             }}
+            autoComplete="additional-name"
           />
 
           {/* Email + Phone — stacks on mobile */}
@@ -210,6 +258,8 @@ export default function SignUpClient() {
               onFocus={() => setTouched((t) => ({ ...t, email: true }))}
               error={touched.email ? errors.email : ""}
               className="flex-1"
+              type="email"
+              autoComplete="email"
             />
             <TextField
               label="Phone Number"
@@ -223,8 +273,73 @@ export default function SignUpClient() {
               onFocus={() => setTouched((t) => ({ ...t, phoneNumber: true }))}
               error={touched.phoneNumber ? errors.phoneNumber : ""}
               className="flex-1"
+              autoComplete="tel"
             />
           </div>
+
+          <TextField
+            label="Date of Birth"
+            type="date"
+            required
+            value={dateOfBirth}
+            max={latestAllowedBirthDate()}
+            onChange={(e) => {
+              setDateOfBirth(e.target.value);
+              setFormError("");
+            }}
+            onFocus={() => setTouched((t) => ({ ...t, dateOfBirth: true }))}
+            error={touched.dateOfBirth ? errors.dateOfBirth : ""}
+            autoComplete="bday"
+          />
+
+          {isMinor && (
+            <div className="rounded-xl border border-primary-200 bg-primary-50 p-4 space-y-4">
+              <p className="text-sm leading-relaxed text-gray-800">
+                Because you are under 18, your account will stay locked until a
+                parent or legal guardian approves it using a one-time email link.
+              </p>
+              <TextField
+                label="Parent or Legal Guardian Name"
+                required
+                value={guardianName}
+                onChange={(e) => {
+                  setGuardianName(e.target.value);
+                  setFormError("");
+                }}
+                onFocus={() => setTouched((t) => ({ ...t, guardianName: true }))}
+                error={touched.guardianName ? errors.guardianName : ""}
+                autoComplete="name"
+              />
+              <TextField
+                label="Parent or Legal Guardian Email"
+                type="email"
+                required
+                value={guardianEmail}
+                onChange={(e) => {
+                  setGuardianEmail(e.target.value);
+                  setFormError("");
+                }}
+                onFocus={() => setTouched((t) => ({ ...t, guardianEmail: true }))}
+                error={touched.guardianEmail ? errors.guardianEmail : ""}
+                autoComplete="email"
+              />
+              <label className="block text-sm font-semibold text-gray-900">
+                Relationship <span className="text-red-500">*</span>
+                <select
+                  value={guardianRelationship}
+                  onChange={(event) =>
+                    setGuardianRelationship(
+                      event.target.value as "PARENT" | "LEGAL_GUARDIAN"
+                    )
+                  }
+                  className="mt-1 w-full rounded-xl border border-transparent bg-white px-4 py-3 text-gray-900 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-300"
+                >
+                  <option value="PARENT">Parent</option>
+                  <option value="LEGAL_GUARDIAN">Legal guardian</option>
+                </select>
+              </label>
+            </div>
+          )}
 
           {/* Password row — stacks on mobile */}
           <div className="flex flex-col sm:flex-row gap-4">
@@ -240,6 +355,7 @@ export default function SignUpClient() {
               onFocus={() => setTouched((t) => ({ ...t, password: true }))}
               error={touched.password ? errors.password : ""}
               className="flex-1"
+              autoComplete="new-password"
             />
             <TextField
               label="Confirm Password"
@@ -255,6 +371,7 @@ export default function SignUpClient() {
               }
               error={touched.confirmedPassword ? errors.confirmedPassword : ""}
               className="flex-1"
+              autoComplete="new-password"
             />
           </div>
 
@@ -265,6 +382,26 @@ export default function SignUpClient() {
               if (token) setFormError("");
             }}
           />
+
+          <label className="flex items-start gap-3 text-sm leading-relaxed text-gray-700">
+            <input
+              type="checkbox"
+              checked={acceptedTerms}
+              onChange={(event) => setAcceptedTerms(event.target.checked)}
+              className="mt-1 h-4 w-4 accent-primary-600"
+            />
+            <span>
+              I have read and agree to the{" "}
+              <a className="font-semibold text-primary-700 hover:underline" href="/terms-of-service" target="_blank" rel="noreferrer">
+                Terms of Service
+              </a>{" "}
+              and{" "}
+              <a className="font-semibold text-primary-700 hover:underline" href="/privacy-policy" target="_blank" rel="noreferrer">
+                Privacy Policy
+              </a>
+              .
+            </span>
+          </label>
 
           <FormErrorMessage id="signup-form-error" message={formError} />
 
