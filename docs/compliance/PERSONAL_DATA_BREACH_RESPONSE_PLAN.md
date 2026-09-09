@@ -2,7 +2,7 @@
 
 Status: operating draft — contact roster and regulator workflow pending  
 Owner: incident commander to be appointed  
-Last reviewed: 8 September 2026
+Last reviewed: 9 September 2026
 
 ## Purpose
 
@@ -39,6 +39,7 @@ Complete this table before launch and keep an offline copy.
 | Paystack escalation | Pending | Pending | Provider portal |
 
 Privacy contact: `privacy@studybuddyng.com`
+Privacy request handlers: Nick Efe Oni and Chijindu Oreh (jointly)
 Security contact: `security@studybuddyng.com`
 NDPC contact: [ndpc.gov.ng/contact](https://www.ndpc.gov.ng/contact/)
 
