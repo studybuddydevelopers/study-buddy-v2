@@ -5,12 +5,12 @@ import PolicyDocumentPage, {
 import { PRIVACY_EMAIL } from "@/lib/legal-entity";
 import { createPageMetadata } from "@/lib/site-metadata";
 
-const LAST_UPDATED = "9 September 2026";
+const LAST_UPDATED = "10 September 2026";
 
 export const metadata = createPageMetadata({
   title: "Parent and Student Privacy Notice",
   description:
-    "A plain-language guide for students, parents and schools explaining what learner data Study Buddy uses, how AI chats work and what choices families have.",
+    "A plain-language guide for students and parents explaining what learner data Study Buddy uses, how AI chats work and what choices families have.",
   path: "/parent-student-privacy",
 });
 
@@ -44,7 +44,6 @@ const sections: PolicyDocumentSection[] = [
           <li>grade, exam year, preferred subjects, and profile image;</li>
           <li>questions, answers, drafts, scores, progress, and study activity;</li>
           <li>messages sent to the Study Buddy AI or WhatsApp bot;</li>
-          <li>school membership information, if the account is school-linked;</li>
           <li>subscription and payment-status records; and</li>
           <li>device, sign-in, security, and abuse-prevention information.</li>
         </ul>
@@ -99,7 +98,7 @@ const sections: PolicyDocumentSection[] = [
   },
   {
     id: "adults-and-schools",
-    title: "What parents and schools may see",
+    title: "Who can see a student’s information",
     content: (
       <>
         <p>
@@ -108,13 +107,12 @@ const sections: PolicyDocumentSection[] = [
           child&apos;s own privacy rights and safety before disclosing information.
         </p>
         <p>
-          If a school arranges or manages access, authorised school staff may see
-          information made available under the school&apos;s agreement, such as
-          account membership, participation, or learning progress. Before a
-          school-linked service is launched, the school and Study Buddy must
-          clearly identify exactly which staff can see which fields. AI-chat
-          content should not be made available to school staff by default unless
-          a valid, clearly explained safeguarding or service basis applies.
+          Study Buddy does not currently provide accounts or a data-access area
+          for schools or teachers. School staff cannot see a student&apos;s account,
+          participation, learning progress, results, or AI chats through the
+          current service. If Study Buddy develops a school service later, we
+          will assess it separately and explain the exact access before enabling
+          it.
         </p>
       </>
     ),
