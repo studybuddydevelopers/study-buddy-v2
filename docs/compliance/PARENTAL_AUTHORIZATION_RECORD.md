@@ -90,7 +90,8 @@ privacy settings harder to reject than accept.
 
 - Students may see whether an authorisation is active and its feature scope.
 - Verified authorisers may see their own authorisation events.
-- School staff may see only records connected to their authorised school role.
+- School staff have no access in the current product. Any future school role
+  requires a separate approved design, notice, agreement, and access-control test.
 - Support staff should see the minimum information required to resolve a case.
 - Every administrative view or change must create an audit event.
 
@@ -110,6 +111,7 @@ approved Data Retention and Deletion Schedule and legal holds.
 - [ ] Every grant, denial, expiry, and withdrawal creates an append-only event. Grant, denial, expiry, replacement and resend events are implemented; the operator withdrawal action remains pending.
 - [ ] Withdrawal restricts features and triggers deletion or review correctly.
 - [ ] Support cannot disclose child data without verifying authority.
-- [ ] School staff cannot authorise or view learners outside their school.
+- [x] School staff cannot authorise or view learners because no school-facing
+  account or access role is currently provided.
 - [ ] Logs and evidence expire according to the approved retention schedule.
 - [ ] The process works with keyboard and screen-reader navigation.
