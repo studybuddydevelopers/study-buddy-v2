@@ -2,7 +2,7 @@
 
 Status: preliminary working assessment — not approved for launch  
 Assessment date: 5 September 2026  
-Last updated: 8 September 2026
+Last updated: 9 September 2026
 Assessment owner: to be appointed  
 Approver: co-founders and qualified Nigerian privacy adviser  
 Next review: before production launch and after any material processing change
@@ -73,8 +73,8 @@ settings must be entered in the processor register before approval.
 
 | Purpose | Preliminary basis | Conditions before approval |
 | --- | --- | --- |
-| Create and provide an account and requested learning features | Contract or steps requested before contract | Confirm the contracting entity and capacity/guardian model |
-| Child account processing | Valid parent/guardian authorisation, authorised school basis, or another documented lawful basis | Build age assurance, verifiable authorisation, withdrawal and audit records |
+| Create and provide an account and requested learning features | Contract or steps requested before contract | Confirm the final basis with Nigerian counsel; the product uses a 13+ minimum and independent activation from 18 |
+| Child account processing | Parent/legal guardian authorisation for ages 13–17 | Review the email-link/declaration assurance level, build self-service withdrawal and approve the event-retention period |
 | AI answers and personalised recommendations | Contract for requested features; legitimate interests where appropriately balanced | Explain processing, minimise context, provide controls and human-review route |
 | Account and service security | Legitimate interests; legal obligation where applicable | Complete legitimate-interest assessment and retention period |
 | Transaction and compliance records | Contract and legal obligation | Confirm statutory retention with finance/legal adviser |
@@ -89,7 +89,9 @@ evidence.
 Current positive controls include authenticated access, HTTPS, CAPTCHA,
 rate-limiting, scoped API routes, private resource storage, low-data controls,
 local-first practice drafts, AI usage limits, and the ability to hide deleted
-chats from the account.
+chats from the account. The account flow now also records date of birth,
+restricts unverified and minor accounts, uses hashed one-time guardian tokens,
+records versioned decision events, and gates AI separately from the core account.
 
 The following must be demonstrated before final approval:
 
@@ -110,7 +112,7 @@ provisional until mitigations are implemented and tested.
 
 | Risk | Initial risk | Required mitigation | Provisional residual risk |
 | --- | --- | --- | --- |
-| A child creates an account without valid adult/school authority | High | Age assurance, verified authorisation, immutable consent record, withdrawal and account restriction | High until built |
+| A child creates an account without valid parent/legal guardian authority | High | Implemented 13+ age gate, restricted account, expiring email-link declaration and event trail; add stepped-up verification for disputes/high-risk cases and self-service withdrawal | Medium; email control plus declaration does not independently prove the real-world relationship |
 | AI gives harmful, biased, or confidently incorrect advice | High | Age-appropriate system rules, safety testing, reporting, escalation, narrow educational scope, clear limitations | Medium after validation |
 | A student discloses sensitive or third-party data in chat | High | Just-in-time warning, minimised context, redaction where feasible, access controls, deletion route | Medium |
 | Staff or school users see more student data than necessary | High | Role matrix, least privilege, school agreement, field-level access tests, audit log | Medium |
@@ -141,7 +143,7 @@ decisions, and reasons when a recommendation is not adopted.
 ## 9. Launch gates
 
 - [x] Exact legal controller identity, RC number, and registered office confirmed.
-- [ ] Responsible privacy contact approved.
+- [x] Privacy mailbox and joint request handlers approved: Nick Efe Oni and Chijindu Oreh.
 - [ ] Age and parental/school authorisation design approved and implemented.
 - [ ] Data inventory and lawful-basis record completed.
 - [ ] Staff and school access matrix implemented and tested.
