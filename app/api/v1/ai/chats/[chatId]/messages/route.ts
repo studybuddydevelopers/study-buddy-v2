@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { requireUser } from "@/lib/auth";
+import { requireAiUser } from "@/lib/auth";
 import { getChatService } from "@/lib/ai/chats/chat-service";
 import {
   chatRouteErrorResponse,
@@ -16,7 +16,7 @@ interface RouteContext {
 }
 
 export async function GET(req: Request, context: RouteContext) {
-  const auth = await requireUser();
+  const auth = await requireAiUser();
   if ("errorResponse" in auth) return auth.errorResponse;
 
   const { chatId } = await context.params;
@@ -34,7 +34,7 @@ export async function GET(req: Request, context: RouteContext) {
 }
 
 export async function POST(req: Request, context: RouteContext) {
-  const auth = await requireUser();
+  const auth = await requireAiUser();
   if ("errorResponse" in auth) return auth.errorResponse;
 
   const parsed = await parseJsonBody(req, sendChatMessageSchema);
