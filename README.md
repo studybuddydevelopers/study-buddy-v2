@@ -1,6 +1,6 @@
 # Study Buddy v2
 
-Study Buddy v2 is a Next.js learning platform for exam preparation. It combines practice questions, mock exams, progress tracking, AI-assisted study support, subscriptions, and school/admin workflows in a single app.
+Study Buddy v2 is a Next.js learning platform for exam preparation. It combines practice questions, mock exams, progress tracking, AI-assisted study support, subscriptions, and internal administration in a single app. Dormant school-membership models and admin-only endpoints are not a school-facing launch feature.
 
 ## Stack
 
@@ -26,7 +26,7 @@ Study Buddy v2 is a Next.js learning platform for exam preparation. It combines 
 - Resource Ingestion Stage 2: admin-only private resource uploads, extraction, chunking, approval workflows, and legacy past-question migration reports. This is not retrieval or RAG yet.
 - Grounded Chat Stage 4: feature-gated TEACH responses that retrieve approved active StudyBuddy evidence, validate segment-based structured output, persist grounding attempts/citations, and show safe source previews. Disabled by default until evaluations pass.
 - Accounts and billing: auth, profile, subscriptions, and payments
-- Admin and schools: content upload, user lookup, and school membership management
+- Internal administration: content upload, user lookup, and dormant school-membership management; no school or teacher accounts are provided at launch
 
 ## Product Strategy Reminders
 
@@ -98,7 +98,11 @@ These items cannot be solved by publishing policies and remain launch work:
 - [ ] Add guardian self-service withdrawal; until then, verified withdrawal requests use `privacy@studybuddyng.com` and require an authorised operator to restrict the account and record the event.
 - [ ] Build self-service account deletion and permanent chat/account purge workflows.
 - [ ] Approve retention periods and automate expiry, backup ageing and deletion evidence.
-- [ ] Define and test school roles and field-level student visibility.
+- [x] Confirm the launch position that no school/teacher accounts or school-staff
+  access to individual student data are provided.
+- [ ] Before any future school service, define and test school roles and
+  field-level student visibility, update the DPIA/notices, and execute suitable
+  agreements.
 - [ ] Verify production hosting, provider regions, DPAs, sub-processors and cross-border safeguards.
 - [ ] Confirm subscription renewal, cancellation and refund operations before paid launch.
 - [ ] Complete child-focused AI safety tests and a human escalation/reporting workflow.
