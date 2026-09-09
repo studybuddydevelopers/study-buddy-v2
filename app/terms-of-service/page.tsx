@@ -27,7 +27,7 @@ export const metadata = createPageMetadata({
   path: "/terms-of-service",
 });
 
-const LAST_UPDATED = "9 September 2026";
+const LAST_UPDATED = "10 September 2026";
 
 const summaryItems: {
   title: string;
@@ -126,9 +126,9 @@ export default function TermsOfServicePage() {
               weight="medium"
               className="max-w-3xl leading-relaxed text-gray-800"
             >
-              These terms explain how students, parents, schools, and other
-              users may use Study Buddy AI&apos;s learning tools, practice
-              materials, mock exams, progress features, and AI chat.
+              These terms explain how students, parents, guardians, and other
+              users may use Study Buddy AI&apos;s learning tools, practice materials,
+              mock exams, progress features, and AI chat.
             </Paragraph>
           </div>
 
@@ -218,17 +218,18 @@ export default function TermsOfServicePage() {
               operates Study Buddy AI.
             </p>
             <p>
-              If you use Study Buddy on behalf of a school or other organisation,
-              you confirm that you are authorised to accept these terms for it.
               If you do not agree, do not create an account or use the service.
+              The current service does not provide school or teacher accounts;
+              any future organisational service will require separate terms and
+              privacy information before it is enabled.
             </p>
           </TermsSection>
 
           <TermsSection id="who-may-use-it" title="2. Who may use Study Buddy">
             <p>
-              Study Buddy AI is intended for students, parents or guardians,
-              teachers, schools, and other users involved in exam preparation.
-              A learner must be at least 13 years old to create an account.
+              Study Buddy AI is currently intended for individual students and
+              the parents or legal guardians involved in child authorisation. A
+              learner must be at least 13 years old to create an account.
               Users aged 18 or over may create and activate their own account,
               provided they have the legal capacity needed to agree to these
               terms.
@@ -239,8 +240,8 @@ export default function TermsOfServicePage() {
               one-time email process. The adult must review these terms and our
               privacy notices, confirm their authority, and separately choose
               whether to permit AI features. A school does not replace this
-              approval unless Study Buddy later introduces and documents a
-              separate lawful school-managed process.
+              approval. Study Buddy does not currently provide a school-managed
+              account process or school-staff access to student information.
             </p>
             <p>
               We may restrict an account if the date of birth or adult authority
@@ -267,8 +268,7 @@ export default function TermsOfServicePage() {
           <TermsSection id="accounts" title="4. Accounts and security">
             <p>
               Give us accurate, current information and update it when needed.
-              Unless we approve a different arrangement for a school, each
-              account is for one user and may not be transferred.
+              Each account is for one user and may not be transferred.
             </p>
             <ul className="list-disc space-y-2 pl-5">
               <ListItem>
@@ -381,10 +381,9 @@ export default function TermsOfServicePage() {
               and platform content, except for content identified as belonging
               to someone else. We give you a limited, revocable, non-transferable
               licence to use the service and its content for personal,
-              non-commercial learning, or for authorised educational use under a
-              school arrangement. References to WAEC or other examination bodies
-              describe the learning context and do not by themselves imply
-              endorsement or affiliation.
+              non-commercial learning. References to WAEC or other examination
+              bodies describe the learning context and do not by themselves
+              imply endorsement or affiliation.
             </p>
           </TermsSection>
 
