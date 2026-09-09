@@ -8,15 +8,16 @@ and commercial questions for Study Buddy. Answers are not treated as legal
 approval by themselves. Public notices, product behaviour, internal records,
 and provider settings must be updated together after each answer is confirmed.
 
-Questions 1–9 have been answered. The confirmed decisions include the company
+Questions 1–10 have been answered. The confirmed decisions include the company
 identity and address, `privacy@studybuddyng.com` as the privacy-request mailbox,
 joint request handling by Nick Efe Oni and Chijindu Oreh, a minimum account age
 of 13, independent activation from 18, and parent or legal-guardian approval for
-ages 13–17 through the implemented email decision flow.
+ages 13–17 through the implemented email decision flow. At launch, Study Buddy
+does not provide school or teacher accounts, and school staff cannot access any
+individual student information.
 
 ## Open questions
 
-10. Exactly what student information may authorised school staff see?
 11. Can school staff create, suspend, or delete student accounts?
 12. How many days after an account-deletion request should permanent deletion take?
 13. How long should inactive accounts be retained?
