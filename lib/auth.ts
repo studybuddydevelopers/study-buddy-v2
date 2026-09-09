@@ -10,7 +10,7 @@ import {
 } from "@/lib/security/rate-limit";
 import { fetchWithTimeout } from "@/lib/security/timeouts";
 
-export async function requireUser() {
+export async function requireAuthenticatedUser() {
   const requestHeaders = await headers();
   const ipLimitResponse = await enforceRequestIpRateLimit(requestHeaders);
   if (ipLimitResponse) return { errorResponse: ipLimitResponse };
@@ -62,6 +62,54 @@ export async function requireUser() {
 
   const accountLimitResponse = await enforceAccountRateLimit(dbUser.id);
   if (accountLimitResponse) return { errorResponse: accountLimitResponse };
+
+  return { user, dbUser };
+}
+
+export async function requireUser() {
+  const base = await requireAuthenticatedUser();
+  if ("errorResponse" in base) return base;
+
+  const { user, dbUser } = base;
+  if (dbUser.accountStatus !== "ACTIVE") {
+    const nextPath =
+      dbUser.accountStatus === "AGE_VERIFICATION_REQUIRED"
+        ? "/age-verification"
+        : "/guardian-authorization-pending";
+    return {
+      errorResponse: NextResponse.json(
+        {
+          error: "ACCOUNT_RESTRICTED",
+          message:
+            dbUser.accountStatus === "AGE_VERIFICATION_REQUIRED"
+              ? "Complete the age check before using Study Buddy."
+              : "This account needs parent or legal guardian authorisation.",
+          nextPath,
+        },
+        { status: 403, headers: { "Cache-Control": "no-store" } }
+      ),
+    };
+  }
+
+  return { user, dbUser };
+}
+
+export async function requireAiUser() {
+  const base = await requireUser();
+  if ("errorResponse" in base) return base;
+
+  const { user, dbUser } = base;
+  if (!dbUser.aiAccessAuthorized) {
+    return {
+      errorResponse: NextResponse.json(
+        {
+          error: "AI_AUTHORIZATION_REQUIRED",
+          message: "AI features have not been authorised for this account.",
+        },
+        { status: 403, headers: { "Cache-Control": "no-store" } }
+      ),
+    };
+  }
 
   return { user, dbUser };
 }
