@@ -19,7 +19,10 @@ export async function POST(req: Request) {
     ...openAiClientOptions(),
   });
 
-  const users = await prisma.user.findMany({ select: { id: true } });
+  const users = await prisma.user.findMany({
+    where: { accountStatus: "ACTIVE", aiAccessAuthorized: true },
+    select: { id: true },
+  });
   const now = Date.now();
 
   const created: string[] = [];
