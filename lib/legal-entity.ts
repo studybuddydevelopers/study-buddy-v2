@@ -9,3 +9,7 @@ export const GENERAL_EMAIL = "hello@studybuddyng.com";
 export const BILLING_EMAIL = "billing@studybuddyng.com";
 export const PRIVACY_EMAIL = "privacy@studybuddyng.com";
 export const SECURITY_EMAIL = "security@studybuddyng.com";
+export const PRIVACY_REQUEST_HANDLERS = [
+  "Nick Efe Oni",
+  "Chijindu Oreh",
+] as const;
