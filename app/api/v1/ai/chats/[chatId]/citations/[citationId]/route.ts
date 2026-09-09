@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { requireUser } from "@/lib/auth";
+import { requireAiUser } from "@/lib/auth";
 import { getChatService } from "@/lib/ai/chats/chat-service";
 import { chatRouteErrorResponse } from "@/lib/ai/chats/http";
 
@@ -8,7 +8,7 @@ interface RouteContext {
 }
 
 export async function GET(_req: Request, context: RouteContext) {
-  const auth = await requireUser();
+  const auth = await requireAiUser();
   if ("errorResponse" in auth) return auth.errorResponse;
 
   const { chatId, citationId } = await context.params;
