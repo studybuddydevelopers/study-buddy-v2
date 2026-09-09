@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useId, useState } from "react";
 import StudyBuddyIcon from "@/components/StudyBuddyIcon";
 
 interface TextFieldProps {
@@ -15,6 +15,12 @@ interface TextFieldProps {
   disabled?: boolean;
   required?: boolean;
   className?: string;
+  id?: string;
+  name?: string;
+  autoComplete?: string;
+  min?: string;
+  max?: string;
+  inputMode?: React.HTMLAttributes<HTMLInputElement>["inputMode"];
 }
 
 export default function TextField({
@@ -29,7 +35,15 @@ export default function TextField({
   disabled = false,
   required = false,
   className = "",
+  id,
+  name,
+  autoComplete,
+  min,
+  max,
+  inputMode,
 }: TextFieldProps) {
+  const generatedId = useId();
+  const inputId = id ?? generatedId;
   const [showPassword, setShowPassword] = useState(false);
   const isPassword = type === "password";
   const inputType = isPassword && showPassword ? "text" : type;
@@ -37,14 +51,20 @@ export default function TextField({
   return (
     <div className={`flex flex-col gap-1 ${className}`}>
       {label && (
-        <label className="text-sm font-semibold text-gray-900">
+        <label htmlFor={inputId} className="text-sm font-semibold text-gray-900">
           {label} {required && <span className="text-red-500">*</span>}
         </label>
       )}
 
       <div className="relative flex items-center">
         <input
+          id={inputId}
+          name={name}
           type={inputType}
+          autoComplete={autoComplete}
+          min={min}
+          max={max}
+          inputMode={inputMode}
           placeholder={placeholder}
           value={value}
           onChange={onChange}
