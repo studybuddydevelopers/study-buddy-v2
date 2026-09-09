@@ -1,31 +1,34 @@
-# Parental and School Authorisation Record
+# Parent and Legal Guardian Authorisation Record
 
-Status: specification and operating template — product implementation pending  
-Owner: to be appointed  
-Last reviewed: 5 September 2026
+Status: operating record specification — core product workflow implemented
+
+Owner: to be appointed
+
+Last reviewed: 9 September 2026
 
 ## Purpose
 
-This document defines the evidence Study Buddy should retain when a parent,
-guardian, or authorised school approves a child’s account. It is not the live
-register. Never place real student, parent, or guardian personal data in this
-repository.
+This document defines the evidence Study Buddy retains when a parent or legal
+guardian decides a child’s account request. It is not the live register. Never
+place real student, parent, or guardian personal data in this repository.
 
 The live record must be stored in an access-controlled production system with
 encryption, audit logging, retention controls, and access limited to authorised
 privacy/support staff.
 
-## Required product decision
+## Approved launch decision
 
-The co-founders and privacy adviser must approve:
+For the current direct-to-learner product:
 
-- the age at which independent consent is accepted;
-- whether a parent/guardian, a school, or either can authorise use;
-- the verification method for each authoriser type;
-- which features are available before verification;
-- whether AI chat requires a higher assurance level;
-- how a child and adult can withdraw authorisation; and
-- how conflicting child, parent, and school requests are handled.
+- minimum account age is 13;
+- independent account activation begins at 18;
+- ages 13–17 require a parent or legal guardian decision through an expiring,
+  one-time email link;
+- a school is not an authoriser in the current workflow;
+- the account is restricted before approval;
+- AI access is a separate optional guardian choice; and
+- withdrawal currently uses the verified privacy-email process while an online
+  guardian self-service route remains pending.
 
 ## Minimum live-record fields
 
@@ -34,10 +37,10 @@ The co-founders and privacy adviser must approve:
 | `authorizationId` | Random internal identifier |
 | `studentUserId` | Internal student identifier; avoid duplicating name/email |
 | `studentAgeBand` | Approved age band rather than full date of birth where possible |
-| `authorizerType` | Parent, legal guardian, or authorised school |
-| `authorizerUserId` or secure reference | Link to the verified adult/school record |
-| `relationshipOrRole` | Relationship to child or authorised school role |
-| `verificationMethod` | Email link, authenticated parent account, school roster, manual review, or approved alternative |
+| `authorizerType` | Parent or legal guardian |
+| `authorizerUserId` or secure reference | Link to the authorisation record and email control evidence |
+| `relationshipOrRole` | Declared relationship to child |
+| `verificationMethod` | Current launch method is an email link plus authority declaration; manual review may supplement it |
 | `verificationLevel` | Low, standard, or enhanced assurance based on documented policy |
 | `noticeVersion` | Version of the privacy notice shown |
 | `termsVersion` | Version of the terms accepted |
@@ -61,8 +64,7 @@ clear.
 1. Ask the learner for an age band using neutral language.
 2. If authorisation is required, limit the account until verification completes.
 3. Show the Parent and Student Privacy Notice and the relevant Terms of Service.
-4. Send the authoriser a single-use, expiring verification link or use an
-   approved authenticated school workflow.
+4. Send the parent or legal guardian a single-use, expiring verification link.
 5. Explain the data, features, school visibility, AI use, withdrawal route, and
    consequences of declining.
 6. Record the authorisation event and versions of every notice accepted.
@@ -76,7 +78,8 @@ privacy settings harder to reject than accept.
 
 ## Withdrawal and disputes
 
-- Provide an online route and an email route to withdraw authorisation.
+- Provide an email route to withdraw authorisation and add the planned online
+  self-service route.
 - Verify the requester without collecting excessive new information.
 - Restrict affected processing promptly while a dispute is investigated.
 - Explain what will be deleted, retained under law, or returned to a school.
@@ -100,11 +103,11 @@ approved Data Retention and Deletion Schedule and legal holds.
 
 ## Implementation acceptance tests
 
-- [ ] A child who requires authorisation cannot access restricted features first.
-- [ ] The authoriser sees current policy versions before deciding.
-- [ ] Links are single-use, expire, and cannot authorise a different account.
-- [ ] Consent is not preselected or bundled with marketing.
-- [ ] Every grant, denial, expiry, and withdrawal creates an immutable event.
+- [x] A child who requires authorisation cannot access restricted features first.
+- [x] The authoriser sees current policy versions before deciding.
+- [x] Links are single-use, expire, and cannot authorise a different account.
+- [x] Consent is not preselected or bundled with marketing.
+- [ ] Every grant, denial, expiry, and withdrawal creates an append-only event. Grant, denial, expiry, replacement and resend events are implemented; the operator withdrawal action remains pending.
 - [ ] Withdrawal restricts features and triggers deletion or review correctly.
 - [ ] Support cannot disclose child data without verifying authority.
 - [ ] School staff cannot authorise or view learners outside their school.
