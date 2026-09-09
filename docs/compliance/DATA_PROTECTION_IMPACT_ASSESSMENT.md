@@ -2,7 +2,7 @@
 
 Status: preliminary working assessment — not approved for launch  
 Assessment date: 5 September 2026  
-Last updated: 9 September 2026
+Last updated: 10 September 2026
 Assessment owner: to be appointed  
 Approver: co-founders and qualified Nigerian privacy adviser  
 Next review: before production launch and after any material processing change
@@ -10,9 +10,9 @@ Next review: before production launch and after any material processing change
 ## 1. Decision and scope
 
 Study Buddy processes children’s account and learning data, provides AI chat,
-creates progress and recommendation profiles, supports WhatsApp messaging, and
-may connect learners to schools. These activities can create a high risk to data
-subjects and should not launch without a completed DPIA and approved controls.
+creates progress and recommendation profiles, and supports WhatsApp messaging.
+These activities can create a high risk to data subjects and should not launch
+without a completed DPIA and approved controls.
 
 This assessment covers:
 
@@ -21,12 +21,13 @@ This assessment covers:
 - web AI chat and legacy AI-question threads;
 - WhatsApp tutoring messages and account linkage;
 - subscriptions, transaction records, and Paystack verification;
-- school membership and school-facing access;
 - security logs, rate limiting, CAPTCHA, and hosting logs; and
 - administrative learning-resource ingestion and review.
 
-It does not cover a future human-tutor marketplace, advertising, behavioural
-analytics, or a mobile application. Each would require a new or revised DPIA.
+It does not cover a future school-facing service, human-tutor marketplace,
+advertising, behavioural analytics, or mobile application. Each would require a
+new or revised DPIA. The launch decision is that the current product provides no
+school or teacher accounts and no school-staff access to student data.
 
 ## 2. Why a DPIA is required
 
@@ -44,9 +45,8 @@ Authoritative references:
 
 | Data subjects | Relevant data |
 | --- | --- |
-| Students, including children | Identity, contact details, profile, school membership, learning activity, answers, scores, progress, recommendations, AI and WhatsApp messages, device and security data |
+| Students, including children | Identity, contact details, profile, learning activity, answers, scores, progress, recommendations, AI and WhatsApp messages, device and security data |
 | Parents and guardians | Identity, contact details, relationship or authority evidence, authorisation and withdrawal records, support messages |
-| Teachers and school staff | Identity, contact details, role, school, account and audit activity |
 | Individual subscribers or payers | Account identifiers, plan, amount, currency, transaction reference and status |
 | Administrators and content reviewers | Identity, role, resource actions, approval and security logs |
 
@@ -58,12 +58,11 @@ However, accidental sensitive-data submission remains a foreseeable risk.
 
 | Activity | Source | Main system or recipient | Output/retention point |
 | --- | --- | --- | --- |
-| Registration and sign-in | Student/adult/school | Study Buddy, Supabase Auth, CAPTCHA provider | Auth account, session cookie, user profile, security record |
+| Registration and sign-in | Student/adult | Study Buddy, Supabase Auth, CAPTCHA provider | Auth account, session cookie, user profile, security record |
 | Practice and exams | Student activity | Study Buddy/PostgreSQL; browser local storage for local drafts | Attempts, drafts, sessions, scores, progress |
 | AI chat | Student prompts and learning context | Study Buddy/PostgreSQL and OpenAI API | Prompt, response, model and token metadata, safety/security records |
 | WhatsApp tutoring | WhatsApp sender and messages | Meta/WhatsApp, Study Buddy, OpenAI | Linked number, thread and messages |
 | Payments | Subscriber and Paystack | Paystack and Study Buddy | Reference, amount, currency, status and subscription record |
-| School services | Student and school | Study Buddy and authorised school users | Membership and approved school-view data |
 | Hosting/security | User device and requests | Railway, Cloudflare, Supabase, CAPTCHA and Study Buddy | Technical logs, rate-limit buckets and incident evidence |
 
 The exact provider regions, sub-processors, transfer mechanisms, and contract
@@ -98,7 +97,6 @@ The following must be demonstrated before final approval:
 - every collected field is necessary for a defined user or legal purpose;
 - phone number is necessary at initial registration or made optional;
 - AI receives only the minimum conversation and learning context required;
-- school users receive only approved fields for an identified educational role;
 - staff access to conversations is restricted, logged, and policy-based;
 - permanent deletion follows the approved retention schedule;
 - privacy information is understandable to children and available before use;
@@ -115,7 +113,7 @@ provisional until mitigations are implemented and tested.
 | A child creates an account without valid parent/legal guardian authority | High | Implemented 13+ age gate, restricted account, expiring email-link declaration and event trail; add stepped-up verification for disputes/high-risk cases and self-service withdrawal | Medium; email control plus declaration does not independently prove the real-world relationship |
 | AI gives harmful, biased, or confidently incorrect advice | High | Age-appropriate system rules, safety testing, reporting, escalation, narrow educational scope, clear limitations | Medium after validation |
 | A student discloses sensitive or third-party data in chat | High | Just-in-time warning, minimised context, redaction where feasible, access controls, deletion route | Medium |
-| Staff or school users see more student data than necessary | High | Role matrix, least privilege, school agreement, field-level access tests, audit log | Medium |
+| A dormant or future school feature exposes student data unexpectedly | High | Keep school-facing access unavailable; require a revised DPIA, notice, agreement, tenant isolation, least privilege, and field-level tests before activation | Low while unavailable; reassess before development or activation |
 | Deleted chats/accounts remain indefinitely | High | Hard-deletion workflow, backup expiry, deletion job, evidence and exception register | Low/Medium |
 | Account takeover exposes learning and chat records | High | Secure auth, CAPTCHA, rate limits, recovery controls, alerts, session revocation and monitoring | Medium |
 | Provider or cross-border processing lacks an approved safeguard | High | Processor register, DPA review, transfer assessment and approved mechanism | Medium |
@@ -131,7 +129,6 @@ Before approval, obtain and record input from:
 
 - a representative group of students of relevant ages;
 - parents or guardians;
-- teachers or school safeguarding/privacy representatives;
 - engineering and information security;
 - the person responsible for privacy requests;
 - product/content owners; and
@@ -144,9 +141,9 @@ decisions, and reasons when a recommendation is not adopted.
 
 - [x] Exact legal controller identity, RC number, and registered office confirmed.
 - [x] Privacy mailbox and joint request handlers approved: Nick Efe Oni and Chijindu Oreh.
-- [ ] Age and parental/school authorisation design approved and implemented.
+- [ ] Age and parent/legal-guardian authorisation design approved and implemented.
 - [ ] Data inventory and lawful-basis record completed.
-- [ ] Staff and school access matrix implemented and tested.
+- [x] Current launch excludes school/teacher accounts and school-staff access.
 - [ ] AI safety evaluation passes agreed child-safety and educational thresholds.
 - [ ] Permanent account/chat deletion and retention jobs implemented and tested.
 - [ ] Processor agreements, regions, sub-processors, and transfer bases verified.
