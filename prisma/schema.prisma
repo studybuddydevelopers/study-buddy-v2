@@ -138,33 +138,69 @@ enum SubscriptionStatus {
   canceled
 }
 
+enum AccountStatus {
+  AGE_VERIFICATION_REQUIRED
+  BELOW_MINIMUM_AGE
+  GUARDIAN_AUTHORIZATION_REQUIRED
+  ACTIVE
+  GUARDIAN_AUTHORIZATION_DENIED
+}
+
+enum GuardianRelationship {
+  PARENT
+  LEGAL_GUARDIAN
+}
+
+enum GuardianAuthorizationStatus {
+  PENDING
+  GRANTED
+  DENIED
+  WITHDRAWN
+  EXPIRED
+  SUPERSEDED
+}
+
+enum GuardianAuthorizationEventType {
+  REQUESTED
+  GRANTED
+  DENIED
+  WITHDRAWN
+  EXPIRED
+  SUPERSEDED
+}
+
 // =========================================================
 //  AUTH & USER PROFILES
 // =========================================================
 
 model User {
-  id            String   @id @default(uuid())
-  createdAt     DateTime @default(now())
-  whatsappPhone String?  @unique // wa_id, digits only e.g. "2348012345678" — set for WhatsApp-only accounts
+  id                 String        @id @default(uuid())
+  createdAt          DateTime      @default(now())
+  whatsappPhone      String?       @unique // wa_id, digits only e.g. "2348012345678" — set for WhatsApp-only accounts
+  accountStatus      AccountStatus @default(AGE_VERIFICATION_REQUIRED)
+  aiAccessAuthorized Boolean       @default(false)
+  termsAcceptedAt    DateTime?
+  termsVersion       String?       @db.VarChar(32)
 
   adminUser AdminUser?
 
-  profile           UserProfile?
-  settings          UserSettings?
-  aiChats           AiChat[]
-  aiQuestions       AiQuestion[]
-  attempts          PastQuestionAttempt[]
-  practiceDrafts    PracticeAnswerDraft[]
-  practiceSessions  PracticeQuizSession[]
-  mockExams         MockExamInstance[]
-  recommendations   Recommendation[]
-  aiDailyUsage      AiDailyUsage[]
-  progress          ProgressTrack[]
-  subscriptions     Subscription[]
-  schoolStudents    SchoolStudent[]
-  transactions      Transaction[]
-  uploadedResources Resource[]            @relation("ResourceUploadedBy")
-  approvedResources Resource[]            @relation("ResourceApprovedBy")
+  profile                UserProfile?
+  settings               UserSettings?
+  aiChats                AiChat[]
+  aiQuestions            AiQuestion[]
+  attempts               PastQuestionAttempt[]
+  practiceDrafts         PracticeAnswerDraft[]
+  practiceSessions       PracticeQuizSession[]
+  mockExams              MockExamInstance[]
+  recommendations        Recommendation[]
+  aiDailyUsage           AiDailyUsage[]
+  progress               ProgressTrack[]
+  subscriptions          Subscription[]
+  schoolStudents         SchoolStudent[]
+  transactions           Transaction[]
+  guardianAuthorizations GuardianAuthorization[]
+  uploadedResources      Resource[]              @relation("ResourceUploadedBy")
+  approvedResources      Resource[]              @relation("ResourceApprovedBy")
 
   @@index([createdAt], map: "User_createdAt_idx")
 }
@@ -210,7 +246,7 @@ model AiGlobalDailyUsage {
 }
 
 model UserProfile {
-  userId            String   @id
+  userId            String    @id
   firstName         String
   middleNames       String?
   lastNames         String
@@ -219,8 +255,51 @@ model UserProfile {
   examYear          Int?
   preferredSubjects String[] // fixed: no optional list
   avatarUrl         String?
+  dateOfBirth       DateTime? @db.Date
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model GuardianAuthorization {
+  id                 String                      @id @default(uuid())
+  studentUserId      String
+  studentEmail       String                      @db.VarChar(320)
+  guardianName       String                      @db.VarChar(160)
+  guardianEmail      String                      @db.VarChar(320)
+  relationship       GuardianRelationship
+  status             GuardianAuthorizationStatus @default(PENDING)
+  tokenHash          String                      @unique @db.VarChar(64)
+  tokenExpiresAt     DateTime
+  noticeVersion      String                      @db.VarChar(32)
+  termsVersion       String                      @db.VarChar(32)
+  verificationMethod String                      @default("EMAIL_LINK_DECLARATION") @db.VarChar(64)
+  aiAuthorized       Boolean?
+  requestedAt        DateTime                    @default(now())
+  decidedAt          DateTime?
+  withdrawnAt        DateTime?
+  createdAt          DateTime                    @default(now())
+  updatedAt          DateTime                    @updatedAt
+
+  student User                         @relation(fields: [studentUserId], references: [id], onDelete: Cascade)
+  events  GuardianAuthorizationEvent[]
+
+  @@index([studentUserId, status, createdAt], map: "GuardianAuthorization_student_status_idx")
+  @@index([guardianEmail, status], map: "GuardianAuthorization_guardian_status_idx")
+  @@index([tokenExpiresAt], map: "GuardianAuthorization_token_expiry_idx")
+}
+
+model GuardianAuthorizationEvent {
+  id              String                         @id @default(uuid())
+  authorizationId String
+  eventType       GuardianAuthorizationEventType
+  actorType       String                         @db.VarChar(32)
+  ipFingerprint   String?                        @db.VarChar(64)
+  details         Json?
+  createdAt       DateTime                       @default(now())
+
+  authorization GuardianAuthorization @relation(fields: [authorizationId], references: [id], onDelete: Cascade)
+
+  @@index([authorizationId, createdAt], map: "GuardianAuthorizationEvent_authorization_created_idx")
 }
 
 model UserSettings {
