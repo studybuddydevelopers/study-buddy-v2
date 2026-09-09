@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { requireUser } from "@/lib/auth";
+import { requireAiUser } from "@/lib/auth";
 import { getChatService } from "@/lib/ai/chats/chat-service";
 import {
   chatRouteErrorResponse,
@@ -9,7 +9,7 @@ import {
 import { createChatSchema } from "@/lib/ai/chats/schemas";
 
 export async function GET(req: Request) {
-  const auth = await requireUser();
+  const auth = await requireAiUser();
   if ("errorResponse" in auth) return auth.errorResponse;
 
   try {
@@ -24,7 +24,7 @@ export async function GET(req: Request) {
 }
 
 export async function POST(req: Request) {
-  const auth = await requireUser();
+  const auth = await requireAiUser();
   if ("errorResponse" in auth) return auth.errorResponse;
 
   const parsed = await parseJsonBody(req, createChatSchema);
