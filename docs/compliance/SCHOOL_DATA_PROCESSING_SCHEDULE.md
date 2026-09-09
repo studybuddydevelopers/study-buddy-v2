@@ -3,6 +3,11 @@
 Status: contract schedule template — not legal advice and not executed  
 Version: 0.2, 8 September 2026
 
+Launch decision recorded 10 September 2026: the current product provides no
+school or teacher accounts and no school-staff access to individual student
+data. This template applies only to a possible future school service and must
+not be treated as permission to enable access.
+
 This schedule is intended to attach to a signed service agreement between the
 Study Buddy contracting entity (“Study Buddy”) and a named school (“School”). A
 qualified Nigerian lawyer/privacy adviser must adapt and approve it. Do not use
@@ -94,10 +99,10 @@ The agreement must complete this matrix before access is enabled.
 
 | Data/feature | Student | Parent/guardian | Teacher | School admin | Study Buddy support | Default |
 | --- | --- | --- | --- | --- | --- | --- |
-| Name and school membership | Own | Pending | Pending | Pending | Need-to-know | No school access until approved |
-| Subject participation | Own | Pending | Pending | Pending | Need-to-know | Pending |
-| Practice and mock results | Own | Pending | Pending | Pending | Need-to-know | Pending |
-| Progress/recommendations | Own | Pending | Pending | Pending | Need-to-know | Pending |
+| Name and school membership | Own | Pending | No | No | Need-to-know | No school access |
+| Subject participation | Own | Pending | No | No | Need-to-know | No school access |
+| Practice and mock results | Own | Pending | No | No | Need-to-know | No school access |
+| Progress/recommendations | Own | Pending | No | No | Need-to-know | No school access |
 | AI-chat content | Own | Pending | No | No | Restricted incident/support basis | Not visible to school by default |
 | Account/security logs | Limited | No | No | No | Restricted security basis | Not visible to school |
 | Parent/guardian evidence | Status only | Own | No | Status if necessary | Restricted privacy basis | Minimal status only |
