@@ -11,7 +11,7 @@ const serviceMocks = vi.hoisted(() => ({
 }));
 
 vi.mock("@/lib/auth", () => ({
-  requireUser: vi.fn(),
+  requireAiUser: vi.fn(),
 }));
 
 vi.mock("@/lib/ai/chats/chat-service", () => ({
@@ -27,16 +27,16 @@ describe("Stage 1 chat routes", () => {
     vi.clearAllMocks();
     serviceMocks.listChats.mockResolvedValue({ chats: [], pagination: {} });
 
-    const { requireUser } = await import("@/lib/auth");
-    vi.mocked(requireUser).mockResolvedValue({
+    const { requireAiUser } = await import("@/lib/auth");
+    vi.mocked(requireAiUser).mockResolvedValue({
       user: { id: "user-1" },
       dbUser: { id: "user-1" },
     } as never);
   });
 
   it("rejects unauthenticated chat access", async () => {
-    const { requireUser } = await import("@/lib/auth");
-    vi.mocked(requireUser).mockResolvedValue({
+    const { requireAiUser } = await import("@/lib/auth");
+    vi.mocked(requireAiUser).mockResolvedValue({
       errorResponse: NextResponse.json({ error: "UNAUTHENTICATED" }, { status: 401 }),
     } as never);
 
@@ -62,7 +62,7 @@ describe("Stage 1 chat routes", () => {
       const source = fs.readFileSync(path.join(routeDir, routeFile), "utf8");
       expect(source).not.toMatch(/from ["']openai["']|new OpenAI/);
       expect(source).not.toMatch(/\$transaction|aiGenerationRequest|provider\.generate/);
-      expect(source).toMatch(/getChatService|requireUser/);
+      expect(source).toMatch(/getChatService|requireAiUser/);
     }
   });
 
