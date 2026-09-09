@@ -25,7 +25,7 @@ export const metadata = createPageMetadata({
   path: "/privacy-policy",
 });
 
-const LAST_UPDATED = "9 September 2026";
+const LAST_UPDATED = "10 September 2026";
 
 const summaryItems: {
   title: string;
@@ -222,10 +222,9 @@ export default function PrivacyPolicyPage() {
             </p>
             <p>
               {LEGAL_ENTITY_NAME} is the data controller for personal data
-              processed for accounts provided directly by us. If a school
-              arranges your access, the school may also be a data controller for
-              information it asks us to process. In that case, you should also
-              read the school&apos;s privacy notice.
+              processed through the current service. Study Buddy does not
+              currently provide school or teacher accounts, and school staff
+              cannot access individual student information through the service.
             </p>
             <p>
               For privacy questions or requests, contact us at{" "}
@@ -259,9 +258,8 @@ export default function PrivacyPolicyPage() {
               </ListItem>
               <ListItem>
                 <strong>Profile and study preferences:</strong> profile image,
-                grade level, exam year, preferred subjects, school affiliation
-                where applicable, low-data preference, and whether cloud draft
-                saving is enabled.
+                grade level, exam year, preferred subjects, low-data preference,
+                and whether cloud draft saving is enabled.
               </ListItem>
               <ListItem>
                 <strong>Study activity:</strong> questions you attempt, answers
@@ -299,9 +297,9 @@ export default function PrivacyPolicyPage() {
             </ul>
             <p>
               We receive this information from you, your use of the service,
-              your parent, guardian, or school where applicable, and the service
-              providers described below. Practice drafts may remain only in
-              your browser unless you turn on cloud draft saving.
+              your parent or guardian where applicable, and the service providers
+              described below. Practice drafts may remain only in your browser
+              unless you turn on cloud draft saving.
             </p>
           </PolicySection>
 
@@ -447,12 +445,14 @@ export default function PrivacyPolicyPage() {
               </ListItem>
             </ul>
             <p>
-              If your account is connected to a school, authorised school staff
-              may receive account, participation, or learning information within
-              the school service. We may also disclose data when required by law,
-              to protect users or the service, or as part of a business
-              reorganisation with appropriate confidentiality safeguards. We do
-              not share student data with advertisers.
+              School staff do not currently receive account, participation,
+              learning, or AI-chat information through Study Buddy. We may
+              disclose data when required by law, to protect users or the
+              service, or as part of a business reorganisation with appropriate
+              confidentiality safeguards. We do not share student data with
+              advertisers. Any future school-access service would require a
+              separate assessment, clear advance notice, appropriate agreements,
+              and tested access controls before it is enabled.
             </p>
           </PolicySection>
 
@@ -519,8 +519,8 @@ export default function PrivacyPolicyPage() {
             </p>
             <p>
               A parent or guardian may contact us to ask about, correct, or
-              delete a child&apos;s data, subject to the child&apos;s own rights and any
-              lawful school arrangement. Email{" "}
+              delete a child&apos;s data, subject to the child&apos;s own rights and other
+              applicable legal requirements. Email{" "}
               <a
                 href={`mailto:${PRIVACY_EMAIL}`}
                 className="font-medium text-primary-600 hover:underline"
