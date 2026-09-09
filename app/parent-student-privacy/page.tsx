@@ -5,7 +5,7 @@ import PolicyDocumentPage, {
 import { PRIVACY_EMAIL } from "@/lib/legal-entity";
 import { createPageMetadata } from "@/lib/site-metadata";
 
-const LAST_UPDATED = "8 September 2026";
+const LAST_UPDATED = "9 September 2026";
 
 export const metadata = createPageMetadata({
   title: "Parent and Student Privacy Notice",
@@ -39,7 +39,8 @@ const sections: PolicyDocumentSection[] = [
       <>
         <p>Study Buddy may keep:</p>
         <ul>
-          <li>name, email address, phone number, and account details;</li>
+          <li>name, email address, phone number, date of birth, and account details;</li>
+          <li>parent or legal guardian contact details and their authorisation decision if the student is aged 13–17;</li>
           <li>grade, exam year, preferred subjects, and profile image;</li>
           <li>questions, answers, drafts, scores, progress, and study activity;</li>
           <li>messages sent to the Study Buddy AI or WhatsApp bot;</li>
@@ -124,19 +125,20 @@ const sections: PolicyDocumentSection[] = [
     content: (
       <>
         <p>
-          Where the law requires it, a parent, guardian, or authorised school
-          must approve a child&apos;s use before the account is used. The adult should
-          understand what information is collected, which features the child can
-          use, and how to withdraw the authorisation.
+          Study Buddy accounts are for people aged 13 and over. Someone aged 18
+          or over may activate their own account. Someone aged 13–17 can fill in
+          the sign-up form, but the account stays locked until a parent or legal
+          guardian approves it. A school cannot approve instead in the current
+          product.
         </p>
         <p>
-          Study Buddy&apos;s verified parental-authorisation workflow is still being
-          finalised. Until it is available, a parent, guardian, or authorised
-          school should contact{" "}
-          <a href={`mailto:${PRIVACY_EMAIL}`}>{PRIVACY_EMAIL}</a> before a child
-          creates an independently managed account. This notice does not replace
-          the verification and consent controls that must be built into the
-          product.
+          We email the named adult an expiring, one-time link. They confirm that
+          they are the parent or legal guardian, read the current notices, and
+          approve or deny the learning account. AI permission is a separate,
+          optional choice. We record the decision and notice versions. The adult
+          may later withdraw authorisation by emailing{" "}
+          <a href={`mailto:${PRIVACY_EMAIL}`}>{PRIVACY_EMAIL}</a>; we verify the
+          request before restricting the account.
         </p>
       </>
     ),
