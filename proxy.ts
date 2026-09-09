@@ -126,6 +126,11 @@ export async function proxy(req: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser();
 
+  const accountStatus =
+    typeof user?.user_metadata?.accountStatus === "string"
+      ? user.user_metadata.accountStatus
+      : null;
+
   if (protectedPaths.some((path) => pathMatches(pathname, path)) && !user) {
     return withContentSecurityPolicy(
       NextResponse.redirect(new URL("/unauthorized", req.url)),
@@ -133,14 +138,38 @@ export async function proxy(req: NextRequest) {
     );
   }
 
+  if (user && protectedPaths.some((path) => pathMatches(pathname, path))) {
+    const restrictedDestination = accountStatusDestination(accountStatus);
+    if (restrictedDestination) {
+      return withContentSecurityPolicy(
+        NextResponse.redirect(new URL(restrictedDestination, req.url)),
+        contentSecurityPolicy
+      );
+    }
+  }
+
   if (guestOnlyPaths.some((path) => pathMatches(pathname, path)) && user) {
+    const destination =
+      accountStatusDestination(accountStatus) ?? "/already-logged-in";
     return withContentSecurityPolicy(
-      NextResponse.redirect(new URL("/already-logged-in", req.url)),
+      NextResponse.redirect(new URL(destination, req.url)),
       contentSecurityPolicy
     );
   }
 
   return res;
+}
+
+function accountStatusDestination(status: string | null) {
+  if (status === "AGE_VERIFICATION_REQUIRED") return "/age-verification";
+  if (status === "BELOW_MINIMUM_AGE") return "/account-unavailable";
+  if (
+    status === "GUARDIAN_AUTHORIZATION_REQUIRED" ||
+    status === "GUARDIAN_AUTHORIZATION_DENIED"
+  ) {
+    return "/guardian-authorization-pending";
+  }
+  return null;
 }
 
 function pathMatches(pathname: string, prefix: string) {
