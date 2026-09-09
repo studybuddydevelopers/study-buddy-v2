@@ -12,6 +12,7 @@ import {
   COMPANY_REGISTRATION_NUMBER,
   LEGAL_ENTITY_NAME,
   PRIVACY_EMAIL,
+  PRIVACY_REQUEST_HANDLERS,
   REGISTERED_OFFICE_ADDRESS,
   SECURITY_EMAIL,
 } from "@/lib/legal-entity";
@@ -24,7 +25,7 @@ export const metadata = createPageMetadata({
   path: "/privacy-policy",
 });
 
-const LAST_UPDATED = "8 September 2026";
+const LAST_UPDATED = "9 September 2026";
 
 const summaryItems: {
   title: string;
@@ -247,7 +248,14 @@ export default function PrivacyPolicyPage() {
               <ListItem>
                 <strong>Account and identity information:</strong> first name,
                 optional middle names, last names, email address, phone number,
-                authentication identifiers, and account status.
+                date of birth, authentication identifiers, current terms
+                version, and account status.
+              </ListItem>
+              <ListItem>
+                <strong>Parent or legal guardian authorisation:</strong> the
+                adult&apos;s name, email address, relationship, approval or denial,
+                AI-feature choice, notice versions, verification method,
+                timestamps, and a minimised security fingerprint.
               </ListItem>
               <ListItem>
                 <strong>Profile and study preferences:</strong> profile image,
@@ -484,13 +492,22 @@ export default function PrivacyPolicyPage() {
 
           <PolicySection id="childrens-privacy" title="8. Children's privacy">
             <p>
-              Study Buddy is designed for secondary school learners, including
-              children under 18. An account for a child must be authorised by a
-              parent or guardian, or by an authorised school acting lawfully,
-              where consent or authorisation is required. The adult or school
-              should review these terms and this policy with the learner and
-              supervise appropriate use. We may request reasonable evidence of
-              age, relationship, or authority.
+              Study Buddy accounts are available from age 13. A user aged 18 or
+              over may activate their own account. A user aged 13–17 may enter
+              registration details, but the account remains restricted until a
+              parent or legal guardian approves it. We send the adult an
+              expiring, one-time link; the adult must confirm their authority,
+              review the current notices, and make a separate choice about AI
+              features. A school does not replace this approval in the current
+              product.
+            </p>
+            <p>
+              We store the date of birth to enforce the age rule and keep an
+              event record of requests, grants, denials, expiry, replacement,
+              and any later withdrawal. The approval link is stored only as a
+              cryptographic hash. We may request further proportionate evidence
+              if age, relationship, or authority is disputed or appears
+              inaccurate.
             </p>
             <p>
               We seek to limit children&apos;s data to what is reasonably needed for
@@ -670,6 +687,10 @@ export default function PrivacyPolicyPage() {
                 >
                   {PRIVACY_EMAIL}
                 </a>
+              </p>
+              <p className="mt-1">
+                Privacy requests are handled jointly by co-founders{" "}
+                {PRIVACY_REQUEST_HANDLERS.join(" and ")}.
               </p>
               <p className="mt-1">Registered office: {REGISTERED_OFFICE_ADDRESS}</p>
             </div>
