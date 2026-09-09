@@ -44,14 +44,18 @@ PDF_CDR_REQUIRED=true
 PDF_CDR_COMMAND=gs
 PDF_CDR_TIMEOUT_MS=20000
 PDF_CDR_MAX_OUTPUT_BYTES=31457280
+RESEND_API_KEY=replace-me
+TRANSACTIONAL_EMAIL_FROM="Study Buddy Privacy <no-reply@updates.studybuddyng.com>"
+TRANSACTIONAL_EMAIL_REPLY_TO=privacy@studybuddyng.com
+GUARDIAN_AUTHORIZATION_TTL_HOURS=72
 ```
 
 Use different PostgreSQL credentials for `DATABASE_URL` and `DIRECT_URL`.
 `DATABASE_URL` is the pooled runtime connection used by the generated Prisma
 client. `DIRECT_URL` is the direct owner connection used only by Prisma Migrate.
-The currently configured runtime role is still `postgres` and has `CREATEDB`,
-`CREATEROLE`, and `BYPASSRLS`, so replacing it is a pre-launch task, not an
-optional cleanup.
+The deployment checklist records that the broad `postgres` runtime credential
+has been replaced. Re-check the effective role attributes and grants after each
+database-role or connection-string change; do not rely only on the username.
 
 This app performs authorization in its server routes rather than passing each
 Supabase user's identity into PostgreSQL. A practical runtime role therefore
@@ -71,6 +75,14 @@ connection limit small per Railway replica. Transaction mode on port `6543` is
 available for serverless/short-lived runtimes, but requires `pgbouncer=true`.
 `prisma generate` and the web runtime do not require `DIRECT_URL`; store that
 owner credential only in the separately controlled migration job or CI secret.
+
+The age/guardian release adds `GuardianAuthorization` and
+`GuardianAuthorizationEvent`. Apply its migration using the migration-owner job
+before deploying the web code. Confirm the dedicated runtime role receives CRUD
+on both new tables through the owner&apos;s default privileges (and still has no DDL
+or ownership). Run `npm run security:verify-database` with the runtime
+connection afterward; a missing grant should be treated as a failed deployment,
+not worked around by restoring the owner credential to the web service.
 
 `APP_ORIGIN` is mandatory for browser mutations carrying a Supabase session
 cookie. Requests with no `Origin`, `Origin: null`, or a different exact origin
