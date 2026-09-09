@@ -47,8 +47,20 @@ export async function GET(
       take: pageSize,
       include: {
         user: {
-          include: {
-            profile: true,
+          select: {
+            profile: {
+              select: {
+                userId: true,
+                firstName: true,
+                middleNames: true,
+                lastNames: true,
+                phoneNumber: true,
+                gradeLevel: true,
+                examYear: true,
+                preferredSubjects: true,
+                avatarUrl: true,
+              },
+            },
           },
         },
       },
