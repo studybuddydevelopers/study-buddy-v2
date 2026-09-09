@@ -74,7 +74,7 @@ export default function LoginClient() {
         return;
       }
 
-      router.push("/dashboard");
+      router.push(response.headers.get("X-Study-Buddy-Next") || "/dashboard");
     } catch {
       setFormError(
         "We couldn't log you in. Check your connection and try again."
