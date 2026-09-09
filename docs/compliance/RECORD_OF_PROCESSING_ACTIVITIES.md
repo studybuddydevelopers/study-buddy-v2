@@ -5,7 +5,7 @@ pending
 Controller: STUDY BUDDY GLOBAL PROJECTS LIMITED (RC 9825797), 24 Anthony Enahoro Street, Utako, Abuja, FCT, Nigeria
 Privacy contact: `privacy@studybuddyng.com`
 Privacy request handlers: Nick Efe Oni and Chijindu Oreh (jointly)
-Last reviewed: 9 September 2026
+Last reviewed: 10 September 2026
 
 This record must be maintained as the product changes. “Pending” is a work item,
 not approval to process. Confirm the controller/processor role, lawful basis,
@@ -25,15 +25,16 @@ retention, provider region, and transfer safeguard before production use.
 | ROPA-08 | Manage subscriptions and payment verification | Subscribers/payers; user ID, plan, reference, amount, currency, status and dates | Contract; legal obligation; fraud-prevention legitimate interests | Paystack, Supabase, hosting, financial/regulatory recipients where legally required | Statutory period to be confirmed | Finance owner and refund operations pending |
 | ROPA-09 | Provide support and handle complaints/rights | Students, adults, schools; name, email, subject, message, identity/authority evidence, correspondence and decision | Contract; legal obligation; legitimate interests | Hosting/email/support providers when approved; regulators where required | Proposed 12 months after closure unless hold; approve | Joint handlers: Nick Efe Oni and Chijindu Oreh; operating workflow pending |
 | ROPA-10 | Prevent fraud, abuse and security incidents | All users/attackers; IP/network data, account ID, timestamps, CAPTCHA, rate limits, audit/security events | Legitimate interests; legal obligation where applicable | Hosting, Supabase, CAPTCHA, security advisers/regulators where required | Proposed short operational periods/12-month logs; approve | Security owner pending |
-| ROPA-11 | Operate school membership and approved reporting | Students, parents, school staff; school, role, membership, approved learning fields | School/direct contract and documented school/child basis | Named school and approved providers | Membership/account term plus approved offboarding | Role and visibility matrix blocked |
+| ROPA-11 | Possible future school membership and approved reporting | Students, parents, school staff; school, role, membership, approved learning fields | Not determined; requires a school/direct contract and documented school/child basis before activation | No current recipients; any future named school and providers require approval | Not determined | Not active: current product provides no school/teacher account or school-staff access |
 | ROPA-12 | Manage learning resources and rights | Administrators/content owners; staff IDs, uploaded content, source, approval and processing records | Contract/legitimate interests; legal obligations for rights disputes | Supabase storage, hosting, extraction/security tools | Licence/service period plus dispute record | Provenance/rights register incomplete |
 | ROPA-13 | Improve service with aggregate analysis | Users; product/learning events transformed into aggregate or anonymised statistics | Legitimate interests; consent if future non-essential tracking requires it | Internal team and approved analytics provider only if onboarded | Review annually; retain only if effectively anonymised | No behavioural analytics approved |
 | ROPA-14 | Communicate account and important service notices | Account users/authorisers; email/phone, notice type, delivery event | Contract; legal obligation; legitimate interests | Supabase Auth email; Resend guardian-authorisation email; Meta for WhatsApp | Delivery/provider period pending | Code implemented; production Resend and Supabase SMTP configuration must be verified |
 
-## Processor activities for schools
+## Possible future processor activities for schools
 
 These entries apply only where the signed role analysis concludes that Study
-Buddy acts as the School’s processor.
+Buddy acts as the School’s processor. None of these activities is currently
+active, and no school staff receive student data through the present service.
 
 | ID | School instruction | Data | Sub-processors | Retention/return | Status |
 | --- | --- | --- | --- | --- | --- |
