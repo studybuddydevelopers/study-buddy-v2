@@ -2,7 +2,7 @@
 
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { requireUser } from "@/lib/auth";
+import { requireAiUser } from "@/lib/auth";
 import { getString, isRecord } from "@/lib/type-utils";
 import OpenAI from "openai";
 import type { ChatCompletionMessageParam } from "openai/resources/chat/completions";
@@ -26,7 +26,7 @@ export async function POST(
   // -------------------------------------
   // 1. AUTH
   // -------------------------------------
-  const auth = await requireUser();
+  const auth = await requireAiUser();
   if ("errorResponse" in auth) return auth.errorResponse;
   const { dbUser } = auth;
 
