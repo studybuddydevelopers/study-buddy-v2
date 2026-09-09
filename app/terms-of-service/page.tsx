@@ -27,7 +27,7 @@ export const metadata = createPageMetadata({
   path: "/terms-of-service",
 });
 
-const LAST_UPDATED = "8 September 2026";
+const LAST_UPDATED = "9 September 2026";
 
 const summaryItems: {
   title: string;
@@ -228,16 +228,25 @@ export default function TermsOfServicePage() {
             <p>
               Study Buddy AI is intended for students, parents or guardians,
               teachers, schools, and other users involved in exam preparation.
-              You must have the legal capacity and authority needed to agree to
-              these terms.
+              A learner must be at least 13 years old to create an account.
+              Users aged 18 or over may create and activate their own account,
+              provided they have the legal capacity needed to agree to these
+              terms.
             </p>
             <p>
-              If you are under 18, a parent or guardian, or an authorised school
-              acting lawfully, must authorise your account where required. The
-              responsible adult should review these terms and our Privacy Policy
-              with you and supervise appropriate use. By authorising a child&apos;s
-              account, the adult confirms that they have authority to do so and
-              accepts responsibility for that authorisation.
+              A user aged 13–17 may register, but the account remains locked
+              until a parent or legal guardian approves it through our expiring,
+              one-time email process. The adult must review these terms and our
+              privacy notices, confirm their authority, and separately choose
+              whether to permit AI features. A school does not replace this
+              approval unless Study Buddy later introduces and documents a
+              separate lawful school-managed process.
+            </p>
+            <p>
+              We may restrict an account if the date of birth or adult authority
+              appears inaccurate. A parent or legal guardian may withdraw an
+              authorisation by emailing privacy@studybuddyng.com; we will verify
+              identity and authority before changing the account.
             </p>
           </TermsSection>
 
