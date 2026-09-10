@@ -36,6 +36,7 @@ CSRF_TRUSTED_ORIGINS=
 TRUSTED_PROXY_PROVIDER=railway
 AI_GLOBAL_BUDGET_ENABLED=true
 AI_GLOBAL_DAILY_TOKEN_BUDGET=1000000
+ACCOUNT_DELETION_CRON_SECRET=replace-with-at-least-32-random-bytes
 MALWARE_SCAN_REQUIRED=true
 CLAMAV_HOST=clamav.railway.internal
 CLAMAV_PORT=3310
@@ -49,6 +50,16 @@ TRANSACTIONAL_EMAIL_FROM="Study Buddy Privacy <no-reply@updates.studybuddyng.com
 TRANSACTIONAL_EMAIL_REPLY_TO=privacy@studybuddyng.com
 GUARDIAN_AUTHORIZATION_TTL_HOURS=72
 ```
+
+Create a Railway cron service/job that sends `POST
+/api/v1/account/deletion/cron` to the web service at least hourly with
+`x-cron-secret: <ACCOUNT_DELETION_CRON_SECRET>`. Use a distinct secret of at
+least 32 random bytes,
+never put it in a browser variable, and alert on non-2xx responses. An hourly
+schedule keeps the 30-day deletion commitment from drifting materially. After
+the lifecycle migration, verify the dedicated runtime role has CRUD on
+`AccountDeletionRequest`; do not replace the restricted runtime URL with the
+migration-owner URL as a workaround.
 
 Use different PostgreSQL credentials for `DATABASE_URL` and `DIRECT_URL`.
 `DATABASE_URL` is the pooled runtime connection used by the generated Prisma
@@ -161,6 +172,8 @@ attributes automatically. Useful Log Explorer filters are:
 @securityEvent:malware_scanner_unavailable
 @securityEvent:pdf_content_disarm_failed
 @securityEvent:ai_global_daily_budget_exhausted
+@securityEvent:account_deletion_failed
+@securityEvent:account_deletion_cron_failed
 ```
 
 Login account and source-IP identifiers are HMAC-based pseudonyms, so repeated
@@ -178,6 +191,7 @@ Start with these thresholds and tune them against normal traffic:
 | Scanner unavailable | Any event | Page immediately because production uploads are unavailable by design |
 | PDF CDR failure/unavailable | Any event | Inspect the file or runtime installation; do not bypass the production fail-closed setting |
 | Global AI budget exhausted | Any event | Provider calls stop automatically; inspect usage and deliberately raise the limit only if justified |
+| Account deletion failure | Any event or non-2xx cron response | Page engineering/privacy; restore the scheduler or provider connection and verify the retry completes before the 30-day deadline |
 
 Railway provides searchable HTTP and structured logs, but its native threshold
 monitors cover CPU, RAM, disk, and network egress rather than application log
