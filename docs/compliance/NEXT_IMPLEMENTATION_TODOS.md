@@ -88,7 +88,8 @@ Acceptance criteria:
 3. The emergency path requires retrospective review within 24 hours and alerts
    if that review is overdue.
 4. Conversation content is not available for marketing, general surveillance,
-   routine product improvement, or model training/evaluation.
+   routine product improvement, or training/evaluation outside the separately
+   approved de-identified and opted-in future workflow.
 
 ## P1 — Finish the remaining retention controls
 
@@ -114,3 +115,54 @@ Acceptance criteria:
 - [ ] Test account access, correction, restriction, objection, portability, and
   deletion workflows end to end.
 - [ ] Run and record the incident-response exercise and provider escalation test.
+
+## P2 — Before enabling conversation-based AI improvement
+
+The co-founders approved future use of selected conversations to train or
+evaluate Study Buddy's own AI. It is not part of the current beta: existing
+evaluation scripts use purpose-built fixtures. Keep every ingestion, export,
+dataset-building, evaluation, fine-tuning, and training path for user
+conversations disabled until all of the following are complete.
+
+- [ ] Complete and sign a revised children-and-AI DPIA and obtain qualified
+  Nigerian privacy review of the purpose, consent language, provider roles, and
+  international transfers.
+- [ ] Build a separate, granular, off-by-default consent screen. Adults must opt
+  in; ages 13–17 require parent/legal-guardian authorisation and an affirmative
+  student choice. Refusal must not reduce ordinary service access.
+- [ ] Version the notice and consent, record who authorised which purpose and
+  dataset use, and provide an equally easy withdrawal route.
+- [ ] Create a de-identification and sensitive/third-party-data screening
+  pipeline with documented re-identification tests and human escalation that
+  does not expose raw conversations for routine review.
+- [ ] Isolate source and derived datasets from production, encrypt them, apply
+  least privilege, prohibit personal tools/downloads, and audit every query,
+  export, transform, training run, and deletion.
+- [ ] Define approved sampling rules and retention periods for source samples,
+  derived datasets, evaluation reports, checkpoints, and trained artefacts.
+- [ ] Implement dataset lineage and membership records so withdrawal and account
+  deletion stop future use and remove eligible source/derived copies.
+- [ ] Before model training, explain any technical limit on removing a
+  contribution already incorporated into a model and prevent training unless
+  the user or authorising adult accepted that exact versioned notice.
+- [ ] Test for memorisation, personal-data leakage, prompt extraction, child
+  safety regressions, bias, and re-identification before and after every model
+  release.
+- [ ] Review every training/evaluation provider separately. The confirmed OpenAI
+  opt-out from improving OpenAI's models does not by itself authorise customer
+  fine-tuning, evaluation uploads, or another provider.
+- [ ] Add a kill switch, release approval, monitoring, rollback, incident path,
+  periodic consent/access audit, and evidence that the feature remains disabled
+  until approval.
+
+Acceptance criteria:
+
+1. No production conversation can enter an evaluation or training dataset
+   without an active, versioned and age-appropriate choice for that exact use.
+2. The dataset contains no direct identifiers and passes documented sensitive-
+   data, re-identification, and memorisation tests.
+3. Withdrawal prevents new use and removes eligible dataset copies with
+   auditable evidence; disclosed model-deletion limits match actual behaviour.
+4. Staff cannot browse raw user conversations through the improvement workflow.
+5. A privacy adviser and both co-founders sign the revised DPIA and release gate
+   before the production feature flag can be enabled.
