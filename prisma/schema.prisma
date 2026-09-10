@@ -144,6 +144,16 @@ enum AccountStatus {
   GUARDIAN_AUTHORIZATION_REQUIRED
   ACTIVE
   GUARDIAN_AUTHORIZATION_DENIED
+  DEACTIVATED
+  DELETION_PENDING
+}
+
+enum AccountDeletionRequestStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  CANCELLED
+  FAILED
 }
 
 enum GuardianRelationship {
@@ -181,6 +191,7 @@ model User {
   aiAccessAuthorized Boolean       @default(false)
   termsAcceptedAt    DateTime?
   termsVersion       String?       @db.VarChar(32)
+  deactivatedAt      DateTime?
 
   adminUser AdminUser?
 
@@ -196,13 +207,37 @@ model User {
   aiDailyUsage           AiDailyUsage[]
   progress               ProgressTrack[]
   subscriptions          Subscription[]
-  schoolStudents         SchoolStudent[]
   transactions           Transaction[]
   guardianAuthorizations GuardianAuthorization[]
+  deletionRequest        AccountDeletionRequest?
   uploadedResources      Resource[]              @relation("ResourceUploadedBy")
   approvedResources      Resource[]              @relation("ResourceApprovedBy")
 
   @@index([createdAt], map: "User_createdAt_idx")
+}
+
+/// Minimal, retryable evidence and work queue for permanent account deletion.
+/// Direct identifiers are cleared after both the application account and the
+/// Supabase Auth identity have been removed.
+model AccountDeletionRequest {
+  id                  String                       @id @default(uuid())
+  userId              String?                      @unique
+  authUserId          String?                      @unique
+  accountFingerprint  String                       @db.VarChar(64)
+  status              AccountDeletionRequestStatus @default(PENDING)
+  requestedAt         DateTime                     @default(now())
+  scheduledFor        DateTime
+  processingStartedAt DateTime?
+  completedAt         DateTime?
+  cancelledAt         DateTime?
+  attemptCount        Int                          @default(0)
+  lastFailureCode     String?                      @db.VarChar(64)
+  createdAt           DateTime                     @default(now())
+  updatedAt           DateTime                     @updatedAt
+
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([status, scheduledFor], map: "AccountDeletionRequest_status_scheduled_idx")
 }
 
 // =========================================================
@@ -886,47 +921,19 @@ model AdminUser {
 }
 
 // =========================================================
-//  SCHOOLS - B2B FEATURES
-// =========================================================
-
-model School {
-  id         String  @id @default(uuid())
-  name       String
-  location   String?
-  adminEmail String?
-
-  students SchoolStudent[]
-
-  @@index([name], map: "School_name_idx")
-}
-
-model SchoolStudent {
-  id       String   @id @default(uuid())
-  schoolId String
-  userId   String
-  joinedAt DateTime @default(now())
-
-  school School @relation(fields: [schoolId], references: [id], onDelete: Cascade)
-  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@unique([schoolId, userId])
-  @@index([schoolId, joinedAt], map: "SchoolStudent_schoolId_joinedAt_idx")
-}
-
-// =========================================================
 //  PAYMENTS (LOGS)
 // =========================================================
 
 model Transaction {
   id        String   @id @default(uuid())
-  userId    String
+  userId    String?
   amount    Float
   currency  String   @default("NGN")
   status    String
   reference String
   createdAt DateTime @default(now())
 
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
 
   @@unique([reference], map: "Transaction_reference_key")
 }
