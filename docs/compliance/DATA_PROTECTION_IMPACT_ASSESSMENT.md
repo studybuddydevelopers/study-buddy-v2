@@ -90,7 +90,10 @@ rate-limiting, scoped API routes, private resource storage, low-data controls,
 local-first practice drafts, AI usage limits, and the ability to hide deleted
 chats from the account. The account flow now also records date of birth,
 restricts unverified and minor accounts, uses hashed one-time guardian tokens,
-records versioned decision events, and gates AI separately from the core account.
+records versioned decision events, gates AI separately from the core account,
+and provides immediate account restriction plus a retryable permanent-deletion
+queue. The production scheduler and provider backup settings still need
+verification.
 
 The following must be demonstrated before final approval:
 
@@ -113,7 +116,7 @@ provisional until mitigations are implemented and tested.
 | A child creates an account without valid parent/legal guardian authority | High | Implemented 13+ age gate, restricted account, expiring email-link declaration and event trail; add stepped-up verification for disputes/high-risk cases and self-service withdrawal | Medium; email control plus declaration does not independently prove the real-world relationship |
 | AI gives harmful, biased, or confidently incorrect advice | High | Age-appropriate system rules, safety testing, reporting, escalation, narrow educational scope, clear limitations | Medium after validation |
 | A student discloses sensitive or third-party data in chat | High | Just-in-time warning, minimised context, redaction where feasible, access controls, deletion route | Medium |
-| A dormant or future school feature exposes student data unexpectedly | High | Keep school-facing access unavailable; require a revised DPIA, notice, agreement, tenant isolation, least privilege, and field-level tests before activation | Low while unavailable; reassess before development or activation |
+| A future school feature exposes student data unexpectedly | High | Keep school-facing access unavailable; require a revised DPIA, notice, agreement, tenant isolation, least privilege, and field-level tests before activation | Low while unavailable; reassess before development or activation |
 | Deleted chats/accounts remain indefinitely | High | Hard-deletion workflow, backup expiry, deletion job, evidence and exception register | Low/Medium |
 | Account takeover exposes learning and chat records | High | Secure auth, CAPTCHA, rate limits, recovery controls, alerts, session revocation and monitoring | Medium |
 | Provider or cross-border processing lacks an approved safeguard | High | Processor register, DPA review, transfer assessment and approved mechanism | Medium |
@@ -141,11 +144,11 @@ decisions, and reasons when a recommendation is not adopted.
 
 - [x] Exact legal controller identity, RC number, and registered office confirmed.
 - [x] Privacy mailbox and joint request handlers approved: Nick Efe Oni and Chijindu Oreh.
-- [ ] Age and parent/legal-guardian authorisation design approved and implemented.
+- [x] Age and parent/legal-guardian authorisation design approved and implemented.
 - [ ] Data inventory and lawful-basis record completed.
 - [x] Current launch excludes school/teacher accounts and school-staff access.
 - [ ] AI safety evaluation passes agreed child-safety and educational thresholds.
-- [ ] Permanent account/chat deletion and retention jobs implemented and tested.
+- [ ] Deploy and test the account-deletion scheduler, verify 90-day backup expiry, and implement chat-only hard deletion plus remaining retention jobs.
 - [ ] Processor agreements, regions, sub-processors, and transfer bases verified.
 - [ ] Incident-response contacts and breach register are operational.
 - [ ] Privacy-right request workflow and response register are operational.
