@@ -40,8 +40,9 @@ vi.mock("@/lib/supabase/admin", () => ({
 import {
   AccountLifecycleConflictError,
   cancelPermanentDeletion,
+  confirmPermanentDeletion,
   deactivateAccount,
-  requestPermanentDeletion,
+  preparePermanentDeletionConfirmation,
 } from "./account-lifecycle";
 
 describe("account lifecycle", () => {
@@ -71,16 +72,47 @@ describe("account lifecycle", () => {
     );
   });
 
-  it("locks an active account and schedules deletion before the 30-day maximum", async () => {
+  it("records an email confirmation request without locking the active account", async () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-09-10T12:00:00.000Z"));
     db.userFindUnique.mockResolvedValue({ accountStatus: "ACTIVE" });
-    db.userUpdateMany.mockResolvedValue({ count: 1 });
-    db.requestUpsert.mockImplementation(async (args) => ({
-      scheduledFor: args.create.scheduledFor,
-    }));
+    db.requestUpsert.mockResolvedValue({ id: "request-1" });
 
-    const result = await requestPermanentDeletion("user-1");
+    const result = await preparePermanentDeletionConfirmation({
+      userId: "user-1",
+      tokenHash: "token-hash",
+      tokenExpiresAt: new Date("2026-09-11T12:00:00.000Z"),
+    });
+
+    expect(result).toEqual({ id: "request-1" });
+    expect(db.userUpdateMany).not.toHaveBeenCalled();
+    expect(db.requestUpsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        create: expect.objectContaining({
+          status: "AWAITING_CONFIRMATION",
+          confirmationTokenHash: "token-hash",
+        }),
+      })
+    );
+    expect(db.requestUpsert.mock.calls[0][0].create).not.toHaveProperty(
+      "scheduledFor"
+    );
+  });
+
+  it("locks the account and starts a full 15-day window after email confirmation", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-09-10T12:00:00.000Z"));
+    db.requestFindUnique.mockResolvedValue({
+      id: "request-1",
+      userId: "user-1",
+      authUserId: "user-1",
+      status: "AWAITING_CONFIRMATION",
+      confirmationTokenExpiresAt: new Date("2026-09-11T12:00:00.000Z"),
+    });
+    db.userUpdateMany.mockResolvedValue({ count: 1 });
+    db.requestUpdateMany.mockResolvedValue({ count: 1 });
+
+    const result = await confirmPermanentDeletion("token-hash");
 
     expect(db.userUpdateMany).toHaveBeenCalledWith({
       where: { id: "user-1", accountStatus: "ACTIVE" },
@@ -89,7 +121,24 @@ describe("account lifecycle", () => {
         deactivatedAt: new Date("2026-09-10T12:00:00.000Z"),
       },
     });
-    expect(result.scheduledFor.toISOString()).toBe("2026-10-10T10:00:00.000Z");
+    expect(result.scheduledFor.toISOString()).toBe("2026-09-25T12:00:00.000Z");
+  });
+
+  it("rejects an expired email token without locking the account", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-09-10T12:00:00.000Z"));
+    db.requestFindUnique.mockResolvedValue({
+      id: "request-1",
+      userId: "user-1",
+      authUserId: "user-1",
+      status: "AWAITING_CONFIRMATION",
+      confirmationTokenExpiresAt: new Date("2026-09-10T11:59:59.000Z"),
+    });
+
+    await expect(confirmPermanentDeletion("expired-token-hash")).rejects.toBeInstanceOf(
+      AccountLifecycleConflictError
+    );
+    expect(db.userUpdateMany).not.toHaveBeenCalled();
   });
 
   it("does not reactivate when a deletion request can no longer be cancelled", async () => {
