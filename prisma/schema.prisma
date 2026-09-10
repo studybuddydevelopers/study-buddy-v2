@@ -185,14 +185,19 @@ enum GuardianAuthorizationEventType {
 // =========================================================
 
 model User {
-  id                 String        @id @default(uuid())
-  createdAt          DateTime      @default(now())
-  whatsappPhone      String?       @unique // wa_id, digits only e.g. "2348012345678" — set for WhatsApp-only accounts
-  accountStatus      AccountStatus @default(AGE_VERIFICATION_REQUIRED)
-  aiAccessAuthorized Boolean       @default(false)
-  termsAcceptedAt    DateTime?
-  termsVersion       String?       @db.VarChar(32)
-  deactivatedAt      DateTime?
+  id                      String        @id @default(uuid())
+  createdAt               DateTime      @default(now())
+  whatsappPhone           String?       @unique // wa_id, digits only e.g. "2348012345678" — set for WhatsApp-only accounts
+  accountStatus           AccountStatus @default(AGE_VERIFICATION_REQUIRED)
+  aiAccessAuthorized      Boolean       @default(false)
+  termsAcceptedAt         DateTime?
+  termsVersion            String?       @db.VarChar(32)
+  deactivatedAt           DateTime?
+  inactiveDeletionAt      DateTime?
+  inactiveWarning90SentAt DateTime?
+  inactiveWarning60SentAt DateTime?
+  inactiveWarning15SentAt DateTime?
+  inactiveWarning1SentAt  DateTime?
 
   adminUser AdminUser?
 
@@ -215,6 +220,7 @@ model User {
   approvedResources      Resource[]              @relation("ResourceApprovedBy")
 
   @@index([createdAt], map: "User_createdAt_idx")
+  @@index([accountStatus, inactiveDeletionAt], map: "User_accountStatus_inactiveDeletionAt_idx")
 }
 
 /// Minimal, retryable evidence and work queue for permanent account deletion.
@@ -231,6 +237,7 @@ model AccountDeletionRequest {
   confirmationTokenHash      String?                      @unique @db.VarChar(64)
   confirmationTokenExpiresAt DateTime?
   confirmedAt                DateTime?
+  retentionTriggeredAt       DateTime?
   scheduledFor               DateTime?
   processingStartedAt        DateTime?
   completedAt                DateTime?
