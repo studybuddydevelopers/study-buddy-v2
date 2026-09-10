@@ -10,20 +10,33 @@ import Link from "next/link";
 export default function ClientEmailVerify() {
   const params = useSearchParams();
   const email = params.get("email") || "your email address";
+  const status = params.get("status");
+  const linkFailed = status === "expired" || status === "invalid";
 
   return (
     <div className="flex items-center justify-center p-7 mt-7">
       <Card shadow="md" hover padding="sm" className="flex flex-col min-w-min">
 
         <Heading1 gutter="md" className="text-left w-max">
-          Verify Your Email
+          {linkFailed ? "Email Link Not Valid" : "Verify Your Email"}
         </Heading1>
 
         <Paragraph align="center" variant="muted" className="mb-6 mt-6">
-          We’ve sent a verification link to <br />
-          <span className="font-semibold text-gray-900">{email}</span>
-          <br /><br />
-          Please check your inbox and click the link to activate your account.
+          {linkFailed ? (
+            <>
+              This confirmation link is invalid, expired, or has already been
+              used. If you already confirmed your email, try logging in.
+              Otherwise, contact support@studybuddyng.com.
+            </>
+          ) : (
+            <>
+              We’ve sent a verification link to <br />
+              <span className="font-semibold text-gray-900">{email}</span>
+              <br /><br />
+              Please check your inbox and click the link to activate your
+              account.
+            </>
+          )}
         </Paragraph>
 
         <div className="flex justify-center">
