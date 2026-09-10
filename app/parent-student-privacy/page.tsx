@@ -172,8 +172,10 @@ const sections: PolicyDocumentSection[] = [
           be confirmed using a one-time account-email link. Confirmation locks
           the account, starts a 15-day cancellation window, removes active-system
           personal data within 30 days unless law requires limited retention,
-          and ages protected backup copies out within 90 days. You may also
-          complain to the{" "}
+          and ages protected backup copies out within 90 days. Essential payment
+          and transaction records are separated from the ordinary account link
+          and kept for seven years for financial and tax obligations. You may
+          also complain to the{" "}
           <a
             href="https://www.ndpc.gov.ng/contact/"
             target="_blank"
