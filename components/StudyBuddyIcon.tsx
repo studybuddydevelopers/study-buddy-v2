@@ -7,6 +7,7 @@ export type StudyBuddyIconName =
   | "progress"
   | "chat"
   | "profile"
+  | "settings"
   | "bell"
   | "chevron"
   | "plan"
@@ -146,6 +147,18 @@ function iconArtwork(name: StudyBuddyIconName) {
           <path d="M23 21c1-8 17-10 19 1-5-1-9-3-12-6-2 3-4 4-7 5Z" fill={INK} />
           <path d="M15 51c1-11 8-17 17-17s16 6 17 17" fill={PURPLE} />
           <path d="M27 27c3 2 7 2 10 0" fill="none" />
+        </>
+      );
+    case "settings":
+      return (
+        <>
+          <path
+            d="m27 11 10 1 2 7 7-2 6 9-5 5 4 6-7 9-7-3-4 8-10-2-1-7-7-1-2-11 6-3-2-7 8-6 5 4Z"
+            fill={PURPLE}
+          />
+          <circle cx="32" cy="32" r="10" fill={PAPER} />
+          <circle cx="32" cy="32" r="5" fill={WARM} />
+          <path d="M32 23v4M32 37v4M23 32h4M37 32h4" fill="none" stroke={GOLD} strokeWidth="2.5" />
         </>
       );
     case "bell":
