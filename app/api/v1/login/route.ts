@@ -19,6 +19,7 @@ import {
   securityFingerprint,
 } from "@/lib/security/audit-log";
 import { syncAuthAccountStatus } from "@/lib/guardian-authorization";
+import { accountStatusDestination } from "@/lib/account-status";
 
 export async function POST(req: Request) {
   const parsedBody = await parseJsonRequest(req, REQUEST_LIMITS.publicFormJson);
@@ -131,9 +132,7 @@ export async function POST(req: Request) {
   const nextPath =
     dbUser.accountStatus === "ACTIVE"
       ? "/dashboard"
-      : dbUser.accountStatus === "AGE_VERIFICATION_REQUIRED"
-        ? "/age-verification"
-        : "/guardian-authorization-pending";
+      : accountStatusDestination(dbUser.accountStatus) ?? "/unauthorized";
   if (authMetadataAccountStatus !== dbUser.accountStatus) {
     await syncAuthAccountStatus(authenticatedUserId, dbUser.accountStatus);
   }
