@@ -14,7 +14,8 @@ Auth & Account
 - POST `/login` — Sign in with `identifier` (email or phone) and `password`. Sets Supabase cookies, returns `{ success: true }` or `{ error }`.
 - POST `/logout` — Clears Supabase session cookies. Body unused. Returns `{ ok: true }`.
 - GET `/account/lifecycle` (auth, including restricted accounts) — Returns the current account status and any scheduled permanent-deletion date.
-- POST `/account/lifecycle` (auth, including restricted accounts) — Body action is `DEACTIVATE`, `REQUEST_DELETION`, `REACTIVATE`, or `CANCEL_DELETION`. Permanent deletion requires the current password and exact `confirmation: "DELETE"`; access is restricted immediately and the account is queued for purge within 30 days. Successful mutations clear the browser session.
+- POST `/account/lifecycle` (auth, including restricted accounts) — Body action is `DEACTIVATE`, `REQUEST_DELETION`, `REACTIVATE`, or `CANCEL_DELETION`. `REQUEST_DELETION` requires the current password and exact `confirmation: "DELETE"`, then sends a 24-hour one-time email link without restricting the account. Deactivation, reactivation, and cancellation clear the browser session.
+- POST `/account/deletion/confirm` — Public token exchange used by the email-confirmation page. A valid unused token immediately locks the account, starts the 15-day cancellation window, schedules the retryable purge, clears any browser session, and sends the final pending-deletion notice.
 - POST `/account/deletion/cron` (server-to-server) — Requires `x-cron-secret` matching `ACCOUNT_DELETION_CRON_SECRET`; claims and purges due application and Supabase Auth accounts in a retry-safe bounded batch.
 - POST `/reset-password` — Body: `email`. Triggers Supabase reset flow redirecting to `/auth/password-reset`. Returns `{ ok: true }` or `{ error }`.
 - GET `/me` (auth) — Returns user basics, profile, and latest subscription `{ id, createdAt, isAdmin, profile, subscription }`; 404 if no DB user record.
