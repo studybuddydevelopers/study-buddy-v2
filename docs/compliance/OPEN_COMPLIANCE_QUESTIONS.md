@@ -68,10 +68,20 @@ The production Supabase project's primary data region is confirmed as North EU
 project data only; Supabase support, security, network, backup, and sub-processor
 locations and the required Nigeria-to-Sweden transfer safeguard remain separate
 verification tasks.
+The selected production account-verification and password-reset architecture is
+Supabase Auth with Resend as its custom SMTP delivery provider. The application
+also sends guardian-authorisation and account-lifecycle messages directly
+through Resend. Code paths and local configuration names match this decision,
+but the production Supabase dashboard's custom-SMTP state and an end-to-end
+delivery test to a non-team address still need to be verified before Question 23
+meets the completion rule.
 
 ## Open questions
 
 23. Which provider will send production account and password-reset emails?
+    **Decision:** Supabase Auth with Resend custom SMTP. **Still open:** verify
+    the production dashboard configuration and successful delivery to a
+    non-team address.
 24. Are any analytics, advertising, error-monitoring, or user-tracking services used? If yes, list every provider.
 25. Will paid subscriptions renew automatically?
 26. Exactly how will users cancel subscriptions?
