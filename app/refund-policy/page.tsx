@@ -8,7 +8,7 @@ import {
 } from "@/lib/legal-entity";
 import { createPageMetadata } from "@/lib/site-metadata";
 
-const LAST_UPDATED = "8 September 2026";
+const LAST_UPDATED = "10 September 2026";
 
 export const metadata = createPageMetadata({
   title: "Refund and Cancellation Policy",
@@ -116,7 +116,11 @@ const sections: PolicyDocumentSection[] = [
         <p>
           Do not email a full card number, PIN, password, one-time code, or bank
           login details. We may ask for limited additional information to verify
-          the account or transaction.
+          the account or transaction. Essential payment, invoice, and
+          transaction records are kept for seven years from the transaction
+          date. They are kept longer only for a documented tax audit,
+          chargeback, dispute, investigation, or legal hold, then deleted or
+          anonymised when the applicable period ends.
         </p>
       </>
     ),
