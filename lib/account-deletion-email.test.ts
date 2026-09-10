@@ -14,6 +14,7 @@ import {
   hashAccountDeletionConfirmationToken,
   sendAccountDeletionConfirmationEmail,
   sendAccountDeletionPendingEmail,
+  sendInactiveAccountExpiryWarningEmail,
 } from "./account-deletion-email";
 
 describe("account deletion email", () => {
@@ -83,5 +84,23 @@ describe("account deletion email", () => {
     expect(request.text).toContain("15 days");
     expect(request.text).toContain("privacy@studybuddyng.com");
   });
-});
 
+  it("sends an inactivity warning with a reactivation path and deadline", async () => {
+    await sendInactiveAccountExpiryWarningEmail({
+      email: "student@example.com",
+      daysRemaining: 15,
+      deletionAt: new Date("2029-09-10T12:00:00.000Z"),
+      idempotencyKey: "warning-key",
+    });
+
+    const request = JSON.parse(
+      String(mocks.fetchWithTimeout.mock.calls[0][1].body)
+    );
+    expect(request.subject).toContain("15 days");
+    expect(request.text).toContain("https://studybuddyng.com/login");
+    expect(request.text).toContain("privacy@studybuddyng.com");
+    expect(mocks.fetchWithTimeout.mock.calls[0][1].headers).toMatchObject({
+      "Idempotency-Key": "inactive-account-expiry-warning-key",
+    });
+  });
+});
