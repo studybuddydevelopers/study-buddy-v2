@@ -208,7 +208,9 @@ export default function ResetPasswordUpdateClient() {
     }
 
     setSuccess(true);
-    setTimeout(() => router.push("/dashboard"), 800);
+    setTimeout(() => {
+      window.location.replace("/dashboard");
+    }, 800);
   };
 
   const CurrentIcon = HAND_ICONS[index];
