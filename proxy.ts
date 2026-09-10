@@ -5,6 +5,7 @@ import { getServerSupabaseConfig } from "@/lib/supabase/config";
 import { fetchWithTimeout } from "@/lib/security/timeouts";
 import { validateCookieMutationOrigin } from "@/lib/security/csrf";
 import { logSecurityEvent } from "@/lib/security/audit-log";
+import { accountStatusDestination } from "@/lib/account-status";
 
 const protectedPaths = [
   "/dashboard",
@@ -15,6 +16,8 @@ const protectedPaths = [
   "/profile",
   "/settings",
   "/account",
+  "/account-deactivated",
+  "/account-deletion-pending",
 ];
 
 const guestOnlyPaths = [
@@ -140,7 +143,7 @@ export async function proxy(req: NextRequest) {
 
   if (user && protectedPaths.some((path) => pathMatches(pathname, path))) {
     const restrictedDestination = accountStatusDestination(accountStatus);
-    if (restrictedDestination) {
+    if (restrictedDestination && restrictedDestination !== pathname) {
       return withContentSecurityPolicy(
         NextResponse.redirect(new URL(restrictedDestination, req.url)),
         contentSecurityPolicy
@@ -158,18 +161,6 @@ export async function proxy(req: NextRequest) {
   }
 
   return res;
-}
-
-function accountStatusDestination(status: string | null) {
-  if (status === "AGE_VERIFICATION_REQUIRED") return "/age-verification";
-  if (status === "BELOW_MINIMUM_AGE") return "/account-unavailable";
-  if (
-    status === "GUARDIAN_AUTHORIZATION_REQUIRED" ||
-    status === "GUARDIAN_AUTHORIZATION_DENIED"
-  ) {
-    return "/guardian-authorization-pending";
-  }
-  return null;
 }
 
 function pathMatches(pathname: string, prefix: string) {
