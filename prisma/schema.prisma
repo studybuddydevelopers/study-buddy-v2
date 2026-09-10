@@ -149,6 +149,7 @@ enum AccountStatus {
 }
 
 enum AccountDeletionRequestStatus {
+  AWAITING_CONFIRMATION
   PENDING
   PROCESSING
   COMPLETED
@@ -220,24 +221,29 @@ model User {
 /// Direct identifiers are cleared after both the application account and the
 /// Supabase Auth identity have been removed.
 model AccountDeletionRequest {
-  id                  String                       @id @default(uuid())
-  userId              String?                      @unique
-  authUserId          String?                      @unique
-  accountFingerprint  String                       @db.VarChar(64)
-  status              AccountDeletionRequestStatus @default(PENDING)
-  requestedAt         DateTime                     @default(now())
-  scheduledFor        DateTime
-  processingStartedAt DateTime?
-  completedAt         DateTime?
-  cancelledAt         DateTime?
-  attemptCount        Int                          @default(0)
-  lastFailureCode     String?                      @db.VarChar(64)
-  createdAt           DateTime                     @default(now())
-  updatedAt           DateTime                     @updatedAt
+  id                         String                       @id @default(uuid())
+  userId                     String?                      @unique
+  authUserId                 String?                      @unique
+  accountFingerprint         String                       @db.VarChar(64)
+  status                     AccountDeletionRequestStatus @default(AWAITING_CONFIRMATION)
+  requestedAt                DateTime                     @default(now())
+  confirmationSentAt         DateTime?
+  confirmationTokenHash      String?                      @unique @db.VarChar(64)
+  confirmationTokenExpiresAt DateTime?
+  confirmedAt                DateTime?
+  scheduledFor               DateTime?
+  processingStartedAt        DateTime?
+  completedAt                DateTime?
+  cancelledAt                DateTime?
+  attemptCount               Int                          @default(0)
+  lastFailureCode            String?                      @db.VarChar(64)
+  createdAt                  DateTime                     @default(now())
+  updatedAt                  DateTime                     @updatedAt
 
   user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
 
   @@index([status, scheduledFor], map: "AccountDeletionRequest_status_scheduled_idx")
+  @@index([confirmationTokenExpiresAt], map: "AccountDeletionRequest_confirmation_expiry_idx")
 }
 
 // =========================================================
