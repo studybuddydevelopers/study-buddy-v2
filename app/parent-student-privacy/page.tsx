@@ -156,9 +156,14 @@ const sections: PolicyDocumentSection[] = [
           <li>delete eligible information or close an account.</li>
         </ul>
         <p>
-          Email <a href={`mailto:${PRIVACY_EMAIL}`}>{PRIVACY_EMAIL}</a>. We may
-          ask for information needed to verify identity and parental, guardian,
-          or school authority. You may also complain to the{" "}
+          An account holder can deactivate the account or request permanent
+          deletion in Settings. For other requests, or if the account cannot be
+          accessed, email <a href={`mailto:${PRIVACY_EMAIL}`}>{PRIVACY_EMAIL}</a>.
+          We may ask for information needed to verify identity and parental or
+          guardian authority. Permanent deletion locks the account immediately,
+          removes active-system personal data within 30 days unless law requires
+          limited retention, and ages protected backup copies out within 90
+          days. You may also complain to the{" "}
           <a
             href="https://www.ndpc.gov.ng/contact/"
             target="_blank"
