@@ -419,7 +419,8 @@ export default function PrivacyPolicyPage() {
             <ul className="list-disc space-y-2 pl-5">
               <ListItem>
                 <strong>Supabase</strong> for authentication and database
-                hosting.{" "}
+                hosting. The production project&apos;s primary data region is North
+                EU (Stockholm), Sweden (<code>eu-north-1</code>).{" "}
                 <ExternalPolicyLink href="https://supabase.com/privacy">
                   Supabase privacy policy
                 </ExternalPolicyLink>
@@ -494,13 +495,20 @@ export default function PrivacyPolicyPage() {
             title="6. International data transfers"
           >
             <p>
-              Some providers may process personal data outside Nigeria. The
-              location can depend on our provider configuration and their
-              infrastructure. Where Nigerian law requires it, we use a permitted
-              transfer basis and appropriate safeguards, such as an adequacy
-              decision, contractual protections, or another lawful mechanism.
-              Contact us if you would like information about the safeguards
-              relevant to your data.
+              Study Buddy&apos;s production Supabase project has North EU
+              (Stockholm), Sweden (<code>eu-north-1</code>) as its primary data
+              region. This means account, authentication, database, and stored
+              application data handled through that project may be transferred
+              from Nigeria to Sweden. Supabase and our other providers may also
+              process limited data in other locations for support, security,
+              network, sub-processor, or service-delivery purposes under their
+              applicable terms. A primary project region does not by itself
+              establish legal compliance or describe every processing location.
+              Where Nigerian law requires it, we use a permitted transfer basis
+              and appropriate safeguards, such as an adequacy decision,
+              contractual protections, or another lawful mechanism. Contact us
+              if you would like information about the safeguards relevant to
+              your data.
             </p>
           </PolicySection>
 
