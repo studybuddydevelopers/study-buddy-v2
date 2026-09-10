@@ -9,6 +9,7 @@ import {
   enforceRequestIpRateLimit,
 } from "@/lib/security/rate-limit";
 import { fetchWithTimeout } from "@/lib/security/timeouts";
+import { accountStatusDestination } from "@/lib/account-status";
 
 export async function requireAuthenticatedUser() {
   const requestHeaders = await headers();
@@ -73,17 +74,20 @@ export async function requireUser() {
   const { user, dbUser } = base;
   if (dbUser.accountStatus !== "ACTIVE") {
     const nextPath =
+      accountStatusDestination(dbUser.accountStatus) ?? "/unauthorized";
+    const message =
       dbUser.accountStatus === "AGE_VERIFICATION_REQUIRED"
-        ? "/age-verification"
-        : "/guardian-authorization-pending";
+        ? "Complete the age check before using Study Buddy."
+        : dbUser.accountStatus === "DEACTIVATED"
+          ? "Reactivate this account before using Study Buddy."
+          : dbUser.accountStatus === "DELETION_PENDING"
+            ? "This account is restricted while permanent deletion is pending."
+            : "This account needs parent or legal guardian authorisation.";
     return {
       errorResponse: NextResponse.json(
         {
           error: "ACCOUNT_RESTRICTED",
-          message:
-            dbUser.accountStatus === "AGE_VERIFICATION_REQUIRED"
-              ? "Complete the age check before using Study Buddy."
-              : "This account needs parent or legal guardian authorisation.",
+          message,
           nextPath,
         },
         { status: 403, headers: { "Cache-Control": "no-store" } }
