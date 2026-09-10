@@ -18,6 +18,7 @@ import {
 } from "@/lib/guardian-authorization";
 import { getClientIp } from "@/lib/security/rate-limit";
 import { logSecurityEvent, securityFingerprint } from "@/lib/security/audit-log";
+import { accountStatusDestination } from "@/lib/account-status";
 
 export async function POST(request: Request) {
   const auth = await requireAuthenticatedUser();
@@ -40,9 +41,7 @@ export async function POST(request: Request) {
       nextPath:
         dbUser.accountStatus === "ACTIVE"
           ? "/dashboard"
-          : dbUser.accountStatus === "BELOW_MINIMUM_AGE"
-            ? "/account-unavailable"
-            : "/guardian-authorization-pending",
+          : accountStatusDestination(dbUser.accountStatus) ?? "/unauthorized",
     });
   }
 
