@@ -554,9 +554,11 @@ export default function PrivacyPolicyPage() {
               </ListItem>
               <ListItem>
                 If you deactivate your account, access is locked but your
-                information is retained under our inactive-account policy so
-                you can reactivate. The final inactive-account period is still
-                under review.
+                information is retained for 36 months so you can reactivate and
+                recover your study history. If you do not reactivate, we email
+                warnings 90, 60, 15, and 1 day before automatic deletion.
+                Limited records may be separated and kept where law requires
+                them or a documented legal hold applies.
               </ListItem>
               <ListItem>
                 If you request permanent account deletion in Settings, we send
