@@ -61,6 +61,7 @@ However, accidental sensitive-data submission remains a foreseeable risk.
 | Registration and sign-in | Student/adult | Study Buddy, Supabase Auth, CAPTCHA provider | Auth account, session cookie, user profile, security record |
 | Practice and exams | Student activity | Study Buddy/PostgreSQL; browser local storage for local drafts | Attempts, drafts, sessions, scores, progress |
 | AI chat | Student prompts and learning context | Study Buddy/PostgreSQL and OpenAI API | Prompt, response, model and token metadata, safety/security records |
+| Planned conversation-based AI improvement | Separately opted-in, de-identified conversation samples; no current user-chat input | Disabled during beta; future restricted Study Buddy evaluation/training environment and approved providers only | Evaluation results and, only after further approval, trained-model artefacts; retention not yet approved |
 | WhatsApp tutoring | WhatsApp sender and messages | Meta/WhatsApp, Study Buddy, OpenAI | Linked number, thread and messages |
 | Payments | Subscriber and Paystack | Paystack and Study Buddy | Reference, amount, currency, status and subscription record |
 | Hosting/security | User device and requests | Railway, Cloudflare, Supabase, CAPTCHA and Study Buddy | Technical logs, rate-limit buckets and incident evidence |
@@ -120,6 +121,7 @@ provisional until mitigations are implemented and tested.
 | AI gives harmful, biased, or confidently incorrect advice | High | Age-appropriate system rules, safety testing, reporting, escalation, narrow educational scope, clear limitations | Medium after validation |
 | A student discloses sensitive or third-party data in chat | High | Just-in-time warning, minimised context, redaction where feasible, access controls, deletion route | Medium |
 | Staff access conversation content without a necessary case | High | Approved no-routine-reading rule; limit beta access to Nick Efe Oni and Chijindu Oreh; require a documented permitted reason, minimum-message scope, confidentiality, and an auditable break-glass workflow before any staff-review interface is introduced | Medium until technical enforcement and access-log review are implemented |
+| Conversation content is repurposed for AI improvement without a valid, understood choice or is memorised by a trained model | High | Keep feature disabled during beta; use a separate off-by-default choice, adult opt-in or guardian authorisation plus student participation for ages 13–17, de-identification and sensitive-data screening, isolated datasets, withdrawal handling, membership/deletion evidence, model memorisation tests, and clear pre-training deletion-limit disclosure | High until the revised DPIA, controls, tests, and legal review are complete |
 | A future school feature exposes student data unexpectedly | High | Keep school-facing access unavailable; require a revised DPIA, notice, agreement, tenant isolation, least privilege, and field-level tests before activation | Low while unavailable; reassess before development or activation |
 | Deleted chats/accounts remain indefinitely | High | Hard-deletion workflow, backup expiry, deletion job, evidence and exception register | Low/Medium |
 | Account takeover exposes learning and chat records | High | Secure auth, CAPTCHA, rate limits, recovery controls, alerts, session revocation and monitoring | Medium |
@@ -152,6 +154,8 @@ decisions, and reasons when a recommendation is not adopted.
 - [ ] Data inventory and lawful-basis record completed.
 - [x] Current launch excludes school/teacher accounts and school-staff access.
 - [x] Co-founders confirmed that OpenAI API-data sharing for model improvement is disabled.
+- [x] Co-founders approved future use of selected conversation data for Study Buddy's own AI training/evaluation, subject to the documented activation gates.
+- [x] Conversation-based AI training/evaluation remains disabled for the current beta and existing evaluations use purpose-built fixtures.
 - [ ] AI safety evaluation passes agreed child-safety and educational thresholds.
 - [ ] Verify 90-day provider backup expiry and implement the remaining approved retention jobs; the account scheduler and chat-only hard deletion are deployed in code and the scheduler has passed a production invocation.
 - [ ] Processor agreements, regions, sub-processors, and transfer bases verified.
