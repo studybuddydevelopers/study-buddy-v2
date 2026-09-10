@@ -357,7 +357,23 @@ export default function PrivacyPolicyPage() {
               time. Web and WhatsApp conversations are stored while the account
               remains active so you can revisit and continue your study history.
               OpenAI may keep API content and related logs under its own service
-              terms and data controls.
+              terms and data controls. Study Buddy has not opted in to share API
+              prompts or responses with OpenAI for model training or
+              improvement.
+            </p>
+            <p>
+              Study Buddy staff do not routinely read individual AI or WhatsApp
+              conversations. Authorised personnel may access the minimum
+              messages necessary only to resolve a support request in which you
+              ask us to examine a specific conversation; investigate a reported
+              harmful response or credible child-safety or imminent-harm
+              concern; investigate account compromise, fraud, abuse, or a
+              security incident; diagnose a specific technical failure when
+              less intrusive information is insufficient; or comply with a
+              valid legal or regulatory requirement. Each access must be limited
+              to its documented case and handled confidentially. Conversations
+              are not read for curiosity, marketing, general surveillance, or
+              routine product improvement.
             </p>
             <p>
               Study Buddy uses learning activity to produce progress summaries
