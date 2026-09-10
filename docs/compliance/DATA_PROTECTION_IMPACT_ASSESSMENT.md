@@ -92,8 +92,8 @@ chats from the account. The account flow now also records date of birth,
 restricts unverified and minor accounts, uses hashed one-time guardian tokens,
 records versioned decision events, gates AI separately from the core account,
 and provides immediate account restriction plus a retryable permanent-deletion
-queue. The production scheduler and provider backup settings still need
-verification.
+queue. The production scheduler and chat-level hard deletion are implemented;
+provider backup settings still need verification.
 
 The following must be demonstrated before final approval:
 
@@ -148,7 +148,7 @@ decisions, and reasons when a recommendation is not adopted.
 - [ ] Data inventory and lawful-basis record completed.
 - [x] Current launch excludes school/teacher accounts and school-staff access.
 - [ ] AI safety evaluation passes agreed child-safety and educational thresholds.
-- [ ] Deploy and test the account-deletion scheduler, verify 90-day backup expiry, and implement chat-only hard deletion plus remaining retention jobs.
+- [ ] Verify 90-day provider backup expiry and implement the remaining approved retention jobs; the account scheduler and chat-only hard deletion are deployed in code and the scheduler has passed a production invocation.
 - [ ] Processor agreements, regions, sub-processors, and transfer bases verified.
 - [ ] Incident-response contacts and breach register are operational.
 - [ ] Privacy-right request workflow and response register are operational.

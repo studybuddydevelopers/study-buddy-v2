@@ -352,11 +352,12 @@ export default function PrivacyPolicyPage() {
             <p>
               When you use AI features, the prompt, relevant conversation
               history, and limited learning context may be sent to OpenAI to
-              generate a response. Web and WhatsApp conversations may also be
-              stored by Study Buddy so you can continue a conversation and so
-              we can operate, secure, and improve the feature. OpenAI may keep
-              API content and related logs under its own service terms and data
-              controls.
+              generate a response. We limit provider context to recent relevant
+              messages rather than sending your complete saved archive each
+              time. Web and WhatsApp conversations are stored while the account
+              remains active so you can revisit and continue your study history.
+              OpenAI may keep API content and related logs under its own service
+              terms and data controls.
             </p>
             <p>
               Study Buddy uses learning activity to produce progress summaries
@@ -548,9 +549,23 @@ export default function PrivacyPolicyPage() {
             </p>
             <ul className="list-disc space-y-2 pl-5">
               <ListItem>
-                Account, profile, learning, and AI-chat records are generally
-                kept while the account or relevant feature remains active and
-                until they are deleted, anonymised, or no longer needed.
+                Account, profile, and learning records are generally kept while
+                the account or relevant feature remains active and until they
+                are deleted, anonymised, or no longer needed.
+              </ListItem>
+              <ListItem>
+                Web AI and WhatsApp conversation content is kept while your
+                account remains active so you can access your saved study
+                history. It is deleted when you delete the conversation,
+                permanently delete the account, or reach the 36-month
+                deactivated-account expiry. WhatsApp users can request chat-only
+                deletion by sending <strong>DELETE MY CHAT</strong> and then
+                confirming the displayed instruction within 15 minutes, or by
+                contacting{" "}
+                <a href="mailto:privacy@studybuddyng.com">
+                  privacy@studybuddyng.com
+                </a>
+                .
               </ListItem>
               <ListItem>
                 If you deactivate your account, access is locked but your
@@ -570,15 +585,16 @@ export default function PrivacyPolicyPage() {
                 where the law requires it or a documented legal hold applies.
               </ListItem>
               <ListItem>
-                A chat deleted in the product is removed from account view.
-                Related records may remain while we process deletion or where
-                they are needed for security, disputes, backups, or law.
+                A chat deleted in the product is permanently removed from the
+                live database, including its linked messages and generation
+                records. Provider logs and protected backups may remain for
+                their separately disclosed limited periods.
               </ListItem>
               <ListItem>
                 Data removed from active systems may remain in protected,
                 access-limited backups and will age out within 90 days of the
-                confirmed permanent-deletion request. We do not restore deleted account
-                data to ordinary live use.
+                chat deletion or confirmed permanent-account-deletion request.
+                We do not restore deleted data to ordinary live use.
               </ListItem>
               <ListItem>
                 Payment and transaction records may be kept for the period

@@ -44,6 +44,11 @@ POST /api/v1/ai/chats/:chatId/requests/:requestId/retry
 
 Retry atomically acquires only failed requests by updating `status = PENDING` and incrementing `attemptCount`. It resets the existing assistant message to empty pending content in the same transaction. Provider generation only starts if that conditional update changed exactly one row.
 
+`DELETE /api/v1/ai/chats/:chatId` is ownership-scoped and permanently deletes the
+chat from the live database. Database cascades remove its messages, generation
+requests, grounding attempts, and citations. The web client requires an explicit
+destructive-action confirmation before calling this route.
+
 ## Rollback
 
 Rollback removes only Stage 1 chat data and enums:

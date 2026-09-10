@@ -8,6 +8,7 @@ const serviceMocks = vi.hoisted(() => ({
   sendMessage: vi.fn(),
   retryGeneration: vi.fn(),
   getCitationPreview: vi.fn(),
+  deleteChat: vi.fn(),
 }));
 
 vi.mock("@/lib/auth", () => ({
@@ -64,6 +65,24 @@ describe("Stage 1 chat routes", () => {
       expect(source).not.toMatch(/\$transaction|aiGenerationRequest|provider\.generate/);
       expect(source).toMatch(/getChatService|requireAiUser/);
     }
+  });
+
+  it("permanently deletes only the authenticated user's selected chat", async () => {
+    serviceMocks.deleteChat.mockResolvedValue({ success: true });
+
+    const { DELETE } = await import("./[chatId]/route");
+    const response = await DELETE(
+      new Request("http://localhost/api/v1/ai/chats/chat-1", {
+        method: "DELETE",
+      }),
+      { params: Promise.resolve({ chatId: "chat-1" }) }
+    );
+
+    expect(response).toBeDefined();
+    if (!response) throw new Error("Expected a response");
+    expect(response.status).toBe(200);
+    expect(serviceMocks.deleteChat).toHaveBeenCalledWith("user-1", "chat-1");
+    await expect(response.json()).resolves.toEqual({ success: true });
   });
 
   it("returns managed failed send generations as lifecycle payloads, not transport 500s", async () => {

@@ -189,7 +189,10 @@ export default function ChatClient() {
   const [citationPreview, setCitationPreview] =
     useState<CitationPreviewResponse | null>(null);
   const [loadingCitationId, setLoadingCitationId] = useState<string | null>(null);
+  const [chatPendingDeletion, setChatPendingDeletion] =
+    useState<ApiChat | null>(null);
   const listRef = useRef<HTMLDivElement | null>(null);
+  const deleteDialogRef = useRef<HTMLDivElement | null>(null);
 
   const selectedChat = useMemo(
     () => chats.find((chat) => chat.id === selectedChatId) ?? null,
@@ -214,6 +217,19 @@ export default function ChatClient() {
       behavior: "smooth",
     });
   }, [messages]);
+
+  useEffect(() => {
+    if (!chatPendingDeletion) return;
+
+    deleteDialogRef.current?.focus();
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape" && !savingChat) {
+        setChatPendingDeletion(null);
+      }
+    };
+    document.addEventListener("keydown", closeOnEscape);
+    return () => document.removeEventListener("keydown", closeOnEscape);
+  }, [chatPendingDeletion, savingChat]);
 
   useEffect(() => {
     const loadBootstrapData = async () => {
@@ -361,10 +377,7 @@ export default function ChatClient() {
     }
   };
 
-  const deleteSelectedChat = async () => {
-    if (!selectedChatId) return;
-    const chatId = selectedChatId;
-
+  const deleteSelectedChat = async (chatId: string) => {
     setSavingChat(true);
     setError(null);
     try {
@@ -378,9 +391,11 @@ export default function ChatClient() {
         return remaining;
       });
       setMessages([]);
+      setChatPendingDeletion(null);
     } catch (err) {
       console.error(err);
       setError((err as Error).message);
+      setChatPendingDeletion(null);
     } finally {
       setSavingChat(false);
     }
@@ -626,7 +641,7 @@ export default function ChatClient() {
                   <Button
                     variant="destructive"
                     size="sm"
-                    onClick={() => void deleteSelectedChat()}
+                    onClick={() => setChatPendingDeletion(selectedChat)}
                     disabled={savingChat}
                     icon={
                       <Trash2
@@ -832,6 +847,68 @@ export default function ChatClient() {
           </div>
         </div>
       </div>
+
+      {chatPendingDeletion && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-gray-950/60 px-4"
+          role="presentation"
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget && !savingChat) {
+              setChatPendingDeletion(null);
+            }
+          }}
+        >
+          <div
+            ref={deleteDialogRef}
+            role="dialog"
+            tabIndex={-1}
+            aria-modal="true"
+            aria-labelledby="delete-chat-title"
+            aria-describedby="delete-chat-description"
+            className="w-full max-w-md rounded-2xl border border-red-200 bg-white p-6 shadow-2xl"
+          >
+            <div className="flex items-start gap-3">
+              <span className="rounded-xl bg-red-50 p-2 text-red-700">
+                <Trash2 className="h-5 w-5" aria-hidden="true" />
+              </span>
+              <div>
+                <h2
+                  id="delete-chat-title"
+                  className="text-lg font-bold text-gray-950"
+                >
+                  Permanently delete this chat?
+                </h2>
+                <p
+                  id="delete-chat-description"
+                  className="mt-2 text-sm leading-6 text-gray-600"
+                >
+                  “{chatPendingDeletion.title}” and all of its messages will be
+                  permanently removed from the live service. This cannot be
+                  undone.
+                </p>
+              </div>
+            </div>
+            <div className="mt-6 flex justify-end gap-3">
+              <Button
+                variant="secondary"
+                onClick={() => setChatPendingDeletion(null)}
+                disabled={savingChat}
+              >
+                Keep chat
+              </Button>
+              <Button
+                variant="destructive"
+                onClick={() =>
+                  void deleteSelectedChat(chatPendingDeletion.id)
+                }
+                loading={savingChat}
+              >
+                Delete permanently
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

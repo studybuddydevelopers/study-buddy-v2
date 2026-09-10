@@ -479,12 +479,11 @@ export class ChatService {
   }
 
   async deleteChat(userId: string, chatId: string) {
-    const update = await this.db.aiChat.updateMany({
+    const deleted = await this.db.aiChat.deleteMany({
       where: { id: chatId, userId, deletedAt: null },
-      data: { deletedAt: new Date() },
     });
 
-    if (update.count !== 1) {
+    if (deleted.count !== 1) {
       throw new ChatServiceError("CHAT_NOT_FOUND", 404, "Chat not found.");
     }
 

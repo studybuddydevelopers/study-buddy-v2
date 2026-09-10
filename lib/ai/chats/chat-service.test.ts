@@ -304,6 +304,42 @@ class InMemoryChatDb {
       }
       return { count };
     },
+    deleteMany: async ({ where }: { where: Partial<ChatRow> }) => {
+      const deletedIds = this.chats
+        .filter((item) => this.matches(item, where))
+        .map((item) => item.id);
+      const deletedMessageIds = this.messages
+        .filter((item) => deletedIds.includes(item.chatId))
+        .map((item) => item.id);
+      const deletedRequestIds = this.requests
+        .filter((item) => deletedIds.includes(item.chatId))
+        .map((item) => item.id);
+      const deletedAttemptIds = this.groundingAttempts
+        .filter(
+          (item) =>
+            deletedRequestIds.includes(item.generationRequestId) ||
+            deletedMessageIds.includes(item.assistantMessageId)
+        )
+        .map((item) => item.id);
+
+      this.chats = this.chats.filter((item) => !deletedIds.includes(item.id));
+      this.messages = this.messages.filter(
+        (item) => !deletedIds.includes(item.chatId)
+      );
+      this.requests = this.requests.filter(
+        (item) => !deletedIds.includes(item.chatId)
+      );
+      this.groundingAttempts = this.groundingAttempts.filter(
+        (item) => !deletedAttemptIds.includes(item.id)
+      );
+      this.citations = this.citations.filter(
+        (item) =>
+          !deletedAttemptIds.includes(item.groundingAttemptId) &&
+          !deletedMessageIds.includes(item.messageId)
+      );
+
+      return { count: deletedIds.length };
+    },
   };
 
   aiChatMessage = {
@@ -691,6 +727,35 @@ describe("ChatService Stage 1 lifecycle", () => {
     await expect(service.getChat("user-a", "chat-1")).rejects.toMatchObject({
       code: "CHAT_NOT_FOUND",
     });
+  });
+
+  it("permanently deletes an owned chat and its messages", async () => {
+    const { db, service } = createService();
+    db.seedChat({ id: "chat-1", userId: "user-a" });
+    await db.aiChatMessage.create({
+      data: {
+        id: "message-1",
+        chatId: "chat-1",
+        role: AiChatRole.USER,
+        content: "Delete this",
+      },
+    });
+
+    await expect(service.deleteChat("user-a", "chat-1")).resolves.toEqual({
+      success: true,
+    });
+    expect(db.chats).toHaveLength(0);
+    expect(db.messages).toHaveLength(0);
+  });
+
+  it("does not delete another user's chat", async () => {
+    const { db, service } = createService();
+    db.seedChat({ id: "chat-1", userId: "owner" });
+
+    await expect(service.deleteChat("intruder", "chat-1")).rejects.toMatchObject({
+      code: "CHAT_NOT_FOUND",
+    });
+    expect(db.chats).toHaveLength(1);
   });
 
   it("validates that a topic belongs to the selected subject", async () => {

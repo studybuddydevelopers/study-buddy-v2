@@ -128,7 +128,11 @@ Supporting APIs:
 ## 12. Chat and AI
 
 - [`app/chat/page.tsx`](/Users/efeon/study-buddy-v2/app/chat/page.tsx)
-- [`app/chat/ChatClient.tsx`](/Users/efeon/study-buddy-v2/app/chat/ChatClient.tsx)
+- [`app/chat/ChatClient.tsx`](/Users/efeon/study-buddy-v2/app/chat/ChatClient.tsx): saved web-chat UI, including confirmation before permanent chat deletion
+- [`lib/ai/chats/chat-service.ts`](/Users/efeon/study-buddy-v2/lib/ai/chats/chat-service.ts): persistent web-chat lifecycle and ownership-scoped hard deletion
+- [`lib/whatsapp-flow.ts`](/Users/efeon/study-buddy-v2/lib/whatsapp-flow.ts): WhatsApp tutoring flow; only bounded recent context is sent for generation
+- [`lib/whatsapp-retention.ts`](/Users/efeon/study-buddy-v2/lib/whatsapp-retention.ts): exact two-step WhatsApp chat-deletion commands and recent-context bounds
+- [`lib/whatsapp-thread.ts`](/Users/efeon/study-buddy-v2/lib/whatsapp-thread.ts): WhatsApp thread creation and cascading hard deletion
 
 Supporting APIs:
 
@@ -138,6 +142,13 @@ Supporting APIs:
 - [`app/api/v1/ai/questions/[id]/reply/route.ts`](/Users/efeon/study-buddy-v2/app/api/v1/ai/questions/[id]/reply/route.ts)
 - [`app/api/v1/ai/recommendations/route.ts`](/Users/efeon/study-buddy-v2/app/api/v1/ai/recommendations/route.ts)
 - [`app/api/v1/ai/recommendations/cron/route.ts`](/Users/efeon/study-buddy-v2/app/api/v1/ai/recommendations/cron/route.ts)
+
+Saved AI and WhatsApp conversations remain available while the account is active.
+They are removed when the user deletes the conversation, permanently deletes the
+account, or reaches the approved 36-month deactivated-account expiry. Web chat
+deletion is permanent in the live database. WhatsApp users must send `DELETE MY
+CHAT` and then, within 15 minutes, the exact confirmation command shown by the
+bot. Deletion-control messages are excluded from model context.
 
 ## 13. Other Backend Domains
 

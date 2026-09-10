@@ -2,12 +2,27 @@
 // Conversation routing for the WhatsApp WAEC tutoring bot.
 import { prisma } from "@/lib/prisma";
 import { getOrCreateWhatsAppUser } from "@/lib/whatsapp-user";
-import { getOrCreateWhatsAppThread } from "@/lib/whatsapp-thread";
+import {
+  deleteWhatsAppConversation,
+  findWhatsAppThread,
+  getOrCreateWhatsAppThread,
+} from "@/lib/whatsapp-thread";
+import {
+  getWhatsAppDeletionConfirmationCutoff,
+  getWhatsAppConversationCommand,
+  selectRecentWhatsAppContext,
+  WHATSAPP_DELETE_CONFIRM_COMMAND,
+  WHATSAPP_DELETE_CONFIRMATION_MINUTES,
+  WHATSAPP_DELETE_REQUEST_COMMAND,
+} from "@/lib/whatsapp-retention";
 import OpenAI from "openai";
 import type { ChatCompletionMessageParam } from "openai/resources/chat/completions";
 import { enforceAiAccountLimits } from "@/lib/security/rate-limit";
 import { openAiClientOptions } from "@/lib/security/timeouts";
-import { logSecurityEvent } from "@/lib/security/audit-log";
+import {
+  logSecurityEvent,
+  securityFingerprint,
+} from "@/lib/security/audit-log";
 import {
   GlobalAiBudgetExceededError,
   withGlobalAiTokenBudget,
@@ -27,7 +42,9 @@ Here's what I can help you with:
 2. Exam tips
 3. Solve a problem
 
-Just reply with a number or tell me what you need.`;
+Just reply with a number or tell me what you need.
+
+To delete your saved WhatsApp conversation, send DELETE MY CHAT.`;
 
 const PRACTICE_REPLY = `Sure! Which topic would you like to practice?
 
@@ -63,10 +80,12 @@ async function saveMessage(
 }
 
 async function generateAiReply(aiQuestionId: string): Promise<string> {
-  const previousMessages = await prisma.aiQuestionMessage.findMany({
+  const newestMessages = await prisma.aiQuestionMessage.findMany({
     where: { aiQuestionId },
-    orderBy: { createdAt: "asc" },
+    orderBy: { createdAt: "desc" },
+    take: 24,
   });
+  const previousMessages = selectRecentWhatsAppContext(newestMessages);
 
   const openAIMessages: ChatCompletionMessageParam[] = [
     { role: "system", content: SYSTEM_PROMPT },
@@ -111,6 +130,54 @@ export async function handleIncomingMessage(
   from: string,
   text: string
 ): Promise<string> {
+  const conversationCommand = getWhatsAppConversationCommand(text);
+  if (conversationCommand) {
+    const existingUser = await prisma.user.findUnique({
+      where: { whatsappPhone: from },
+      select: { id: true },
+    });
+
+    if (!existingUser) {
+      return "You do not have a saved Study Buddy WhatsApp conversation to delete.";
+    }
+    const existingThreadId = await findWhatsAppThread(existingUser.id);
+    if (!existingThreadId) {
+      return "You do not have a saved Study Buddy WhatsApp conversation to delete.";
+    }
+    if (conversationCommand === "delete-request") {
+      await saveMessage(
+        existingThreadId,
+        "user",
+        WHATSAPP_DELETE_REQUEST_COMMAND
+      );
+      return `To permanently delete only your saved Study Buddy WhatsApp conversation, reply within ${WHATSAPP_DELETE_CONFIRMATION_MINUTES} minutes with exactly: ${WHATSAPP_DELETE_CONFIRM_COMMAND}. This cannot be undone. Your account and other study records will remain.`;
+    }
+
+    const pendingRequest = await prisma.aiQuestionMessage.findFirst({
+      where: {
+        aiQuestionId: existingThreadId,
+        sender: "user",
+        message: WHATSAPP_DELETE_REQUEST_COMMAND,
+        createdAt: { gte: getWhatsAppDeletionConfirmationCutoff() },
+      },
+      select: { id: true },
+      orderBy: { createdAt: "desc" },
+    });
+    if (!pendingRequest) {
+      return `Your deletion confirmation is missing or expired. First send ${WHATSAPP_DELETE_REQUEST_COMMAND}, then confirm within ${WHATSAPP_DELETE_CONFIRMATION_MINUTES} minutes.`;
+    }
+
+    const deleted = await deleteWhatsAppConversation(existingUser.id);
+    if (deleted > 0) {
+      logSecurityEvent("whatsapp_conversation_deleted", "info", {
+        accountFingerprint: securityFingerprint(existingUser.id),
+      });
+    }
+    return deleted > 0
+      ? "Your saved Study Buddy WhatsApp conversation has been permanently deleted. Your account and other study records remain."
+      : "You do not have a saved Study Buddy WhatsApp conversation to delete.";
+  }
+
   const user = await getOrCreateWhatsAppUser(from);
   if (user.accountStatus !== "ACTIVE") {
     return "This Study Buddy account is not active. Sign in on studybuddyng.com to review your account status.";

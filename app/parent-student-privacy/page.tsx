@@ -84,8 +84,9 @@ const sections: PolicyDocumentSection[] = [
         <p>
           A message sent to an AI feature, plus relevant conversation and
           learning context, may be sent to OpenAI so it can generate a response.
-          Study Buddy may store the message and response so the conversation can
-          continue and so we can operate and protect the feature.
+          Only a limited amount of recent relevant conversation is sent for a
+          new answer. Study Buddy keeps the saved conversation while the account
+          remains active so the student can revisit their study history.
         </p>
         <p>
           AI can misunderstand a question or give a wrong answer. A student
@@ -153,14 +154,18 @@ const sections: PolicyDocumentSection[] = [
           <li>correct inaccurate information;</li>
           <li>stop or restrict certain uses;</li>
           <li>withdraw consent where processing depends on consent; or</li>
-          <li>delete eligible information or close an account.</li>
+          <li>delete a saved conversation, eligible information, or an account.</li>
         </ul>
         <p>
           An account holder can deactivate the account or request permanent
           deletion in Settings. For other requests, or if the account cannot be
           accessed, email <a href={`mailto:${PRIVACY_EMAIL}`}>{PRIVACY_EMAIL}</a>.
           We may ask for information needed to verify identity and parental or
-          guardian authority. A deactivated account is kept for 36 months so it
+          guardian authority. A web AI chat has a permanent-delete control.
+          WhatsApp users can send <strong>DELETE MY CHAT</strong> and confirm the
+          displayed instruction within 15 minutes to delete only their saved
+          WhatsApp conversation.
+          A deactivated account is kept for 36 months so it
           can be reactivated; we email warnings 90, 60, 15, and 1 day before
           automatic deletion. A permanent request must be confirmed using a
           one-time account-email link. Confirmation locks the account, starts a

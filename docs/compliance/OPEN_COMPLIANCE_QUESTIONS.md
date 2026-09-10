@@ -8,7 +8,7 @@ and commercial questions for Study Buddy. Answers are not treated as legal
 approval by themselves. Public notices, product behaviour, internal records,
 and provider settings must be updated together after each answer is confirmed.
 
-Questions 1–13, 15, and 18 have been answered. The confirmed decisions include the company
+Questions 1–15 and 18 have been answered. The confirmed decisions include the company
 identity and address, `privacy@studybuddyng.com` as the privacy-request mailbox,
 joint request handling by Nick Efe Oni and Chijindu Oreh, a minimum account age
 of 13, independent activation from 18, and parent or legal-guardian approval for
@@ -24,10 +24,13 @@ protected backup copies must age out within 90 days of confirmation. A separate
 reversible deactivation option is presented first for users who only want a
 break. A deactivated account is retained for 36 months to permit reactivation;
 automatic notices are sent 90, 60, 15, and 1 day before account deletion.
+Web AI and WhatsApp conversations are kept as user-accessible study history
+while the account is active, rather than expiring solely because the last
+message is old. A conversation is deleted when the user deletes it, permanently
+deletes the account, or reaches the 36-month deactivated-account expiry.
 
 ## Open questions
 
-14. How long should AI and WhatsApp conversations be retained?
 16. How long should study history, answers, progress, and mock-exam results be retained?
 17. How many years should payment and transaction records be retained?
 19. May Study Buddy staff read AI conversations, and in precisely which situations?

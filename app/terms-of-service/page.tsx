@@ -359,6 +359,12 @@ export default function TermsOfServicePage() {
               AI prompts and relevant context are processed by providers such as
               OpenAI as explained in our Privacy Policy. Do not include passwords,
               payment-card details, health information, or other sensitive data.
+              Saved AI and WhatsApp conversations remain available while your
+              account is active unless you delete them. For each new response,
+              we send only bounded recent context rather than your complete
+              saved archive. Web chat deletion is permanent; WhatsApp users can
+              start the chat-only deletion process by sending DELETE MY CHAT and
+              must confirm the displayed instruction within 15 minutes.
               We may monitor AI usage patterns to protect the service and improve
               safety. Do not try to make the AI reveal private instructions,
               credentials, account data, or unauthorised content.
