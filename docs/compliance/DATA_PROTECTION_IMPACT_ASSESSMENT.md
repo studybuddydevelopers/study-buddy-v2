@@ -67,6 +67,9 @@ However, accidental sensitive-data submission remains a foreseeable risk.
 
 The exact provider regions, sub-processors, transfer mechanisms, and contract
 settings must be entered in the processor register before approval.
+The co-founders have confirmed that optional OpenAI API-data sharing for model
+training or improvement is disabled. Preserve dated settings evidence and
+recheck it after organisation ownership or data-control changes.
 
 ## 5. Purposes and preliminary lawful bases
 
@@ -116,6 +119,7 @@ provisional until mitigations are implemented and tested.
 | A child creates an account without valid parent/legal guardian authority | High | Implemented 13+ age gate, restricted account, expiring email-link declaration and event trail; add stepped-up verification for disputes/high-risk cases and self-service withdrawal | Medium; email control plus declaration does not independently prove the real-world relationship |
 | AI gives harmful, biased, or confidently incorrect advice | High | Age-appropriate system rules, safety testing, reporting, escalation, narrow educational scope, clear limitations | Medium after validation |
 | A student discloses sensitive or third-party data in chat | High | Just-in-time warning, minimised context, redaction where feasible, access controls, deletion route | Medium |
+| Staff access conversation content without a necessary case | High | Approved no-routine-reading rule; limit beta access to Nick Efe Oni and Chijindu Oreh; require a documented permitted reason, minimum-message scope, confidentiality, and an auditable break-glass workflow before any staff-review interface is introduced | Medium until technical enforcement and access-log review are implemented |
 | A future school feature exposes student data unexpectedly | High | Keep school-facing access unavailable; require a revised DPIA, notice, agreement, tenant isolation, least privilege, and field-level tests before activation | Low while unavailable; reassess before development or activation |
 | Deleted chats/accounts remain indefinitely | High | Hard-deletion workflow, backup expiry, deletion job, evidence and exception register | Low/Medium |
 | Account takeover exposes learning and chat records | High | Secure auth, CAPTCHA, rate limits, recovery controls, alerts, session revocation and monitoring | Medium |
@@ -147,6 +151,7 @@ decisions, and reasons when a recommendation is not adopted.
 - [x] Age and parent/legal-guardian authorisation design approved and implemented.
 - [ ] Data inventory and lawful-basis record completed.
 - [x] Current launch excludes school/teacher accounts and school-staff access.
+- [x] Co-founders confirmed that OpenAI API-data sharing for model improvement is disabled.
 - [ ] AI safety evaluation passes agreed child-safety and educational thresholds.
 - [ ] Verify 90-day provider backup expiry and implement the remaining approved retention jobs; the account scheduler and chat-only hard deletion are deployed in code and the scheduler has passed a production invocation.
 - [ ] Processor agreements, regions, sub-processors, and transfer bases verified.
