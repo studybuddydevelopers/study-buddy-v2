@@ -2,10 +2,12 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
   processDueAccountDeletions: vi.fn(),
+  processInactiveAccountRetention: vi.fn(),
 }));
 
 vi.mock("@/lib/account-lifecycle", () => ({
   processDueAccountDeletions: mocks.processDueAccountDeletions,
+  processInactiveAccountRetention: mocks.processInactiveAccountRetention,
 }));
 
 vi.mock("@/lib/security/audit-log", () => ({
@@ -23,6 +25,13 @@ describe("account deletion cron", () => {
       completed: 1,
       failed: 0,
     });
+    mocks.processInactiveAccountRetention.mockReset();
+    mocks.processInactiveAccountRetention.mockResolvedValue({
+      examined: 2,
+      warningsSent: 1,
+      warningsFailed: 0,
+      expirationsScheduled: 1,
+    });
   });
 
   afterEach(() => vi.unstubAllEnvs());
@@ -32,6 +41,7 @@ describe("account deletion cron", () => {
 
     expect(response.status).toBe(401);
     expect(mocks.processDueAccountDeletions).not.toHaveBeenCalled();
+    expect(mocks.processInactiveAccountRetention).not.toHaveBeenCalled();
   });
 
   it("rejects weak server configuration", async () => {
@@ -47,10 +57,19 @@ describe("account deletion cron", () => {
 
     expect(response.status).toBe(200);
     await expect(response.json()).resolves.toEqual({
-      examined: 1,
-      completed: 1,
-      failed: 0,
+      inactiveAccounts: {
+        examined: 2,
+        warningsSent: 1,
+        warningsFailed: 0,
+        expirationsScheduled: 1,
+      },
+      deletions: {
+        examined: 1,
+        completed: 1,
+        failed: 0,
+      },
     });
+    expect(mocks.processInactiveAccountRetention).toHaveBeenCalledOnce();
     expect(mocks.processDueAccountDeletions).toHaveBeenCalledOnce();
   });
 });
@@ -61,4 +80,3 @@ function makeRequest(secret: string) {
     headers: { "x-cron-secret": secret },
   });
 }
-
