@@ -58,7 +58,7 @@ However, accidental sensitive-data submission remains a foreseeable risk.
 
 | Activity | Source | Main system or recipient | Output/retention point |
 | --- | --- | --- | --- |
-| Registration and sign-in | Student/adult | Study Buddy, Supabase Auth, CAPTCHA provider | Auth account, session cookie, user profile, security record |
+| Registration and sign-in | Student/adult | Study Buddy, Supabase Auth, Resend custom SMTP, CAPTCHA provider | Auth account, transactional verification/recovery email, session cookie, user profile, security record |
 | Practice and exams | Student activity | Study Buddy/PostgreSQL; browser local storage for local drafts | Attempts, drafts, sessions, scores, progress |
 | AI chat | Student prompts and learning context | Study Buddy/PostgreSQL and OpenAI API | Prompt, response, model and token metadata, safety/security records |
 | Planned conversation-based AI improvement | Separately opted-in, de-identified conversation samples; no current user-chat input | Disabled during beta; future restricted Study Buddy evaluation/training environment and approved providers only | Evaluation results and, only after further approval, trained-model artefacts; retention not yet approved |
@@ -159,6 +159,7 @@ decisions, and reasons when a recommendation is not adopted.
 - [x] Co-founders confirmed that OpenAI API-data sharing for model improvement is disabled.
 - [x] Co-founders approved future use of selected conversation data for Study Buddy's own AI training/evaluation, subject to the documented activation gates.
 - [x] Conversation-based AI training/evaluation remains disabled for the current beta and existing evaluations use purpose-built fixtures.
+- [ ] Verify Resend custom SMTP is enabled for production Supabase Auth and test account-verification and password-reset delivery to a non-team address.
 - [ ] AI safety evaluation passes agreed child-safety and educational thresholds.
 - [ ] Verify 90-day provider backup expiry and implement the remaining approved retention jobs; the account scheduler and chat-only hard deletion are deployed in code and the scheduler has passed a production invocation.
 - [ ] Processor agreements, regions, sub-processors, and transfer bases verified.
