@@ -95,7 +95,8 @@ const sections: PolicyDocumentSection[] = [
           the family chooses it. For a student aged 13–17, their parent or legal
           guardian must approve and the student must also say yes. Saying no
           will not take away the normal Study Buddy service. Selected data must
-          be de-identified and checked to remove unnecessary private information.
+          have identifying details removed and be checked to remove unnecessary
+          private information.
         </p>
         <p>
           AI can misunderstand a question or give a wrong answer. A student
