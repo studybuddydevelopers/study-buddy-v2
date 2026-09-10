@@ -376,6 +376,22 @@ export default function PrivacyPolicyPage() {
               routine product improvement.
             </p>
             <p>
+              Study Buddy intends to use selected conversation data to train or
+              evaluate its own AI systems in the future, but this is not active
+              during the current beta. Current evaluations use purpose-built
+              test cases rather than user conversations. Before conversation
+              data is used, we will introduce a separate, voluntary choice that
+              is off by default. Adults must opt in. For users aged 13–17, a
+              parent or legal guardian must authorise the use and the student
+              must also choose to participate. Declining will not restrict the
+              ordinary service. Selected data must be de-identified, screened
+              to remove unnecessary sensitive and third-party information, and
+              kept in a restricted evaluation or training dataset. Users will
+              be able to withdraw from future use; before any model training,
+              we will explain any technical limits on removing data already
+              incorporated into a trained model.
+            </p>
+            <p>
               Study Buddy uses learning activity to produce progress summaries
               and recommendations. These features are intended to support study;
               they do not make admission, grading, employment, credit, or other
