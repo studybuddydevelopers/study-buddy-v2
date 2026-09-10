@@ -55,15 +55,19 @@ async function main() {
     check.legacyAdminColumns !== 0 ||
     !check.aiBudgetTable
   ) {
-    throw new Error("Database security assertions failed.");
+    throw new Error(
+      `Database security assertions failed: ${JSON.stringify(check)}`
+    );
   }
 
   console.info(JSON.stringify(check));
 }
 
 main()
-  .catch(() => {
-    console.error("Database security verification failed.");
+  .catch((error: unknown) => {
+    const safeMessage =
+      error instanceof Error ? error.message : "Unknown verification error.";
+    console.error(`Database security verification failed: ${safeMessage}`);
     process.exitCode = 1;
   })
   .finally(async () => {
