@@ -4,12 +4,20 @@ import {
   AccountLifecycleConflictError,
   ACTIVE_DELETION_DAYS,
   BACKUP_EXPIRY_DAYS,
+  DELETION_CANCELLATION_DAYS,
+  abandonDeletionConfirmation,
   cancelPermanentDeletion,
   deactivateAccount,
   getAccountLifecycle,
+  markDeletionConfirmationSent,
+  preparePermanentDeletionConfirmation,
   reactivateAccount,
-  requestPermanentDeletion,
 } from "@/lib/account-lifecycle";
+import {
+  accountDeletionConfirmationExpiry,
+  createAccountDeletionConfirmationToken,
+  sendAccountDeletionConfirmationEmail,
+} from "@/lib/account-deletion-email";
 import { requireAuthenticatedUser } from "@/lib/auth";
 import { syncAuthAccountStatus } from "@/lib/guardian-authorization";
 import { isRecord } from "@/lib/type-utils";
@@ -40,9 +48,10 @@ export async function GET() {
       accountStatus: lifecycle.accountStatus,
       deactivatedAt: lifecycle.deactivatedAt?.toISOString() ?? null,
       deletionScheduledFor:
-        lifecycle.deletionRequest?.scheduledFor.toISOString() ?? null,
+        lifecycle.deletionRequest?.scheduledFor?.toISOString() ?? null,
       deletionRequestStatus: lifecycle.deletionRequest?.status ?? null,
       activeDeletionDays: ACTIVE_DELETION_DAYS,
+      deletionCancellationDays: DELETION_CANCELLATION_DAYS,
       backupExpiryDays: BACKUP_EXPIRY_DAYS,
     },
     { headers: { "Cache-Control": "no-store" } }
@@ -93,12 +102,12 @@ export async function POST(request: Request) {
 
     if (action === "REQUEST_DELETION") {
       const password = parsed.data.password;
-      const confirmation = parsed.data.confirmation;
+      const typedConfirmation = parsed.data.confirmation;
       if (
         typeof password !== "string" ||
         password.length < 1 ||
         password.length > 1_024 ||
-        confirmation !== "DELETE"
+        typedConfirmation !== "DELETE"
       ) {
         return invalidRequest(
           "Enter your current password and type DELETE exactly."
@@ -126,16 +135,55 @@ export async function POST(request: Request) {
         );
       }
 
-      const deletion = await requestPermanentDeletion(auth.dbUser.id);
-      await syncAuthAccountStatus(auth.dbUser.id, "DELETION_PENDING");
-      logSecurityEvent("account_deletion_requested", "info", {
-        accountFingerprint: securityFingerprint(auth.dbUser.id),
-        scheduledFor: deletion.scheduledFor.toISOString(),
+      if (!auth.user.email) {
+        return NextResponse.json(
+          {
+            error: "A verified account email is required to confirm deletion.",
+          },
+          { status: 409, headers: { "Cache-Control": "no-store" } }
+        );
+      }
+
+      const confirmation = createAccountDeletionConfirmationToken();
+      const expiresAt = accountDeletionConfirmationExpiry();
+      const deletion = await preparePermanentDeletionConfirmation({
+        userId: auth.dbUser.id,
+        tokenHash: confirmation.tokenHash,
+        tokenExpiresAt: expiresAt,
       });
-      return signedOutJsonResponse(request, {
+      try {
+        await sendAccountDeletionConfirmationEmail({
+          email: auth.user.email,
+          token: confirmation.token,
+          expiresAt,
+        });
+        await markDeletionConfirmationSent(
+          deletion.id,
+          confirmation.tokenHash
+        );
+      } catch {
+        await abandonDeletionConfirmation(
+          deletion.id,
+          confirmation.tokenHash
+        );
+        logSecurityEvent("account_deletion_confirmation_email_failed", "error", {
+          accountFingerprint: securityFingerprint(auth.dbUser.id),
+        });
+        return NextResponse.json(
+          { error: "The confirmation email could not be sent. Try again." },
+          { status: 503, headers: { "Cache-Control": "no-store" } }
+        );
+      }
+
+      logSecurityEvent("account_deletion_confirmation_sent", "info", {
+        accountFingerprint: securityFingerprint(auth.dbUser.id),
+      });
+      return NextResponse.json({
         ok: true,
-        accountStatus: "DELETION_PENDING",
-        deletionScheduledFor: deletion.scheduledFor.toISOString(),
+        confirmationRequired: true,
+        confirmationExpiresAt: expiresAt.toISOString(),
+      }, {
+        headers: { "Cache-Control": "no-store" },
       });
     }
 
