@@ -66,8 +66,11 @@ However, accidental sensitive-data submission remains a foreseeable risk.
 | Payments | Subscriber and Paystack | Paystack and Study Buddy | Reference, amount, currency, status and subscription record |
 | Hosting/security | User device and requests | Railway, Cloudflare, Supabase, CAPTCHA and Study Buddy | Technical logs, rate-limit buckets and incident evidence |
 
-The exact provider regions, sub-processors, transfer mechanisms, and contract
-settings must be entered in the processor register before approval.
+The Supabase production project's primary data region is confirmed as North EU
+(Stockholm), Sweden (`eu-north-1`). Remaining provider and Supabase
+support/security/sub-processor locations, transfer mechanisms, and contract
+settings must be entered in the processor register before approval. The primary
+region alone is not treated as proof of transfer compliance.
 The co-founders have confirmed that optional OpenAI API-data sharing for model
 training or improvement is disabled. Preserve dated settings evidence and
 recheck it after organisation ownership or data-control changes.
