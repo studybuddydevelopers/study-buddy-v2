@@ -426,6 +426,16 @@ export default function PrivacyPolicyPage() {
                 </ExternalPolicyLink>
               </ListItem>
               <ListItem>
+                <strong>Resend</strong> for transactional email delivery,
+                including guardian-authorisation and account-lifecycle
+                messages. Supabase Auth creates account-verification and
+                password-reset workflows, with Resend selected as its production
+                custom SMTP delivery provider.{" "}
+                <ExternalPolicyLink href="https://resend.com/legal/privacy-policy">
+                  Resend privacy policy
+                </ExternalPolicyLink>
+              </ListItem>
+              <ListItem>
                 <strong>OpenAI</strong> for AI tutoring chatbot responses and
                 recommendations. Relevant prompts and conversation context are
                 transmitted for processing.{" "}
