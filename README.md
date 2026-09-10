@@ -138,9 +138,11 @@ These items cannot be solved by publishing policies and remain launch work:
 - [ ] Verify remaining production provider/Supabase processing locations, DPAs,
   sub-processors and cross-border safeguards; the Supabase primary project region
   is confirmed as North EU (Stockholm), Sweden (`eu-north-1`).
-- [ ] Verify Resend custom SMTP is enabled in the production Supabase Auth
-  dashboard, then test account verification and password reset using a non-team
-  recipient and preserve privacy-safe evidence of delivery.
+- [x] Enable Resend custom SMTP in the production Supabase Auth dashboard and
+  verify that account-verification and password-reset messages are delivered.
+- [ ] Re-test the complete verification and password-reset flows after deploying
+  the app-owned callbacks and applying the exact production URL/template settings
+  below; preserve privacy-safe evidence without email addresses or live tokens.
 - [ ] Confirm subscription renewal, cancellation and refund operations before paid launch.
 - [ ] Complete child-focused AI safety tests and a human escalation/reporting workflow.
 - [ ] Build the restricted, time-limited and fully audited break-glass workflow
@@ -236,6 +238,25 @@ Future low-data work:
   Supabase custom-SMTP settings used for account verification and password
   recovery.
 - Prefer a Supabase recovery email template that uses `token_hash`; it works even when users open reset links in a different browser or device from where they requested the email:
+
+Set **Authentication → URL Configuration** to these production values:
+
+- Site URL: `https://studybuddyng.com`
+- Redirect URL: `https://studybuddyng.com/auth/password-reset`
+
+Keep localhost entries only for local development; never use a localhost URL as
+the production Site URL. In Railway, set `APP_ORIGIN=https://studybuddyng.com`
+without quotes, a trailing path, or a localhost port.
+
+Set the **Confirm signup** template's button/link target to:
+
+```html
+<a href="{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=email">
+  Confirm email
+</a>
+```
+
+Set the **Reset password** template's button/link target to:
 
 ```html
 <a href="{{ .RedirectTo }}?token_hash={{ .TokenHash }}&type=recovery">
