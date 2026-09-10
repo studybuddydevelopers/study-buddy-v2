@@ -110,9 +110,11 @@ const sections: PolicyDocumentSection[] = [
           information already saved to your Study Buddy account.
         </p>
         <p>
-          Cloud draft saving and low-data mode can be managed in Study Buddy
-          settings. To request deletion of account data, follow the process in
-          our Privacy Policy.
+          Cloud draft saving, account deactivation, and permanent account
+          deletion can be managed in Study Buddy settings. Permanent deletion
+          clears the server-side account on the stated schedule, but local-only
+          drafts on other devices must be cleared through those devices or their
+          browser controls.
         </p>
       </>
     ),
