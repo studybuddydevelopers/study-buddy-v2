@@ -89,6 +89,15 @@ const sections: PolicyDocumentSection[] = [
           remains active so the student can revisit their study history.
         </p>
         <p>
+          Study Buddy plans to use selected conversation data to test or improve
+          its own AI later, but this does not happen in the current beta. Before
+          it starts, it will be a separate choice that is switched off unless
+          the family chooses it. For a student aged 13–17, their parent or legal
+          guardian must approve and the student must also say yes. Saying no
+          will not take away the normal Study Buddy service. Selected data must
+          be de-identified and checked to remove unnecessary private information.
+        </p>
+        <p>
           AI can misunderstand a question or give a wrong answer. A student
           should check important information with a teacher, textbook, or
           official source. AI does not decide school admission, official grades,
