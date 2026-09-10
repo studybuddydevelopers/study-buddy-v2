@@ -37,6 +37,9 @@ This guide maps the current website implementation to the codebase using exact f
 - [`app/api/v1/me/route.ts`](/Users/efeon/study-buddy-v2/app/api/v1/me/route.ts)
 - [`app/api/v1/reset-password/route.ts`](/Users/efeon/study-buddy-v2/app/api/v1/reset-password/route.ts)
 - [`app/auth/password-reset/route.ts`](/Users/efeon/study-buddy-v2/app/auth/password-reset/route.ts)
+- [`app/api/v1/account/lifecycle/route.ts`](/Users/efeon/study-buddy-v2/app/api/v1/account/lifecycle/route.ts): deactivate, request/cancel deletion, and reactivate
+- [`app/api/v1/account/deletion/cron/route.ts`](/Users/efeon/study-buddy-v2/app/api/v1/account/deletion/cron/route.ts): scheduled permanent purge
+- [`app/account-deactivated/page.tsx`](/Users/efeon/study-buddy-v2/app/account-deactivated/page.tsx) and [`app/account-deletion-pending/page.tsx`](/Users/efeon/study-buddy-v2/app/account-deletion-pending/page.tsx): restricted account state pages
 
 ## 5. Shared UI Building Blocks
 
@@ -131,7 +134,6 @@ Supporting APIs:
 ## 13. Other Backend Domains
 
 - profile: [`app/api/v1/profile/route.ts`](/Users/efeon/study-buddy-v2/app/api/v1/profile/route.ts)
-- schools: [`app/api/v1/schools/create/route.ts`](/Users/efeon/study-buddy-v2/app/api/v1/schools/create/route.ts), [`app/api/v1/schools/list/route.ts`](/Users/efeon/study-buddy-v2/app/api/v1/schools/list/route.ts), [`app/api/v1/schools/[id]/students/route.ts`](/Users/efeon/study-buddy-v2/app/api/v1/schools/[id]/students/route.ts)
 - subscriptions: [`app/api/v1/subscriptions/list/route.ts`](/Users/efeon/study-buddy-v2/app/api/v1/subscriptions/list/route.ts), [`app/api/v1/subscriptions/[id]/status/route.ts`](/Users/efeon/study-buddy-v2/app/api/v1/subscriptions/[id]/status/route.ts)
 - payments: [`app/api/v1/payments/verify/route.ts`](/Users/efeon/study-buddy-v2/app/api/v1/payments/verify/route.ts), [`app/api/v1/payments/webhook/route.ts`](/Users/efeon/study-buddy-v2/app/api/v1/payments/webhook/route.ts)
 - admin: [`app/api/v1/admin/subjects/create/route.ts`](/Users/efeon/study-buddy-v2/app/api/v1/admin/subjects/create/route.ts), [`app/api/v1/admin/topics/create/route.ts`](/Users/efeon/study-buddy-v2/app/api/v1/admin/topics/create/route.ts), [`app/api/v1/admin/curriculum/upload/route.ts`](/Users/efeon/study-buddy-v2/app/api/v1/admin/curriculum/upload/route.ts), [`app/api/v1/admin/past-questions/upload/route.ts`](/Users/efeon/study-buddy-v2/app/api/v1/admin/past-questions/upload/route.ts), [`app/api/v1/admin/past-questions/batch/route.ts`](/Users/efeon/study-buddy-v2/app/api/v1/admin/past-questions/batch/route.ts), [`app/api/v1/admin/users/query/route.ts`](/Users/efeon/study-buddy-v2/app/api/v1/admin/users/query/route.ts)
