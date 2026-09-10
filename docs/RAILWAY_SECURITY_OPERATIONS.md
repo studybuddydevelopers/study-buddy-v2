@@ -58,17 +58,35 @@ Create a Railway cron service/job that sends `POST
 least 32 random bytes,
 never put it in a browser variable, and alert on non-2xx responses. An hourly
 schedule processes accounts after their full 15-day cancellation window while
-keeping the 30-day maximum comfortably satisfied. After
+keeping the 30-day maximum comfortably satisfied. The same hourly job sends
+inactive-account expiry notices at 90, 60, 15, and 1 day and queues deletion at
+the approved 36-month deadline. After
 the lifecycle migration, verify the dedicated runtime role has CRUD on
 `AccountDeletionRequest`; do not replace the restricted runtime URL with the
 migration-owner URL as a workaround.
 
-Use different PostgreSQL credentials for `DATABASE_URL` and `DIRECT_URL`.
-`DATABASE_URL` is the pooled runtime connection used by the generated Prisma
-client. `DIRECT_URL` is the direct owner connection used only by Prisma Migrate.
-The deployment checklist records that the broad `postgres` runtime credential
-has been replaced. Re-check the effective role attributes and grants after each
-database-role or connection-string change; do not rely only on the username.
+The repository includes a one-shot caller for this job. Create a second Railway
+service from the same repository, set its custom build command to
+`npm ci --ignore-scripts --omit=dev`, and its custom start command to
+`npm run cron:account-lifecycle`. Give that service only `NODE_ENV=production`,
+`APP_ORIGIN=https://studybuddyng.com`, and the same
+`ACCOUNT_DELETION_CRON_SECRET` used by the web service. It does not need a
+domain, database credentials, Supabase credentials, or browser variables. In
+Settings, set Cron Schedule to `0 * * * *` (hourly, in UTC). The caller rejects
+redirects, times out after five minutes, returns a failing process status for
+any non-2xx response, and exits after every invocation so Railway does not skip
+the next run.
+
+Use different PostgreSQL credentials for `DATABASE_URL` and `DIRECT_URL` in the
+trusted migration environment. `DATABASE_URL` is the pooled runtime connection
+used by the generated Prisma client; the migration environment's `DIRECT_URL`
+is the owner connection used by Prisma Migrate. In the Railway web service,
+both variables use the restricted runtime URL solely so Prisma's build-time
+schema validation succeeds. Never put the real owner credential in that web
+service. The deployment checklist records that the broad `postgres` runtime
+credential has been replaced. Re-check the effective role attributes and grants
+after each database-role or connection-string change; do not rely only on the
+username.
 
 This app performs authorization in its server routes rather than passing each
 Supabase user's identity into PostgreSQL. A practical runtime role therefore
@@ -83,11 +101,23 @@ production because a missed table or sequence grant will fail closed.
 
 For Railway's persistent Next.js container, use Supabase's Supavisor **Session
 pooler** URI on port `5432` for `DATABASE_URL`, with the username changed to the
-dedicated runtime role. Do not append `pgbouncer=true` in session mode. Keep the
-connection limit small per Railway replica. Transaction mode on port `6543` is
-available for serverless/short-lived runtimes, but requires `pgbouncer=true`.
-`prisma generate` and the web runtime do not require `DIRECT_URL`; store that
-owner credential only in the separately controlled migration job or CI secret.
+dedicated runtime role. For the current single-replica deployment, append
+`connection_limit=3&pool_timeout=10&connect_timeout=10` (using `&` instead of
+`?` if the URL already has query parameters). Use `connection_limit=1` for
+trusted local tooling if it must share the production database. The
+`studybuddy_runtime` PostgreSQL role is capped at 20 connections, leaving
+headroom under the current 60-connection database maximum for Supabase services,
+rolling deployments, migrations, and recovery access. Recalculate these values
+before adding replicas; do not let the sum of replica pools approach the role or
+database limit. Do not append `pgbouncer=true` in session mode. Transaction mode
+on port `6543` is available for serverless/short-lived runtimes, but requires
+`pgbouncer=true`.
+Prisma 5 validates `DIRECT_URL` during `prisma generate`, although the generated
+web client does not use it for normal queries. In the Railway web service, set
+`DIRECT_URL` to the **same restricted pooler URL as `DATABASE_URL`** so the
+build succeeds without exposing the owner credential. Store the real owner URL
+only in the separately controlled migration job/CI secret or trusted local
+administrative environment.
 
 The age/guardian release adds `GuardianAuthorization` and
 `GuardianAuthorizationEvent`. Apply its migration using the migration-owner job
@@ -178,6 +208,8 @@ attributes automatically. Useful Log Explorer filters are:
 @securityEvent:account_deletion_cron_failed
 @securityEvent:account_deletion_confirmation_email_failed
 @securityEvent:account_deletion_pending_email_failed
+@securityEvent:inactive_account_warning_failed
+@securityEvent:inactive_account_deletion_scheduled
 ```
 
 Login account and source-IP identifiers are HMAC-based pseudonyms, so repeated
