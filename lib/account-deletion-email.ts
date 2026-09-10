@@ -113,6 +113,51 @@ export async function sendAccountDeletionPendingEmail(input: {
   }
 }
 
+export async function sendInactiveAccountExpiryWarningEmail(input: {
+  email: string;
+  daysRemaining: 90 | 60 | 15 | 1;
+  deletionAt: Date;
+  idempotencyKey: string;
+}) {
+  const { apiKey, from, replyTo, appOrigin } = emailConfiguration();
+  const deadline = input.deletionAt.toUTCString();
+  const timeLabel =
+    input.daysRemaining === 1 ? "1 day" : `${input.daysRemaining} days`;
+  const reactivationUrl = `${appOrigin}/login`;
+  const response = await fetchWithTimeout("https://api.resend.com/emails", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      "Content-Type": "application/json",
+      "Idempotency-Key": `inactive-account-expiry-${input.idempotencyKey}`,
+    },
+    body: JSON.stringify({
+      from,
+      to: [input.email],
+      reply_to: replyTo,
+      subject: `Your Study Buddy account will be deleted in ${timeLabel}`,
+      html: `
+        <p>Hello,</p>
+        <p>Your deactivated Study Buddy account is due for automatic deletion in ${timeLabel}, on ${escapeHtml(deadline)}.</p>
+        <p>To keep your account and study history, <a href="${reactivationUrl}">sign in and reactivate your account</a> before the deadline.</p>
+        <p>If you want the deletion to continue, you do not need to do anything. For help, contact <a href="mailto:${PRIVACY_EMAIL}">${PRIVACY_EMAIL}</a>.</p>
+        <p>Study Buddy Privacy<br />${PRIVACY_EMAIL}</p>
+      `,
+      text: [
+        "Hello,",
+        `Your deactivated Study Buddy account is due for automatic deletion in ${timeLabel}, on ${deadline}.`,
+        `To keep your account and study history, sign in and reactivate it before the deadline: ${reactivationUrl}`,
+        "If you want the deletion to continue, you do not need to do anything.",
+        `For help: ${PRIVACY_EMAIL}`,
+      ].join("\n\n"),
+    }),
+  });
+
+  if (!response.ok) {
+    throw new Error("INACTIVE_ACCOUNT_EXPIRY_EMAIL_FAILED");
+  }
+}
+
 function emailConfiguration() {
   const apiKey = process.env.RESEND_API_KEY?.trim();
   const from = process.env.TRANSACTIONAL_EMAIL_FROM?.trim();
@@ -150,4 +195,3 @@ function escapeHtml(value: string) {
       })[character] ?? character
   );
 }
-
