@@ -15,10 +15,14 @@ of 13, independent activation from 18, and parent or legal-guardian approval for
 ages 13–17 through the implemented email decision flow. At launch, Study Buddy
 does not provide school or teacher accounts, and school staff cannot access any
 individual student information or create, suspend, or delete student accounts.
-Permanent account deletion is available in Settings: access is restricted
-immediately, active-system deletion is scheduled within 30 days, and protected
-backup copies must age out within 90 days of the request. A separate reversible
-deactivation option is presented first for users who only want a break.
+Permanent account deletion is available in Settings and requires password/typed
+confirmation followed by a one-time account-email link and a deliberate final
+confirmation page. The account remains active until that final confirmation;
+then access is restricted immediately, a 15-day cancellation window begins,
+active-system deletion proceeds within the approved 30-day maximum, and
+protected backup copies must age out within 90 days of confirmation. A separate
+reversible deactivation option is presented first for users who only want a
+break.
 
 ## Open questions
 
