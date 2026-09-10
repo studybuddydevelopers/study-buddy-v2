@@ -406,7 +406,11 @@ export default function TermsOfServicePage() {
               We do not store card numbers or bank details. Payment providers
               process the information required to complete billing, while we
               retain transaction references, amounts, currency, status, and plan
-              information.
+              information. Essential payment, invoice, and transaction records
+              are retained for seven years from the transaction date, including
+              after account deletion where required for accounting and tax
+              compliance. Longer retention applies only to a documented tax
+              audit, chargeback, dispute, investigation, or legal hold.
             </p>
             <p>
               If recurring billing is offered, you may cancel future renewal
