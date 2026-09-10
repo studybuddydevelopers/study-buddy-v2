@@ -602,8 +602,14 @@ export default function PrivacyPolicyPage() {
                 We do not restore deleted data to ordinary live use.
               </ListItem>
               <ListItem>
-                Payment and transaction records may be kept for the period
-                required by financial, tax, fraud-prevention, and consumer law.
+                Essential payment, invoice, and transaction records—including
+                the reference, amount, currency, status, date, and necessary
+                billing evidence—are kept for seven years from the transaction
+                date. Account deletion removes the ordinary account link but
+                does not erase this restricted financial record. We keep it
+                longer only for a documented tax audit, chargeback, dispute,
+                investigation, or legal hold, and delete or anonymise it when
+                the applicable period ends.
               </ListItem>
               <ListItem>
                 Local practice drafts remain on your device until submitted,
