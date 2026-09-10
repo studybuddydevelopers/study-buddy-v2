@@ -1,6 +1,6 @@
 # Study Buddy v2
 
-Study Buddy v2 is a Next.js learning platform for exam preparation. It combines practice questions, mock exams, progress tracking, AI-assisted study support, subscriptions, and internal administration in a single app. Dormant school-membership models and admin-only endpoints are not a school-facing launch feature.
+Study Buddy v2 is a Next.js learning platform for exam preparation. It combines practice questions, mock exams, progress tracking, AI-assisted study support, subscriptions, and internal administration in a single app. It does not provide school or teacher accounts.
 
 ## Stack
 
@@ -26,7 +26,7 @@ Study Buddy v2 is a Next.js learning platform for exam preparation. It combines 
 - Resource Ingestion Stage 2: admin-only private resource uploads, extraction, chunking, approval workflows, and legacy past-question migration reports. This is not retrieval or RAG yet.
 - Grounded Chat Stage 4: feature-gated TEACH responses that retrieve approved active StudyBuddy evidence, validate segment-based structured output, persist grounding attempts/citations, and show safe source previews. Disabled by default until evaluations pass.
 - Accounts and billing: auth, profile, subscriptions, and payments
-- Internal administration: content upload, user lookup, and dormant school-membership management; no school or teacher accounts are provided at launch
+- Internal administration: content upload and user lookup
 
 ## Product Strategy Reminders
 
@@ -52,8 +52,8 @@ registration. Public wording must remain aligned with the production service.
 The company identity and registered office have been confirmed from the CAC
 incorporation records. The public privacy mailbox and its joint co-founder
 handlers, Nick Efe Oni and Chijindu Oreh, are confirmed. The formal privacy
-lead/DPO appointment, retention periods, provider
-regions/contracts, payment rules, and school visibility still require
+lead/DPO appointment, remaining retention periods, provider
+regions/contracts, and payment rules still require
 co-founder decisions and qualified Nigerian legal/privacy review.
 
 ### Public pages
@@ -76,14 +76,14 @@ also link directly to the detailed notices relevant to their sections.
 
 | Document | What is complete | What cannot be completed yet and why |
 | --- | --- | --- |
-| [`DATA_PROTECTION_IMPACT_ASSESSMENT.md`](/Users/efeon/study-buddy-v2/docs/compliance/DATA_PROTECTION_IMPACT_ASSESSMENT.md) | Scope, data map, preliminary bases, necessity review, risk matrix, mitigations and launch gates | Formal approval requires student/parent/school consultation, named owners, implemented controls, provider evidence and written residual-risk sign-off |
+| [`DATA_PROTECTION_IMPACT_ASSESSMENT.md`](/Users/efeon/study-buddy-v2/docs/compliance/DATA_PROTECTION_IMPACT_ASSESSMENT.md) | Scope, data map, preliminary bases, necessity review, risk matrix, mitigations and launch gates | Formal approval requires student/parent consultation, named owners, implemented controls, provider evidence and written residual-risk sign-off |
 | [`PARENTAL_AUTHORIZATION_RECORD.md`](/Users/efeon/study-buddy-v2/docs/compliance/PARENTAL_AUTHORIZATION_RECORD.md) | Describes the implemented database record, guardian email decision workflow, feature scope and event history | Online guardian self-service withdrawal and retention automation remain pending; live records stay in the production database, never this repository |
-| [`DATA_RETENTION_AND_DELETION_SCHEDULE.md`](/Users/efeon/study-buddy-v2/docs/compliance/DATA_RETENTION_AND_DELETION_SCHEDULE.md) | Data-category inventory, proposed periods, deletion steps, legal-hold and ownership rules | Periods need legal/finance approval; account deletion, chat hard purge, cloud-draft expiry, backup expiry and deletion evidence are not implemented |
+| [`DATA_RETENTION_AND_DELETION_SCHEDULE.md`](/Users/efeon/study-buddy-v2/docs/compliance/DATA_RETENTION_AND_DELETION_SCHEDULE.md) | Data-category inventory, deletion steps, legal-hold rules, and the implemented 30-day account-purge workflow | Other periods need legal/finance approval; chat-only hard purge, cloud-draft expiry, and provider backup configuration still need completion |
 | [`PERSONAL_DATA_BREACH_RESPONSE_PLAN.md`](/Users/efeon/study-buddy-v2/docs/compliance/PERSONAL_DATA_BREACH_RESPONSE_PLAN.md) | Incident stages, statutory decision clock, risk assessment, notice content, child safeguards and closure process | Names, secure channels, provider contacts, breach register location and exercise evidence require organisational setup outside the codebase |
 | [`PROCESSOR_AND_VENDOR_REGISTER.md`](/Users/efeon/study-buddy-v2/docs/compliance/PROCESSOR_AND_VENDOR_REGISTER.md) | Initial register for Supabase, OpenAI, Meta, Paystack, Railway, Cloudflare, CAPTCHA, email and source-control providers | Contracts/DPAs cannot be created by code; production regions, sub-processors, retention and transfer safeguards must be verified in provider accounts |
 | [`SCHOOL_DATA_PROCESSING_SCHEDULE.md`](/Users/efeon/study-buddy-v2/docs/compliance/SCHOOL_DATA_PROCESSING_SCHEDULE.md) | Contract template covering roles, instructions, visibility, security, rights, deletion, incidents and audit | It cannot be signed until both legal entities, controller/processor roles, exact staff visibility, service terms, contacts and retention periods are agreed |
 | [`RECORD_OF_PROCESSING_ACTIVITIES.md`](/Users/efeon/study-buddy-v2/docs/compliance/RECORD_OF_PROCESSING_ACTIVITIES.md) | Initial inventory of current controller and possible school-processor activities | Replace preliminary bases/roles with approved decisions and reconcile it against production provider dashboards and configuration before launch |
-| [`OPEN_COMPLIANCE_QUESTIONS.md`](/Users/efeon/study-buddy-v2/docs/compliance/OPEN_COMPLIANCE_QUESTIONS.md) | Tracks the confirmed answers to questions 1–9 and every remaining decision from questions 10–44 | Work through the open questions in order and reconcile each answer with the product, notices, compliance records, and operating procedures |
+| [`OPEN_COMPLIANCE_QUESTIONS.md`](/Users/efeon/study-buddy-v2/docs/compliance/OPEN_COMPLIANCE_QUESTIONS.md) | Tracks confirmed answers through question 12 plus questions 15 and 18, and every remaining decision through question 44 | Work through the open questions in order and reconcile each answer with the product, notices, compliance records, and operating procedures |
 
 ### Required non-document work
 
@@ -96,8 +96,10 @@ These items cannot be solved by publishing policies and remain launch work:
 - [x] Set the product minimum to 13 and independent-account age to 18; ages 13–17 require a parent or legal guardian, not a school substitute.
 - [x] Build date-of-birth gating, restricted minor accounts, expiring one-time guardian email decisions, separately scoped AI permission, and append-only application events.
 - [ ] Add guardian self-service withdrawal; until then, verified withdrawal requests use `privacy@studybuddyng.com` and require an authorised operator to restrict the account and record the event.
-- [ ] Build self-service account deletion and permanent chat/account purge workflows.
-- [ ] Approve retention periods and automate expiry, backup ageing and deletion evidence.
+- [x] Build reversible account deactivation and self-service permanent account deletion with immediate restriction, cancellation, and a retryable 30-day application/Auth purge.
+- [ ] Configure Railway to call the deletion cron at least hourly and verify the dedicated runtime role can access `AccountDeletionRequest`.
+- [ ] Verify protected provider backups expire within the approved 90-day maximum and cannot restore deleted accounts to live use.
+- [ ] Approve the remaining retention periods and automate chat-only purge, cloud-draft expiry, and other deletion evidence.
 - [x] Confirm the launch position that no school/teacher accounts or school-staff
   access to individual student data are provided.
 - [ ] Before any future school service, define and test school roles and
@@ -230,7 +232,6 @@ Main domains:
 
 - auth and account
 - profile
-- schools
 - AI
 - past questions
 - mock exams
@@ -258,7 +259,6 @@ Key models:
 - `AiQuestion`, `AiQuestionMessage`, `Recommendation`
 - `ProgressTrack`
 - `Subscription`, `Transaction`
-- `School`, `SchoolStudent`
 
 ## AI Chat Stage 1
 
@@ -370,7 +370,7 @@ Applied DB optimization migration: [`20260726090000_add_query_performance_indexe
 
 Implemented DB/query optimizations:
 
-- Added query-focused indexes for dashboard/progress aggregates, practice materials, AI tutor threads/messages, mock exam resume/history, recommendations, subscriptions, school student lists, admin user listing, subject/topic lookup, and payment verification.
+- Added query-focused indexes for dashboard/progress aggregates, practice materials, AI tutor threads/messages, mock exam resume/history, recommendations, subscriptions, admin user listing, subject/topic lookup, and payment verification.
 - Added `Transaction.reference` as a unique DB constraint so Paystack duplicate-prevention is enforced by the database, not only by application code.
 - Added `ProgressTrack(userId, subjectId)` as a unique DB constraint so each user has one progress row per subject.
 - Updated progress update APIs to use direct composite upserts against `ProgressTrack(userId, subjectId)`.
