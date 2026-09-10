@@ -49,6 +49,7 @@ RESEND_API_KEY=replace-me
 TRANSACTIONAL_EMAIL_FROM="Study Buddy Privacy <no-reply@updates.studybuddyng.com>"
 TRANSACTIONAL_EMAIL_REPLY_TO=privacy@studybuddyng.com
 GUARDIAN_AUTHORIZATION_TTL_HOURS=72
+ACCOUNT_DELETION_CONFIRMATION_TTL_HOURS=24
 ```
 
 Create a Railway cron service/job that sends `POST
@@ -56,7 +57,8 @@ Create a Railway cron service/job that sends `POST
 `x-cron-secret: <ACCOUNT_DELETION_CRON_SECRET>`. Use a distinct secret of at
 least 32 random bytes,
 never put it in a browser variable, and alert on non-2xx responses. An hourly
-schedule keeps the 30-day deletion commitment from drifting materially. After
+schedule processes accounts after their full 15-day cancellation window while
+keeping the 30-day maximum comfortably satisfied. After
 the lifecycle migration, verify the dedicated runtime role has CRUD on
 `AccountDeletionRequest`; do not replace the restricted runtime URL with the
 migration-owner URL as a workaround.
@@ -174,6 +176,8 @@ attributes automatically. Useful Log Explorer filters are:
 @securityEvent:ai_global_daily_budget_exhausted
 @securityEvent:account_deletion_failed
 @securityEvent:account_deletion_cron_failed
+@securityEvent:account_deletion_confirmation_email_failed
+@securityEvent:account_deletion_pending_email_failed
 ```
 
 Login account and source-IP identifiers are HMAC-based pseudonyms, so repeated
