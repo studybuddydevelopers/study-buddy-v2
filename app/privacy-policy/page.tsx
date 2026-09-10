@@ -559,11 +559,13 @@ export default function PrivacyPolicyPage() {
                 under review.
               </ListItem>
               <ListItem>
-                If you request permanent account deletion in Settings, access
-                is restricted immediately and personal data in active systems
-                is scheduled for deletion within 30 days. Limited records may
-                be retained where the law requires it or a documented legal
-                hold applies.
+                If you request permanent account deletion in Settings, we send
+                a one-time confirmation link to your account email. The account
+                remains active until you confirm on the linked page. Confirmation
+                restricts access immediately and starts a 15-day cancellation
+                window; active-system deletion then proceeds and is completed
+                within 30 days of confirmation. Limited records may be retained
+                where the law requires it or a documented legal hold applies.
               </ListItem>
               <ListItem>
                 A chat deleted in the product is removed from account view.
@@ -573,7 +575,7 @@ export default function PrivacyPolicyPage() {
               <ListItem>
                 Data removed from active systems may remain in protected,
                 access-limited backups and will age out within 90 days of the
-                permanent-deletion request. We do not restore deleted account
+                confirmed permanent-deletion request. We do not restore deleted account
                 data to ordinary live use.
               </ListItem>
               <ListItem>
