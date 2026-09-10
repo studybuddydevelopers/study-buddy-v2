@@ -19,8 +19,8 @@ consumer, safeguarding, limitation, and regulatory requirements before approval.
 
 | Data category | Active retention | Proposed deletion trigger and target | Current implementation gap |
 | --- | --- | --- | --- |
-| Supabase authentication account and core `User` record | While active or reversibly deactivated under the pending inactive-account policy | Permanent deletion restricts access immediately and purges application/Auth records within 30 days unless held | Self-service request and retryable purge are implemented; Railway must set the cron secret and invoke the job at least hourly |
-| User profile and preferences | While the account is active or reversibly deactivated | Cascade-delete with the account within 30 days of a permanent request | Covered by the account purge; inactive-account duration remains undecided |
+| Supabase authentication account and core `User` record | While active or reversibly deactivated under the pending inactive-account policy | Password/typed confirmation sends a 24-hour one-time email link; final confirmation locks access, starts a 15-day cancellation window, and purges application/Auth records within the approved 30-day maximum unless held | Two-stage self-service request and retryable purge are implemented; Railway must set the cron secret and invoke the job at least hourly |
+| User profile and preferences | While the account is active or reversibly deactivated | Cascade-delete with the account after the 15-day cancellation window and within 30 days of final confirmation | Covered by the account purge; inactive-account duration remains undecided |
 | Local practice drafts | Until submitted, cleared, or removed by the browser/user | Clear when the user chooses; provide clear control | Stored on each device; server cannot guarantee browser deletion |
 | Cloud practice drafts | While needed for the unfinished activity | Proposed: delete 90 days after last draft activity or with account, whichever comes first | Automated expiry job not implemented |
 | Practice attempts, quiz sessions, mock exams, answers, progress, and recommendations | While account is active and needed for learning history | Delete with account; proposed inactive-account review after 24 months | Recommendation rows already require a retention decision; no expiry job |
@@ -35,19 +35,19 @@ consumer, safeguarding, limitation, and regulatory requirements before approval.
 | Contact/support requests | Until resolved and needed for follow-up | Proposed: 12 months after resolution; longer only for a documented dispute/hold | Current contact endpoint does not provide a complete ticket register |
 | Security/audit events | Based on risk and investigation need | Proposed: 12 months; extend only for an active incident or legal hold | Central retention and deletion controls need verification |
 | CAPTCHA/provider logs | Provider-defined and configuration-dependent | Minimise transmission; document provider period and contract | Provider settings and periods need confirmation |
-| Application/database backups | Short recovery window | Approved target: deleted data expires within 90 days of the permanent request and is not restored to live use | Verify and record Supabase/Railway backup settings before relying on this guarantee in production |
+| Application/database backups | Short recovery window | Approved target: deleted data expires within 90 days of final email confirmation and is not restored to live use | Verify and record Supabase/Railway backup settings before relying on this guarantee in production |
 | Anonymised aggregate learning statistics | While useful | Review annually; may be kept if re-identification is not reasonably possible | Anonymisation standard and review evidence need definition |
 | Administrative resources and extraction records | While licensed, approved, and needed | Remove when rights end or source is withdrawn; keep minimal audit evidence as required | Rights/provenance register must be completed |
 
 ## Deletion workflow
 
-1. Authenticate the requester and record the scope and date.
-2. Place the request in the privacy-request register.
-3. Identify linked Supabase, Prisma, WhatsApp, payment, provider, and
+1. Re-authenticate the requester with the current password and exact typed confirmation.
+2. Email a one-time confirmation link; do not restrict or schedule the account until the user deliberately confirms on the linked page.
+3. Record final confirmation, immediately restrict the account, and start the 15-day cancellation window.
+4. Identify linked Supabase, Prisma, WhatsApp, payment, provider, and
    browser-storage data.
-4. Check for a documented legal hold; do not use a generic “legal reasons” flag.
-5. Restrict the account and stop optional processing where appropriate.
-6. Delete or anonymise primary records and send provider deletion requests.
+5. Check for a documented legal hold; do not use a generic “legal reasons” flag.
+6. At the cancellation deadline, delete or anonymise primary records and send provider deletion requests.
 7. Prevent deleted records from being restored into live processing from backup.
 8. Record systems checked, exceptions, completion date, and evidence reference.
 9. Confirm completion to the requester without disclosing internal security data.
@@ -69,10 +69,10 @@ every 90 days. A hold must preserve only information relevant to the stated need
 
 | Decision | Owner | Status |
 | --- | --- | --- |
-| Permanent account deletion: active systems within 30 days | Co-founders; privacy adviser review | Approved by co-founders; legal review pending |
+| Permanent account deletion: email confirmation, 15-day cancellation window, active systems within 30 days | Co-founders; privacy adviser review | Approved by co-founders; legal review pending |
 | Reversibly deactivated/inactive account period | Co-founders/privacy adviser | Pending |
 | Child authorisation evidence period | Privacy adviser | Pending |
 | Transaction statutory period | Finance/legal | Pending |
-| Backup expiry within 90 days of permanent request | Co-founders; engineering/provider owner | Policy approved; provider configuration verification pending |
+| Backup expiry within 90 days of final confirmation | Co-founders; engineering/provider owner | Policy approved; provider configuration verification pending |
 | Support and security-log periods | Privacy/security | Pending |
 | Automated account deletion implementation | Engineering | Implemented; Railway cron configuration and production verification pending |
