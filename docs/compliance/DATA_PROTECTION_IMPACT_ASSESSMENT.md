@@ -121,7 +121,7 @@ provisional until mitigations are implemented and tested.
 | Account takeover exposes learning and chat records | High | Secure auth, CAPTCHA, rate limits, recovery controls, alerts, session revocation and monitoring | Medium |
 | Provider or cross-border processing lacks an approved safeguard | High | Processor register, DPA review, transfer assessment and approved mechanism | Medium |
 | User cannot understand or exercise rights | Medium | Child-friendly notice, privacy request process, identity checks, response tracker and escalation | Low |
-| Payment dispute is handled unfairly or data is over-collected | Medium | Paystack-only payment handling, transparent refunds, minimal transaction records, complaint route | Low |
+| Payment dispute is handled unfairly or data is over-collected or retained indefinitely | Medium | Paystack-only payment handling, transparent refunds, minimal transaction records, seven-year transaction policy, complaint route; implement expiry and legal-hold controls | Low/Medium until automated expiry is verified |
 | Learning analytics unfairly labels or discourages a student | Medium | Explain recommendations, avoid high-stakes decisions, allow correction/review, test for bias | Low/Medium |
 | Accessibility barriers prevent exercise of privacy or safety rights | High | WCAG audit, accessible alternatives, non-CAPTCHA support route, remediation tracking | Medium |
 | A breach involving children is detected or reported too late | High | Incident plan, owner/on-call list, drills, 72-hour decision clock and breach register | Medium |
