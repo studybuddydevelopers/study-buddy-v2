@@ -74,6 +74,7 @@ describe("cookie-authenticated mutation Origin validation", () => {
       "/api/v1/payments/webhook",
       "/api/v1/whatsapp/webhook/",
       "/api/v1/ai/recommendations/cron",
+      "/api/v1/account/deletion/cron",
     ]) {
       const request = makeRequest("POST", pathname, { cookie: authCookie });
       expect(validateCookieMutationOrigin(request)).toEqual({ ok: true });
