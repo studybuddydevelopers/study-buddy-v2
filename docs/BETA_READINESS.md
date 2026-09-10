@@ -37,7 +37,9 @@ readiness sign-off.
    repeated login failures, webhook-signature failures, lifecycle-cron failures,
    email failures, and unusual AI usage or spend.
 4. Verify the Railway runtime database URL/role and connection-pool settings,
-   backup expiry/restoration controls, provider regions, and secret rotation.
+   backup expiry/restoration controls, remaining provider regions, and secret
+   rotation. Supabase's primary project region is confirmed as North EU
+   (Stockholm), Sweden (`eu-north-1`).
 5. Establish the secure privacy-request/breach registers, named incident contacts,
    escalation channels, and an exercised rollback/incident procedure.
 6. Run a child-focused AI safety test and accessibility smoke test across the
@@ -63,4 +65,3 @@ retention enforcement.
 - Support, privacy, security, and incident mailboxes have an assigned daily owner.
 - Beta feedback is reviewed on a fixed cadence and releases have a rollback path.
 - Co-founders record a go/no-go decision and accepted residual risks.
-
