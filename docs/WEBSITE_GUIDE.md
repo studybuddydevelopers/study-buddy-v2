@@ -39,7 +39,7 @@ This guide maps the current website implementation to the codebase using exact f
 - [`app/auth/password-reset/route.ts`](/Users/efeon/study-buddy-v2/app/auth/password-reset/route.ts)
 - [`app/api/v1/account/lifecycle/route.ts`](/Users/efeon/study-buddy-v2/app/api/v1/account/lifecycle/route.ts): deactivate, request/cancel deletion, and reactivate
 - [`app/api/v1/account/deletion/confirm/route.ts`](/Users/efeon/study-buddy-v2/app/api/v1/account/deletion/confirm/route.ts): consumes a one-time email token and begins the deletion window
-- [`app/api/v1/account/deletion/cron/route.ts`](/Users/efeon/study-buddy-v2/app/api/v1/account/deletion/cron/route.ts): scheduled permanent purge
+- [`app/api/v1/account/deletion/cron/route.ts`](/Users/efeon/study-buddy-v2/app/api/v1/account/deletion/cron/route.ts): inactive-account warning/expiry processing and scheduled permanent purge
 - [`app/account-deactivated/page.tsx`](/Users/efeon/study-buddy-v2/app/account-deactivated/page.tsx) and [`app/account-deletion-pending/page.tsx`](/Users/efeon/study-buddy-v2/app/account-deletion-pending/page.tsx): restricted account state pages
 - [`app/account-deletion/confirm/page.tsx`](/Users/efeon/study-buddy-v2/app/account-deletion/confirm/page.tsx): deliberate final confirmation page reached from the one-time email link
 
