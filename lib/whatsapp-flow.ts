@@ -111,7 +111,11 @@ export async function handleIncomingMessage(
   from: string,
   text: string
 ): Promise<string> {
-  const userId = await getOrCreateWhatsAppUser(from);
+  const user = await getOrCreateWhatsAppUser(from);
+  if (user.accountStatus !== "ACTIVE") {
+    return "This Study Buddy account is not active. Sign in on studybuddyng.com to review your account status.";
+  }
+  const userId = user.id;
   const aiQuestionId = await getOrCreateWhatsAppThread(userId);
 
   const existingMessageCount = await prisma.aiQuestionMessage.count({
