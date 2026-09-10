@@ -60,12 +60,19 @@ export default function NavBar({
   const handleLogout = async () => {
     setLoadingLogOut(true);
     try {
-      await fetch("/api/v1/logout", {
+      const response = await fetch("/api/v1/logout", {
         method: "POST",
         cache: "no-store",
       });
-    } finally {
-      router.push("/login");
+      if (!response.ok) {
+        setLoadingLogOut(false);
+        return;
+      }
+      // Logout changes the cookie-backed root layout. Replace the document so
+      // authenticated navigation cannot remain visible from retained state.
+      window.location.replace("/login");
+    } catch {
+      setLoadingLogOut(false);
     }
   };
 
