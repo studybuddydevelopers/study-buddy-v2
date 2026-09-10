@@ -372,6 +372,13 @@ export default function TermsOfServicePage() {
               make the AI reveal private instructions, credentials, account
               data, or unauthorised content.
             </p>
+            <p>
+              Conversation-based training or evaluation of Study Buddy&apos;s own
+              AI is not active in the current beta. If introduced, it will be
+              optional, off by default, and subject to the separate adult or
+              parent/legal-guardian and student choices, safeguards, and
+              withdrawal information described in our Privacy Policy.
+            </p>
           </TermsSection>
 
           <TermsSection id="study-content" title="8. Study content and licences">
