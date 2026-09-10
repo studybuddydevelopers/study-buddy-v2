@@ -8,8 +8,8 @@ import {
 
 export const ACTIVE_DELETION_DAYS = 30;
 export const BACKUP_EXPIRY_DAYS = 90;
-const DELETION_DELAY_MS = ACTIVE_DELETION_DAYS * 24 * 60 * 60 * 1_000;
-const CRON_SAFETY_MARGIN_MS = 2 * 60 * 60 * 1_000;
+export const DELETION_CANCELLATION_DAYS = 15;
+const DELETION_DELAY_MS = DELETION_CANCELLATION_DAYS * 24 * 60 * 60 * 1_000;
 const PROCESSING_LEASE_MS = 15 * 60 * 1_000;
 
 export class AccountLifecycleConflictError extends Error {
@@ -20,12 +20,29 @@ export class AccountLifecycleConflictError extends Error {
 }
 
 export async function deactivateAccount(userId: string) {
-  const result = await prisma.user.updateMany({
-    where: { id: userId, accountStatus: AccountStatus.ACTIVE },
-    data: {
-      accountStatus: AccountStatus.DEACTIVATED,
-      deactivatedAt: new Date(),
-    },
+  const result = await prisma.$transaction(async (tx) => {
+    const updated = await tx.user.updateMany({
+      where: { id: userId, accountStatus: AccountStatus.ACTIVE },
+      data: {
+        accountStatus: AccountStatus.DEACTIVATED,
+        deactivatedAt: new Date(),
+      },
+    });
+    if (updated.count === 1) {
+      await tx.accountDeletionRequest.updateMany({
+        where: {
+          userId,
+          status: AccountDeletionRequestStatus.AWAITING_CONFIRMATION,
+        },
+        data: {
+          status: AccountDeletionRequestStatus.CANCELLED,
+          cancelledAt: new Date(),
+          confirmationTokenHash: null,
+          confirmationTokenExpiresAt: null,
+        },
+      });
+    }
+    return updated;
   });
   if (result.count !== 1) {
     throw new AccountLifecycleConflictError(
@@ -34,37 +51,128 @@ export async function deactivateAccount(userId: string) {
   }
 }
 
-export async function requestPermanentDeletion(userId: string) {
+export async function preparePermanentDeletionConfirmation(input: {
+  userId: string;
+  tokenHash: string;
+  tokenExpiresAt: Date;
+}) {
   const now = new Date();
-  // Leave room for an hourly scheduler run before the public 30-day maximum.
-  const scheduledFor = new Date(
-    now.getTime() + DELETION_DELAY_MS - CRON_SAFETY_MARGIN_MS
-  );
 
   return prisma.$transaction(async (tx) => {
     const current = await tx.user.findUnique({
-      where: { id: userId },
+      where: { id: input.userId },
       select: { accountStatus: true },
     });
     if (!current) {
       throw new AccountLifecycleConflictError("Account not found.");
     }
 
-    if (current.accountStatus === AccountStatus.DELETION_PENDING) {
-      const existing = await tx.accountDeletionRequest.findUnique({
-        where: { userId },
-        select: { scheduledFor: true },
-      });
-      if (existing) return existing;
-    }
     if (current.accountStatus !== AccountStatus.ACTIVE) {
       throw new AccountLifecycleConflictError(
         "Only an active account can request permanent deletion."
       );
     }
 
+    return tx.accountDeletionRequest.upsert({
+      where: { userId: input.userId },
+      create: {
+        userId: input.userId,
+        authUserId: input.userId,
+        accountFingerprint: securityFingerprint(input.userId),
+        status: AccountDeletionRequestStatus.AWAITING_CONFIRMATION,
+        requestedAt: now,
+        confirmationTokenHash: input.tokenHash,
+        confirmationTokenExpiresAt: input.tokenExpiresAt,
+      },
+      update: {
+        authUserId: input.userId,
+        accountFingerprint: securityFingerprint(input.userId),
+        status: AccountDeletionRequestStatus.AWAITING_CONFIRMATION,
+        requestedAt: now,
+        confirmationSentAt: null,
+        confirmationTokenHash: input.tokenHash,
+        confirmationTokenExpiresAt: input.tokenExpiresAt,
+        confirmedAt: null,
+        scheduledFor: null,
+        processingStartedAt: null,
+        completedAt: null,
+        cancelledAt: null,
+        attemptCount: 0,
+        lastFailureCode: null,
+      },
+      select: { id: true },
+    });
+  });
+}
+
+export async function markDeletionConfirmationSent(
+  requestId: string,
+  tokenHash: string
+) {
+  const result = await prisma.accountDeletionRequest.updateMany({
+    where: {
+      id: requestId,
+      status: AccountDeletionRequestStatus.AWAITING_CONFIRMATION,
+      confirmationTokenHash: tokenHash,
+    },
+    data: { confirmationSentAt: new Date() },
+  });
+  if (result.count !== 1) {
+    throw new AccountLifecycleConflictError(
+      "The deletion confirmation request is no longer active."
+    );
+  }
+}
+
+export async function abandonDeletionConfirmation(
+  requestId: string,
+  tokenHash: string
+) {
+  await prisma.accountDeletionRequest.updateMany({
+    where: {
+      id: requestId,
+      status: AccountDeletionRequestStatus.AWAITING_CONFIRMATION,
+      confirmationTokenHash: tokenHash,
+    },
+    data: {
+      status: AccountDeletionRequestStatus.CANCELLED,
+      cancelledAt: new Date(),
+      confirmationTokenHash: null,
+      confirmationTokenExpiresAt: null,
+      lastFailureCode: "CONFIRMATION_EMAIL_FAILED",
+    },
+  });
+}
+
+export async function confirmPermanentDeletion(tokenHash: string) {
+  const now = new Date();
+  const scheduledFor = new Date(now.getTime() + DELETION_DELAY_MS);
+
+  return prisma.$transaction(async (tx) => {
+    const request = await tx.accountDeletionRequest.findUnique({
+      where: { confirmationTokenHash: tokenHash },
+      select: {
+        id: true,
+        userId: true,
+        authUserId: true,
+        status: true,
+        confirmationTokenExpiresAt: true,
+      },
+    });
+    if (
+      !request?.userId ||
+      !request.authUserId ||
+      request.status !== AccountDeletionRequestStatus.AWAITING_CONFIRMATION ||
+      !request.confirmationTokenExpiresAt ||
+      request.confirmationTokenExpiresAt <= now
+    ) {
+      throw new AccountLifecycleConflictError(
+        "This confirmation link is invalid or has expired."
+      );
+    }
+
     const locked = await tx.user.updateMany({
-      where: { id: userId, accountStatus: AccountStatus.ACTIVE },
+      where: { id: request.userId, accountStatus: AccountStatus.ACTIVE },
       data: {
         accountStatus: AccountStatus.DELETION_PENDING,
         deactivatedAt: now,
@@ -72,33 +180,42 @@ export async function requestPermanentDeletion(userId: string) {
     });
     if (locked.count !== 1) {
       throw new AccountLifecycleConflictError(
-        "The account state changed. Reload and try again."
+        "This account can no longer be scheduled from this link."
       );
     }
 
-    return tx.accountDeletionRequest.upsert({
-      where: { userId },
-      create: {
-        userId,
-        authUserId: userId,
-        accountFingerprint: securityFingerprint(userId),
-        requestedAt: now,
-        scheduledFor,
+    const confirmed = await tx.accountDeletionRequest.updateMany({
+      where: {
+        id: request.id,
+        status: AccountDeletionRequestStatus.AWAITING_CONFIRMATION,
+        confirmationTokenHash: tokenHash,
+        confirmationTokenExpiresAt: { gt: now },
       },
-      update: {
-        authUserId: userId,
-        accountFingerprint: securityFingerprint(userId),
+      data: {
         status: AccountDeletionRequestStatus.PENDING,
-        requestedAt: now,
+        confirmedAt: now,
         scheduledFor,
+        confirmationTokenHash: null,
+        confirmationTokenExpiresAt: null,
         processingStartedAt: null,
         completedAt: null,
         cancelledAt: null,
         attemptCount: 0,
         lastFailureCode: null,
       },
-      select: { scheduledFor: true },
     });
+    if (confirmed.count !== 1) {
+      throw new AccountLifecycleConflictError(
+        "This confirmation link has already been used."
+      );
+    }
+
+    return {
+      requestId: request.id,
+      userId: request.userId,
+      authUserId: request.authUserId,
+      scheduledFor,
+    };
   });
 }
 
