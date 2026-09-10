@@ -16,6 +16,7 @@ import {
   logSecurityEvent,
   securityFingerprint,
 } from "@/lib/security/audit-log";
+import { authRedirectUrl } from "@/lib/supabase/auth-redirect";
 
 export async function POST(req: Request) {
   const parsedBody = await parseJsonRequest(req, REQUEST_LIMITS.publicFormJson);
@@ -79,7 +80,7 @@ export async function POST(req: Request) {
   let failed = false;
   try {
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: passwordResetRedirectUrl(req),
+      redirectTo: authRedirectUrl("/auth/password-reset", req.url),
       captchaToken,
     });
     failed = Boolean(error);
@@ -97,21 +98,4 @@ export async function POST(req: Request) {
   }
 
   return res;
-}
-
-function passwordResetRedirectUrl(req: Request) {
-  const configuredOrigin = process.env.APP_ORIGIN?.trim();
-  if (configuredOrigin) {
-    try {
-      return new URL("/auth/password-reset", configuredOrigin).toString();
-    } catch {
-      // Fall through only outside production; production configuration errors
-      // must not make an attacker-controlled Host header authoritative.
-    }
-  }
-
-  if (process.env.NODE_ENV === "production") {
-    throw new Error("APP_ORIGIN must be a valid absolute URL in production.");
-  }
-  return new URL("/auth/password-reset", req.url).toString();
 }
