@@ -553,9 +553,28 @@ export default function PrivacyPolicyPage() {
                 until they are deleted, anonymised, or no longer needed.
               </ListItem>
               <ListItem>
+                If you deactivate your account, access is locked but your
+                information is retained under our inactive-account policy so
+                you can reactivate. The final inactive-account period is still
+                under review.
+              </ListItem>
+              <ListItem>
+                If you request permanent account deletion in Settings, access
+                is restricted immediately and personal data in active systems
+                is scheduled for deletion within 30 days. Limited records may
+                be retained where the law requires it or a documented legal
+                hold applies.
+              </ListItem>
+              <ListItem>
                 A chat deleted in the product is removed from account view.
                 Related records may remain while we process deletion or where
                 they are needed for security, disputes, backups, or law.
+              </ListItem>
+              <ListItem>
+                Data removed from active systems may remain in protected,
+                access-limited backups and will age out within 90 days of the
+                permanent-deletion request. We do not restore deleted account
+                data to ordinary live use.
               </ListItem>
               <ListItem>
                 Payment and transaction records may be kept for the period
@@ -606,7 +625,9 @@ export default function PrivacyPolicyPage() {
               </ListItem>
             </ul>
             <p>
-              To exercise a right, email{" "}
+              You can deactivate your account or request permanent account
+              deletion in Settings. To exercise another right, or if you cannot
+              access your account, email{" "}
               <a
                 href={`mailto:${PRIVACY_EMAIL}`}
                 className="font-medium text-primary-600 hover:underline"
