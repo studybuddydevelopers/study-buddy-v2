@@ -2,7 +2,7 @@
 
 Status: account-deletion targets approved; remaining periods require co-founder and legal approval
 Owner: to be appointed  
-Last reviewed: 5 September 2026
+Last reviewed: 10 September 2026
 
 ## Rules
 
@@ -19,11 +19,11 @@ consumer, safeguarding, limitation, and regulatory requirements before approval.
 
 | Data category | Active retention | Proposed deletion trigger and target | Current implementation gap |
 | --- | --- | --- | --- |
-| Supabase authentication account and core `User` record | While active or reversibly deactivated under the pending inactive-account policy | Password/typed confirmation sends a 24-hour one-time email link; final confirmation locks access, starts a 15-day cancellation window, and purges application/Auth records within the approved 30-day maximum unless held | Two-stage self-service request and retryable purge are implemented; Railway must set the cron secret and invoke the job at least hourly |
-| User profile and preferences | While the account is active or reversibly deactivated | Cascade-delete with the account after the 15-day cancellation window and within 30 days of final confirmation | Covered by the account purge; inactive-account duration remains undecided |
+| Supabase authentication account and core `User` record | While active; for 36 months after voluntary deactivation | Deactivated accounts receive notices 90, 60, 15, and 1 day before automatic deletion. A user-requested permanent deletion instead uses a 24-hour confirmation link, locks access after confirmation, and starts a 15-day cancellation window | Both paths feed the retryable application/Auth purge; Railway must set the cron secret and invoke the job at least hourly |
+| User profile and preferences | While active or during the 36-month reversible-deactivation period | Cascade-delete at inactive-account expiry, or after the separate confirmed-deletion cancellation window | Covered by the account purge; provider backup expiry still requires verification |
 | Local practice drafts | Until submitted, cleared, or removed by the browser/user | Clear when the user chooses; provide clear control | Stored on each device; server cannot guarantee browser deletion |
 | Cloud practice drafts | While needed for the unfinished activity | Proposed: delete 90 days after last draft activity or with account, whichever comes first | Automated expiry job not implemented |
-| Practice attempts, quiz sessions, mock exams, answers, progress, and recommendations | While account is active and needed for learning history | Delete with account; proposed inactive-account review after 24 months | Recommendation rows already require a retention decision; no expiry job |
+| Practice attempts, quiz sessions, mock exams, answers, progress, and recommendations | While account is active or within the approved 36-month reversible-deactivation period | Delete with the account at inactive-account expiry or confirmed permanent deletion | Recommendation rows still require a separate active-account retention decision |
 | Web AI chats and messages | Until user deletes the chat, closes the account, or it is no longer needed | Remove from view immediately; proposed hard deletion within 30 days, subject to hold | Product currently soft-deletes chats using `deletedAt`; permanent purge is not implemented |
 | Legacy AI-question and WhatsApp tutoring threads | While account/WhatsApp service is active | Proposed: delete 12 months after last activity or with account | Expiry and user-facing deletion workflow not implemented |
 | AI generation metadata and token counts | While needed for service reliability, disputes, and cost controls | Proposed: aggregate/anonymise after 12 months; delete identifiable records with chat/account | Automated anonymisation not implemented |
@@ -70,7 +70,7 @@ every 90 days. A hold must preserve only information relevant to the stated need
 | Decision | Owner | Status |
 | --- | --- | --- |
 | Permanent account deletion: email confirmation, 15-day cancellation window, active systems within 30 days | Co-founders; privacy adviser review | Approved by co-founders; legal review pending |
-| Reversibly deactivated/inactive account period | Co-founders/privacy adviser | Pending |
+| Reversibly deactivated/inactive account period: 36 months with notices at 90, 60, 15, and 1 day | Co-founders; privacy adviser review | Approved by co-founders; legal review pending |
 | Child authorisation evidence period | Privacy adviser | Pending |
 | Transaction statutory period | Finance/legal | Pending |
 | Backup expiry within 90 days of final confirmation | Co-founders; engineering/provider owner | Policy approved; provider configuration verification pending |
