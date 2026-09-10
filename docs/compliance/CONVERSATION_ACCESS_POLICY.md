@@ -28,10 +28,11 @@ Access is permitted only to:
    obligation after its validity and scope have been reviewed.
 
 Access is prohibited for curiosity, marketing, general surveillance, routine
-product improvement, employee monitoring, and AI training or evaluation. Any
-future use of conversations for AI training or evaluation requires the separate
-question 21 decision, an updated DPIA and notices, a documented lawful basis,
-and any required user or guardian choice before it begins.
+product improvement, employee monitoring, and review of identifiable or
+non-opted-in conversations for AI training or evaluation. The approved future
+AI-improvement plan applies only after its separate off-by-default choice,
+de-identification, child-authorisation, withdrawal, DPIA, security, and audit
+gates are implemented. It does not permit staff to browse raw conversations.
 
 ## Minimum controls
 
@@ -66,6 +67,7 @@ legal obligations must be documented manually in a restricted case record and
 reviewed by both co-founders.
 
 The engineering checklist and acceptance tests are maintained in
-`NEXT_IMPLEMENTATION_TODOS.md`. This policy must be reviewed after Question 21,
-before adding any staff-review interface, when appointing a privacy lead, and
-after any material change to AI providers, safety processes, or legal duties.
+`NEXT_IMPLEMENTATION_TODOS.md`. This policy must be reviewed before adding any
+staff-review interface or enabling conversation-based AI improvement, when
+appointing a privacy lead, and after any material change to AI providers, safety
+processes, or legal duties.
