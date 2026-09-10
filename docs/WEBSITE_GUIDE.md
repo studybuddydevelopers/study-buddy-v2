@@ -38,8 +38,10 @@ This guide maps the current website implementation to the codebase using exact f
 - [`app/api/v1/reset-password/route.ts`](/Users/efeon/study-buddy-v2/app/api/v1/reset-password/route.ts)
 - [`app/auth/password-reset/route.ts`](/Users/efeon/study-buddy-v2/app/auth/password-reset/route.ts)
 - [`app/api/v1/account/lifecycle/route.ts`](/Users/efeon/study-buddy-v2/app/api/v1/account/lifecycle/route.ts): deactivate, request/cancel deletion, and reactivate
+- [`app/api/v1/account/deletion/confirm/route.ts`](/Users/efeon/study-buddy-v2/app/api/v1/account/deletion/confirm/route.ts): consumes a one-time email token and begins the deletion window
 - [`app/api/v1/account/deletion/cron/route.ts`](/Users/efeon/study-buddy-v2/app/api/v1/account/deletion/cron/route.ts): scheduled permanent purge
 - [`app/account-deactivated/page.tsx`](/Users/efeon/study-buddy-v2/app/account-deactivated/page.tsx) and [`app/account-deletion-pending/page.tsx`](/Users/efeon/study-buddy-v2/app/account-deletion-pending/page.tsx): restricted account state pages
+- [`app/account-deletion/confirm/page.tsx`](/Users/efeon/study-buddy-v2/app/account-deletion/confirm/page.tsx): deliberate final confirmation page reached from the one-time email link
 
 ## 5. Shared UI Building Blocks
 
@@ -73,6 +75,12 @@ This guide maps the current website implementation to the codebase using exact f
 - [`app/dashboard/page.tsx`](/Users/efeon/study-buddy-v2/app/dashboard/page.tsx): fetches current user, full progress, and AI recommendations
 - [`app/dashboard/DashboardClient.tsx`](/Users/efeon/study-buddy-v2/app/dashboard/DashboardClient.tsx): renders dashboard content
 - [`app/dashboard/dashboard.types.ts`](/Users/efeon/study-buddy-v2/app/dashboard/dashboard.types.ts): shared response types
+
+Settings are organised as a hub with dedicated sections:
+
+- [`app/settings/page.tsx`](/Users/efeon/study-buddy-v2/app/settings/page.tsx): settings section cards
+- [`app/settings/study-preferences/page.tsx`](/Users/efeon/study-buddy-v2/app/settings/study-preferences/page.tsx): draft syncing and low-data controls
+- [`app/settings/account/page.tsx`](/Users/efeon/study-buddy-v2/app/settings/account/page.tsx): deactivation and permanent-deletion controls
 
 ## 9. Study Materials
 
