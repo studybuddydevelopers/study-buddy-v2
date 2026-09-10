@@ -76,6 +76,9 @@ primary project region is confirmed as North EU (Stockholm), Sweden
 periods, other provider/Supabase processing locations and contracts, transfer
 safeguards, and payment rules still require
 co-founder decisions and qualified Nigerian legal/privacy review.
+Supabase Auth with Resend custom SMTP is the approved production provider path
+for account verification and password recovery; the dashboard configuration and
+non-team end-to-end delivery still require verification.
 
 ### Public pages
 
@@ -135,6 +138,9 @@ These items cannot be solved by publishing policies and remain launch work:
 - [ ] Verify remaining production provider/Supabase processing locations, DPAs,
   sub-processors and cross-border safeguards; the Supabase primary project region
   is confirmed as North EU (Stockholm), Sweden (`eu-north-1`).
+- [ ] Verify Resend custom SMTP is enabled in the production Supabase Auth
+  dashboard, then test account verification and password reset using a non-team
+  recipient and preserve privacy-safe evidence of delivery.
 - [ ] Confirm subscription renewal, cancellation and refund operations before paid launch.
 - [ ] Complete child-focused AI safety tests and a human escalation/reporting workflow.
 - [ ] Build the restricted, time-limited and fully audited break-glass workflow
