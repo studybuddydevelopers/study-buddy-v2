@@ -67,8 +67,11 @@ handlers, Nick Efe Oni and Chijindu Oreh, are confirmed. A strict no-routine-
 reading rule for individual AI and WhatsApp conversations is also confirmed,
 with only narrow documented exceptions and an audited break-glass workflow
 still to be implemented. Optional OpenAI API-data sharing for model improvement
-is confirmed as disabled. The formal privacy lead/DPO appointment, remaining
-retention periods, provider
+is confirmed as disabled. Future use of separately opted-in, de-identified
+conversation data to train or evaluate Study Buddy's own AI is approved in
+principle but disabled for the current beta until its consent, child-safety,
+DPIA, security, withdrawal and testing gates are complete. The formal privacy
+lead/DPO appointment, remaining retention periods, provider
 regions/contracts, and payment rules still require
 co-founder decisions and qualified Nigerian legal/privacy review.
 
@@ -79,8 +82,8 @@ co-founder decisions and qualified Nigerian legal/privacy review.
 | [`/privacy-policy`](/Users/efeon/study-buddy-v2/app/privacy-policy/page.tsx) | Identifies the registered controller, verified privacy mailbox and current Railway/Cloudflare hosting, covers current data flows, and describes the implemented 13+/guardian-authorisation plus approved account, study-history, conversation, and transaction-retention controls | Add the remaining retention periods and confirmed provider regions/transfer mechanisms |
 | [`/terms-of-service`](/Users/efeon/study-buddy-v2/app/terms-of-service/page.tsx) | Identifies the contracting legal entity and covers minors, AI, user content, payments, consumer rights and Nigerian law | Add the final commercial terms; legal review is required before paid/school launch |
 | [`/refund-policy`](/Users/efeon/study-buddy-v2/app/refund-policy/page.tsx) | Implemented with a lawful request and complaint framework | Confirm automatic renewal, discretionary refund window, cancellation UI, processing targets and any plan-specific rules before accepting payment |
-| [`/parent-student-privacy`](/Users/efeon/study-buddy-v2/app/parent-student-privacy/page.tsx) | Implemented as an age-appropriate summary of the live 13+ rule and guardian email decision flow | Re-review after qualified Nigerian legal/privacy advice or any material workflow change |
-| [`/ai-safety`](/Users/efeon/study-buddy-v2/app/ai-safety/page.tsx) | Implemented with limitations, privacy, academic-integrity, prohibited-use and reporting rules | Update after child-safety evaluation, reporting UI, staff-review authority, escalation owners and any new AI model/use case are approved |
+| [`/parent-student-privacy`](/Users/efeon/study-buddy-v2/app/parent-student-privacy/page.tsx) | Implemented as an age-appropriate summary of the live 13+ rule, guardian email decision flow, and disabled future conversation-improvement choice | Re-review the future opt-in with students, parents and a qualified Nigerian privacy adviser before activation or after any material workflow change |
+| [`/ai-safety`](/Users/efeon/study-buddy-v2/app/ai-safety/page.tsx) | Implemented with limitations, privacy, academic-integrity, prohibited-use, narrow staff-review authority, future AI-improvement safeguards, and reporting rules | Update after child-safety evaluation, reporting UI, staff-access tooling, escalation owners and any new AI model/use case are implemented |
 | [`/cookie-policy`](/Users/efeon/study-buddy-v2/app/cookie-policy/page.tsx) | Accurate for essential auth, local drafts and CAPTCHA; states that advertising/behavioural cookies are not currently used | Update and implement consent controls before adding non-essential analytics, advertising pixels, session replay or similar tracking |
 | [`/accessibility`](/Users/efeon/study-buddy-v2/app/accessibility/page.tsx) | Implemented without making an unsupported conformance claim | Add tested WCAG version, scope, methods, failures and remediation dates after an independent accessibility audit |
 | [`/content-policy`](/Users/efeon/study-buddy-v2/app/content-policy/page.tsx) | Implemented for permitted use, user submissions, errors and rights complaints | Update after every learning resource has recorded provenance/licensing and the co-founders confirm whether any WAEC relationship exists |
@@ -97,10 +100,11 @@ also link directly to the detailed notices relevant to their sections.
 | [`DATA_RETENTION_AND_DELETION_SCHEDULE.md`](/Users/efeon/study-buddy-v2/docs/compliance/DATA_RETENTION_AND_DELETION_SCHEDULE.md) | Data-category inventory, deletion steps, legal-hold rules, active-account conversation retention, approved learning-record and seven-year transaction retention, chat hard deletion, 36-month deactivated-account expiry with four notices, and email-confirmed account deletion | Other periods need legal/finance approval; transaction-expiry/legal-hold tooling, cloud-draft expiry, and provider backup configuration still need completion |
 | [`PERSONAL_DATA_BREACH_RESPONSE_PLAN.md`](/Users/efeon/study-buddy-v2/docs/compliance/PERSONAL_DATA_BREACH_RESPONSE_PLAN.md) | Incident stages, statutory decision clock, risk assessment, notice content, child safeguards and closure process | Names, secure channels, provider contacts, breach register location and exercise evidence require organisational setup outside the codebase |
 | [`CONVERSATION_ACCESS_POLICY.md`](/Users/efeon/study-buddy-v2/docs/compliance/CONVERSATION_ACCESS_POLICY.md) | Approved no-routine-reading rule, narrow permitted cases, two-founder beta authority, minimum access controls and emergency review rule | The restricted, time-limited, audited break-glass workflow remains to be implemented and tested |
+| [`CONVERSATION_AI_IMPROVEMENT_POLICY.md`](/Users/efeon/study-buddy-v2/docs/compliance/CONVERSATION_AI_IMPROVEMENT_POLICY.md) | Records the in-principle decision, current disabled state, off-by-default participation rule, data controls, withdrawal requirements and activation gate | Consent UI/records, de-identification, isolated datasets, lineage/deletion, retention, testing, revised DPIA and legal review remain to be implemented before activation |
 | [`PROCESSOR_AND_VENDOR_REGISTER.md`](/Users/efeon/study-buddy-v2/docs/compliance/PROCESSOR_AND_VENDOR_REGISTER.md) | Initial register for Supabase, OpenAI, Meta, Paystack, Railway, Cloudflare, CAPTCHA, email and source-control providers | Contracts/DPAs cannot be created by code; production regions, sub-processors, retention and transfer safeguards must be verified in provider accounts |
 | [`SCHOOL_DATA_PROCESSING_SCHEDULE.md`](/Users/efeon/study-buddy-v2/docs/compliance/SCHOOL_DATA_PROCESSING_SCHEDULE.md) | Contract template covering roles, instructions, visibility, security, rights, deletion, incidents and audit | It cannot be signed until both legal entities, controller/processor roles, exact staff visibility, service terms, contacts and retention periods are agreed |
 | [`RECORD_OF_PROCESSING_ACTIVITIES.md`](/Users/efeon/study-buddy-v2/docs/compliance/RECORD_OF_PROCESSING_ACTIVITIES.md) | Initial inventory of current controller and possible school-processor activities | Replace preliminary bases/roles with approved decisions and reconcile it against production provider dashboards and configuration before launch |
-| [`OPEN_COMPLIANCE_QUESTIONS.md`](/Users/efeon/study-buddy-v2/docs/compliance/OPEN_COMPLIANCE_QUESTIONS.md) | Tracks confirmed answers through question 20 and every remaining decision through question 44 | Work through the open questions in order and reconcile each answer with the product, notices, compliance records, and operating procedures |
+| [`OPEN_COMPLIANCE_QUESTIONS.md`](/Users/efeon/study-buddy-v2/docs/compliance/OPEN_COMPLIANCE_QUESTIONS.md) | Tracks confirmed answers through question 21 and every remaining decision through question 44 | Work through the open questions in order and reconcile each answer with the product, notices, compliance records, and operating procedures |
 
 ### Required non-document work
 
@@ -132,6 +136,11 @@ These items cannot be solved by publishing policies and remain launch work:
 - [ ] Build the restricted, time-limited and fully audited break-glass workflow
   for exceptional conversation access; do not expose chats through general
   administration or permit routine staff reading.
+- [ ] Keep conversation-based AI training/evaluation disabled during beta. Before
+  enabling it, implement the separate adult/guardian-and-student opt-in,
+  de-identification, isolated datasets, withdrawal/deletion lineage,
+  memorisation tests, updated DPIA, legal review and release gate documented in
+  `NEXT_IMPLEMENTATION_TODOS.md`.
 - [ ] Run an independent WCAG 2.2 AA audit and remediate core-flow barriers.
 - [ ] Complete learning-content provenance/licensing records and confirm WAEC relationship status.
 - [ ] Appoint incident owners, create secure request/breach registers and run a breach exercise.
