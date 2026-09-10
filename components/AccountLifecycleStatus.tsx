@@ -126,15 +126,16 @@ export default function AccountLifecycleStatus({
         ) : (
           <div className="space-y-3 text-gray-700">
             <p className="leading-relaxed">
-              Your account is locked. Active-system personal data is scheduled
-              for permanent deletion within 30 days of your request.
+              Your account is locked. The 15-day cancellation window started
+              when you confirmed the email request.
             </p>
             {deletionDate && (
               <p className="font-semibold">Scheduled by: {deletionDate}</p>
             )}
             <p className="text-sm text-gray-600">
-              You may cancel before processing begins. Records that law requires
-              us to retain are excluded from the account purge.
+              You may cancel here before processing begins or contact
+              privacy@studybuddyng.com. Records that law requires us to retain
+              are excluded from the account purge.
             </p>
           </div>
         )}
