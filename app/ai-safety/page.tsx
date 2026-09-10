@@ -5,7 +5,7 @@ import PolicyDocumentPage, {
 import { SUPPORT_EMAIL } from "@/lib/legal-entity";
 import { createPageMetadata } from "@/lib/site-metadata";
 
-const LAST_UPDATED = "8 September 2026";
+const LAST_UPDATED = "10 September 2026";
 
 export const metadata = createPageMetadata({
   title: "AI Safety and Responsible Use",
@@ -69,7 +69,9 @@ const sections: PolicyDocumentSection[] = [
         </ul>
         <p>
           Relevant prompts and conversation context may be processed by OpenAI
-          and stored by Study Buddy as described in the Privacy Policy.
+          and stored by Study Buddy as described in the Privacy Policy. Study
+          Buddy has not opted in to share API prompts or responses with OpenAI
+          for model training or improvement.
         </p>
       </>
     ),
@@ -116,9 +118,16 @@ const sections: PolicyDocumentSection[] = [
       <>
         <p>
           We may use automated limits, safety instructions, security logs, and
-          proportionate human review to prevent misuse and investigate a report.
-          Access may be restricted or suspended when use creates a safety or
-          security risk or repeatedly violates this policy.
+          narrowly scoped human review to prevent misuse and investigate a
+          report. Staff do not routinely read individual conversations. An
+          authorised reviewer may examine only the minimum messages needed for
+          a user-authorised support case, a reported harmful response or
+          credible safety concern, a security/fraud/abuse investigation, a
+          specific technical failure that less intrusive information cannot
+          resolve, or a valid legal requirement. Access may be restricted or
+          suspended when use creates a safety or security risk or repeatedly
+          violates this policy. See the Privacy Policy for the complete access
+          rule.
         </p>
         <p>
           Safety controls reduce risk but cannot guarantee that every unsafe or
