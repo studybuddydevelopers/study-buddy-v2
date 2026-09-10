@@ -2,6 +2,7 @@ import type { NextRequest } from "next/server";
 
 const SAFE_METHODS = new Set(["GET", "HEAD", "OPTIONS"]);
 const SERVER_TO_SERVER_PATHS = new Set([
+  "/api/v1/account/deletion/cron",
   "/api/v1/ai/recommendations/cron",
   "/api/v1/payments/webhook",
   "/api/v1/whatsapp/webhook",
