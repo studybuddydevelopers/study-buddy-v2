@@ -110,8 +110,9 @@ export default function AccountSettingsClient() {
           </div>
           <p className="mt-2 text-sm leading-6 text-gray-700">
             Your account is locked and you are signed out. Your information is
-            kept under our inactive-account policy so you can reactivate by
-            signing in again.
+            kept for 36 months so you can reactivate by signing in again. If you
+            do not return, we email warnings 90, 60, 15, and 1 day before
+            automatic deletion.
           </p>
           {accountAction === "deactivate" ? (
             <div className="mt-4 rounded-lg border border-primary-200 bg-white p-4">
