@@ -44,6 +44,18 @@ Study Buddy v2 is a Next.js learning platform for exam preparation. It combines 
 - Sheets data integration: integrate data from sheets into the app through a controlled import/sync workflow, with validation and duplicate handling before records are saved.
 - Dashboard page revamp: redesign the dashboard so next actions, weak topics, streaks, recommendations, and last-session entry points are clearer and less cluttered.
 
+## Immediate Implementation Queue
+
+The next engineering task is the approved seven-year transaction lifecycle:
+retention-expiry data, documented legal holds, bounded deletion/anonymisation,
+privacy-safe evidence, tests, alerting, and a production verification run. The
+ordered acceptance checklist is in
+[`NEXT_IMPLEMENTATION_TODOS.md`](/Users/efeon/study-buddy-v2/docs/compliance/NEXT_IMPLEMENTATION_TODOS.md).
+
+The current beta estimate, recommended free invite-only scope, launch checks, and
+exit criteria are in
+[`BETA_READINESS.md`](/Users/efeon/study-buddy-v2/docs/BETA_READINESS.md).
+
 ## Legal And Compliance Status
 
 The repository contains a practical compliance draft for the current product,
