@@ -13,7 +13,7 @@ Study Buddy v2 is an exam-preparation platform for secondary-school learners. Th
 - progress and performance reporting
 - AI chat and recommendation features
 - subscription and payment handling
-- school/admin workflows
+- internal admin/content workflows
 
 ## Tech Stack
 
@@ -40,7 +40,7 @@ docs/         Supplemental project documentation
 - server-side route handlers live under `app/api/v1/`
 - Prisma is the application data layer
 - Supabase manages auth identity; Prisma stores app-specific user data
-- feature areas are split by domain: materials, exams, progress, chat, admin, schools
+- feature areas are split by domain: materials, exams, progress, chat, accounts, and admin
 
 ## Frontend Areas
 
@@ -71,6 +71,8 @@ All current APIs are implemented under [`app/api/v1`](/Users/efeon/study-buddy-v
 ### Auth and account
 
 - signup, login, logout, reset password, current user
+- reversible deactivation and permanent-deletion request/cancellation
+- secret-authenticated, retryable account purge
 
 ### Profile
 
@@ -107,10 +109,9 @@ All current APIs are implemented under [`app/api/v1`](/Users/efeon/study-buddy-v
 - recommendations
 - recommendation cron
 
-### Admin, schools, subscriptions, payments
+### Admin, subscriptions, payments
 
 - content/admin upload flows
-- school creation and student membership
 - subscription lookup
 - payment verification and webhook handling
 
@@ -118,6 +119,7 @@ All current APIs are implemented under [`app/api/v1`](/Users/efeon/study-buddy-v
 
 - Prisma client: [`lib/prisma.ts`](/Users/efeon/study-buddy-v2/lib/prisma.ts)
 - auth guards: [`lib/auth.ts`](/Users/efeon/study-buddy-v2/lib/auth.ts)
+- account lifecycle: [`lib/account-lifecycle.ts`](/Users/efeon/study-buddy-v2/lib/account-lifecycle.ts)
 - session helper: [`lib/getSession.ts`](/Users/efeon/study-buddy-v2/lib/getSession.ts)
 - browser Supabase client: [`lib/supabaseClient.ts`](/Users/efeon/study-buddy-v2/lib/supabaseClient.ts)
 - study materials display mapping: [`lib/materials-display.ts`](/Users/efeon/study-buddy-v2/lib/materials-display.ts)
@@ -132,6 +134,7 @@ The schema lives in [`prisma/schema.prisma`](/Users/efeon/study-buddy-v2/prisma/
 - `User`
 - `UserProfile`
 - `AdminUser`
+- `AccountDeletionRequest`
 
 ### Learning content
 
@@ -154,12 +157,10 @@ The schema lives in [`prisma/schema.prisma`](/Users/efeon/study-buddy-v2/prisma/
 - `AiQuestionMessage`
 - `Recommendation`
 
-### Commercial and institutional
+### Commercial
 
 - `Subscription`
 - `Transaction`
-- `School`
-- `SchoolStudent`
 
 ## Seed Data
 
