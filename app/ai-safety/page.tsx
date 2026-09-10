@@ -73,6 +73,15 @@ const sections: PolicyDocumentSection[] = [
           Buddy has not opted in to share API prompts or responses with OpenAI
           for model training or improvement.
         </p>
+        <p>
+          Study Buddy plans to use selected conversation data to test or improve
+          its own AI in the future, but this is not active in the current beta.
+          It will require a separate, voluntary choice that is off by default,
+          de-identification and restricted datasets. Adults must opt in; users
+          aged 13–17 will also need parent or legal-guardian authorisation and
+          must choose to participate themselves. Declining will not reduce
+          access to the ordinary service.
+        </p>
       </>
     ),
   },
