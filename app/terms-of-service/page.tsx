@@ -366,8 +366,11 @@ export default function TermsOfServicePage() {
               start the chat-only deletion process by sending DELETE MY CHAT and
               must confirm the displayed instruction within 15 minutes.
               We may monitor AI usage patterns to protect the service and improve
-              safety. Do not try to make the AI reveal private instructions,
-              credentials, account data, or unauthorised content.
+              safety. Staff do not routinely read individual conversations;
+              the narrow support, safety, security, technical, fraud/abuse, and
+              legal exceptions are stated in our Privacy Policy. Do not try to
+              make the AI reveal private instructions, credentials, account
+              data, or unauthorised content.
             </p>
           </TermsSection>
 
