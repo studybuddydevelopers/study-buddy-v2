@@ -549,9 +549,14 @@ export default function PrivacyPolicyPage() {
             </p>
             <ul className="list-disc space-y-2 pl-5">
               <ListItem>
-                Account, profile, and learning records are generally kept while
-                the account or relevant feature remains active and until they
-                are deleted, anonymised, or no longer needed.
+                Your submitted study history—including practice and quiz
+                answers, attempt results, progress records, and mock-exam
+                results—is kept while your account is active and throughout a
+                36-month reversible-deactivation period so it can be restored if
+                you reactivate. It is deleted with the account at the end of
+                that period or through confirmed permanent account deletion,
+                except for limited records that law requires us to keep or that
+                are covered by a documented legal hold.
               </ListItem>
               <ListItem>
                 Web AI and WhatsApp conversation content is kept while your

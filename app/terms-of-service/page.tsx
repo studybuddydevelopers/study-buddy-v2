@@ -464,11 +464,15 @@ export default function TermsOfServicePage() {
               You may stop using Study Buddy at any time. Settings offers a
               reversible account-deactivation option and a permanent-deletion
               request. Deactivation restricts access and signs you out
-              immediately. Unless you reactivate, the account is automatically
-              deleted after 36 months; we send notices 90, 60, 15, and 1 day
-              before that deadline. A permanent request first requires a
-              one-time email link and a deliberate confirmation on the linked
-              page. The account remains active until that confirmation.
+              immediately. Your submitted answers, practice and mock-exam
+              results, and progress history remain preserved during the
+              36-month deactivation period so they can be restored if you
+              reactivate. Unless you reactivate, the account and that study
+              history are automatically deleted after 36 months; we send
+              notices 90, 60, 15, and 1 day before that deadline. A permanent
+              request first requires a one-time email link and a deliberate
+              confirmation on the linked page. The account remains active until
+              that confirmation.
               Confirmation locks the account, starts a 15-day cancellation window, and schedules
               active-system personal data for deletion within 30 days, subject
               to records we must retain by law or under a documented legal hold;

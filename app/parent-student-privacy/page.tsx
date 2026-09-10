@@ -164,14 +164,16 @@ const sections: PolicyDocumentSection[] = [
           guardian authority. A web AI chat has a permanent-delete control.
           WhatsApp users can send <strong>DELETE MY CHAT</strong> and confirm the
           displayed instruction within 15 minutes to delete only their saved
-          WhatsApp conversation.
-          A deactivated account is kept for 36 months so it
-          can be reactivated; we email warnings 90, 60, 15, and 1 day before
-          automatic deletion. A permanent request must be confirmed using a
-          one-time account-email link. Confirmation locks the account, starts a
-          15-day cancellation window, removes active-system personal data within
-          30 days unless law requires limited retention, and ages protected
-          backup copies out within 90 days. You may also complain to the{" "}
+          WhatsApp conversation. Submitted answers, practice and mock-exam
+          results, and progress history are kept while the account is active.
+          A deactivated account and that study history are kept for 36 months so
+          they can be restored if the student reactivates; we email warnings 90,
+          60, 15, and 1 day before automatic deletion. A permanent request must
+          be confirmed using a one-time account-email link. Confirmation locks
+          the account, starts a 15-day cancellation window, removes active-system
+          personal data within 30 days unless law requires limited retention,
+          and ages protected backup copies out within 90 days. You may also
+          complain to the{" "}
           <a
             href="https://www.ndpc.gov.ng/contact/"
             target="_blank"

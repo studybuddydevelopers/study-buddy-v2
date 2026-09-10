@@ -8,7 +8,7 @@ and commercial questions for Study Buddy. Answers are not treated as legal
 approval by themselves. Public notices, product behaviour, internal records,
 and provider settings must be updated together after each answer is confirmed.
 
-Questions 1–15 and 18 have been answered. The confirmed decisions include the company
+Questions 1–16 and 18 have been answered. The confirmed decisions include the company
 identity and address, `privacy@studybuddyng.com` as the privacy-request mailbox,
 joint request handling by Nick Efe Oni and Chijindu Oreh, a minimum account age
 of 13, independent activation from 18, and parent or legal-guardian approval for
@@ -28,10 +28,14 @@ Web AI and WhatsApp conversations are kept as user-accessible study history
 while the account is active, rather than expiring solely because the last
 message is old. A conversation is deleted when the user deletes it, permanently
 deletes the account, or reaches the 36-month deactivated-account expiry.
+Submitted study history, answers, progress, and mock-exam results are retained
+while the account is active and throughout the 36-month reversible-deactivation
+period, then deleted with the account at expiry or through confirmed permanent
+account deletion, subject only to a documented legal hold or mandatory limited
+retention.
 
 ## Open questions
 
-16. How long should study history, answers, progress, and mock-exam results be retained?
 17. How many years should payment and transaction records be retained?
 19. May Study Buddy staff read AI conversations, and in precisely which situations?
 20. Has the OpenAI account opted into API-data sharing for model improvement?
