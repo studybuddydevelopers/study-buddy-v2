@@ -1,6 +1,6 @@
 # Data Retention and Deletion Schedule
 
-Status: account-deletion targets approved; remaining periods require co-founder and legal approval
+Status: account, conversation, learning, and transaction targets approved; remaining periods require co-founder and legal approval
 Owner: to be appointed  
 Last reviewed: 10 September 2026
 
@@ -14,6 +14,16 @@ soft-deleted row does not complete deletion.
 The proposed periods below are conservative operational targets, not statements
 of statutory periods. Finance/legal must confirm Nigerian tax, accounting,
 consumer, safeguarding, limitation, and regulatory requirements before approval.
+
+The approved seven-year transaction period is an operational buffer around two
+current statutory baselines: section 31(5) of the [Nigeria Tax Administration
+Act 2025](https://nass.gov.ng/documents/download/11250) requires relevant books
+and records for at least six years after the applicable year of assessment, and
+sections 374–375 of [CAMA
+2020](https://www.cac.gov.ng/wp-content/uploads/2020/12/CAMA-NOTE-BOOK-FULL-VERSION.pdf)
+require company accounting records to be preserved for six years from creation.
+An accountant or Nigerian legal adviser must confirm application to Study Buddy
+and any transition-period records.
 
 ## Proposed schedule
 
@@ -30,8 +40,8 @@ consumer, safeguarding, limitation, and regulatory requirements before approval.
 | AI generation metadata and token counts | While needed for service reliability, disputes, and cost controls | Proposed: aggregate/anonymise after 12 months; delete identifiable records with chat/account | Automated anonymisation not implemented |
 | AI daily usage counters and rate-limit buckets | Short operational period | Rate-limit buckets at configured expiry; proposed usage-counter anonymisation after 90 days | Confirm purge job and database TTL behaviour |
 | Parent/legal-guardian authorisation events | While account is active plus approved evidence period | Proposed: six years after withdrawal/account closure only if legal advice confirms necessity; otherwise shorter | Event register is implemented; exact evidence period remains undecided |
-| Subscription records | Subscription term plus dispute/financial period | Delete or anonymise after statutory period | Statutory period requires finance/legal confirmation |
-| Transaction references, amount, currency, and status | Required financial, tax, fraud, and consumer period | Proposed: six years after transaction, subject to advice | Confirm exact legal period and purge/export process |
+| Subscription/service-access records | While the account is active and throughout the 36-month reversible-deactivation period | Delete with the account; retain only the minimum billing evidence copied into the restricted transaction record | Current account-purge cascade deletes the subscription row; confirm necessary billing evidence is captured by the transaction ledger |
+| Essential payment, invoice, and transaction records | Seven years from the transaction date, including after account deletion | At seven years, delete or irreversibly anonymise unless a documented tax audit, chargeback, dispute, investigation, or legal hold remains active | Account deletion already sets `Transaction.userId` to null; automated expiry, legal-hold fields/workflow, and deletion evidence remain to be implemented |
 | Full card/bank data | Not stored by Study Buddy | Paystack controls its retention | Verify no logs or metadata accidentally contain it |
 | Contact/support requests | Until resolved and needed for follow-up | Proposed: 12 months after resolution; longer only for a documented dispute/hold | Current contact endpoint does not provide a complete ticket register |
 | Security/audit events | Based on risk and investigation need | Proposed: 12 months; extend only for an active incident or legal hold | Central retention and deletion controls need verification |
@@ -75,7 +85,7 @@ every 90 days. A hold must preserve only information relevant to the stated need
 | AI and WhatsApp conversation content: while the account is active until user/chat/account deletion or inactive-account expiry | Co-founders; privacy adviser review | Approved by co-founders; chat deletion controls implemented; legal review pending |
 | Submitted study history, answers, progress, and mock-exam results: active account plus 36-month reversible-deactivation period | Co-founders; privacy adviser review | Approved by co-founders; account-purge cascade implemented; legal review pending |
 | Child authorisation evidence period | Privacy adviser | Pending |
-| Transaction statutory period | Finance/legal | Pending |
+| Essential payment, invoice, and transaction records: seven years from transaction date | Co-founders; accountant/legal review | Approved by co-founders; CAMA/NTAA basis identified; expiry and legal-hold automation pending |
 | Backup expiry within 90 days of final confirmation | Co-founders; engineering/provider owner | Policy approved; provider configuration verification pending |
 | Support and security-log periods | Privacy/security | Pending |
 | Automated account deletion implementation | Engineering | Implemented; Railway hourly cron returned a successful production invocation on 10 September 2026 |
