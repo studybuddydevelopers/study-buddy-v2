@@ -11,6 +11,8 @@ import { readResponseError } from "@/lib/client-response-error";
 interface LifecycleResponse {
   accountStatus: string;
   deletionScheduledFor: string | null;
+  inactiveDeletionScheduledFor: string | null;
+  deletionCancellationAllowed: boolean;
 }
 
 export default function AccountLifecycleStatus({
@@ -20,6 +22,7 @@ export default function AccountLifecycleStatus({
 }) {
   const router = useRouter();
   const [scheduledFor, setScheduledFor] = useState<string | null>(null);
+  const [cancellationAllowed, setCancellationAllowed] = useState(true);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
@@ -54,7 +57,12 @@ export default function AccountLifecycleStatus({
           );
           return;
         }
-        setScheduledFor(data.deletionScheduledFor);
+        setScheduledFor(
+          mode === "deactivated"
+            ? data.inactiveDeletionScheduledFor
+            : data.deletionScheduledFor
+        );
+        setCancellationAllowed(data.deletionCancellationAllowed);
       } catch {
         if (active) setError("Your account status could not be loaded.");
       } finally {
@@ -119,24 +127,44 @@ export default function AccountLifecycleStatus({
             : "Account deletion is pending"}
         </Heading1>
         {mode === "deactivated" ? (
-          <p className="leading-relaxed text-gray-700">
-            Your Study Buddy access is paused and your information is retained
-            under our inactive-account policy. Reactivate to continue studying.
-          </p>
-        ) : (
           <div className="space-y-3 text-gray-700">
             <p className="leading-relaxed">
-              Your account is locked. The 15-day cancellation window started
-              when you confirmed the email request.
+              Your Study Buddy access is paused. We retain the account for 36
+              months so you can return with your study history.
             </p>
+            {deletionDate && (
+              <p className="font-semibold">
+                Automatic deletion date: {deletionDate}
+              </p>
+            )}
+            <p className="text-sm text-gray-600">
+              We will email you 90, 60, 15, and 1 day before that date. Sign in
+              and reactivate before the deadline to keep the account.
+            </p>
+          </div>
+        ) : (
+          <div className="space-y-3 text-gray-700">
+            {cancellationAllowed ? (
+              <p className="leading-relaxed">
+                Your account is locked. The 15-day cancellation window started
+                when you confirmed the email request.
+              </p>
+            ) : (
+              <p className="leading-relaxed">
+                The 36-month inactive-account period has expired and account
+                deletion is being completed.
+              </p>
+            )}
             {deletionDate && (
               <p className="font-semibold">Scheduled by: {deletionDate}</p>
             )}
-            <p className="text-sm text-gray-600">
-              You may cancel here before processing begins or contact
-              privacy@studybuddyng.com. Records that law requires us to retain
-              are excluded from the account purge.
-            </p>
+            {cancellationAllowed && (
+              <p className="text-sm text-gray-600">
+                You may cancel here before processing begins or contact
+                privacy@studybuddyng.com. Records that law requires us to retain
+                are excluded from the account purge.
+              </p>
+            )}
           </div>
         )}
 
@@ -144,16 +172,18 @@ export default function AccountLifecycleStatus({
           <FormErrorMessage id="account-lifecycle-error" message={error} />
         </div>
         <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:justify-center">
-          <Button
-            variant={mode === "deactivated" ? "primary" : "outline"}
-            loading={submitting}
-            disabled={loading || submitting}
-            onClick={() => void restoreAccess()}
-          >
-            {mode === "deactivated"
-              ? "Reactivate account"
-              : "Cancel permanent deletion"}
-          </Button>
+          {(mode === "deactivated" || cancellationAllowed) && (
+            <Button
+              variant={mode === "deactivated" ? "primary" : "outline"}
+              loading={submitting}
+              disabled={loading || submitting}
+              onClick={() => void restoreAccess()}
+            >
+              {mode === "deactivated"
+                ? "Reactivate account"
+                : "Cancel permanent deletion"}
+            </Button>
+          )}
           <Button
             variant="link"
             disabled={submitting}
