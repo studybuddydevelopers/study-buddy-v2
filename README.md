@@ -70,16 +70,18 @@ still to be implemented. Optional OpenAI API-data sharing for model improvement
 is confirmed as disabled. Future use of separately opted-in, de-identified
 conversation data to train or evaluate Study Buddy's own AI is approved in
 principle but disabled for the current beta until its consent, child-safety,
-DPIA, security, withdrawal and testing gates are complete. The formal privacy
-lead/DPO appointment, remaining retention periods, provider
-regions/contracts, and payment rules still require
+DPIA, security, withdrawal and testing gates are complete. Supabase's production
+primary project region is confirmed as North EU (Stockholm), Sweden
+(`eu-north-1`). The formal privacy lead/DPO appointment, remaining retention
+periods, other provider/Supabase processing locations and contracts, transfer
+safeguards, and payment rules still require
 co-founder decisions and qualified Nigerian legal/privacy review.
 
 ### Public pages
 
 | Page | Current status | Why it must be updated later |
 | --- | --- | --- |
-| [`/privacy-policy`](/Users/efeon/study-buddy-v2/app/privacy-policy/page.tsx) | Identifies the registered controller, verified privacy mailbox and current Railway/Cloudflare hosting, covers current data flows, and describes the implemented 13+/guardian-authorisation plus approved account, study-history, conversation, and transaction-retention controls | Add the remaining retention periods and confirmed provider regions/transfer mechanisms |
+| [`/privacy-policy`](/Users/efeon/study-buddy-v2/app/privacy-policy/page.tsx) | Identifies the registered controller, verified privacy mailbox, current Railway/Cloudflare hosting and Supabase Stockholm primary region; covers current data flows and approved age, access, AI-improvement and retention controls | Add the remaining retention periods and other provider/Supabase processing locations and transfer mechanisms |
 | [`/terms-of-service`](/Users/efeon/study-buddy-v2/app/terms-of-service/page.tsx) | Identifies the contracting legal entity and covers minors, AI, user content, payments, consumer rights and Nigerian law | Add the final commercial terms; legal review is required before paid/school launch |
 | [`/refund-policy`](/Users/efeon/study-buddy-v2/app/refund-policy/page.tsx) | Implemented with a lawful request and complaint framework | Confirm automatic renewal, discretionary refund window, cancellation UI, processing targets and any plan-specific rules before accepting payment |
 | [`/parent-student-privacy`](/Users/efeon/study-buddy-v2/app/parent-student-privacy/page.tsx) | Implemented as an age-appropriate summary of the live 13+ rule, guardian email decision flow, and disabled future conversation-improvement choice | Re-review the future opt-in with students, parents and a qualified Nigerian privacy adviser before activation or after any material workflow change |
@@ -104,7 +106,7 @@ also link directly to the detailed notices relevant to their sections.
 | [`PROCESSOR_AND_VENDOR_REGISTER.md`](/Users/efeon/study-buddy-v2/docs/compliance/PROCESSOR_AND_VENDOR_REGISTER.md) | Initial register for Supabase, OpenAI, Meta, Paystack, Railway, Cloudflare, CAPTCHA, email and source-control providers | Contracts/DPAs cannot be created by code; production regions, sub-processors, retention and transfer safeguards must be verified in provider accounts |
 | [`SCHOOL_DATA_PROCESSING_SCHEDULE.md`](/Users/efeon/study-buddy-v2/docs/compliance/SCHOOL_DATA_PROCESSING_SCHEDULE.md) | Contract template covering roles, instructions, visibility, security, rights, deletion, incidents and audit | It cannot be signed until both legal entities, controller/processor roles, exact staff visibility, service terms, contacts and retention periods are agreed |
 | [`RECORD_OF_PROCESSING_ACTIVITIES.md`](/Users/efeon/study-buddy-v2/docs/compliance/RECORD_OF_PROCESSING_ACTIVITIES.md) | Initial inventory of current controller and possible school-processor activities | Replace preliminary bases/roles with approved decisions and reconcile it against production provider dashboards and configuration before launch |
-| [`OPEN_COMPLIANCE_QUESTIONS.md`](/Users/efeon/study-buddy-v2/docs/compliance/OPEN_COMPLIANCE_QUESTIONS.md) | Tracks confirmed answers through question 21 and every remaining decision through question 44 | Work through the open questions in order and reconcile each answer with the product, notices, compliance records, and operating procedures |
+| [`OPEN_COMPLIANCE_QUESTIONS.md`](/Users/efeon/study-buddy-v2/docs/compliance/OPEN_COMPLIANCE_QUESTIONS.md) | Tracks confirmed answers through question 22 and every remaining decision through question 44 | Work through the open questions in order and reconcile each answer with the product, notices, compliance records, and operating procedures |
 
 ### Required non-document work
 
@@ -130,7 +132,9 @@ These items cannot be solved by publishing policies and remain launch work:
 - [ ] Before any future school service, define and test school roles and
   field-level student visibility, update the DPIA/notices, and execute suitable
   agreements.
-- [ ] Verify production hosting, provider regions, DPAs, sub-processors and cross-border safeguards.
+- [ ] Verify remaining production provider/Supabase processing locations, DPAs,
+  sub-processors and cross-border safeguards; the Supabase primary project region
+  is confirmed as North EU (Stockholm), Sweden (`eu-north-1`).
 - [ ] Confirm subscription renewal, cancellation and refund operations before paid launch.
 - [ ] Complete child-focused AI safety tests and a human escalation/reporting workflow.
 - [ ] Build the restricted, time-limited and fully audited break-glass workflow
