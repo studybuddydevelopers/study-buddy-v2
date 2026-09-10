@@ -1,6 +1,9 @@
 import { timingSafeEqual } from "node:crypto";
 import { NextResponse } from "next/server";
-import { processDueAccountDeletions } from "@/lib/account-lifecycle";
+import {
+  processDueAccountDeletions,
+  processInactiveAccountRetention,
+} from "@/lib/account-lifecycle";
 import { logSecurityEvent } from "@/lib/security/audit-log";
 
 export async function POST(request: Request) {
@@ -14,10 +17,12 @@ export async function POST(request: Request) {
   }
 
   try {
-    const result = await processDueAccountDeletions();
-    return NextResponse.json(result, {
-      headers: { "Cache-Control": "no-store" },
-    });
+    const inactiveAccounts = await processInactiveAccountRetention();
+    const deletions = await processDueAccountDeletions();
+    return NextResponse.json(
+      { inactiveAccounts, deletions },
+      { headers: { "Cache-Control": "no-store" } }
+    );
   } catch {
     logSecurityEvent("account_deletion_cron_failed", "error");
     return NextResponse.json(
