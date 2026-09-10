@@ -13,6 +13,9 @@ Auth & Account
 - POST `/signup` — Create a Supabase auth user. Body: `firstName`, `middleNames?`, `lastNames`, `email`, `phoneNumber`, `password`. Sets session cookies, returns `{ success: true }` or `{ error }`.
 - POST `/login` — Sign in with `identifier` (email or phone) and `password`. Sets Supabase cookies, returns `{ success: true }` or `{ error }`.
 - POST `/logout` — Clears Supabase session cookies. Body unused. Returns `{ ok: true }`.
+- GET `/account/lifecycle` (auth, including restricted accounts) — Returns the current account status and any scheduled permanent-deletion date.
+- POST `/account/lifecycle` (auth, including restricted accounts) — Body action is `DEACTIVATE`, `REQUEST_DELETION`, `REACTIVATE`, or `CANCEL_DELETION`. Permanent deletion requires the current password and exact `confirmation: "DELETE"`; access is restricted immediately and the account is queued for purge within 30 days. Successful mutations clear the browser session.
+- POST `/account/deletion/cron` (server-to-server) — Requires `x-cron-secret` matching `ACCOUNT_DELETION_CRON_SECRET`; claims and purges due application and Supabase Auth accounts in a retry-safe bounded batch.
 - POST `/reset-password` — Body: `email`. Triggers Supabase reset flow redirecting to `/auth/password-reset`. Returns `{ ok: true }` or `{ error }`.
 - GET `/me` (auth) — Returns user basics, profile, and latest subscription `{ id, createdAt, isAdmin, profile, subscription }`; 404 if no DB user record.
 
@@ -20,13 +23,6 @@ Profile
 -------
 - GET `/profile` (auth) — Fetch current user profile or `null`.
 - PATCH `/profile` (auth) — Partial update/create of profile fields (`firstName`, `middleNames`, `lastNames`, `phoneNumber`, `gradeLevel`, `examYear`, `preferredSubjects`, `avatarUrl`). Returns `{ success: true, profile }`.
-
-Schools (admin)
----------------
-- POST `/schools/create` — Body: `name` (req), `location?`, `adminEmail?`. Creates school and returns `{ id, name, location, adminEmail, createdAt, students }`.
-- GET `/schools/list` — Query: `search?`, `location?`, `page?=1`, `pageSize?=20` (max 50). Returns `{ schools: [{ id, name, location, adminEmail, studentCount }], pagination }`.
-- GET `/schools/:id/students` — Query: `page?=1`, `pageSize?=20` (max 50). Returns `{ schoolId, students: [{ id, userId, joinedAt, profile }], pagination }`; 404 if school missing.
-- POST `/schools/:id/students` — Body: `userId`. Adds user to school; 400 if already present (unique constraint), 404 if school/user missing.
 
 AI
 --
