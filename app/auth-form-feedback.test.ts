@@ -3,6 +3,7 @@ import path from "node:path";
 import { describe, expect, it } from "vitest";
 
 const AUTH_CLIENTS = [
+  "forgot-password/ForgotPasswordClient.tsx",
   "login/LoginClient.tsx",
   "sign-up/SignUpClient.tsx",
 ] as const;
