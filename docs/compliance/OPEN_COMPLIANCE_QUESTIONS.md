@@ -8,7 +8,7 @@ and commercial questions for Study Buddy. Answers are not treated as legal
 approval by themselves. Public notices, product behaviour, internal records,
 and provider settings must be updated together after each answer is confirmed.
 
-Questions 1–18 have been answered. The confirmed decisions include the company
+Questions 1–20 have been answered. The confirmed decisions include the company
 identity and address, `privacy@studybuddyng.com` as the privacy-request mailbox,
 joint request handling by Nick Efe Oni and Chijindu Oreh, a minimum account age
 of 13, independent activation from 18, and parent or legal-guardian approval for
@@ -38,11 +38,23 @@ from the transaction date. They may be retained longer only for a documented tax
 audit, chargeback, dispute, investigation, or legal hold, after which they must
 be deleted or anonymised. Full card numbers, CVVs, PINs, and bank credentials are
 not stored by Study Buddy.
+Study Buddy staff do not routinely read individual AI or WhatsApp
+conversations. During beta, access is limited to Nick Efe Oni and Chijindu Oreh
+and only to the minimum messages necessary for a documented user-authorised
+support request, reported harmful response or credible child-safety or
+imminent-harm concern, account compromise, fraud, abuse, security incident,
+specific technical failure that cannot be diagnosed with less intrusive
+information, or valid legal or regulatory requirement. Access is not permitted
+for curiosity, marketing, general surveillance, routine product improvement,
+or AI training/evaluation. The latter remains a separate decision under
+question 21.
+The co-founders have confirmed that the OpenAI API organisation has not opted
+in to share Study Buddy API prompts or responses for OpenAI model training or
+improvement. This does not remove OpenAI's separate processing and
+abuse-monitoring retention, which must remain documented and reviewed.
 
 ## Open questions
 
-19. May Study Buddy staff read AI conversations, and in precisely which situations?
-20. Has the OpenAI account opted into API-data sharing for model improvement?
 21. Will Study Buddy use conversations to train or evaluate its own AI systems?
 22. Which region hosts the production Supabase database?
 23. Which provider will send production account and password-reset emails?
