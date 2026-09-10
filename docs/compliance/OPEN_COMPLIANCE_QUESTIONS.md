@@ -8,24 +8,24 @@ and commercial questions for Study Buddy. Answers are not treated as legal
 approval by themselves. Public notices, product behaviour, internal records,
 and provider settings must be updated together after each answer is confirmed.
 
-Questions 1–10 have been answered. The confirmed decisions include the company
+Questions 1–12, 15, and 18 have been answered. The confirmed decisions include the company
 identity and address, `privacy@studybuddyng.com` as the privacy-request mailbox,
 joint request handling by Nick Efe Oni and Chijindu Oreh, a minimum account age
 of 13, independent activation from 18, and parent or legal-guardian approval for
 ages 13–17 through the implemented email decision flow. At launch, Study Buddy
 does not provide school or teacher accounts, and school staff cannot access any
-individual student information.
+individual student information or create, suspend, or delete student accounts.
+Permanent account deletion is available in Settings: access is restricted
+immediately, active-system deletion is scheduled within 30 days, and protected
+backup copies must age out within 90 days of the request. A separate reversible
+deactivation option is presented first for users who only want a break.
 
 ## Open questions
 
-11. Can school staff create, suspend, or delete student accounts?
-12. How many days after an account-deletion request should permanent deletion take?
 13. How long should inactive accounts be retained?
 14. How long should AI and WhatsApp conversations be retained?
-15. How long should deleted chats remain in backups?
 16. How long should study history, answers, progress, and mock-exam results be retained?
 17. How many years should payment and transaction records be retained?
-18. Should account deletion be available inside the app or only through support?
 19. May Study Buddy staff read AI conversations, and in precisely which situations?
 20. Has the OpenAI account opted into API-data sharing for model improvement?
 21. Will Study Buddy use conversations to train or evaluate its own AI systems?
