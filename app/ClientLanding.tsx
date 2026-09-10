@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 
 import Button from "@/components/Button";
@@ -14,6 +14,24 @@ export default function ClientLanding() {
   const router = useRouter();
   const [loadingStart, setLoadingStart] = useState(false);
   const [loadingLearn, setLoadingLearn] = useState(false);
+  const [authLinkError, setAuthLinkError] = useState(false);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      const url = new URL(window.location.href);
+      const fragment = new URLSearchParams(url.hash.replace(/^#/, ""));
+      const error = url.searchParams.get("error") ?? fragment.get("error");
+      const errorCode =
+        url.searchParams.get("error_code") ?? fragment.get("error_code");
+
+      if (error || errorCode) {
+        setAuthLinkError(true);
+        window.history.replaceState(null, "", url.pathname);
+      }
+    }, 0);
+
+    return () => window.clearTimeout(timer);
+  }, []);
 
   const handleStart = () => {
     setLoadingStart(true);
@@ -32,6 +50,20 @@ export default function ClientLanding() {
   return (
     <>
       <div className="w-full max-w-7xl mx-auto px-6 py-10">
+
+        {authLinkError && (
+          <div
+            className="mx-auto mt-4 max-w-3xl rounded-xl border border-red-200 bg-red-50 px-5 py-4 text-center text-sm text-red-800"
+            role="alert"
+          >
+            This email link is invalid, expired, or has already been used. If
+            you already confirmed it, log in. Otherwise, contact{" "}
+            <a className="font-semibold underline" href="mailto:support@studybuddyng.com">
+              support@studybuddyng.com
+            </a>
+            .
+          </div>
+        )}
 
         {/* HERO SECTION */}
         <section className="flex flex-col-reverse lg:flex-row-reverse items-center gap-12 mt-10">
