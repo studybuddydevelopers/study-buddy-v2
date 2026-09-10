@@ -457,12 +457,17 @@ export default function TermsOfServicePage() {
             <p>
               You may stop using Study Buddy at any time. Settings offers a
               reversible account-deactivation option and a permanent-deletion
-              request. Either choice restricts access and signs you out
-              immediately. A permanent request schedules active-system personal
-              data for deletion within 30 days, subject to records we must retain
-              by law or under a documented legal hold; protected backup copies
-              age out within 90 days of the request. You may cancel before the
-              purge begins. For other privacy requests or access problems, email
+              request. Deactivation restricts access and signs you out
+              immediately. A permanent request first requires a one-time email
+              link and a deliberate confirmation on the linked page. The account
+              remains active until that confirmation. Confirmation locks the
+              account, starts a 15-day cancellation window, and schedules
+              active-system personal data for deletion within 30 days, subject
+              to records we must retain by law or under a documented legal hold;
+              protected backup copies age out within 90 days of confirmation.
+              You may cancel before the purge begins or contact
+              privacy@studybuddyng.com during the 15-day window. For other
+              privacy requests or access problems, email
               privacy@studybuddyng.com. If we discontinue a paid service before
               the end of a prepaid period for reasons unrelated to your breach,
               we will provide the remedy required by applicable law.
