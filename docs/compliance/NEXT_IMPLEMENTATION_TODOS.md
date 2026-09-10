@@ -50,10 +50,53 @@ Acceptance criteria:
    log content.
 5. The production cron completes successfully and monitoring alerts on failure.
 
+## P0 — Enforce the approved conversation-access rule
+
+The public rule now prohibits routine staff reading of individual AI and
+WhatsApp conversations. During beta, only Nick Efe Oni and Chijindu Oreh may
+perform an exceptional review, and only for one of the approved documented
+support, safety, security, technical, fraud/abuse, or legal cases. Database
+credentials and an ordinary administrator screen are not an acceptable review
+workflow.
+
+- [ ] Build a restricted, time-limited break-glass review path; do not add
+  conversation content to the general user administration interface.
+- [ ] Require a case identifier, permitted reason, requesting/affected user,
+  approver, reviewer, start time, expiry time, and a written minimum-scope
+  justification before content can be revealed.
+- [ ] Default to metadata and redacted context; reveal only the minimum messages
+  needed when less intrusive information cannot resolve the case.
+- [ ] Record tamper-resistant audit events for approval, access, message scope,
+  export, expiry, and case closure without copying conversation text into logs.
+- [ ] Require the second co-founder to approve proactive access. Permit an
+  emergency child-safety or imminent-harm review without prior approval only
+  when delay would materially increase risk, followed by documented second
+  review within 24 hours.
+- [ ] Prevent downloads and bulk browsing by default, prohibit use of personal
+  email/tools, and automatically revoke access when its case window expires.
+- [ ] Add a monthly audit-log review and an incident escalation for any access
+  outside the approved cases or scope.
+- [ ] Test direct-object-reference resistance, role bypass, expired access,
+  minimum-message scoping, audit completeness, and sensitive-log redaction.
+
+Acceptance criteria:
+
+1. Neither a normal user nor a general administration session can read another
+   user's conversation.
+2. Every exceptional access is attributable, justified, scoped, time-limited,
+   and reviewable without storing message content in the audit log.
+3. The emergency path requires retrospective review within 24 hours and alerts
+   if that review is overdue.
+4. Conversation content is not available for marketing, general surveillance,
+   routine product improvement, or model training/evaluation.
+
 ## P1 — Finish the remaining retention controls
 
 - [ ] Verify that Supabase, Railway, OpenAI, Meta/WhatsApp, Paystack, and email
   provider copies follow their documented deletion and backup periods.
+- [ ] Capture dated evidence that OpenAI API-data sharing for model improvement
+  is disabled, restrict who can change the setting, and recheck it after any
+  OpenAI organisation-owner or data-control change.
 - [ ] Prove that deleted data cannot be restored into normal live use from a
   backup and that the approved 90-day backup maximum is achievable.
 - [ ] Decide and automate expiry for unfinished cloud practice drafts,
@@ -71,4 +114,3 @@ Acceptance criteria:
 - [ ] Test account access, correction, restriction, objection, portability, and
   deletion workflows end to end.
 - [ ] Run and record the incident-response exercise and provider escalation test.
-
