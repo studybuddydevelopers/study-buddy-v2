@@ -4,6 +4,7 @@ import Image from "@/components/Image";
 import { requireUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { createPageMetadata } from "@/lib/site-metadata";
+import StudyBuddyIcon from "@/components/StudyBuddyIcon";
 
 export const metadata = createPageMetadata({
   title: "Learner Profile",
@@ -64,12 +65,15 @@ export default async function ProfilePage() {
       <section className="grid gap-3 sm:grid-cols-2">
         <Link
           href="/settings"
-          className="rounded-lg border border-accent-200 bg-white p-4 shadow-sm transition hover:border-primary-300 hover:shadow-md"
+          className="flex gap-3 rounded-lg border border-accent-200 bg-white p-4 shadow-sm transition hover:border-primary-300 hover:shadow-md"
         >
-          <h2 className="text-base font-semibold text-gray-900">Settings</h2>
-          <p className="mt-1 text-sm leading-6 text-gray-600">
-            Manage cloud drafts and low-data behavior.
-          </p>
+          <StudyBuddyIcon name="settings" size={44} className="shrink-0" />
+          <div>
+            <h2 className="text-base font-semibold text-gray-900">Settings</h2>
+            <p className="mt-1 text-sm leading-6 text-gray-600">
+              Manage study preferences and account access.
+            </p>
+          </div>
         </Link>
 
         <div className="rounded-lg border border-accent-200 bg-white p-4 shadow-sm">
