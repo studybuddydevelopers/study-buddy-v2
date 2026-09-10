@@ -29,6 +29,12 @@ retention, provider region, and transfer safeguard before production use.
 | ROPA-13 | Improve service with aggregate analysis | Users; product/learning events transformed into aggregate or anonymised statistics | Legitimate interests; consent if future non-essential tracking requires it | Internal team and approved analytics provider only if onboarded | Review annually; retain only if effectively anonymised | No behavioural analytics approved |
 | ROPA-14 | Communicate account and important service notices | Account users/authorisers; email/phone, notice type, delivery event | Contract; legal obligation; legitimate interests | Supabase Auth email; Resend guardian-authorisation email; Meta for WhatsApp | Delivery/provider period pending | Code implemented; production Resend and Supabase SMTP configuration must be verified |
 
+## Approved future processing — not active
+
+| ID | Activity and purpose | Data subjects and data | Required basis/choice | Recipients/transfers | Retention | Owner/status |
+| --- | --- | --- | --- | --- | --- | --- |
+| FUTURE-01 | Train or evaluate Study Buddy's own AI using selected conversation data | Only separately opted-in, de-identified conversation samples after sensitive/third-party data screening; adults and users aged 13–17 with the required adult and student choices | Separate, specific, informed and freely given opt-in; parent/legal-guardian authorisation plus student participation for ages 13–17; final basis and consent wording require privacy review | Restricted Study Buddy evaluation/training environment and separately approved providers only; transfers must be assessed before activation | Not approved; define dataset, evaluation-result, model-artefact and withdrawal/deletion periods before collection | Co-founder direction approved, but processing is disabled. Revised DPIA, notice, consent records, de-identification validation, access/audit controls, withdrawal, memorisation testing and legal review are required before activation |
+
 ## Special/high-risk processing flags
 
 - Children and other vulnerable learners: yes
