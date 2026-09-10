@@ -8,7 +8,7 @@ and commercial questions for Study Buddy. Answers are not treated as legal
 approval by themselves. Public notices, product behaviour, internal records,
 and provider settings must be updated together after each answer is confirmed.
 
-Questions 1–16 and 18 have been answered. The confirmed decisions include the company
+Questions 1–18 have been answered. The confirmed decisions include the company
 identity and address, `privacy@studybuddyng.com` as the privacy-request mailbox,
 joint request handling by Nick Efe Oni and Chijindu Oreh, a minimum account age
 of 13, independent activation from 18, and parent or legal-guardian approval for
@@ -33,10 +33,14 @@ while the account is active and throughout the 36-month reversible-deactivation
 period, then deleted with the account at expiry or through confirmed permanent
 account deletion, subject only to a documented legal hold or mandatory limited
 retention.
+Essential payment, invoice, and transaction records are retained for seven years
+from the transaction date. They may be retained longer only for a documented tax
+audit, chargeback, dispute, investigation, or legal hold, after which they must
+be deleted or anonymised. Full card numbers, CVVs, PINs, and bank credentials are
+not stored by Study Buddy.
 
 ## Open questions
 
-17. How many years should payment and transaction records be retained?
 19. May Study Buddy staff read AI conversations, and in precisely which situations?
 20. Has the OpenAI account opted into API-data sharing for model improvement?
 21. Will Study Buddy use conversations to train or evaluate its own AI systems?
