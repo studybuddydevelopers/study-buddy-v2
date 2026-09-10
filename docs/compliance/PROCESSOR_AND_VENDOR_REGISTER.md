@@ -3,7 +3,7 @@
 Status: initial register — contracts, production configuration, and transfer
 assessments require verification  
 Owner: to be appointed  
-Last reviewed: 8 September 2026
+Last reviewed: 10 September 2026
 
 ## Instructions
 
@@ -20,7 +20,7 @@ some data and a processor for other data.
 
 | Provider | Service and data | Preliminary role | Production/region status | Contract and privacy work | Decision |
 | --- | --- | --- | --- | --- | --- |
-| Supabase | Authentication, account identifiers, session data, PostgreSQL data, storage | Processor for hosted Study Buddy data; may have independent security/account purposes | Active in code; project region not verified | Record DPA/terms, sub-processors, backup/deletion periods, breach contact, region and transfer basis | Pending approval |
+| Supabase | Authentication, account identifiers, session data, PostgreSQL data, storage | Processor for hosted Study Buddy data; may have independent security/account purposes | Active in production; primary project data region confirmed as North EU (Stockholm), Sweden (`eu-north-1`) | Preserve dashboard evidence; record DPA/terms, sub-processors, backup/deletion periods, support/security processing locations, breach contact and Nigeria-to-Sweden transfer basis | Primary region confirmed; remaining privacy/transfer review pending |
 | OpenAI | AI prompts, relevant chat/learning context, responses, model/token metadata | Processor/service provider for API content, subject to contract details | Active in code; co-founders confirmed that optional API-data sharing for model improvement is disabled; region and other data-control settings are not verified | Record business terms/DPA, evidence of the disabled sharing setting, abuse-monitoring retention, sub-processors, deletion and transfer basis | Training-sharing decision confirmed; remaining privacy review pending |
 | Meta / WhatsApp Cloud API | WhatsApp number/sender ID, routing metadata, message content | Likely separate/independent and processor roles depending activity | Active in code when configured; regions not verified | Confirm business terms, lawful WhatsApp opt-in, retention, complaint/deletion route and transfer basis | Pending approval |
 | Paystack | Payer/account identifiers, transaction reference, amount, currency, status, payment instrument data held by Paystack | Payment provider/independent controller and processor roles depending activity | Payment verification/webhook code exists; live merchant configuration not verified | Record merchant terms, privacy terms, dispute/refund process, retention, PCI responsibilities and incident contact | Pending approval before paid launch |
