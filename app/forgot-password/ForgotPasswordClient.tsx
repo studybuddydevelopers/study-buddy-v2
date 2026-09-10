@@ -14,6 +14,8 @@ import CaptchaChallenge, {
 import { FaHandPeace, FaHandPointDown } from "react-icons/fa6";
 import { FaHandPaper } from "react-icons/fa";
 import Card from "@/components/Card";
+import FormErrorMessage from "@/components/FormErrorMessage";
+import { readResponseError } from "@/lib/client-response-error";
 
 const HAND_ICONS = [FaHandPeace, FaHandPaper, FaHandPointDown];
 
@@ -37,26 +39,51 @@ export default function ResetPasswordClient() {
     setErrorMessage("");
     setSuccess(false);
 
-    const res = await fetch("/api/v1/reset-password", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email: identifier, captchaToken }),
-    });
+    try {
+      const res = await fetch("/api/v1/reset-password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: identifier, captchaToken }),
+      });
 
-    setLoading(false);
-    captchaRef.current?.reset();
+      if (!res.ok) {
+        if (res.status === 429) {
+          const retryAfterSeconds = Number.parseInt(
+            res.headers.get("Retry-After") ?? "",
+            10
+          );
+          const retryAfterMinutes = Number.isFinite(retryAfterSeconds)
+            ? Math.max(1, Math.ceil(retryAfterSeconds / 60))
+            : null;
+          setErrorMessage(
+            retryAfterMinutes
+              ? `Too many password reset requests. Try again in about ${retryAfterMinutes} ${retryAfterMinutes === 1 ? "minute" : "minutes"}.`
+              : "Too many password reset requests. Please try again later."
+          );
+          return;
+        }
 
-    if (!res.ok) {
-      const data = await res.json();
-      setErrorMessage(data.error || "Something went wrong");
-      return;
+        setErrorMessage(
+          await readResponseError(
+            res,
+            "We couldn't request a password reset. Please try again."
+          )
+        );
+        return;
+      }
+
+      setSuccess(true);
+      setTimeout(() => {
+        router.push("/check-email");
+      }, 800);
+    } catch {
+      setErrorMessage(
+        "We couldn't request a password reset. Check your connection and try again."
+      );
+    } finally {
+      setLoading(false);
+      captchaRef.current?.reset();
     }
-
-    setSuccess(true);
-
-    setTimeout(() => {
-      router.push("/check-email");
-    }, 800);
   };
 
   // ICON rotation animation
@@ -95,9 +122,10 @@ export default function ResetPasswordClient() {
             className="text-left mb-5"
           />
 
-          {errorMessage && (
-            <p className="text-red-500 text-sm mb-4">{errorMessage}</p>
-          )}
+          <FormErrorMessage
+            id="password-reset-request-error"
+            message={errorMessage}
+          />
 
           {success && (
             <p className="text-green-600 text-sm mb-4">
