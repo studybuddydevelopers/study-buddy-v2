@@ -5,6 +5,8 @@ import {
   ACTIVE_DELETION_DAYS,
   BACKUP_EXPIRY_DAYS,
   DELETION_CANCELLATION_DAYS,
+  INACTIVE_ACCOUNT_RETENTION_MONTHS,
+  INACTIVE_ACCOUNT_WARNING_DAYS,
   abandonDeletionConfirmation,
   cancelPermanentDeletion,
   deactivateAccount,
@@ -47,11 +49,18 @@ export async function GET() {
     {
       accountStatus: lifecycle.accountStatus,
       deactivatedAt: lifecycle.deactivatedAt?.toISOString() ?? null,
+      inactiveDeletionScheduledFor:
+        lifecycle.inactiveDeletionAt?.toISOString() ?? null,
       deletionScheduledFor:
         lifecycle.deletionRequest?.scheduledFor?.toISOString() ?? null,
       deletionRequestStatus: lifecycle.deletionRequest?.status ?? null,
       activeDeletionDays: ACTIVE_DELETION_DAYS,
       deletionCancellationDays: DELETION_CANCELLATION_DAYS,
+      inactiveAccountRetentionMonths: INACTIVE_ACCOUNT_RETENTION_MONTHS,
+      inactiveAccountWarningDays: INACTIVE_ACCOUNT_WARNING_DAYS,
+      deletionCancellationAllowed:
+        Boolean(lifecycle.deletionRequest) &&
+        !lifecycle.deletionRequest?.retentionTriggeredAt,
       backupExpiryDays: BACKUP_EXPIRY_DAYS,
     },
     { headers: { "Cache-Control": "no-store" } }
