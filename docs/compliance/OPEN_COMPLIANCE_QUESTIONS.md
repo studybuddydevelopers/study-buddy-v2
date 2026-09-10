@@ -8,7 +8,7 @@ and commercial questions for Study Buddy. Answers are not treated as legal
 approval by themselves. Public notices, product behaviour, internal records,
 and provider settings must be updated together after each answer is confirmed.
 
-Questions 1–21 have been answered. The confirmed decisions include the company
+Questions 1–22 have been answered. The confirmed decisions include the company
 identity and address, `privacy@studybuddyng.com` as the privacy-request mailbox,
 joint request handling by Nick Efe Oni and Chijindu Oreh, a minimum account age
 of 13, independent activation from 18, and parent or legal-guardian approval for
@@ -46,8 +46,9 @@ imminent-harm concern, account compromise, fraud, abuse, security incident,
 specific technical failure that cannot be diagnosed with less intrusive
 information, or valid legal or regulatory requirement. Access is not permitted
 for curiosity, marketing, general surveillance, routine product improvement,
-or AI training/evaluation. The latter remains a separate decision under
-question 21.
+or review of identifiable or non-opted-in conversations for AI
+training/evaluation. The later Question 21 decision does not permit staff to
+browse raw conversations.
 The co-founders have confirmed that the OpenAI API organisation has not opted
 in to share Study Buddy API prompts or responses for OpenAI model training or
 improvement. This does not remove OpenAI's separate processing and
@@ -62,10 +63,14 @@ restricted datasets, withdrawal for future use, an updated DPIA and notice, and
 clear disclosure of any deletion limits before model training. Declining must
 not reduce access to the ordinary service. This decision does not permit staff
 to browse identifiable conversations for product improvement.
+The production Supabase project's primary data region is confirmed as North EU
+(Stockholm), Sweden (`eu-north-1`). This establishes the location of primary
+project data only; Supabase support, security, network, backup, and sub-processor
+locations and the required Nigeria-to-Sweden transfer safeguard remain separate
+verification tasks.
 
 ## Open questions
 
-22. Which region hosts the production Supabase database?
 23. Which provider will send production account and password-reset emails?
 24. Are any analytics, advertising, error-monitoring, or user-tracking services used? If yes, list every provider.
 25. Will paid subscriptions renew automatically?
