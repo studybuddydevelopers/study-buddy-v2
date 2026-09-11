@@ -72,10 +72,12 @@ const sections: PolicyDocumentSection[] = [
         </p>
         <p>
           Cancellation stops the next renewal, and paid access ends on the
-          cancellation date. We will not enable paid subscriptions until this
-          policy and checkout clearly state whether and how any unused prepaid
-          period is refunded or credited. We will not charge a cancellation fee
-          unless it was disclosed in advance and is reasonable and lawful.
+          cancellation date. We will calculate the unused subscription time
+          between cancellation and the next scheduled renewal on a prorated
+          basis and automatically refund that amount through the original
+          payment method. You do not need to submit a separate refund request.
+          Payment-provider and bank settlement time may continue after we
+          initiate the refund. We will not charge a cancellation fee.
         </p>
       </>
     ),
@@ -109,8 +111,14 @@ const sections: PolicyDocumentSection[] = [
     content: (
       <>
         <p>
-          Email <a href={`mailto:${BILLING_EMAIL}`}>{BILLING_EMAIL}</a> with the
-          subject “Refund request” and provide:
+          The automatic prorated cancellation refund described above does not
+          require a separate request. For another refund issue, such as a
+          duplicate or unauthorised payment, email{" "}
+          <a href={`mailto:${BILLING_EMAIL}`}>{BILLING_EMAIL}</a> with the subject
+          “Refund request” and provide the details below.
+        </p>
+        <p>
+          Please provide:
         </p>
         <ul>
           <li>the account email or phone number;</li>
