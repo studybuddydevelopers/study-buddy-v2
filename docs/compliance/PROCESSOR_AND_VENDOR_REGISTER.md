@@ -30,6 +30,23 @@ public privacy policy alone is not a DPA. Do not store confidential contracts or
 account screenshots in this repository. Public sources and private evidence
 hashes are recorded in the [Provider Agreement Evidence Index](./PROVIDER_AGREEMENT_EVIDENCE.md).
 
+## International-transfer position
+
+Question 41 has an approved working answer. Transfers strictly necessary to
+provide a requested core service rely on section 43(1)(b) contractual
+necessity. Guardian authorisation remains mandatory for child processing, and a
+specific informed choice is required wherever consent is used as the transfer
+ground or the feature is optional. Provider DPAs, SCCs, encryption,
+minimisation, access controls, and sub-processor review are supporting
+safeguards. EU or UK SCCs are not described as an NDPC-approved Nigerian
+instrument without Commission approval or recognition. See the
+[International Data Transfer Assessment](./INTERNATIONAL_DATA_TRANSFER_ASSESSMENT.md).
+
+The exact destination and onward-transfer mapping, provider-by-provider risk
+assessment, certified-DPO validation, and any required NDPC CBDTI approval are
+still open operational gates. Meta/WhatsApp and Paystack must not be activated
+until their separate gates are complete.
+
 ## Current and planned providers
 
 | Provider | Service and data | Preliminary role | Production/region status | Contract and privacy work | Decision |
