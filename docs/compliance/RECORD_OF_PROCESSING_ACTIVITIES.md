@@ -16,6 +16,15 @@ The current first-year planning estimate is approximately 50 registered users,
 including about 40 users (80%) under 18. Review this record if actual scale,
 age distribution, or processing changes materially.
 
+For international transfers, the approved working approach is section 43(1)(b)
+contractual necessity for transfers strictly necessary to provide a requested
+core service, plus the existing guardian requirements for child processing and
+separate informed consent for optional transfers. Provider DPAs and contractual
+clauses are supporting safeguards, not assumed NDPC approval. Provider-specific
+country mapping, risk assessments, certified-DPO validation, and any required
+NDPC-approved CBDTI remain open. See the
+[International Data Transfer Assessment](./INTERNATIONAL_DATA_TRANSFER_ASSESSMENT.md).
+
 ## Controller processing
 
 | ID | Activity and purpose | Data subjects and data | Selected basis (certified-DPO validation pending) | Recipients/transfers | Retention | Owner/status |
@@ -25,7 +34,7 @@ age distribution, or processing changes materially.
 | ROPA-03 | Deliver practice questions, drafts and explanations | Students; question IDs, answers, drafts, results, session/activity data | Contract/requested service; legitimate interests for reliability | Supabase/PostgreSQL; browser local storage | Submitted answers, attempts, and quiz sessions: active account plus 36-month reversible-deactivation period; unfinished cloud/local drafts follow their separate controls | Approved study-history period; cloud/local draft controls remain open |
 | ROPA-04 | Deliver and grade mock exams | Students; template/instance IDs, answers, timing, score and completion status | Contract/requested service | Supabase/PostgreSQL, hosting | Active account plus 36-month reversible-deactivation period; delete with account at expiry or confirmed permanent deletion | Approved period; account-purge cascade implemented |
 | ROPA-05 | Calculate progress and recommendations | Students; attempts, scores, subjects, topics, usage and recommendation records | Contract; legitimate interests subject to balancing | Supabase/PostgreSQL; OpenAI where recommendation generation uses it | Progress: active account plus 36-month reversible-deactivation period; recommendation-row retention/anonymisation remains pending | Progress period approved; recommendation policy, DPIA and human-review route pending |
-| ROPA-06 | Provide persistent web AI chat | Students/adults; prompts, bounded recent context, responses, provider/model/token data, status/failure data | Contract/requested feature for adults; verified parent/legal-guardian consent and the appropriate guardian agreement for ages 13–17; legitimate interests for necessary security | OpenAI, Supabase, hosting; international transfer pending | User-accessible while the account is active; hard-delete on chat/account deletion or 36-month deactivated-account expiry; backups within 90 days | No routine staff reading; beta exception access is limited to the two co-founders for the approved documented cases and minimum message scope. Chat-only hard deletion is implemented; audited break-glass access, high-risk safety and transfer review remain open |
+| ROPA-06 | Provide persistent web AI chat | Students/adults; prompts, bounded recent context, responses, provider/model/token data, status/failure data | Contract/requested feature for adults; verified parent/legal-guardian consent and the appropriate guardian agreement for ages 13–17; legitimate interests for necessary security | OpenAI, Supabase, and Railway; section 43(1)(b) contractual necessity selected for the strictly necessary transfer, supported by provider DPAs and technical controls; provider-specific assessment and certified-DPO validation pending | User-accessible while the account is active; hard-delete on chat/account deletion or 36-month deactivated-account expiry; backups within 90 days | No routine staff reading; beta exception access is limited to the two co-founders for the approved documented cases and minimum message scope. Chat-only hard deletion is implemented; audited break-glass access, high-risk safety and transfer validation remain open |
 | ROPA-07 | Provide optional WhatsApp tutoring | Students/adults; WhatsApp number/sender ID, messages, bounded recent context, responses, thread/account link | Separate consent; verified parent/legal-guardian consent and student participation for ages 13–17; legitimate interests for necessary security | Meta/WhatsApp, OpenAI, Supabase, hosting | User-accessible while the account is active; two-step chat deletion with a 15-minute confirmation window, account deletion, or 36-month deactivated-account expiry; backups within 90 days | The same no-routine-reading and narrow exception rule applies. Chat-only deletion is implemented; audited break-glass access, opt-in, provider and child controls still require final review |
 | ROPA-08 | Manage automatically renewing subscriptions, cancellation, prorated refunds and payment verification | Subscribers/payers; user ID while the account exists, plan, recurring-billing authorisation, cancellation/refund request and confirmation, reference, amount, currency, status and dates; no full card/bank credentials stored | Contract; legal obligation; fraud-prevention legitimate interests | Paystack, Supabase, hosting, financial/regulatory recipients where legally required | Essential payment, invoice, and transaction records: seven years from transaction date; longer only for a documented audit, chargeback, dispute, investigation, or legal hold | Automatic renewal is approved but not enabled. Same-day cancellation automatically refunds prorated unused time; other refunds are limited to duplicate payment, paid service not provided, Study Buddy discontinuation, or Nigerian-law requirements. Implementation, expiry/legal-hold automation, and accountant/legal review remain pending |
 | ROPA-09 | Provide support and handle complaints/rights | Students, adults, schools; name, email, subject, message, identity/authority evidence, correspondence and decision | Contract; legal obligation; legitimate interests | GoDaddy-hosted Microsoft 365 company mailboxes; regulators where required | Proposed 12 months after closure unless hold; approve | Joint handlers: Nick Efe Oni and Chijindu Oreh; operating workflow pending |
@@ -51,7 +60,8 @@ age distribution, or processing changes materially.
 - Advertising or sale of personal data: no
 - Biometric identification: no intended use
 - Full card/bank data stored by Study Buddy: no intended use
-- International processing: likely; exact countries and mechanisms pending
+- International processing: yes; working legal grounds selected, with exact
+  countries, provider assessments, and regulatory validation pending
 
 ## Rights and controls
 
