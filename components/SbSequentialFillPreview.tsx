@@ -3,7 +3,7 @@
 import { useEffect, useId, useState } from "react";
 import Image from "@/components/Image";
 
-const MARK_SRC = "/images/proposed-sb-mark.svg";
+const MARK_SRC = "/images/study-buddy-mark.svg";
 const CYCLE_MS = 9000;
 const BRUSH_CYCLE_MS = 4500;
 const SPLASH_CYCLE_MS = 4500;
