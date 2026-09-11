@@ -66,7 +66,7 @@ export default function AboutUsPage() {
           <div className="max-w-3xl">
             <div className="mb-5 inline-flex items-center gap-2 rounded-lg border border-primary-200 bg-primary-50 px-3 py-2 text-sm font-semibold text-primary-700">
               <Image
-                src="/images/proposed-sb-mark.svg"
+                src="/images/study-buddy-mark.svg"
                 alt=""
                 className="!h-5 !w-5"
                 width={20}
