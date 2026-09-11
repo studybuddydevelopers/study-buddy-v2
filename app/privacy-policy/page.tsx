@@ -25,7 +25,7 @@ export const metadata = createPageMetadata({
   path: "/privacy-policy",
 });
 
-const LAST_UPDATED = "10 September 2026";
+const LAST_UPDATED = "11 September 2026";
 
 const summaryItems: {
   title: string;
@@ -559,9 +559,11 @@ export default function PrivacyPolicyPage() {
               We store the date of birth to enforce the age rule and keep an
               event record of requests, grants, denials, expiry, replacement,
               and any later withdrawal. The approval link is stored only as a
-              cryptographic hash. We may request further proportionate evidence
-              if age, relationship, or authority is disputed or appears
-              inaccurate.
+              cryptographic hash. We do not routinely request identity documents.
+              We may request minimal, proportionate additional evidence only if
+              age, relationship, or authority is disputed, inconsistent, or
+              appears suspicious. We delete that evidence after recording the
+              verification result unless limited retention is required by law.
             </p>
             <p>
               We seek to limit children&apos;s data to what is reasonably needed for
@@ -572,9 +574,14 @@ export default function PrivacyPolicyPage() {
               different lawful basis requires us to keep it.
             </p>
             <p>
-              A parent or guardian may contact us to ask about, correct, or
-              delete a child&apos;s data, subject to the child&apos;s own rights and other
-              applicable legal requirements. Email{" "}
+              A parent or guardian may withdraw authorisation through a verified
+              request, or ask about, correct, or delete a child&apos;s data, subject
+              to the child&apos;s own rights and other applicable legal requirements.
+              After a withdrawal is verified, we sign the child out, restrict
+              the account, stop new AI and WhatsApp activity, and notify the
+              child and adult. Existing data is kept securely only while the
+              adult chooses reauthorisation or permanent deletion, except for
+              limited retention required by law. Email{" "}
               <a
                 href={`mailto:${PRIVACY_EMAIL}`}
                 className="font-medium text-primary-600 hover:underline"
@@ -794,7 +801,7 @@ export default function PrivacyPolicyPage() {
                 </a>
               </p>
               <p className="mt-1">
-                Privacy requests are handled jointly by co-founders{" "}
+                Our joint privacy leads are co-founders{" "}
                 {PRIVACY_REQUEST_HANDLERS.join(" and ")}.
               </p>
               <p className="mt-1">Registered office: {REGISTERED_OFFICE_ADDRESS}</p>
