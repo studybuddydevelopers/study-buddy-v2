@@ -8,7 +8,7 @@ and commercial questions for Study Buddy. Answers are not treated as legal
 approval by themselves. Public notices, product behaviour, internal records,
 and provider settings must be updated together after each answer is confirmed.
 
-Questions 1–28, 30–37, and 39–40 have been answered. The confirmed decisions include the company
+Questions 1–28, 30–37, and 39–41 have an approved working answer. The confirmed decisions include the company
 identity and address, `privacy@studybuddyng.com` as the privacy-request mailbox,
 joint request handling by Nick Efe Oni and Chijindu Oreh, a minimum account age
 of 13, independent activation from 18, and parent or legal-guardian approval for
@@ -66,8 +66,8 @@ to browse identifiable conversations for product improvement.
 The production Supabase project's primary data region is confirmed as North EU
 (Stockholm), Sweden (`eu-north-1`). This establishes the location of primary
 project data only; Supabase support, security, network, backup, and sub-processor
-locations and the required Nigeria-to-Sweden transfer safeguard remain separate
-verification tasks.
+locations and the implementation/validation of the approved transfer policy
+remain separate verification tasks.
 The selected production account-verification and password-reset architecture is
 Supabase Auth with Resend as its custom SMTP delivery provider. The application
 also sends guardian-authorisation and account-lifecycle messages directly
@@ -183,24 +183,39 @@ self-service agreements. Separate countersignatures are not required for those
 incorporated terms. Meta/WhatsApp terms must be confirmed with the business
 account before that optional channel is activated, and Paystack's merchant/DPA
 position remains a precondition to enabling paid checkout. Agreement coverage
-does not answer the separate Question 41 transfer-safeguard review, and account,
-sub-processor, retention, deletion, incident and security evidence must continue
-to be maintained in the processor register.
+does not by itself complete the Question 41 country mapping, risk assessment, or
+regulatory validation, and account, sub-processor, retention, deletion,
+incident and security evidence must continue to be maintained in the processor
+register.
+Question 41 adopts a layered international-transfer policy. Strictly necessary
+core-service transfers rely on section 43(1)(b) contractual necessity. Child
+processing remains subject to verified parent or legal-guardian authorisation,
+and any transfer that relies on consent must follow a specific risk notice and
+recorded choice. Optional WhatsApp and future conversation-based AI improvement
+transfers remain disabled until their separate consent and transfer gates are
+complete. Provider DPAs, contractual clauses, encryption, minimisation, access
+controls, sub-processor review, and transfer assessments provide supporting
+safeguards. EU or UK SCCs are not labelled as an NDPC-approved Nigerian CBDTI
+without Commission approval or recognition. A certified DPO or qualified
+Nigerian privacy adviser must validate the necessity analysis, destination map,
+transfer risk assessments, and whether an NDPC-approved CBDTI is required. The
+full provider map and remaining actions are in the
+[International Data Transfer Assessment](./INTERNATIONAL_DATA_TRANSFER_ASSESSMENT.md).
 
 ## Open questions
 
 29. Who owns or licenses every past question, textbook, explanation, and study resource?
 38. Who will complete and formally approve the children-and-AI Data Protection Impact Assessment, and when?
-41. What legal safeguard covers each international transfer of personal data outside Nigeria?
 42. How will users exercise access, correction, restriction, objection, and data-portability rights, in addition to deletion?
 43. What is the complete personal-data-breach procedure, including investigation, documentation, risk assessment, escalation, and any required NDPC or user notification?
 44. Is Study Buddy legally classified as a Data Controller or Data Processor of Major Importance, and what registration obligations follow?
 
 ## Completion rule
 
-A question is complete only when the co-founders have confirmed the answer and
+A policy question has a working answer when the co-founders have adopted it and
 the answer has been reflected wherever applicable in the product, public legal
-pages, internal compliance records, provider configuration, and operating
-procedures. Questions requiring legal conclusions or regulatory classification
-also require review by a qualified Nigerian privacy adviser or licensed Data
-Protection Compliance Organisation.
+pages, and internal compliance records. Operational and legal launch gates stay
+open until the corresponding provider configuration, evidence, operating
+procedures, and product controls are complete. Questions requiring legal
+conclusions or regulatory classification also require review by a qualified
+Nigerian privacy adviser or licensed Data Protection Compliance Organisation.
