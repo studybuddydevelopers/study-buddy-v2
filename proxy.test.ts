@@ -1,8 +1,24 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { NextRequest } from "next/server";
+
+const mocks = vi.hoisted(() => ({
+  getUser: vi.fn(),
+}));
+
+vi.mock("@supabase/ssr", () => ({
+  createServerClient: () => ({
+    auth: { getUser: mocks.getUser },
+  }),
+}));
+
 import { proxy } from "./proxy";
 
 describe("production route controls", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mocks.getUser.mockResolvedValue({ data: { user: null } });
+  });
+
   afterEach(() => vi.unstubAllEnvs());
 
   it.each([
@@ -105,5 +121,29 @@ describe("production route controls", () => {
     expect(firstNonce).toBeTruthy();
     expect(secondNonce).toBeTruthy();
     expect(firstNonce).not.toBe(secondNonce);
+  });
+
+  it.each([
+    "/forgot-password",
+    "/auth/password-reset?token_hash=secret&type=recovery",
+    "/reset-password/update?token_hash=secret&type=recovery",
+  ])("redirects an authenticated user away from guest-only route %s", async (path) => {
+    vi.stubEnv("NODE_ENV", "production");
+    vi.stubEnv("APP_ORIGIN", "https://studybuddy.example");
+    vi.stubEnv("SUPABASE_URL", "https://project.supabase.co");
+    vi.stubEnv("SUPABASE_PUBLISHABLE_KEY", "public-key");
+    mocks.getUser.mockResolvedValue({
+      data: {
+        user: { user_metadata: { accountStatus: "ACTIVE" } },
+      },
+    });
+
+    const response = await proxy(
+      new NextRequest(`https://localhost:8080${path}`)
+    );
+    const location = response.headers.get("location");
+
+    expect(location).toBe("https://studybuddy.example/already-logged-in");
+    expect(location).not.toContain("secret");
   });
 });
