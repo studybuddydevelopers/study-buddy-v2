@@ -2,7 +2,7 @@
 
 Status: preliminary working assessment — not approved for launch  
 Assessment date: 5 September 2026  
-Last updated: 11 September 2026
+Last updated: 12 September 2026
 Assessment owner: to be appointed  
 Approver: co-founders and qualified Nigerian privacy adviser  
 Next review: before production launch and after any material processing change
@@ -78,6 +78,15 @@ The Supabase production project's primary data region is confirmed as North EU
 support/security/sub-processor locations, transfer mechanisms, and contract
 settings must be entered in the processor register before approval. The primary
 region alone is not treated as proof of transfer compliance.
+The approved working transfer policy uses section 43(1)(b) contractual
+necessity only for transfers strictly necessary to deliver a requested core
+service, with the existing guardian requirements for users aged 13–17 and
+separate informed consent for optional transfers. Provider DPAs and SCCs are
+supporting safeguards but are not recorded as an NDPC-approved Nigerian
+Cross-Border Data Transfer Instrument without Commission approval or
+recognition. The provider mapping, risk-assessment requirements, and approval
+boundary are recorded in the
+[International Data Transfer Assessment](./INTERNATIONAL_DATA_TRANSFER_ASSESSMENT.md).
 The co-founders have confirmed that optional OpenAI API-data sharing for model
 training or improvement is disabled. Preserve dated settings evidence and
 recheck it after organisation ownership or data-control changes.
@@ -140,7 +149,7 @@ provisional until mitigations are implemented and tested.
 | A future school feature exposes student data unexpectedly | High | Keep school-facing access unavailable; require a revised DPIA, notice, agreement, tenant isolation, least privilege, and field-level tests before activation | Low while unavailable; reassess before development or activation |
 | Deleted chats/accounts remain indefinitely | High | Hard-deletion workflow, backup expiry, deletion job, evidence and exception register | Low/Medium |
 | Account takeover exposes learning and chat records | High | Secure auth, CAPTCHA, rate limits, recovery controls, alerts, session revocation and monitoring | Medium |
-| Provider or cross-border processing lacks an approved safeguard | High | Processor register, DPA review, transfer assessment and approved mechanism | Medium |
+| Provider or cross-border processing lacks an approved safeguard | High | Adopted layered transfer policy; complete country/sub-processor mapping, provider-specific transfer assessments, consent evidence where used, certified-DPO validation, and any required NDPC-approved CBDTI | High until those checks and approvals are complete |
 | User cannot understand or exercise rights | Medium | Child-friendly notice, privacy request process, identity checks, response tracker and escalation | Low |
 | Payment dispute is handled unfairly or data is over-collected or retained indefinitely | Medium | Paystack-only payment handling, transparent refunds, minimal transaction records, seven-year transaction policy, complaint route; implement expiry and legal-hold controls | Low/Medium until automated expiry is verified |
 | Learning analytics unfairly labels or discourages a student | Medium | Explain recommendations, avoid high-stakes decisions, allow correction/review, test for bias | Low/Medium |
@@ -175,7 +184,7 @@ decisions, and reasons when a recommendation is not adopted.
 - [x] Resend custom SMTP is enabled for production Supabase Auth, and production account-verification and password-reset delivery have been exercised.
 - [ ] AI safety evaluation passes agreed child-safety and educational thresholds.
 - [ ] Verify 90-day provider backup expiry and implement the remaining approved retention jobs; the account scheduler and chat-only hard deletion are deployed in code and the scheduler has passed a production invocation.
-- [ ] Processor agreements, regions, sub-processors, and transfer bases verified.
+- [ ] Provider agreements are recorded and a working transfer policy is adopted; verify every country/sub-processor, complete each transfer assessment, record consent evidence where used, obtain certified-DPO validation, and obtain any required NDPC CBDTI approval.
 - [ ] Incident-response contacts and breach register are operational.
 - [ ] Privacy-right request workflow and response register are operational.
 - [ ] Accessibility audit covers sign-up, privacy requests, chat, and exams.
