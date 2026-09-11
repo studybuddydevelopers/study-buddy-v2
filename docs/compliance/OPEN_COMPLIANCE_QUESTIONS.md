@@ -8,7 +8,7 @@ and commercial questions for Study Buddy. Answers are not treated as legal
 approval by themselves. Public notices, product behaviour, internal records,
 and provider settings must be updated together after each answer is confirmed.
 
-Questions 1–24 have been answered. The confirmed decisions include the company
+Questions 1–25 have been answered. The confirmed decisions include the company
 identity and address, `privacy@studybuddyng.com` as the privacy-request mailbox,
 joint request handling by Nick Efe Oni and Chijindu Oreh, a minimum account age
 of 13, independent activation from 18, and parent or legal-guardian approval for
@@ -81,10 +81,15 @@ and security logging is provided through the application and the Cloudflare,
 Railway, Supabase, and Resend services. Any future non-essential analytics,
 advertising, or tracking requires a prior policy/DPIA review and any legally
 required notice and consent controls.
+When paid subscriptions are enabled, they will renew automatically for the
+disclosed billing period until cancelled. Paid checkout remains disabled during
+the current beta. Before activation, checkout must clearly disclose the price,
+billing frequency, renewal timing, and cancellation route and must record the
+customer's explicit authorisation. Questions 26–28 must define cancellation and
+refund operations before recurring charges are accepted.
 
 ## Open questions
 
-25. Will paid subscriptions renew automatically?
 26. Exactly how will users cancel subscriptions?
 27. What refund period, if any, will apply?
 28. Which circumstances qualify for refunds?
