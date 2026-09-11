@@ -71,10 +71,11 @@ const sections: PolicyDocumentSection[] = [
           connected to the account and include the payment reference.
         </p>
         <p>
-          Cancellation stops the next renewal and does not remove paid access
-          for the current billing period. Access continues until the end of the
-          period already paid for. We will not charge a cancellation fee unless
-          it was disclosed in advance and is reasonable and lawful.
+          Cancellation stops the next renewal, and paid access ends on the
+          cancellation date. We will not enable paid subscriptions until this
+          policy and checkout clearly state whether and how any unused prepaid
+          period is refunded or credited. We will not charge a cancellation fee
+          unless it was disclosed in advance and is reasonable and lawful.
         </p>
       </>
     ),
