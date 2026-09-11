@@ -76,14 +76,28 @@ clear.
 The flow must not use dark patterns, bundle optional marketing consent, or make
 privacy settings harder to reject than accept.
 
+## Verification evidence
+
+- Routine verification uses the student's declared date of birth, the adult's
+  control of the guardian email link, and the adult's declaration of authority.
+- Do not routinely request identity documents.
+- Request minimal, proportionate additional evidence only when age,
+  relationship, or authority is disputed, inconsistent, or appears suspicious.
+- Delete raw additional evidence after recording the verification result unless
+  a documented legal requirement justifies limited retention.
+
 ## Withdrawal and disputes
 
-- Provide an email route to withdraw authorisation and add the planned online
-  self-service route.
+- Accept withdrawal only through a verified request to
+  `privacy@studybuddyng.com`; do not add a self-service route unless the policy
+  changes.
 - Verify the requester without collecting excessive new information.
-- Restrict affected processing promptly while a dispute is investigated.
-- Explain what will be deleted, retained under law, or returned to a school.
-- Record withdrawal as a new event and trigger the approved deletion workflow.
+- Immediately sign the child out, restrict the account, stop new AI and WhatsApp
+  activity, and notify both the child and adult after verification.
+- Retain existing data securely only while the adult chooses reauthorisation or
+  permanent deletion, except for limited retention required by law.
+- Record withdrawal as a new event and record the later reauthorisation or
+  permanent-deletion decision.
 - Escalate safeguarding conflicts to the appointed privacy/safeguarding owner.
 
 ## Access control
@@ -108,8 +122,12 @@ approved Data Retention and Deletion Schedule and legal holds.
 - [x] The authoriser sees current policy versions before deciding.
 - [x] Links are single-use, expire, and cannot authorise a different account.
 - [x] Consent is not preselected or bundled with marketing.
+- [x] Routine age/authority evidence is minimised to date of birth, email-link
+  control, and the adult declaration; stepped-up evidence is exception-only.
 - [ ] Every grant, denial, expiry, and withdrawal creates an append-only event. Grant, denial, expiry, replacement and resend events are implemented; the operator withdrawal action remains pending.
-- [ ] Withdrawal restricts features and triggers deletion or review correctly.
+- [ ] Verified-email withdrawal signs the child out, restricts features, stops
+  new AI/WhatsApp activity, notifies both parties, and enters the approved
+  reauthorisation-or-deletion review state.
 - [ ] Support cannot disclose child data without verifying authority.
 - [x] School staff cannot authorise or view learners because no school-facing
   account or access role is currently provided.
