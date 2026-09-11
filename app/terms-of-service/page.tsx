@@ -433,9 +433,12 @@ export default function TermsOfServicePage() {
               email billing@studybuddyng.com from your account email address and
               include the payment reference. Cancellation stops the next
               renewal, and paid access ends on the cancellation date. Paid
-              subscriptions will not be enabled until the refund or credit
-              treatment for any unused prepaid period is clearly stated at
-              checkout and in our Refund and Cancellation Policy. Refunds are
+              subscription time remaining between cancellation and the next
+              scheduled renewal will be calculated on a prorated basis and
+              automatically refunded through the original payment method. You
+              do not need to submit a separate request for that cancellation
+              refund. Payment-provider and bank settlement time may continue
+              after we initiate it. Other refunds are
               available where required by Nigerian consumer law, including where
               a paid service is not supplied as agreed, and in any additional
               circumstances stated at checkout. Nothing in these terms removes
