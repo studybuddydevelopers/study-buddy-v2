@@ -159,7 +159,7 @@ decisions, and reasons when a recommendation is not adopted.
 - [x] Co-founders confirmed that OpenAI API-data sharing for model improvement is disabled.
 - [x] Co-founders approved future use of selected conversation data for Study Buddy's own AI training/evaluation, subject to the documented activation gates.
 - [x] Conversation-based AI training/evaluation remains disabled for the current beta and existing evaluations use purpose-built fixtures.
-- [ ] Verify Resend custom SMTP is enabled for production Supabase Auth and test account-verification and password-reset delivery to a non-team address.
+- [x] Resend custom SMTP is enabled for production Supabase Auth, and production account-verification and password-reset delivery have been exercised.
 - [ ] AI safety evaluation passes agreed child-safety and educational thresholds.
 - [ ] Verify 90-day provider backup expiry and implement the remaining approved retention jobs; the account scheduler and chat-only hard deletion are deployed in code and the scheduler has passed a production invocation.
 - [ ] Processor agreements, regions, sub-processors, and transfer bases verified.
