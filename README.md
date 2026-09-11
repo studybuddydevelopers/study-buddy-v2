@@ -149,7 +149,7 @@ These items cannot be solved by publishing policies and remain launch work:
 - [x] Confirm that future paid subscriptions renew automatically after clear
   disclosure and customer authorisation.
 - [x] Confirm in-app cancellation under Settings → Subscription, confirmation
-  email, end-of-paid-period access, and `billing@studybuddyng.com` fallback.
+  email, same-day end of paid access, and `billing@studybuddyng.com` fallback.
 - [ ] Implement the approved renewal/cancellation controls and confirm refund
   operations before paid launch.
 - [ ] Complete child-focused AI safety tests and a human escalation/reporting workflow.
