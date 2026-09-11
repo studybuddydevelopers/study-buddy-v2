@@ -9,7 +9,10 @@ the core test suite passes, Railway and the custom domain are active, Cloudflare
 is in front of the site, and the principal authentication, rate-limit, AI-budget,
 security-header, account-lifecycle, and deletion controls are implemented.
 
-The recommended first release is a **free, invite-only beta for 20–50 users**.
+The recommended first release is a **free, invite-only beta for 20–50 users**,
+consistent with the current first-year estimate of approximately 50 registered
+users. Approximately 40 users (80%) are expected to be under 18, so the beta
+must be operated as a predominantly child-facing service.
 Keep paid checkout disabled while the Paystack secret remains a placeholder and
 until automatic-renewal implementation, cancellation, refund, finance, and
 provider-review work is closed.
@@ -30,8 +33,9 @@ readiness sign-off.
 ## Work required before the controlled beta
 
 1. Complete production smoke tests for adult sign-up, age gating, guardian
-   authorisation, login/logout, password reset, AI chat, quotas, settings,
-   deactivation, reactivation, and the staged deletion path.
+   authorisation and verified-email withdrawal, login/logout, password reset, AI
+   chat, quotas, settings, deactivation, reactivation, and the staged deletion
+   path.
 2. Re-test the app-owned verification and password-reset callbacks after their
    next deployment, and complete production smoke tests for guardian, warning,
    and deletion messages. Supabase Auth with Resend custom SMTP is enabled and
@@ -43,8 +47,11 @@ readiness sign-off.
    backup expiry/restoration controls, remaining provider regions, and secret
    rotation. Supabase's primary project region is confirmed as North EU
    (Stockholm), Sweden (`eu-north-1`).
-5. Establish the secure privacy-request/breach registers, named incident contacts,
-   escalation channels, and an exercised rollback/incident procedure.
+5. Establish the secure privacy-request/breach registers, assign the remaining
+   incident roles and provider escalations, and exercise the rollback/incident
+   procedure. Nick Efe Oni and Chijindu Oreh are already the mandatory internal
+   breach contacts through `security@studybuddyng.com`, with the privacy mailbox
+   copied.
 6. Run a child-focused AI safety test and accessibility smoke test across the
    sign-up, guardian, chat, settings, and privacy-request paths.
 7. Confirm learning-content provenance and display an explicit beta notice,
