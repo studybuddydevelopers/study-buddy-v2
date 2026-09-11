@@ -8,7 +8,7 @@ and commercial questions for Study Buddy. Answers are not treated as legal
 approval by themselves. Public notices, product behaviour, internal records,
 and provider settings must be updated together after each answer is confirmed.
 
-Questions 1–26 have been answered. The confirmed decisions include the company
+Questions 1–27 have been answered. The confirmed decisions include the company
 identity and address, `privacy@studybuddyng.com` as the privacy-request mailbox,
 joint request handling by Nick Efe Oni and Chijindu Oreh, a minimum account age
 of 13, independent activation from 18, and parent or legal-guardian approval for
@@ -93,13 +93,15 @@ confirmation, cancellation stops the next automatic renewal, sends an email
 confirmation, and ends paid access on the cancellation date. A user who cannot
 use the in-app control may email
 `billing@studybuddyng.com` from the account address and include the payment
-reference. Cancellation must not depend solely on the email fallback. Question
-27 must decide whether and how any unused prepaid period is refunded or credited
-before paid subscriptions are enabled.
+reference. Cancellation must not depend solely on the email fallback. When a
+cancellation ends access, Study Buddy will automatically refund the prorated
+unused subscription time from the cancellation time to the next scheduled
+renewal. The user does not need to submit a separate refund request. The refund
+is returned through the original payment method; provider and bank settlement
+time is separate from Study Buddy initiating it.
 
 ## Open questions
 
-27. What refund period, if any, will apply?
 28. Which circumstances qualify for refunds?
 29. Who owns or licenses every past question, textbook, explanation, and study resource?
 30. Does Study Buddy have any official WAEC partnership, licence, or affiliation?
