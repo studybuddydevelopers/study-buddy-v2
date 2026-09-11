@@ -8,7 +8,7 @@ and commercial questions for Study Buddy. Answers are not treated as legal
 approval by themselves. Public notices, product behaviour, internal records,
 and provider settings must be updated together after each answer is confirmed.
 
-Questions 1–27 have been answered. The confirmed decisions include the company
+Questions 1–28 have been answered. The confirmed decisions include the company
 identity and address, `privacy@studybuddyng.com` as the privacy-request mailbox,
 joint request handling by Nick Efe Oni and Chijindu Oreh, a minimum account age
 of 13, independent activation from 18, and parent or legal-guardian approval for
@@ -99,10 +99,15 @@ unused subscription time from the cancellation time to the next scheduled
 renewal. The user does not need to submit a separate refund request. The refund
 is returned through the original payment method; provider and bank settlement
 time is separate from Study Buddy initiating it.
+Apart from that automatic cancellation refund, Study Buddy will issue refunds
+only for a duplicate payment, a payment taken when the paid service was not
+provided, Study Buddy discontinuing a prepaid service, or another refund
+required by Nigerian consumer law. An unauthorised-payment claim, accidental
+purchase, change of mind, outage, or general dissatisfaction is not a separate
+discretionary ground unless the facts also meet one of those four grounds.
 
 ## Open questions
 
-28. Which circumstances qualify for refunds?
 29. Who owns or licenses every past question, textbook, explanation, and study resource?
 30. Does Study Buddy have any official WAEC partnership, licence, or affiliation?
 31. Is NDPC registration **No** or **In progress**? CAC incorporation does not constitute NDPC registration.
