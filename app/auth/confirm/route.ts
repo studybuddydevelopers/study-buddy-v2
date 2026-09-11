@@ -2,6 +2,7 @@ import { createServerClient } from "@supabase/ssr";
 import { NextResponse } from "next/server";
 import { getServerSupabaseConfig } from "@/lib/supabase/config";
 import { fetchWithTimeout } from "@/lib/security/timeouts";
+import { authRedirectUrl } from "@/lib/supabase/auth-redirect";
 
 export const dynamic = "force-dynamic";
 
@@ -15,7 +16,7 @@ export async function GET(request: Request) {
   }
 
   const response = NextResponse.redirect(
-    new URL("/dashboard?email_confirmed=true", requestUrl.origin)
+    authRedirectUrl("/dashboard?email_confirmed=true", request.url)
   );
   response.headers.set("Cache-Control", "no-store");
 
@@ -55,7 +56,9 @@ function confirmationErrorResponse(
   requestUrl: URL,
   status: "expired" | "invalid"
 ) {
-  const redirectUrl = new URL("/verify-email", requestUrl.origin);
+  const redirectUrl = new URL(
+    authRedirectUrl("/verify-email", requestUrl.toString())
+  );
   redirectUrl.searchParams.set("status", status);
   return NextResponse.redirect(redirectUrl, {
     headers: { "Cache-Control": "no-store" },
