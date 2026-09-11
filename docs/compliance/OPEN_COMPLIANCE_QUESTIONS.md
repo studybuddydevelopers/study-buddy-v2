@@ -8,7 +8,7 @@ and commercial questions for Study Buddy. Answers are not treated as legal
 approval by themselves. Public notices, product behaviour, internal records,
 and provider settings must be updated together after each answer is confirmed.
 
-Questions 1–28 have been answered. The confirmed decisions include the company
+Questions 1–28 and 30 have been answered. The confirmed decisions include the company
 identity and address, `privacy@studybuddyng.com` as the privacy-request mailbox,
 joint request handling by Nick Efe Oni and Chijindu Oreh, a minimum account age
 of 13, independent activation from 18, and parent or legal-guardian approval for
@@ -114,11 +114,16 @@ other third-party content included or referenced in a deliverable. The current
 seeded question bank was generated using AI. Question 29 therefore remains open
 until the source and permitted use of every learner-visible item are recorded,
 including separate permission for any genuine past-question content.
+Study Buddy does not currently have an official partnership, licence,
+permission, affiliation, sponsorship, approval, or endorsement from WAEC. The
+co-founders intend to seek an appropriate written relationship or permission.
+That intention must not be represented as an existing relationship, and public
+claims must be updated only after an agreement is executed and its scope is
+verified.
 
 ## Open questions
 
 29. Who owns or licenses every past question, textbook, explanation, and study resource?
-30. Does Study Buddy have any official WAEC partnership, licence, or affiliation?
 31. Is NDPC registration **No** or **In progress**? CAC incorporation does not constitute NDPC registration.
 32. Who will be appointed DPO or privacy lead?
 33. Approximately how many registered users are expected in year one?
