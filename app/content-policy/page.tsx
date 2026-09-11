@@ -5,7 +5,7 @@ import PolicyDocumentPage, {
 import { SUPPORT_EMAIL } from "@/lib/legal-entity";
 import { createPageMetadata } from "@/lib/site-metadata";
 
-const LAST_UPDATED = "8 September 2026";
+const LAST_UPDATED = "11 September 2026";
 
 export const metadata = createPageMetadata({
   title: "Content and Copyright Policy",
@@ -84,10 +84,12 @@ const sections: PolicyDocumentSection[] = [
     title: "Examination-body references",
     content: (
       <p>
-        References to WAEC or another examination body identify the curriculum,
-        examination style, source, or learning context. They do not by themselves
-        mean that Study Buddy is sponsored, approved, licensed, or endorsed by
-        that body. Any official relationship must be expressly identified.
+        Study Buddy does not currently have an official partnership, licence,
+        permission, affiliation, sponsorship, approval, or endorsement from
+        WAEC. References to WAEC or another examination body identify only the
+        curriculum, examination style, source, or learning context. We intend to
+        seek an appropriate relationship or permission, but will identify one as
+        official only after it has been agreed in writing.
       </p>
     ),
   },
