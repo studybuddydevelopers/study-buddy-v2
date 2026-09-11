@@ -74,7 +74,7 @@ DPIA, security, withdrawal and testing gates are complete. Supabase's production
 primary project region is confirmed as North EU (Stockholm), Sweden
 (`eu-north-1`). Whether the joint privacy leads require a separate formal DPO
 designation, plus the remaining retention periods, other provider/Supabase
-processing locations and contracts, transfer safeguards, and payment rules require
+processing locations, transfer safeguards, and payment rules require
 co-founder decisions and qualified Nigerian legal/privacy review.
 Supabase Auth with Resend custom SMTP is the approved production provider path
 for account verification and password recovery. Production custom SMTP and live
@@ -109,7 +109,7 @@ also link directly to the detailed notices relevant to their sections.
 | [`PERSONAL_DATA_BREACH_RESPONSE_PLAN.md`](/Users/efeon/study-buddy-v2/docs/compliance/PERSONAL_DATA_BREACH_RESPONSE_PLAN.md) | Incident stages, statutory decision clock, risk assessment, notice content, child safeguards and closure process | Names, secure channels, provider contacts, breach register location and exercise evidence require organisational setup outside the codebase |
 | [`CONVERSATION_ACCESS_POLICY.md`](/Users/efeon/study-buddy-v2/docs/compliance/CONVERSATION_ACCESS_POLICY.md) | Approved no-routine-reading rule, narrow permitted cases, two-founder beta authority, minimum access controls and emergency review rule | The restricted, time-limited, audited break-glass workflow remains to be implemented and tested |
 | [`CONVERSATION_AI_IMPROVEMENT_POLICY.md`](/Users/efeon/study-buddy-v2/docs/compliance/CONVERSATION_AI_IMPROVEMENT_POLICY.md) | Records the in-principle decision, current disabled state, off-by-default participation rule, data controls, withdrawal requirements and activation gate | Consent UI/records, de-identification, isolated datasets, lineage/deletion, retention, testing, revised DPIA and legal review remain to be implemented before activation |
-| [`PROCESSOR_AND_VENDOR_REGISTER.md`](/Users/efeon/study-buddy-v2/docs/compliance/PROCESSOR_AND_VENDOR_REGISTER.md) | Initial register for Supabase, OpenAI, Meta, Paystack, Railway, Cloudflare, CAPTCHA, email and source-control providers; Railway's executed DPA and Supabase's incorporated DPA/company-organisation evidence are privately retained | Complete company-account identity and agreement evidence for the other providers, then verify production regions, sub-processors, retention and transfer safeguards |
+| [`PROCESSOR_AND_VENDOR_REGISTER.md`](/Users/efeon/study-buddy-v2/docs/compliance/PROCESSOR_AND_VENDOR_REGISTER.md) | Initial register for Supabase, OpenAI, Meta, Paystack, Railway, Cloudflare, CAPTCHA, email and source-control providers; Question 40 agreement coverage is confirmed for the current beta provider set | Strengthen company-account/acceptance evidence and verify production regions, sub-processors, retention and transfer safeguards; re-run the gate before enabling WhatsApp, Paystack or any new provider |
 | [`PROVIDER_AGREEMENT_EVIDENCE.md`](/Users/efeon/study-buddy-v2/docs/compliance/PROVIDER_AGREEMENT_EVIDENCE.md) | Non-confidential index, sources and hashes for locally saved public provider agreements | Account-specific executed agreements and acceptance screenshots must be stored privately and must never be committed to this repository |
 | [`SCHOOL_DATA_PROCESSING_SCHEDULE.md`](/Users/efeon/study-buddy-v2/docs/compliance/SCHOOL_DATA_PROCESSING_SCHEDULE.md) | Contract template covering roles, instructions, visibility, security, rights, deletion, incidents and audit | It cannot be signed until both legal entities, controller/processor roles, exact staff visibility, service terms, contacts and retention periods are agreed |
 | [`RECORD_OF_PROCESSING_ACTIVITIES.md`](/Users/efeon/study-buddy-v2/docs/compliance/RECORD_OF_PROCESSING_ACTIVITIES.md) | Initial inventory of current controller and possible school-processor activities | Replace preliminary bases/roles with approved decisions and reconcile it against production provider dashboards and configuration before launch |
@@ -144,8 +144,8 @@ These items cannot be solved by publishing policies and remain launch work:
 - [ ] Before any future school service, define and test school roles and
   field-level student visibility, update the DPIA/notices, and execute suitable
   agreements.
-- [ ] Verify remaining production provider/Supabase processing locations, DPAs,
-  sub-processors and cross-border safeguards; the Supabase primary project region
+- [ ] Verify remaining production provider/Supabase processing locations,
+  account/acceptance evidence, sub-processors and cross-border safeguards; the Supabase primary project region
   is confirmed as North EU (Stockholm), Sweden (`eu-north-1`).
 - [x] Enable Resend custom SMTP in the production Supabase Auth dashboard and
   verify that account-verification and password-reset messages are delivered.
