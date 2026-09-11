@@ -316,8 +316,11 @@ export default function PrivacyPolicyPage() {
                 <strong>To provide the service and take requested steps:</strong>{" "}
                 create and secure accounts; provide practice, mock exams,
                 saved drafts, progress tracking, AI support, WhatsApp tutoring,
-                subscriptions, and support. We rely on performance of our
-                agreement with you or steps you request before entering it.
+                subscriptions, and support. For an adult, we rely on performance
+                of our agreement with you or steps you request before entering
+                it. For a user aged 13–17, we require verified consent from a
+                parent or legal guardian and make the service agreement with the
+                guardian where appropriate.
               </ListItem>
               <ListItem>
                 <strong>For our legitimate interests:</strong> protect accounts,
@@ -332,9 +335,17 @@ export default function PrivacyPolicyPage() {
               </ListItem>
               <ListItem>
                 <strong>With consent:</strong> where consent is the appropriate
-                basis, including a parent&apos;s or guardian&apos;s valid consent for a
-                child where required. You may withdraw consent, but this does
-                not affect earlier lawful processing.
+                basis, including optional WhatsApp communications,
+                non-essential marketing, a parent&apos;s or guardian&apos;s valid consent
+                for a child where required, and the separately described future
+                AI-improvement programme. Optional choices are kept separate
+                from the ordinary service. You may withdraw consent, but this
+                does not affect earlier lawful processing.
+              </ListItem>
+              <ListItem>
+                <strong>To protect vital interests:</strong> only in an
+                exceptional, genuine emergency where processing is necessary to
+                protect someone&apos;s life or immediate safety.
               </ListItem>
             </ul>
             <p>
@@ -342,6 +353,8 @@ export default function PrivacyPolicyPage() {
               parties, and we do not use it for targeted advertising. We may use
               data that has been irreversibly anonymised or combined so it no
               longer identifies a person to understand and improve the service.
+              Removing direct identifiers alone is not enough: pseudonymised
+              information remains protected as personal data.
             </p>
           </PolicySection>
 
