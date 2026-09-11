@@ -168,7 +168,7 @@ Paid checkout remains disabled during the current beta. The co-founders have
 approved automatic renewal for future paid subscriptions, but approval does not
 mean recurring billing is implemented or ready for customers.
 
-- [ ] Complete Questions 27–28 and align cancellation and refund behaviour with
+- [ ] Complete Question 28 and align cancellation and refund behaviour with
   the Terms, Refund Policy, checkout copy, support procedure, and Paystack setup.
 - [ ] Show the total recurring price, currency, billing period, expected first
   renewal timing, cancellation method, and material plan limits immediately
@@ -185,8 +185,16 @@ mean recurring billing is implemented or ready for customers.
 - [ ] Add **Settings → Subscription → Cancel subscription** with a deliberate
   confirmation step. It must stop the next renewal, preserve paid access through
   the cancellation date only, end paid access that day, and send an account-email
-  confirmation. Do not enable this until Question 27 defines the refund or credit
-  treatment for any unused prepaid period.
+  confirmation.
+- [ ] At cancellation, calculate the unused time from the cancellation timestamp
+  to the next scheduled renewal, prorate in the transaction currency using a
+  documented and consistently rounded smallest-unit calculation, and initiate
+  the refund automatically through the original payment method. Make the refund
+  idempotent so retries or duplicate webhooks cannot issue it twice.
+- [ ] Show the calculated cancellation date and estimated prorated refund before
+  confirmation, then include the initiated refund amount/reference in the email
+  without exposing sensitive payment data. Clearly separate Study Buddy's
+  initiation from provider/bank settlement time.
 - [ ] Support `billing@studybuddyng.com` as an accessible fallback. Authenticate
   the requester using the account email and payment reference without collecting
   card, bank-login, password, PIN, CVV, or one-time-code data.
@@ -204,7 +212,7 @@ Acceptance criteria:
    or delayed provider events cannot reactivate a cancelled subscription.
 3. Payment and webhook logs contain no card or bank credentials and preserve the
    approved minimum seven-year financial evidence.
-4. Questions 27–28, consumer-law review, operational support ownership, and
+4. Question 28, consumer-law review, operational support ownership, and
    end-to-end Paystack tests are complete before paid launch.
 
 ## P2 — Before enabling conversation-based AI improvement
