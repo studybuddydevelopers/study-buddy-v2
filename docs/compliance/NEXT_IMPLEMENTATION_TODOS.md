@@ -150,12 +150,18 @@ Acceptance criteria:
   recommendation rows, AI generation metadata, rate-limit/usage records,
   guardian-authorisation evidence, support records, and security events.
 - [ ] Add a central deletion-evidence register and a quarterly sample audit owned
-  by the appointed privacy lead.
+  by the appointed joint privacy leads.
 
 ## P1 — Privacy operations needed for beta
 
-- [ ] Add guardian self-service withdrawal and ensure withdrawal immediately
-  restricts the relevant child features and records an append-only event.
+- [ ] Build a restricted operator action for a verified withdrawal request sent
+  to `privacy@studybuddyng.com`; do not expose a general admin or self-service
+  endpoint. It must verify the requesting adult against the authorisation record,
+  atomically mark the grant withdrawn, disable AI access, restrict the account,
+  terminate sessions, record an append-only event and case reference, and notify
+  both the student and adult.
+- [ ] Add the restricted pending-choice state for reauthorisation or permanent
+  deletion, define its maximum retention period, and test both outcomes.
 - [ ] Create secure privacy-request and personal-data-breach registers with named
   owners, access restrictions, deadlines, and escalation rules.
 - [ ] Test account access, correction, restriction, objection, portability, and
