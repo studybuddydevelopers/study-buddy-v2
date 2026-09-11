@@ -82,20 +82,25 @@ The co-founders have confirmed that optional OpenAI API-data sharing for model
 training or improvement is disabled. Preserve dated settings evidence and
 recheck it after organisation ownership or data-control changes.
 
-## 5. Purposes and preliminary lawful bases
+## 5. Purposes and selected lawful bases
 
-| Purpose | Preliminary basis | Conditions before approval |
+| Purpose | Selected basis | Conditions before approval |
 | --- | --- | --- |
-| Create and provide an account and requested learning features | Contract or steps requested before contract | Confirm the final basis with Nigerian counsel; the product uses a 13+ minimum and independent activation from 18 |
-| Child account processing | Parent/legal guardian authorisation for ages 13–17 | Review the email-link/declaration assurance level, build the approved verified-email operator withdrawal workflow, and approve the pending-choice and event-retention periods |
-| AI answers and personalised recommendations | Contract for requested features; legitimate interests where appropriately balanced | Explain processing, minimise context, provide controls and human-review route |
-| Account and service security | Legitimate interests; legal obligation where applicable | Complete legitimate-interest assessment and retention period |
-| Transaction and compliance records | Contract and legal obligation | Confirm statutory retention with finance/legal adviser |
-| Optional communications or future analytics | Consent or another documented basis | Separate opt-in and consent withdrawal before activation |
+| Create and provide an adult account and requested learning features | Contract or steps requested before contract | Certified-DPO validation; the product uses a 13+ minimum and independent activation from 18 |
+| Child account and learning-feature processing | Verified parent/legal-guardian consent for ages 13–17; contract with the guardian where appropriate | Review the email-link/declaration assurance level, build the approved verified-email operator withdrawal workflow, and approve the pending-choice and event-retention periods |
+| AI answers and personalised recommendations | Contract for adults requesting the feature; verified parent/legal-guardian consent and the appropriate guardian agreement for ages 13–17 | Explain processing, minimise context, provide controls and human-review route |
+| Account and service security, fraud and abuse prevention, and reliability | Legitimate interests; legal obligation where applicable | Complete and approve a legitimate-interest assessment and retention period |
+| Transaction and compliance records | Contract and legal obligation; legitimate interests for proportionate fraud prevention and legal claims | Confirm statutory retention with finance/legal adviser |
+| Essential account, security, deletion, and payment communications | Contract and legal obligation; legitimate interests where strictly necessary for security | Keep content necessary and distinguish it from marketing |
+| Optional WhatsApp communications and non-essential marketing | Separate, specific consent | Keep choices off by default and implement withdrawal before activation |
+| Internal product statistics | No personal-data basis needed once irreversibly anonymised; legitimate interests for any necessary personal-data stage | Prove anonymisation and complete a legitimate-interest assessment before introducing personal analytics |
+| Exceptional immediate-safety response | Vital interests | Use only for a genuine emergency and document necessity and access |
+| Public-interest processing | Not selected for the ordinary commercial service | Reassess only if a specific legal/public task later applies |
 
 No team member should assume that consent is always the appropriate basis.
 Every purpose must have one recorded basis and any required balancing or consent
-evidence.
+evidence. These co-founder selections require formal validation by the certified
+DPO who completes or approves this DPIA under open Question 38.
 
 ## 6. Necessity and proportionality
 
