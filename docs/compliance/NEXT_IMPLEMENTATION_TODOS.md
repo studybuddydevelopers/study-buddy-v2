@@ -184,7 +184,9 @@ mean recurring billing is implemented or ready for customers.
   handling must remain signature-verified, idempotent, and safely retryable.
 - [ ] Add **Settings → Subscription → Cancel subscription** with a deliberate
   confirmation step. It must stop the next renewal, preserve paid access through
-  the current billing period, and send an account-email confirmation.
+  the cancellation date only, end paid access that day, and send an account-email
+  confirmation. Do not enable this until Question 27 defines the refund or credit
+  treatment for any unused prepaid period.
 - [ ] Support `billing@studybuddyng.com` as an accessible fallback. Authenticate
   the requester using the account email and payment reference without collecting
   card, bank-login, password, PIN, CVV, or one-time-code data.
