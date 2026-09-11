@@ -94,7 +94,7 @@ operational/security logging is approved.
 | [`/ai-safety`](/Users/efeon/study-buddy-v2/app/ai-safety/page.tsx) | Implemented with limitations, privacy, academic-integrity, prohibited-use, narrow staff-review authority, future AI-improvement safeguards, and reporting rules | Update after child-safety evaluation, reporting UI, staff-access tooling, escalation owners and any new AI model/use case are implemented |
 | [`/cookie-policy`](/Users/efeon/study-buddy-v2/app/cookie-policy/page.tsx) | Accurate for essential auth, local drafts and CAPTCHA; states that advertising/behavioural cookies are not currently used | Update and implement consent controls before adding non-essential analytics, advertising pixels, session replay or similar tracking |
 | [`/accessibility`](/Users/efeon/study-buddy-v2/app/accessibility/page.tsx) | Implemented without making an unsupported conformance claim | Add tested WCAG version, scope, methods, failures and remediation dates after an independent accessibility audit |
-| [`/content-policy`](/Users/efeon/study-buddy-v2/app/content-policy/page.tsx) | Implemented for permitted use, user submissions, errors and rights complaints | Update after every learning resource has recorded provenance/licensing and the co-founders confirm whether any WAEC relationship exists |
+| [`/content-policy`](/Users/efeon/study-buddy-v2/app/content-policy/page.tsx) | Covers permitted use, rights complaints, and the confirmed absence of a current WAEC relationship while permission is being pursued | Update after every learning resource has recorded provenance/licensing or an executed WAEC agreement changes the current position |
 
 All pages are linked from the responsive footer. The Privacy Policy and Terms
 also link directly to the detailed notices relevant to their sections.
@@ -166,7 +166,7 @@ These items cannot be solved by publishing policies and remain launch work:
   memorisation tests, updated DPIA, legal review and release gate documented in
   `NEXT_IMPLEMENTATION_TODOS.md`.
 - [ ] Run an independent WCAG 2.2 AA audit and remediate core-flow barriers.
-- [ ] Complete learning-content provenance/licensing records and confirm WAEC relationship status.
+- [ ] Complete learning-content provenance/licensing records and obtain an appropriate written WAEC licence or permission before reproducing genuine past questions.
 - [ ] Appoint incident owners, create secure request/breach registers and run a breach exercise.
 - [ ] Have a qualified Nigerian privacy/consumer lawyer or licensed DPCO review the final system and documents.
 
