@@ -168,8 +168,11 @@ Paid checkout remains disabled during the current beta. The co-founders have
 approved automatic renewal for future paid subscriptions, but approval does not
 mean recurring billing is implemented or ready for customers.
 
-- [ ] Complete Question 28 and align cancellation and refund behaviour with
-  the Terms, Refund Policy, checkout copy, support procedure, and Paystack setup.
+- [ ] Align the approved cancellation and refund behaviour with the Terms,
+  Refund Policy, checkout copy, support procedure, and Paystack setup. Apart
+  from automatic prorated cancellation refunds, the only grounds are duplicate
+  payment, paid service not provided, Study Buddy discontinuing a prepaid
+  service, or a refund required by Nigerian consumer law.
 - [ ] Show the total recurring price, currency, billing period, expected first
   renewal timing, cancellation method, and material plan limits immediately
   before payment authorisation.
@@ -212,8 +215,8 @@ Acceptance criteria:
    or delayed provider events cannot reactivate a cancelled subscription.
 3. Payment and webhook logs contain no card or bank credentials and preserve the
    approved minimum seven-year financial evidence.
-4. Question 28, consumer-law review, operational support ownership, and
-   end-to-end Paystack tests are complete before paid launch.
+4. Consumer-law review, operational support ownership, and end-to-end Paystack
+   tests are complete before paid launch.
 
 ## P2 — Before enabling conversation-based AI improvement
 
