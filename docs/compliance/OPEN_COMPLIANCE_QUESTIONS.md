@@ -1,14 +1,14 @@
 # Open Legal and Compliance Questions
 
 Status: co-founder decisions and external verification required  
-Last updated: 10 September 2026
+Last updated: 11 September 2026
 
 This is the authoritative working list of unresolved legal, privacy, product,
 and commercial questions for Study Buddy. Answers are not treated as legal
 approval by themselves. Public notices, product behaviour, internal records,
 and provider settings must be updated together after each answer is confirmed.
 
-Questions 1–22 have been answered. The confirmed decisions include the company
+Questions 1–24 have been answered. The confirmed decisions include the company
 identity and address, `privacy@studybuddyng.com` as the privacy-request mailbox,
 joint request handling by Nick Efe Oni and Chijindu Oreh, a minimum account age
 of 13, independent activation from 18, and parent or legal-guardian approval for
@@ -71,18 +71,19 @@ verification tasks.
 The selected production account-verification and password-reset architecture is
 Supabase Auth with Resend as its custom SMTP delivery provider. The application
 also sends guardian-authorisation and account-lifecycle messages directly
-through Resend. Code paths and local configuration names match this decision,
-but the production Supabase dashboard's custom-SMTP state and an end-to-end
-delivery test to a non-team address still need to be verified before Question 23
-meets the completion rule.
+through Resend. The custom SMTP setting is enabled in the production Supabase
+project, and production account-verification and password-reset delivery have
+been exercised successfully. The app-owned authentication callback changes must
+still be re-tested after their next production deployment.
+At beta launch, Study Buddy does not use advertising services, advertising
+pixels, session replay, or behavioural/product analytics. Essential operational
+and security logging is provided through the application and the Cloudflare,
+Railway, Supabase, and Resend services. Any future non-essential analytics,
+advertising, or tracking requires a prior policy/DPIA review and any legally
+required notice and consent controls.
 
 ## Open questions
 
-23. Which provider will send production account and password-reset emails?
-    **Decision:** Supabase Auth with Resend custom SMTP. **Still open:** verify
-    the production dashboard configuration and successful delivery to a
-    non-team address.
-24. Are any analytics, advertising, error-monitoring, or user-tracking services used? If yes, list every provider.
 25. Will paid subscriptions renew automatically?
 26. Exactly how will users cancel subscriptions?
 27. What refund period, if any, will apply?
