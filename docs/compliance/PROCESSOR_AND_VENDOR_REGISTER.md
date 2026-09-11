@@ -1,9 +1,9 @@
 # Processor and Vendor Register
 
-Status: initial register — contracts, production configuration, and transfer
-assessments require verification  
+Status: Question 40 answered **No** — suitable DPAs have not yet been verified,
+accepted, and evidenced for every active personal-data processor
 Owner: to be appointed  
-Last reviewed: 10 September 2026
+Last reviewed: 11 September 2026
 
 ## Instructions
 
@@ -15,6 +15,17 @@ contracts, credentials, or security questionnaires to this repository.
 
 Role labels are preliminary. A provider may be an independent controller for
 some data and a processor for other data.
+
+## Confirmed agreement gap
+
+The co-founders have confirmed that Study Buddy does not currently have a
+complete, verified DPA evidence set for its processors. Before approving an
+active provider, record the applicable DPA or processor terms, legal contracting
+entity, version and acceptance date, how acceptance occurred, sub-processor
+terms, and the location of securely retained evidence. A public privacy policy
+alone is not a DPA. Do not store confidential contracts or account screenshots
+in this repository. Public source copies and their hashes are recorded in the
+[Provider Agreement Evidence Index](./PROVIDER_AGREEMENT_EVIDENCE.md).
 
 ## Current and planned providers
 
