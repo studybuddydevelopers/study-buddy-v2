@@ -529,8 +529,11 @@ export default function PrivacyPolicyPage() {
               storage to keep unfinished practice answers on your device. If you
               enable cloud draft saving, the draft is also stored with your
               account. CAPTCHA providers may use their own necessary technologies
-              to assess abuse. Study Buddy does not currently use advertising or
-              behavioural-tracking cookies. See our{" "}
+              to assess abuse. Study Buddy does not currently use advertising,
+              advertising pixels, session replay, or behavioural/product
+              analytics. Essential application, Cloudflare, Railway, Supabase,
+              and Resend operational and security logs are used only to deliver,
+              protect, diagnose, and maintain the service. See our{" "}
               <Link
                 href="/cookie-policy"
                 className="font-medium text-primary-600 hover:underline"
