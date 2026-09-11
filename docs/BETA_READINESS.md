@@ -31,10 +31,10 @@ readiness sign-off.
 1. Complete production smoke tests for adult sign-up, age gating, guardian
    authorisation, login/logout, password reset, AI chat, quotas, settings,
    deactivation, reactivation, and the staged deletion path.
-2. Confirm production transactional email delivery and sender configuration for
-   account, guardian, password-reset, warning, and deletion messages. Supabase
-   Auth with Resend custom SMTP is the approved verification/reset path; verify
-   the dashboard setting and test a non-team recipient.
+2. Re-test the app-owned verification and password-reset callbacks after their
+   next deployment, and complete production smoke tests for guardian, warning,
+   and deletion messages. Supabase Auth with Resend custom SMTP is enabled and
+   production verification/reset delivery has been exercised.
 3. Configure actionable monitoring/alerts for health failures, 429 spikes,
    repeated login failures, webhook-signature failures, lifecycle-cron failures,
    email failures, and unusual AI usage or spend.
