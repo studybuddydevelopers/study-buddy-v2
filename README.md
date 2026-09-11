@@ -62,8 +62,8 @@ The repository contains a practical compliance draft for the current product,
 not a declaration that Study Buddy has completed legal review or regulatory
 registration. Public wording must remain aligned with the production service.
 The company identity and registered office have been confirmed from the CAC
-incorporation records. The public privacy mailbox and its joint co-founder
-handlers, Nick Efe Oni and Chijindu Oreh, are confirmed. A strict no-routine-
+incorporation records. The public privacy mailbox and joint privacy leads,
+Nick Efe Oni and Chijindu Oreh, are confirmed. A strict no-routine-
 reading rule for individual AI and WhatsApp conversations is also confirmed,
 with only narrow documented exceptions and an audited break-glass workflow
 still to be implemented. Optional OpenAI API-data sharing for model improvement
@@ -72,9 +72,9 @@ conversation data to train or evaluate Study Buddy's own AI is approved in
 principle but disabled for the current beta until its consent, child-safety,
 DPIA, security, withdrawal and testing gates are complete. Supabase's production
 primary project region is confirmed as North EU (Stockholm), Sweden
-(`eu-north-1`). The formal privacy lead/DPO appointment, remaining retention
-periods, other provider/Supabase processing locations and contracts, transfer
-safeguards, and payment rules still require
+(`eu-north-1`). Whether the joint privacy leads require a separate formal DPO
+designation, plus the remaining retention periods, other provider/Supabase
+processing locations and contracts, transfer safeguards, and payment rules require
 co-founder decisions and qualified Nigerian legal/privacy review.
 Supabase Auth with Resend custom SMTP is the approved production provider path
 for account verification and password recovery. Production custom SMTP and live
@@ -104,7 +104,7 @@ also link directly to the detailed notices relevant to their sections.
 | Document | What is complete | What cannot be completed yet and why |
 | --- | --- | --- |
 | [`DATA_PROTECTION_IMPACT_ASSESSMENT.md`](/Users/efeon/study-buddy-v2/docs/compliance/DATA_PROTECTION_IMPACT_ASSESSMENT.md) | Scope, data map, preliminary bases, necessity review, risk matrix, mitigations and launch gates | Formal approval requires student/parent consultation, named owners, implemented controls, provider evidence and written residual-risk sign-off |
-| [`PARENTAL_AUTHORIZATION_RECORD.md`](/Users/efeon/study-buddy-v2/docs/compliance/PARENTAL_AUTHORIZATION_RECORD.md) | Describes the implemented database record, guardian email decision workflow, feature scope and event history | Online guardian self-service withdrawal and retention automation remain pending; live records stay in the production database, never this repository |
+| [`PARENTAL_AUTHORIZATION_RECORD.md`](/Users/efeon/study-buddy-v2/docs/compliance/PARENTAL_AUTHORIZATION_RECORD.md) | Describes the implemented database record, guardian email decision workflow, feature scope and event history | The approved verified-email operator withdrawal workflow and retention automation remain pending; live records stay in the production database, never this repository |
 | [`DATA_RETENTION_AND_DELETION_SCHEDULE.md`](/Users/efeon/study-buddy-v2/docs/compliance/DATA_RETENTION_AND_DELETION_SCHEDULE.md) | Data-category inventory, deletion steps, legal-hold rules, active-account conversation retention, approved learning-record and seven-year transaction retention, chat hard deletion, 36-month deactivated-account expiry with four notices, and email-confirmed account deletion | Other periods need legal/finance approval; transaction-expiry/legal-hold tooling, cloud-draft expiry, and provider backup configuration still need completion |
 | [`PERSONAL_DATA_BREACH_RESPONSE_PLAN.md`](/Users/efeon/study-buddy-v2/docs/compliance/PERSONAL_DATA_BREACH_RESPONSE_PLAN.md) | Incident stages, statutory decision clock, risk assessment, notice content, child safeguards and closure process | Names, secure channels, provider contacts, breach register location and exercise evidence require organisational setup outside the codebase |
 | [`CONVERSATION_ACCESS_POLICY.md`](/Users/efeon/study-buddy-v2/docs/compliance/CONVERSATION_ACCESS_POLICY.md) | Approved no-routine-reading rule, narrow permitted cases, two-founder beta authority, minimum access controls and emergency review rule | The restricted, time-limited, audited break-glass workflow remains to be implemented and tested |
@@ -121,10 +121,15 @@ These items cannot be solved by publishing policies and remain launch work:
 - [x] Insert the registered company name, RC number and registered office.
 - [x] Publish the verified privacy-request mailbox (`privacy@studybuddyng.com`).
 - [x] Assign privacy requests jointly to co-founders Nick Efe Oni and Chijindu Oreh.
-- [ ] Formally appoint a privacy lead or DPO; this is separate from sharing request-handling work.
+- [x] Appoint co-founders Nick Efe Oni and Chijindu Oreh as joint privacy leads.
+- [ ] Confirm during the DCPMI assessment whether a separate formal DPO designation or external DPO service is required.
 - [x] Set the product minimum to 13 and independent-account age to 18; ages 13–17 require a parent or legal guardian, not a school substitute.
+- [x] Minimise routine age/guardian verification to declared date of birth,
+  guardian email-link control, and an adult declaration; request extra evidence
+  only for disputed, inconsistent, or suspicious cases and delete it after the
+  result is recorded unless law requires limited retention.
 - [x] Build date-of-birth gating, restricted minor accounts, expiring one-time guardian email decisions, separately scoped AI permission, and append-only application events.
-- [ ] Add guardian self-service withdrawal; until then, verified withdrawal requests use `privacy@studybuddyng.com` and require an authorised operator to restrict the account and record the event.
+- [ ] Implement the approved guardian-withdrawal operator workflow for verified requests to `privacy@studybuddyng.com`: sign the child out, restrict the account, stop AI/WhatsApp activity, record the event, and notify both parties. Do not add a self-service withdrawal route unless the policy changes.
 - [x] Build reversible deactivation and two-stage permanent deletion with password/typed confirmation, a 24-hour one-time email link, immediate restriction after final confirmation, a 15-day cancellation window, and retryable application/Auth purge.
 - [x] Build automatic deletion after 36 months of voluntary deactivation, including warning emails at 90, 60, 15, and 1 day before expiry.
 - [x] Configure and production-test Railway's hourly account-lifecycle cron.
@@ -170,6 +175,8 @@ These items cannot be solved by publishing policies and remain launch work:
 - [ ] NDPC registration is currently **No — planned**. Obtain a written DCPMI
   classification from a qualified Nigerian adviser or licensed DPCO and
   complete any required registration before the applicable deadline.
+- [x] Name Nick Efe Oni and Chijindu Oreh as mandatory internal breach contacts;
+  reports go to `security@studybuddyng.com` with `privacy@studybuddyng.com` copied.
 - [ ] Appoint incident owners, create secure request/breach registers and run a breach exercise.
 - [ ] Have a qualified Nigerian privacy/consumer lawyer or licensed DPCO review the final system and documents.
 
