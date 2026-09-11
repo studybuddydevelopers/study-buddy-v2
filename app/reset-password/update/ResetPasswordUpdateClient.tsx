@@ -82,7 +82,7 @@ export default function ResetPasswordUpdateClient() {
         const {
           data: { session },
           error: sessionError,
-        } = await supabase.auth.getSession();
+        } = await supabase.auth.exchangeCodeForSession(code);
         if (!active) return;
 
         if (sessionError || !session?.user) {
@@ -136,18 +136,13 @@ export default function ResetPasswordUpdateClient() {
         return;
       }
 
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
+      // A normal authenticated session is not proof of password recovery.
+      // Only one of the explicit recovery credentials handled above may expose
+      // this form; otherwise an already logged-in user could change a password
+      // by navigating directly to this page.
       if (!active) return;
-
-      if (session?.user) {
-        setRecoveryVerification(null);
-        setLinkStatus("ready");
-      } else {
-        setErrorMessage("This password reset link is missing its recovery token.");
-        setLinkStatus("invalid");
-      }
+      setErrorMessage("This password reset link is missing its recovery token.");
+      setLinkStatus("invalid");
     }
 
     void prepareRecoverySession();
