@@ -242,7 +242,7 @@ export default function CubeUsageAuditPage() {
                   <AboutBadge iconSrc="/logo-icon.svg" />
                 </PreviewState>
                 <PreviewState label="Replacement · static SB" proposed>
-                  <AboutBadge iconSrc="/images/proposed-sb-mark.svg" />
+                  <AboutBadge iconSrc="/images/study-buddy-mark.svg" />
                 </PreviewState>
               </div>
             </UsageCard>
@@ -262,7 +262,7 @@ export default function CubeUsageAuditPage() {
                   <BrowserTab iconSrc="/logo-icon.svg" />
                 </PreviewState>
                 <PreviewState label="Replacement · SB favicon" proposed>
-                  <BrowserTab iconSrc="/images/proposed-sb-mark.svg" />
+                  <BrowserTab iconSrc="/images/study-buddy-mark.svg" />
                 </PreviewState>
               </div>
             </UsageCard>
