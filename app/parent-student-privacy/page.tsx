@@ -5,7 +5,7 @@ import PolicyDocumentPage, {
 import { PRIVACY_EMAIL } from "@/lib/legal-entity";
 import { createPageMetadata } from "@/lib/site-metadata";
 
-const LAST_UPDATED = "10 September 2026";
+const LAST_UPDATED = "12 September 2026";
 
 export const metadata = createPageMetadata({
   title: "Parent and Student Privacy Notice",
@@ -124,6 +124,32 @@ const sections: PolicyDocumentSection[] = [
           current service. If Study Buddy develops a school service later, we
           will assess it separately and explain the exact access before enabling
           it.
+        </p>
+      </>
+    ),
+  },
+  {
+    id: "international-transfers",
+    title: "When information is handled outside Nigeria",
+    content: (
+      <>
+        <p>
+          Study Buddy uses some companies outside Nigeria to run the service.
+          Our main Supabase database is in Stockholm, Sweden. Railway hosts the
+          app, Cloudflare helps protect it, Resend sends important account
+          emails, and OpenAI receives limited information when an approved AI
+          feature is used. These companies or their approved service providers
+          may handle limited information in other countries too.
+        </p>
+        <p>
+          We send only what is needed for the requested feature and use
+          contracts, encryption, access controls, and provider checks to protect
+          it. Optional overseas processing needs a separate choice. A parent or
+          legal guardian can ask us what safeguards apply or withdraw a consent-
+          based choice by emailing{" "}
+          <a href={`mailto:${PRIVACY_EMAIL}`}>{PRIVACY_EMAIL}</a>. Some core
+          features may no longer work if an overseas service that is necessary
+          for that feature cannot be used.
         </p>
       </>
     ),
