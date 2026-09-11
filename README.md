@@ -89,7 +89,7 @@ operational/security logging is approved.
 | --- | --- | --- |
 | [`/privacy-policy`](/Users/efeon/study-buddy-v2/app/privacy-policy/page.tsx) | Identifies the registered controller, verified privacy mailbox, current Railway/Cloudflare hosting and Supabase Stockholm primary region; covers current data flows and approved age, access, AI-improvement and retention controls | Add the remaining retention periods and other provider/Supabase processing locations and transfer mechanisms |
 | [`/terms-of-service`](/Users/efeon/study-buddy-v2/app/terms-of-service/page.tsx) | Identifies the contracting legal entity and covers minors, AI, user content, payments, consumer rights and Nigerian law | Add the final commercial terms; legal review is required before paid/school launch |
-| [`/refund-policy`](/Users/efeon/study-buddy-v2/app/refund-policy/page.tsx) | Implemented with a lawful request and complaint framework; future paid subscriptions automatically renew after clear disclosure and use Settings → Subscription cancellation with a billing-email fallback | Implement the cancellation UI/email, and confirm the refund window, processing targets and any plan-specific rules before accepting payment |
+| [`/refund-policy`](/Users/efeon/study-buddy-v2/app/refund-policy/page.tsx) | Future paid subscriptions automatically renew after clear disclosure; Settings → Subscription cancellation ends access that day and automatically refunds prorated unused time, with billing email as the support fallback | Implement and test renewal, cancellation, automatic refund and confirmation-email controls; confirm other qualifying refund circumstances and processing targets before accepting payment |
 | [`/parent-student-privacy`](/Users/efeon/study-buddy-v2/app/parent-student-privacy/page.tsx) | Implemented as an age-appropriate summary of the live 13+ rule, guardian email decision flow, and disabled future conversation-improvement choice | Re-review the future opt-in with students, parents and a qualified Nigerian privacy adviser before activation or after any material workflow change |
 | [`/ai-safety`](/Users/efeon/study-buddy-v2/app/ai-safety/page.tsx) | Implemented with limitations, privacy, academic-integrity, prohibited-use, narrow staff-review authority, future AI-improvement safeguards, and reporting rules | Update after child-safety evaluation, reporting UI, staff-access tooling, escalation owners and any new AI model/use case are implemented |
 | [`/cookie-policy`](/Users/efeon/study-buddy-v2/app/cookie-policy/page.tsx) | Accurate for essential auth, local drafts and CAPTCHA; states that advertising/behavioural cookies are not currently used | Update and implement consent controls before adding non-essential analytics, advertising pixels, session replay or similar tracking |
@@ -150,6 +150,8 @@ These items cannot be solved by publishing policies and remain launch work:
   disclosure and customer authorisation.
 - [x] Confirm in-app cancellation under Settings → Subscription, confirmation
   email, same-day end of paid access, and `billing@studybuddyng.com` fallback.
+- [x] Confirm an automatic prorated refund for unused subscription time after
+  same-day cancellation, returned through the original payment method.
 - [ ] Implement the approved renewal/cancellation controls and confirm refund
   operations before paid launch.
 - [ ] Complete child-focused AI safety tests and a human escalation/reporting workflow.
