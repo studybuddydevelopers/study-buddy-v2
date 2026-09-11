@@ -426,10 +426,15 @@ export default function TermsOfServicePage() {
               audit, chargeback, dispute, investigation, or legal hold.
             </p>
             <p>
-              You may cancel a future automatic renewal using the method shown
-              in the service or by contacting us before the next billing date.
-              Cancellation does not normally reverse a
-              completed charge or remove access already paid for. Refunds are
+              You may cancel a future automatic renewal under Settings →
+              Subscription by selecting “Cancel subscription” and confirming
+              the request before the next billing date. We will email a
+              cancellation confirmation. If you cannot use the in-app control,
+              email billing@studybuddyng.com from your account email address and
+              include the payment reference. Cancellation stops the next
+              renewal but does not normally reverse a completed charge or remove
+              access already paid for; paid access continues until the current
+              billing period ends. Refunds are
               available where required by Nigerian consumer law, including where
               a paid service is not supplied as agreed, and in any additional
               circumstances stated at checkout. Nothing in these terms removes
