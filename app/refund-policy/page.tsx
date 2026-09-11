@@ -62,17 +62,19 @@ const sections: PolicyDocumentSection[] = [
     content: (
       <>
         <p>
-          You may cancel a future automatic renewal through the account method
-          shown at purchase. Until an in-product
-          cancellation control is available, email{" "}
+          When paid subscriptions are enabled, you may stop the next automatic
+          renewal under Settings → Subscription by selecting “Cancel
+          subscription” and confirming the request. We will send a cancellation
+          confirmation to your account email. If you cannot use the in-app
+          control, email{" "}
           <a href={`mailto:${BILLING_EMAIL}`}>{BILLING_EMAIL}</a> from the address
           connected to the account and include the payment reference.
         </p>
         <p>
-          Cancellation normally stops the next renewal. Unless checkout states
-          otherwise, access continues until the end of the period already paid
-          for. We will not charge a cancellation fee unless it was disclosed in
-          advance and is reasonable and lawful.
+          Cancellation stops the next renewal and does not remove paid access
+          for the current billing period. Access continues until the end of the
+          period already paid for. We will not charge a cancellation fee unless
+          it was disclosed in advance and is reasonable and lawful.
         </p>
       </>
     ),
