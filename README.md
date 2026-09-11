@@ -167,6 +167,9 @@ These items cannot be solved by publishing policies and remain launch work:
   `NEXT_IMPLEMENTATION_TODOS.md`.
 - [ ] Run an independent WCAG 2.2 AA audit and remediate core-flow barriers.
 - [ ] Complete learning-content provenance/licensing records and obtain an appropriate written WAEC licence or permission before reproducing genuine past questions.
+- [ ] NDPC registration is currently **No — planned**. Obtain a written DCPMI
+  classification from a qualified Nigerian adviser or licensed DPCO and
+  complete any required registration before the applicable deadline.
 - [ ] Appoint incident owners, create secure request/breach registers and run a breach exercise.
 - [ ] Have a qualified Nigerian privacy/consumer lawyer or licensed DPCO review the final system and documents.
 
