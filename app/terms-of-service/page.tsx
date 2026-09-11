@@ -438,11 +438,12 @@ export default function TermsOfServicePage() {
               automatically refunded through the original payment method. You
               do not need to submit a separate request for that cancellation
               refund. Payment-provider and bank settlement time may continue
-              after we initiate it. Other refunds are
-              available where required by Nigerian consumer law, including where
-              a paid service is not supplied as agreed, and in any additional
-              circumstances stated at checkout. Nothing in these terms removes
-              a statutory cancellation, refund, or redress right. See our{" "}
+              after we initiate it. Apart from that cancellation refund, another
+              refund is available only for a duplicate payment, payment taken
+              when the paid service was not provided, our discontinuation of a
+              prepaid service, or where Nigerian consumer law requires it.
+              Nothing in these terms removes a statutory cancellation, refund,
+              or redress right. See our{" "}
               <Link
                 href="/refund-policy"
                 className="font-medium text-primary-600 hover:underline"
