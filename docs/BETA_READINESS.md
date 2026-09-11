@@ -11,7 +11,8 @@ security-header, account-lifecycle, and deletion controls are implemented.
 
 The recommended first release is a **free, invite-only beta for 20–50 users**.
 Keep paid checkout disabled while the Paystack secret remains a placeholder and
-until renewal, cancellation, refund, finance, and provider-review work is closed.
+until automatic-renewal implementation, cancellation, refund, finance, and
+provider-review work is closed.
 Do not enable future school access. Limit administrative upload features to the
 properly configured malware-scanning/CDR environment.
 
@@ -20,7 +21,7 @@ properly configured malware-scanning/CDR environment.
 | Milestone | Estimate | Assumptions |
 | --- | --- | --- |
 | Controlled free beta | 5–10 focused working days | No critical defect in production smoke tests; email, AI, database, and guardian flows work with production settings; co-founders can make outstanding operational decisions promptly |
-| Public beta including paid subscriptions | 3–6 weeks plus external review time | Live Paystack setup, questions 25–28, refund operations, monitoring, vendor evidence, and legal/privacy review are completed |
+| Public beta including paid subscriptions | 3–6 weeks plus external review time | Approved automatic renewal is implemented, questions 26–28, live Paystack setup, refund operations, monitoring, vendor evidence, and legal/privacy review are completed |
 
 External provider responses, accountant/legal review, or a critical production
 defect can extend these ranges. The site being reachable is not by itself a beta
