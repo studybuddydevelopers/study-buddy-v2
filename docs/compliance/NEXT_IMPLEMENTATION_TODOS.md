@@ -162,6 +162,45 @@ Acceptance criteria:
   deletion workflows end to end.
 - [ ] Run and record the incident-response exercise and provider escalation test.
 
+## P1 — Before enabling automatically renewing paid subscriptions
+
+Paid checkout remains disabled during the current beta. The co-founders have
+approved automatic renewal for future paid subscriptions, but approval does not
+mean recurring billing is implemented or ready for customers.
+
+- [ ] Complete Questions 26–28 and align cancellation and refund behaviour with
+  the Terms, Refund Policy, checkout copy, support procedure, and Paystack setup.
+- [ ] Show the total recurring price, currency, billing period, expected first
+  renewal timing, cancellation method, and material plan limits immediately
+  before payment authorisation.
+- [ ] Require an explicit recurring-payment action and store privacy-safe proof
+  of the accepted terms/version, timestamp, plan, amount, currency, and billing
+  frequency.
+- [ ] Implement the appropriate Paystack recurring-payment mechanism without
+  storing full card numbers, CVVs, PINs, bank credentials, or reusable secrets
+  in application records or logs.
+- [ ] Verify renewal, successful/failed charge, duplicate webhook, retry,
+  cancellation, expiry, plan-change, and chargeback state transitions. Webhook
+  handling must remain signature-verified, idempotent, and safely retryable.
+- [ ] Add the approved self-service cancellation route once Question 26 is
+  answered, plus a support fallback that authenticates the requester.
+- [ ] Send clear purchase, renewal, cancellation, payment-failure, and refund
+  notices where required by the approved operating policy and applicable law.
+- [ ] Complete accountant and Nigerian consumer-law review and run staging plus
+  production-mode sandbox tests before replacing the Paystack placeholder or
+  allowing the first recurring charge.
+
+Acceptance criteria:
+
+1. No paid subscription can begin without explicit, recorded recurring-billing
+   authorisation for the exact price and frequency shown.
+2. Customers can stop the next renewal through the approved route, and duplicate
+   or delayed provider events cannot reactivate a cancelled subscription.
+3. Payment and webhook logs contain no card or bank credentials and preserve the
+   approved minimum seven-year financial evidence.
+4. Questions 26–28, consumer-law review, operational support ownership, and
+   end-to-end Paystack tests are complete before paid launch.
+
 ## P2 — Before enabling conversation-based AI improvement
 
 The co-founders approved future use of selected conversations to train or
