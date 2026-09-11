@@ -105,6 +105,15 @@ provided, Study Buddy discontinuing a prepaid service, or another refund
 required by Nigerian consumer law. An unauthorised-payment claim, accidental
 purchase, change of mind, outage, or general dissatisfaction is not a separate
 discretionary ground unless the facts also meet one of those four grounds.
+Nick Efe Oni has confirmed that the contractor signed an agreement assigning
+the contractor's original deliverables to Study Buddy Global Projects Limited,
+and that Chijindu Oreh holds the agreement details. This confirmation covers the
+contractor's original analysis and explanations; it does not establish rights
+in any WAEC question, examiner report, marking material, textbook extract, or
+other third-party content included or referenced in a deliverable. The current
+seeded question bank was generated using AI. Question 29 therefore remains open
+until the source and permitted use of every learner-visible item are recorded,
+including separate permission for any genuine past-question content.
 
 ## Open questions
 
