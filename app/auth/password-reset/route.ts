@@ -1,5 +1,6 @@
 // app/auth/password-reset/route.ts
 import { NextResponse } from "next/server";
+import { authRedirectUrl } from "@/lib/supabase/auth-redirect";
 
 export async function GET(req: Request) {
   const url = new URL(req.url);
@@ -13,7 +14,11 @@ export async function GET(req: Request) {
   const errorCode = url.searchParams.get("error_code");
   const errorDescription = url.searchParams.get("error_description");
 
-  const redirectUrl = new URL("/reset-password/update", url.origin);
+  // Railway may expose its internal localhost origin in req.url. Browser-facing
+  // redirects must always use the explicitly trusted application origin.
+  const redirectUrl = new URL(
+    authRedirectUrl("/reset-password/update", req.url)
+  );
 
   if (error) {
     redirectUrl.searchParams.set("error", error);
@@ -43,8 +48,10 @@ export async function GET(req: Request) {
   }
 
   if (token || tokenHash || type || email) {
-    return NextResponse.redirect(new URL("/forgot-password", url.origin));
+    return NextResponse.redirect(
+      authRedirectUrl("/forgot-password", req.url)
+    );
   }
 
-  return NextResponse.redirect(new URL("/forgot-password", url.origin));
+  return NextResponse.redirect(authRedirectUrl("/forgot-password", req.url));
 }
