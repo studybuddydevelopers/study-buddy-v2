@@ -1,7 +1,7 @@
 # Open Legal and Compliance Questions
 
 Status: co-founder decisions and external verification required  
-Last updated: 11 September 2026
+Last updated: 12 September 2026
 
 This is the authoritative working list of unresolved legal, privacy, product,
 and commercial questions for Study Buddy. Answers are not treated as legal
@@ -176,17 +176,16 @@ reserved for genuine emergencies involving immediate safety. Irreversibly
 anonymised statistics may be used for product planning, but pseudonymised data
 remains personal data. These selections remain subject to the certified DPO's
 formal validation through Question 38.
-The co-founders have confirmed that Study Buddy has not yet verified, accepted,
-and retained suitable data-processing agreements for all providers that process
-personal data. Question 40 is therefore answered **No**. Railway's fully
-executed DPA/certificate and Supabase's incorporated DPA, TIA and company-named
-organisation evidence are now retained privately, but the remaining providers
-and transfer safeguards are not complete. A provider's ordinary terms or
-published privacy policy must not be treated as proof that the required DPA is
-in place. The agreement, applicable contracting entity, version, acceptance
-date, sub-processor terms, and supporting account evidence must be recorded for
-each active processor before the relevant production processing is approved.
-The processor register is the operating checklist for closing this known gap.
+Question 40 is answered **Yes** for the current beta provider set. Railway's DPA
+is fully executed, while the applicable Supabase, OpenAI, Resend, Cloudflare,
+and GoDaddy/Microsoft 365 DPAs or processing terms form part of their accepted
+self-service agreements. Separate countersignatures are not required for those
+incorporated terms. Meta/WhatsApp terms must be confirmed with the business
+account before that optional channel is activated, and Paystack's merchant/DPA
+position remains a precondition to enabling paid checkout. Agreement coverage
+does not answer the separate Question 41 transfer-safeguard review, and account,
+sub-processor, retention, deletion, incident and security evidence must continue
+to be maintained in the processor register.
 
 ## Open questions
 
