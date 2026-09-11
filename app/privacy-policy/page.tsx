@@ -541,11 +541,23 @@ export default function PrivacyPolicyPage() {
               network, sub-processor, or service-delivery purposes under their
               applicable terms. A primary project region does not by itself
               establish legal compliance or describe every processing location.
-              Where Nigerian law requires it, we use a permitted transfer basis
-              and appropriate safeguards, such as an adequacy decision,
-              contractual protections, or another lawful mechanism. Contact us
-              if you would like information about the safeguards relevant to
-              your data.
+              For transfers that are strictly necessary to provide your account
+              or a feature you request, we rely on contractual necessity under
+              Nigerian law. Optional overseas processing requires a separate
+              informed choice. For users aged 13–17, our parent or legal-guardian
+              approval requirements continue to apply.
+            </p>
+            <p>
+              We also use provider data-processing terms, data minimisation,
+              encryption in transit, access controls, deletion instructions,
+              sub-processor review, and transfer risk assessments. Contractual
+              clauses written for another country are not treated as approval by
+              the Nigeria Data Protection Commission unless the Commission has
+              approved or recognised them for the transfer. If Nigerian law
+              requires an approved Cross-Border Data Transfer Instrument, we
+              must obtain that approval before relying on the instrument.
+              Contact us if you would like information about the safeguards
+              relevant to your data.
             </p>
           </PolicySection>
 
