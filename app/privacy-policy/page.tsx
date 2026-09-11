@@ -48,7 +48,7 @@ const summaryItems: {
   {
     title: "Trusted services process data",
     description:
-      "Supabase, OpenAI, Meta/WhatsApp, Paystack, Railway, and Cloudflare help us run the platform.",
+      "Supabase, OpenAI, Resend, GoDaddy/Microsoft 365, Meta/WhatsApp, Paystack, Railway, and Cloudflare help us run the platform.",
     proposal: "lock",
   },
   {
@@ -446,6 +446,20 @@ export default function PrivacyPolicyPage() {
                 custom SMTP delivery provider.{" "}
                 <ExternalPolicyLink href="https://resend.com/legal/privacy-policy">
                   Resend privacy policy
+                </ExternalPolicyLink>
+              </ListItem>
+              <ListItem>
+                <strong>GoDaddy and Microsoft 365</strong> for our company
+                support, privacy, security, billing, and general-enquiry
+                mailboxes. They process message content, attachments, and
+                sender and recipient information needed to provide email
+                services.{" "}
+                <ExternalPolicyLink href="https://www.godaddy.com/legal/agreements/privacy-policy">
+                  GoDaddy privacy policy
+                </ExternalPolicyLink>{" "}
+                and{" "}
+                <ExternalPolicyLink href="https://privacy.microsoft.com/privacystatement">
+                  Microsoft privacy statement
                 </ExternalPolicyLink>
               </ListItem>
               <ListItem>
