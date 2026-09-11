@@ -168,7 +168,7 @@ Paid checkout remains disabled during the current beta. The co-founders have
 approved automatic renewal for future paid subscriptions, but approval does not
 mean recurring billing is implemented or ready for customers.
 
-- [ ] Complete Questions 26–28 and align cancellation and refund behaviour with
+- [ ] Complete Questions 27–28 and align cancellation and refund behaviour with
   the Terms, Refund Policy, checkout copy, support procedure, and Paystack setup.
 - [ ] Show the total recurring price, currency, billing period, expected first
   renewal timing, cancellation method, and material plan limits immediately
@@ -182,8 +182,12 @@ mean recurring billing is implemented or ready for customers.
 - [ ] Verify renewal, successful/failed charge, duplicate webhook, retry,
   cancellation, expiry, plan-change, and chargeback state transitions. Webhook
   handling must remain signature-verified, idempotent, and safely retryable.
-- [ ] Add the approved self-service cancellation route once Question 26 is
-  answered, plus a support fallback that authenticates the requester.
+- [ ] Add **Settings → Subscription → Cancel subscription** with a deliberate
+  confirmation step. It must stop the next renewal, preserve paid access through
+  the current billing period, and send an account-email confirmation.
+- [ ] Support `billing@studybuddyng.com` as an accessible fallback. Authenticate
+  the requester using the account email and payment reference without collecting
+  card, bank-login, password, PIN, CVV, or one-time-code data.
 - [ ] Send clear purchase, renewal, cancellation, payment-failure, and refund
   notices where required by the approved operating policy and applicable law.
 - [ ] Complete accountant and Nigerian consumer-law review and run staging plus
@@ -198,7 +202,7 @@ Acceptance criteria:
    or delayed provider events cannot reactivate a cancelled subscription.
 3. Payment and webhook logs contain no card or bank credentials and preserve the
    approved minimum seven-year financial evidence.
-4. Questions 26–28, consumer-law review, operational support ownership, and
+4. Questions 27–28, consumer-law review, operational support ownership, and
    end-to-end Paystack tests are complete before paid launch.
 
 ## P2 — Before enabling conversation-based AI improvement
