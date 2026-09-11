@@ -8,7 +8,7 @@ and commercial questions for Study Buddy. Answers are not treated as legal
 approval by themselves. Public notices, product behaviour, internal records,
 and provider settings must be updated together after each answer is confirmed.
 
-Questions 1–28 and 30 have been answered. The confirmed decisions include the company
+Questions 1–28 and 30–31 have been answered. The confirmed decisions include the company
 identity and address, `privacy@studybuddyng.com` as the privacy-request mailbox,
 joint request handling by Nick Efe Oni and Chijindu Oreh, a minimum account age
 of 13, independent activation from 18, and parent or legal-guardian approval for
@@ -120,11 +120,17 @@ co-founders intend to seek an appropriate written relationship or permission.
 That intention must not be represented as an existing relationship, and public
 claims must be updated only after an agreement is executed and its scope is
 verified.
+Study Buddy is not currently registered with the Nigeria Data Protection
+Commission. Its status is **No — planned**: no registration application has
+been started or submitted. CAC incorporation is separate and does not amount to
+NDPC registration. Whether Study Buddy is a Data Controller or Data Processor
+of Major Importance, the applicable category, and the point by which
+registration is legally required remain subject to Question 44 and qualified
+Nigerian data-protection advice.
 
 ## Open questions
 
 29. Who owns or licenses every past question, textbook, explanation, and study resource?
-31. Is NDPC registration **No** or **In progress**? CAC incorporation does not constitute NDPC registration.
 32. Who will be appointed DPO or privacy lead?
 33. Approximately how many registered users are expected in year one?
 34. Approximately how many of those users are expected to be under 18?
