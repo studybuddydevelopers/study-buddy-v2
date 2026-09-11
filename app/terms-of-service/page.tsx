@@ -27,7 +27,7 @@ export const metadata = createPageMetadata({
   path: "/terms-of-service",
 });
 
-const LAST_UPDATED = "10 September 2026";
+const LAST_UPDATED = "11 September 2026";
 
 const summaryItems: {
   title: string;
@@ -408,9 +408,12 @@ export default function TermsOfServicePage() {
               If paid plans or subscriptions are available, prices, billing
               periods, taxes, plan limits, and any renewal terms will be shown
               before you pay. By completing checkout, you authorise the stated
-              charge through a payment provider such as Paystack. A subscription
-              will renew automatically only if that was clearly disclosed and
-              authorised during purchase.
+              charge through a payment provider such as Paystack. When paid
+              subscriptions are enabled, they will renew automatically for the
+              billing period disclosed at checkout until cancelled. Before the
+              first payment, we will clearly show the recurring price, billing
+              frequency, expected renewal timing, and cancellation method and
+              ask you to authorise recurring billing.
             </p>
             <p>
               We do not store card numbers or bank details. Payment providers
@@ -423,9 +426,9 @@ export default function TermsOfServicePage() {
               audit, chargeback, dispute, investigation, or legal hold.
             </p>
             <p>
-              If recurring billing is offered, you may cancel future renewal
-              using the method shown in the service or by contacting us before
-              the next billing date. Cancellation does not normally reverse a
+              You may cancel a future automatic renewal using the method shown
+              in the service or by contacting us before the next billing date.
+              Cancellation does not normally reverse a
               completed charge or remove access already paid for. Refunds are
               available where required by Nigerian consumer law, including where
               a paid service is not supplied as agreed, and in any additional
