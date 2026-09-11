@@ -72,10 +72,15 @@ conversation data to train or evaluate Study Buddy's own AI is approved in
 principle but disabled for the current beta until its consent, child-safety,
 DPIA, security, withdrawal and testing gates are complete. Supabase's production
 primary project region is confirmed as North EU (Stockholm), Sweden
-(`eu-north-1`). Whether the joint privacy leads require a separate formal DPO
-designation, plus the remaining retention periods, other provider/Supabase
-processing locations, transfer safeguards, and payment rules require
-co-founder decisions and qualified Nigerian legal/privacy review.
+(`eu-north-1`). A working international-transfer policy is adopted: strictly
+necessary core-service transfers use section 43(1)(b) contractual necessity,
+with guardian requirements for child processing and separate consent for
+optional transfers, backed by provider DPAs and technical safeguards. Exact
+destination mapping, provider-specific assessments, certified-DPO validation,
+and any required NDPC-approved transfer instrument remain open. Whether the
+joint privacy leads require a separate formal DPO designation, plus the
+remaining retention periods and payment rules require qualified Nigerian
+legal/privacy review.
 Supabase Auth with Resend custom SMTP is the approved production provider path
 for account verification and password recovery. Production custom SMTP and live
 delivery have been verified; re-test the app-owned callbacks after their next
@@ -87,7 +92,7 @@ operational/security logging is approved.
 
 | Page | Current status | Why it must be updated later |
 | --- | --- | --- |
-| [`/privacy-policy`](/Users/efeon/study-buddy-v2/app/privacy-policy/page.tsx) | Identifies the registered controller, verified privacy mailbox, current Railway/Cloudflare hosting and Supabase Stockholm primary region; covers current data flows and approved age, access, AI-improvement and retention controls | Add the remaining retention periods and other provider/Supabase processing locations and transfer mechanisms |
+| [`/privacy-policy`](/Users/efeon/study-buddy-v2/app/privacy-policy/page.tsx) | Identifies the registered controller, verified privacy mailbox, current Railway/Cloudflare hosting and Supabase Stockholm primary region; covers current data flows and approved age, access, AI-improvement, retention and international-transfer policy | Add remaining retention periods and verified provider/Supabase processing locations after the provider assessments |
 | [`/terms-of-service`](/Users/efeon/study-buddy-v2/app/terms-of-service/page.tsx) | Identifies the contracting legal entity and covers minors, AI, user content, payments, consumer rights and Nigerian law | Add the final commercial terms; legal review is required before paid/school launch |
 | [`/refund-policy`](/Users/efeon/study-buddy-v2/app/refund-policy/page.tsx) | Future paid subscriptions automatically renew after clear disclosure; same-day cancellation automatically refunds prorated unused time; other refunds are limited to duplicate payment, paid service not provided, Study Buddy discontinuation, or Nigerian-law requirements | Implement and test renewal, cancellation, refund and confirmation-email controls and confirm processing targets before accepting payment |
 | [`/parent-student-privacy`](/Users/efeon/study-buddy-v2/app/parent-student-privacy/page.tsx) | Implemented as an age-appropriate summary of the live 13+ rule, guardian email decision flow, and disabled future conversation-improvement choice | Re-review the future opt-in with students, parents and a qualified Nigerian privacy adviser before activation or after any material workflow change |
@@ -109,11 +114,12 @@ also link directly to the detailed notices relevant to their sections.
 | [`PERSONAL_DATA_BREACH_RESPONSE_PLAN.md`](/Users/efeon/study-buddy-v2/docs/compliance/PERSONAL_DATA_BREACH_RESPONSE_PLAN.md) | Incident stages, statutory decision clock, risk assessment, notice content, child safeguards and closure process | Names, secure channels, provider contacts, breach register location and exercise evidence require organisational setup outside the codebase |
 | [`CONVERSATION_ACCESS_POLICY.md`](/Users/efeon/study-buddy-v2/docs/compliance/CONVERSATION_ACCESS_POLICY.md) | Approved no-routine-reading rule, narrow permitted cases, two-founder beta authority, minimum access controls and emergency review rule | The restricted, time-limited, audited break-glass workflow remains to be implemented and tested |
 | [`CONVERSATION_AI_IMPROVEMENT_POLICY.md`](/Users/efeon/study-buddy-v2/docs/compliance/CONVERSATION_AI_IMPROVEMENT_POLICY.md) | Records the in-principle decision, current disabled state, off-by-default participation rule, data controls, withdrawal requirements and activation gate | Consent UI/records, de-identification, isolated datasets, lineage/deletion, retention, testing, revised DPIA and legal review remain to be implemented before activation |
-| [`PROCESSOR_AND_VENDOR_REGISTER.md`](/Users/efeon/study-buddy-v2/docs/compliance/PROCESSOR_AND_VENDOR_REGISTER.md) | Initial register for Supabase, OpenAI, Meta, Paystack, Railway, Cloudflare, CAPTCHA, email and source-control providers; Question 40 agreement coverage is confirmed for the current beta provider set | Strengthen company-account/acceptance evidence and verify production regions, sub-processors, retention and transfer safeguards; re-run the gate before enabling WhatsApp, Paystack or any new provider |
+| [`PROCESSOR_AND_VENDOR_REGISTER.md`](/Users/efeon/study-buddy-v2/docs/compliance/PROCESSOR_AND_VENDOR_REGISTER.md) | Initial register for Supabase, OpenAI, Meta, Paystack, Railway, Cloudflare, CAPTCHA, email and source-control providers; Question 40 agreement coverage and the Question 41 working transfer policy are recorded | Strengthen company-account/acceptance evidence and verify production regions, sub-processors, retention and provider-specific transfer assessments; re-run the gate before enabling WhatsApp, Paystack or any new provider |
 | [`PROVIDER_AGREEMENT_EVIDENCE.md`](/Users/efeon/study-buddy-v2/docs/compliance/PROVIDER_AGREEMENT_EVIDENCE.md) | Non-confidential index, sources and hashes for locally saved public provider agreements | Account-specific executed agreements and acceptance screenshots must be stored privately and must never be committed to this repository |
+| [`INTERNATIONAL_DATA_TRANSFER_ASSESSMENT.md`](/Users/efeon/study-buddy-v2/docs/compliance/INTERNATIONAL_DATA_TRANSFER_ASSESSMENT.md) | Records the Question 41 policy, current provider-transfer map, statutory grounds, supporting safeguards, and approval boundary | Exact countries/sub-processors, provider-specific risk assessments, consent evidence where used, certified-DPO validation, and any required NDPC CBDTI approval remain open |
 | [`SCHOOL_DATA_PROCESSING_SCHEDULE.md`](/Users/efeon/study-buddy-v2/docs/compliance/SCHOOL_DATA_PROCESSING_SCHEDULE.md) | Contract template covering roles, instructions, visibility, security, rights, deletion, incidents and audit | It cannot be signed until both legal entities, controller/processor roles, exact staff visibility, service terms, contacts and retention periods are agreed |
 | [`RECORD_OF_PROCESSING_ACTIVITIES.md`](/Users/efeon/study-buddy-v2/docs/compliance/RECORD_OF_PROCESSING_ACTIVITIES.md) | Initial inventory of current controller and possible school-processor activities | Replace preliminary bases/roles with approved decisions and reconcile it against production provider dashboards and configuration before launch |
-| [`OPEN_COMPLIANCE_QUESTIONS.md`](/Users/efeon/study-buddy-v2/docs/compliance/OPEN_COMPLIANCE_QUESTIONS.md) | Tracks confirmed answers through question 22 and every remaining decision through question 44 | Work through the open questions in order and reconcile each answer with the product, notices, compliance records, and operating procedures |
+| [`OPEN_COMPLIANCE_QUESTIONS.md`](/Users/efeon/study-buddy-v2/docs/compliance/OPEN_COMPLIANCE_QUESTIONS.md) | Tracks approved working answers through question 41 and every remaining decision through question 44 | Work through the open questions in order and reconcile each answer with the product, notices, compliance records, and operating procedures |
 
 ### Required non-document work
 
@@ -145,8 +151,10 @@ These items cannot be solved by publishing policies and remain launch work:
   field-level student visibility, update the DPIA/notices, and execute suitable
   agreements.
 - [ ] Verify remaining production provider/Supabase processing locations,
-  account/acceptance evidence, sub-processors and cross-border safeguards; the Supabase primary project region
-  is confirmed as North EU (Stockholm), Sweden (`eu-north-1`).
+  account/acceptance evidence and sub-processors; complete each transfer risk
+  assessment, record specific consent where used, obtain certified-DPO
+  validation, and obtain any required NDPC CBDTI approval. The Supabase primary
+  project region is confirmed as North EU (Stockholm), Sweden (`eu-north-1`).
 - [x] Enable Resend custom SMTP in the production Supabase Auth dashboard and
   verify that account-verification and password-reset messages are delivered.
 - [ ] Re-test the complete verification and password-reset flows after deploying
