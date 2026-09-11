@@ -4,7 +4,7 @@ import Logo from "@/components/Logo";
 import SbSequentialFillPreview from "@/components/SbSequentialFillPreview";
 import { createPageMetadata } from "@/lib/site-metadata";
 
-const MARK_SRC = "/images/proposed-sb-mark.svg";
+const MARK_SRC = "/images/study-buddy-mark.svg";
 
 const SIZE_TESTS = [
   { size: 16, label: "16px", use: "Small browser favicon" },
