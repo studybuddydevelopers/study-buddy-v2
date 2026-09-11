@@ -92,7 +92,9 @@ const sections: PolicyDocumentSection[] = [
     content: (
       <p>
         Study Buddy does not currently use advertising cookies, advertising
-        pixels, or behavioural analytics cookies. If we introduce a non-essential
+        pixels, session replay, or behavioural/product analytics. Essential
+        application and provider operational or security logs are not used for
+        advertising or behavioural tracking. If we introduce a non-essential
         analytics or advertising technology, we will update this policy and
         provide any notice and consent controls required before activating it.
       </p>
