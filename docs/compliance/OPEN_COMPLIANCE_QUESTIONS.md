@@ -8,7 +8,7 @@ and commercial questions for Study Buddy. Answers are not treated as legal
 approval by themselves. Public notices, product behaviour, internal records,
 and provider settings must be updated together after each answer is confirmed.
 
-Questions 1–28 and 30–31 have been answered. The confirmed decisions include the company
+Questions 1–28 and 30–37 have been answered. The confirmed decisions include the company
 identity and address, `privacy@studybuddyng.com` as the privacy-request mailbox,
 joint request handling by Nick Efe Oni and Chijindu Oreh, a minimum account age
 of 13, independent activation from 18, and parent or legal-guardian approval for
@@ -127,16 +127,42 @@ NDPC registration. Whether Study Buddy is a Data Controller or Data Processor
 of Major Importance, the applicable category, and the point by which
 registration is legally required remain subject to Question 44 and qualified
 Nigerian data-protection advice.
+Co-founders Nick Efe Oni and Chijindu Oreh are appointed as Study Buddy's joint
+privacy leads. They share responsibility through `privacy@studybuddyng.com`.
+Whether Study Buddy's eventual DCPMI classification requires a separate formal
+DPO designation, and whether either co-founder then has the required expertise
+or an external DPO should be engaged, remains part of Question 44.
+The current planning estimate is approximately 50 registered users during the
+first year. This is a forecast, not an account cap, and must be reviewed if
+actual growth or launch plans materially change.
+Approximately 40 of those 50 users (about 80%) are expected to be under 18.
+This is also a planning estimate rather than a limit, and child-focused controls
+must be designed for the expected majority of users rather than treated as an
+edge case.
+Nick Efe Oni and Chijindu Oreh are both mandatory internal contacts for every
+suspected personal-data breach. The report must be sent immediately through
+`security@studybuddyng.com`, with `privacy@studybuddyng.com` copied. This contact
+decision does not replace the separate outstanding assignment of an incident
+commander and other operational roles in the breach-response plan.
+A parent or legal guardian may withdraw authorisation only through a verified
+request to `privacy@studybuddyng.com`. Once verified, Study Buddy must
+immediately sign the child out, restrict the account, stop new AI and WhatsApp
+activity, and notify both the child and the adult. Existing data is retained
+securely only while the adult chooses reauthorisation or permanent deletion,
+subject to any limited retention required by law. The restricted operator
+workflow, session termination, audit event, notifications, and final pending
+state retention limit still require implementation and verification.
+Routine age and guardian checks use the student's declared date of birth plus
+the adult's control of the guardian email link and declaration of authority.
+Study Buddy does not routinely collect identity documents. Minimal,
+proportionate additional evidence may be requested only when age, relationship,
+or authority is disputed, inconsistent, or appears suspicious. The raw evidence
+must be deleted after the verification result is recorded unless a documented
+legal requirement justifies limited retention.
 
 ## Open questions
 
 29. Who owns or licenses every past question, textbook, explanation, and study resource?
-32. Who will be appointed DPO or privacy lead?
-33. Approximately how many registered users are expected in year one?
-34. Approximately how many of those users are expected to be under 18?
-35. Who is the internal personal-data-breach contact?
-36. How can a parent or guardian withdraw authorisation, and what immediately happens to the child's account and data?
-37. What additional evidence, if any, will verify the user's age and that the approving adult is genuinely their parent or legal guardian?
 38. Who will complete and formally approve the children-and-AI Data Protection Impact Assessment, and when?
 39. What lawful basis applies to each processing purpose, including account operation, AI conversations, payments, security logs, marketing, and analytics?
 40. Do all personal-data processors have suitable data-processing agreements, including Supabase, Railway, OpenAI, Resend, Paystack, and any monitoring provider?
