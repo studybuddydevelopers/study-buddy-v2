@@ -178,13 +178,15 @@ remains personal data. These selections remain subject to the certified DPO's
 formal validation through Question 38.
 The co-founders have confirmed that Study Buddy has not yet verified, accepted,
 and retained suitable data-processing agreements for all providers that process
-personal data. Question 40 is therefore answered **No**. A provider's ordinary
-terms or published privacy policy must not be treated as proof that the required
-DPA is in place. The agreement, applicable contracting entity, version,
-acceptance date, sub-processor terms, and supporting account evidence must be
-recorded for each active processor before the relevant production processing is
-approved. The processor register is the operating checklist for closing this
-known gap.
+personal data. Question 40 is therefore answered **No**. Railway's fully
+executed DPA/certificate and Supabase's incorporated DPA, TIA and company-named
+organisation evidence are now retained privately, but the remaining providers
+and transfer safeguards are not complete. A provider's ordinary terms or
+published privacy policy must not be treated as proof that the required DPA is
+in place. The agreement, applicable contracting entity, version, acceptance
+date, sub-processor terms, and supporting account evidence must be recorded for
+each active processor before the relevant production processing is approved.
+The processor register is the operating checklist for closing this known gap.
 
 ## Open questions
 
