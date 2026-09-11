@@ -1,6 +1,6 @@
 # Beta Readiness
 
-Last updated: 10 September 2026
+Last updated: 11 September 2026
 
 ## Current position
 
@@ -51,6 +51,9 @@ readiness sign-off.
    feedback route, known limitations, and support contact.
 8. Run the staging OWASP ZAP workflow against the release candidate and resolve
    high-confidence high/critical findings before inviting users.
+9. Obtain a written DCPMI classification from a qualified Nigerian
+   data-protection adviser or licensed DPCO and complete any registration that
+   must precede the beta. Current NDPC registration status is **No — planned**.
 
 The approved seven-year transaction lifecycle is the next engineering task and
 is specified in
