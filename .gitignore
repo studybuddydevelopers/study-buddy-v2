@@ -47,3 +47,7 @@ next-env.d.ts
 
 /lib/generated/prisma
 codebase.zip
+
+# Local compliance evidence may contain account or contract metadata. Keep it
+# outside version control; commit only the non-confidential evidence index.
+/.compliance-evidence/
