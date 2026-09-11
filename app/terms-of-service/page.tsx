@@ -432,9 +432,10 @@ export default function TermsOfServicePage() {
               cancellation confirmation. If you cannot use the in-app control,
               email billing@studybuddyng.com from your account email address and
               include the payment reference. Cancellation stops the next
-              renewal but does not normally reverse a completed charge or remove
-              access already paid for; paid access continues until the current
-              billing period ends. Refunds are
+              renewal, and paid access ends on the cancellation date. Paid
+              subscriptions will not be enabled until the refund or credit
+              treatment for any unused prepaid period is clearly stated at
+              checkout and in our Refund and Cancellation Policy. Refunds are
               available where required by Nigerian consumer law, including where
               a paid service is not supplied as agreed, and in any additional
               circumstances stated at checkout. Nothing in these terms removes
