@@ -8,7 +8,7 @@ import {
 } from "@/lib/legal-entity";
 import { createPageMetadata } from "@/lib/site-metadata";
 
-const LAST_UPDATED = "10 September 2026";
+const LAST_UPDATED = "11 September 2026";
 
 export const metadata = createPageMetadata({
   title: "Refund and Cancellation Policy",
@@ -47,8 +47,11 @@ const sections: PolicyDocumentSection[] = [
           <li>any plan-specific refund condition.</li>
         </ul>
         <p>
-          A subscription will renew automatically only when that is clearly
-          disclosed and authorised before purchase.
+          When paid subscriptions are enabled, they will renew automatically
+          for the billing period disclosed at checkout until cancelled. We will
+          not activate recurring billing unless the renewal price, frequency,
+          expected timing, and cancellation method are clearly disclosed and
+          authorised before purchase.
         </p>
       </>
     ),
@@ -59,8 +62,8 @@ const sections: PolicyDocumentSection[] = [
     content: (
       <>
         <p>
-          If recurring subscriptions are enabled, you may cancel future renewal
-          through the account method shown at purchase. Until an in-product
+          You may cancel a future automatic renewal through the account method
+          shown at purchase. Until an in-product
           cancellation control is available, email{" "}
           <a href={`mailto:${BILLING_EMAIL}`}>{BILLING_EMAIL}</a> from the address
           connected to the account and include the payment reference.
