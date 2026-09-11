@@ -77,8 +77,11 @@ periods, other provider/Supabase processing locations and contracts, transfer
 safeguards, and payment rules still require
 co-founder decisions and qualified Nigerian legal/privacy review.
 Supabase Auth with Resend custom SMTP is the approved production provider path
-for account verification and password recovery; the dashboard configuration and
-non-team end-to-end delivery still require verification.
+for account verification and password recovery. Production custom SMTP and live
+delivery have been verified; re-test the app-owned callbacks after their next
+deployment. The beta uses no advertising, session replay, or behavioural/product
+analytics. Only essential application, Cloudflare, Railway, Supabase, and Resend
+operational/security logging is approved.
 
 ### Public pages
 
