@@ -397,9 +397,11 @@ export default function TermsOfServicePage() {
               and platform content, except for content identified as belonging
               to someone else. We give you a limited, revocable, non-transferable
               licence to use the service and its content for personal,
-              non-commercial learning. References to WAEC or other examination
-              bodies describe the learning context and do not by themselves
-              imply endorsement or affiliation.
+              non-commercial learning. Study Buddy does not currently have an
+              official partnership, licence, permission, affiliation,
+              sponsorship, approval, or endorsement from WAEC. References to
+              WAEC or other examination bodies describe only the learning
+              context.
             </p>
           </TermsSection>
 
