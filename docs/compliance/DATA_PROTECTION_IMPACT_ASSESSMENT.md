@@ -2,7 +2,7 @@
 
 Status: preliminary working assessment — not approved for launch  
 Assessment date: 5 September 2026  
-Last updated: 10 September 2026
+Last updated: 11 September 2026
 Assessment owner: to be appointed  
 Approver: co-founders and qualified Nigerian privacy adviser  
 Next review: before production launch and after any material processing change
@@ -13,6 +13,13 @@ Study Buddy processes children’s account and learning data, provides AI chat,
 creates progress and recommendation profiles, and supports WhatsApp messaging.
 These activities can create a high risk to data subjects and should not launch
 without a completed DPIA and approved controls.
+
+The current first-year planning estimate is approximately 50 registered users,
+with about 40 (80%) expected to be under 18. These forecasts are not technical
+account limits and do not by themselves determine Study Buddy's NDPC
+registration or DCPMI classification. The expected child majority means that
+child safeguards must be part of the normal product design rather than an edge
+case.
 
 This assessment covers:
 
@@ -80,7 +87,7 @@ recheck it after organisation ownership or data-control changes.
 | Purpose | Preliminary basis | Conditions before approval |
 | --- | --- | --- |
 | Create and provide an account and requested learning features | Contract or steps requested before contract | Confirm the final basis with Nigerian counsel; the product uses a 13+ minimum and independent activation from 18 |
-| Child account processing | Parent/legal guardian authorisation for ages 13–17 | Review the email-link/declaration assurance level, build self-service withdrawal and approve the event-retention period |
+| Child account processing | Parent/legal guardian authorisation for ages 13–17 | Review the email-link/declaration assurance level, build the approved verified-email operator withdrawal workflow, and approve the pending-choice and event-retention periods |
 | AI answers and personalised recommendations | Contract for requested features; legitimate interests where appropriately balanced | Explain processing, minimise context, provide controls and human-review route |
 | Account and service security | Legitimate interests; legal obligation where applicable | Complete legitimate-interest assessment and retention period |
 | Transaction and compliance records | Contract and legal obligation | Confirm statutory retention with finance/legal adviser |
@@ -120,7 +127,7 @@ provisional until mitigations are implemented and tested.
 
 | Risk | Initial risk | Required mitigation | Provisional residual risk |
 | --- | --- | --- | --- |
-| A child creates an account without valid parent/legal guardian authority | High | Implemented 13+ age gate, restricted account, expiring email-link declaration and event trail; add stepped-up verification for disputes/high-risk cases and self-service withdrawal | Medium; email control plus declaration does not independently prove the real-world relationship |
+| A child creates an account without valid parent/legal guardian authority | High | Implemented 13+ age gate, restricted account, expiring email-link declaration and event trail; no routine identity documents; use minimal stepped-up evidence only for disputed, inconsistent, or suspicious cases and delete it after recording the result; add the approved verified-email operator withdrawal workflow | Medium; email control plus declaration does not independently prove the real-world relationship |
 | AI gives harmful, biased, or confidently incorrect advice | High | Age-appropriate system rules, safety testing, reporting, escalation, narrow educational scope, clear limitations | Medium after validation |
 | A student discloses sensitive or third-party data in chat | High | Just-in-time warning, minimised context, redaction where feasible, access controls, deletion route | Medium |
 | Staff access conversation content without a necessary case | High | Approved no-routine-reading rule; limit beta access to Nick Efe Oni and Chijindu Oreh; require a documented permitted reason, minimum-message scope, confidentiality, and an auditable break-glass workflow before any staff-review interface is introduced | Medium until technical enforcement and access-log review are implemented |
@@ -142,7 +149,7 @@ Before approval, obtain and record input from:
 - a representative group of students of relevant ages;
 - parents or guardians;
 - engineering and information security;
-- the person responsible for privacy requests;
+- the joint privacy leads;
 - product/content owners; and
 - a qualified Nigerian privacy adviser or licensed DPCO where appropriate.
 
@@ -152,7 +159,8 @@ decisions, and reasons when a recommendation is not adopted.
 ## 9. Launch gates
 
 - [x] Exact legal controller identity, RC number, and registered office confirmed.
-- [x] Privacy mailbox and joint request handlers approved: Nick Efe Oni and Chijindu Oreh.
+- [x] Joint privacy leads and mailbox approved: Nick Efe Oni and Chijindu Oreh through `privacy@studybuddyng.com`.
+- [x] Both co-founders are mandatory internal breach contacts through `security@studybuddyng.com`, with `privacy@studybuddyng.com` copied.
 - [x] Age and parent/legal-guardian authorisation design approved and implemented.
 - [ ] Data inventory and lawful-basis record completed.
 - [x] Current launch excludes school/teacher accounts and school-staff access.
