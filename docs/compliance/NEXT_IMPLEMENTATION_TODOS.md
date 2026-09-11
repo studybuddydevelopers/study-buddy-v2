@@ -1,7 +1,7 @@
 # Next Implementation TODOs
 
 Status: ordered engineering queue  
-Last updated: 10 September 2026
+Last updated: 11 September 2026
 
 This file turns approved retention decisions into concrete engineering work.
 Items stay open until their acceptance checks pass in staging and the relevant
@@ -90,6 +90,52 @@ Acceptance criteria:
 4. Conversation content is not available for marketing, general surveillance,
    routine product improvement, or training/evaluation outside the separately
    approved de-identified and opted-in future workflow.
+
+## P1 — Password-reset abuse alerts and user-controlled temporary lock
+
+Notify a verified account owner when the account-specific password-reset limit
+is first exceeded. The email must say that someone made several reset requests,
+ask whether it was the owner, and offer a secure way to temporarily lock the
+account. It must not state that compromise definitely occurred.
+
+- [ ] Trigger the alert only for an existing, verified account and only on the
+  first account-scoped rejection in a rate-limit window. Keep the public API
+  status, response body, timing, and redirect behaviour indistinguishable for
+  existing and nonexistent accounts.
+- [ ] Add a separate alert cooldown and daily cap so an attacker cannot use the
+  password-reset form to flood a victim's inbox. An IP-only limit must not send
+  alerts to every submitted address.
+- [ ] Send the alert asynchronously through the approved transactional-email
+  provider. Do not include passwords, reset tokens, full IP addresses, or other
+  sensitive diagnostics in the email or application logs.
+- [ ] Use calm wording: “Someone made several password-reset requests for your
+  Study Buddy account. If this was you, no action is needed.” Include the time
+  and an approximate location only if both are accurate and privacy-approved.
+- [ ] Add a short-lived, single-use, cryptographically random lock-review token;
+  store only its hash and never log the token or complete link.
+- [ ] Make the email link open a review/confirmation page. Require an explicit
+  POST confirmation before locking so email-security scanners and link-preview
+  bots cannot change account state merely by opening the link.
+- [ ] Decide and document the temporary-lock duration and recovery route. The
+  lock must revoke active sessions, block new sign-ins and sensitive actions,
+  preserve the account's data, and provide a verified way to unlock or obtain
+  support without weakening password-reset protections.
+- [ ] Record privacy-safe audit events for alert requested/sent/suppressed,
+  lock confirmed, sessions revoked, unlock, expiry, and delivery failure.
+- [ ] Test account-enumeration resistance, concurrent threshold crossings,
+  cooldown enforcement, email bombing, expired/reused tokens, scanner GETs,
+  CSRF, session revocation, restricted-account states, and recovery.
+
+Acceptance criteria:
+
+1. Crossing an account-specific password-reset limit sends at most one useful
+   alert within the approved cooldown and does not reveal whether an account
+   exists to the requester.
+2. Merely opening or previewing the email link cannot lock the account.
+3. A confirmed lock promptly revokes sessions and prevents authentication and
+   sensitive actions until the documented unlock condition is satisfied.
+4. Alert and lock logs contain no email address, raw token, password, complete
+   IP address, or email-link query string.
 
 ## P1 — Finish the remaining retention controls
 
