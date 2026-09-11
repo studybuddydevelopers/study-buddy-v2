@@ -2,7 +2,7 @@
 
 Status: co-founder-approved policy; technical enforcement pending  
 Approved by: Nick Efe Oni and Chijindu Oreh  
-Last updated: 10 September 2026
+Last updated: 11 September 2026
 
 ## Rule
 
@@ -68,6 +68,6 @@ reviewed by both co-founders.
 
 The engineering checklist and acceptance tests are maintained in
 `NEXT_IMPLEMENTATION_TODOS.md`. This policy must be reviewed before adding any
-staff-review interface or enabling conversation-based AI improvement, when
-appointing a privacy lead, and after any material change to AI providers, safety
-processes, or legal duties.
+staff-review interface or enabling conversation-based AI improvement, when the
+joint privacy-lead or formal DPO arrangement changes, and after any material
+change to AI providers, safety processes, or legal duties.
