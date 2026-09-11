@@ -244,10 +244,21 @@ export default function TermsOfServicePage() {
               account process or school-staff access to student information.
             </p>
             <p>
+              We do not routinely request identity documents to verify age or
+              guardian authority. We may request minimal additional evidence only
+              when information is disputed, inconsistent, or appears suspicious,
+              and delete that evidence after recording the result unless limited
+              retention is required by law.
+            </p>
+            <p>
               We may restrict an account if the date of birth or adult authority
-              appears inaccurate. A parent or legal guardian may withdraw an
-              authorisation by emailing privacy@studybuddyng.com; we will verify
-              identity and authority before changing the account.
+              appears inaccurate. A parent or legal guardian may withdraw
+              authorisation through a verified request to
+              privacy@studybuddyng.com. Once verified, we sign the student out,
+              restrict the account, stop new AI and WhatsApp activity, and notify
+              both parties. Existing data remains secured only while the adult
+              chooses reauthorisation or permanent deletion, subject to limited
+              retention required by law.
             </p>
           </TermsSection>
 
