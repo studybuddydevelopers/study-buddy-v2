@@ -84,23 +84,26 @@ const sections: PolicyDocumentSection[] = [
   },
   {
     id: "refunds",
-    title: "When a refund may be available",
+    title: "Other situations that qualify for a refund",
     content: (
       <>
-        <p>We will investigate and provide an appropriate remedy when:</p>
+        <p>
+          Apart from the automatic prorated cancellation refund above, we will
+          issue a refund only when:
+        </p>
         <ul>
           <li>you were charged more than once for the same purchase;</li>
           <li>payment was taken but the paid service was not provided;</li>
           <li>we discontinue a prepaid service before the paid period ends;</li>
-          <li>a payment was unauthorised and verified as such;</li>
-          <li>a technical failure makes the paid service materially unusable; or</li>
-          <li>Nigerian consumer law otherwise requires cancellation or refund.</li>
+          <li>Nigerian consumer law otherwise requires a refund.</li>
         </ul>
         <p>
-          A change of mind does not automatically require a refund after a
-          digital service has been made available, unless the checkout terms or
-          applicable law provide one. We will assess requests fairly and will
-          not apply a blanket no-refund rule where the law provides a remedy.
+          An accidental purchase, change of mind, claimed unauthorised payment,
+          outage, technical problem, or general dissatisfaction is not a
+          separate discretionary refund ground unless the facts also meet one
+          of the grounds above. This does not limit any refund or other remedy
+          required by law, and you may still raise an unauthorised transaction
+          with your payment provider or bank.
         </p>
       </>
     ),
@@ -112,8 +115,7 @@ const sections: PolicyDocumentSection[] = [
       <>
         <p>
           The automatic prorated cancellation refund described above does not
-          require a separate request. For another refund issue, such as a
-          duplicate or unauthorised payment, email{" "}
+          require a separate request. For another qualifying refund issue, email{" "}
           <a href={`mailto:${BILLING_EMAIL}`}>{BILLING_EMAIL}</a> with the subject
           “Refund request” and provide the details below.
         </p>
