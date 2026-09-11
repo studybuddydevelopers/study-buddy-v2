@@ -145,9 +145,16 @@ const sections: PolicyDocumentSection[] = [
           they are the parent or legal guardian, read the current notices, and
           approve or deny the learning account. AI permission is a separate,
           optional choice. We record the decision and notice versions. The adult
-          may later withdraw authorisation by emailing{" "}
-          <a href={`mailto:${PRIVACY_EMAIL}`}>{PRIVACY_EMAIL}</a>; we verify the
-          request before restricting the account.
+          and student are not routinely asked for identity documents. We ask for
+          minimal extra evidence only if the age or adult&apos;s authority is disputed,
+          inconsistent, or appears suspicious, and delete that evidence after
+          recording the result unless the law requires limited retention. The adult
+          may later withdraw authorisation through a verified request to{" "}
+          <a href={`mailto:${PRIVACY_EMAIL}`}>{PRIVACY_EMAIL}</a>. Once verified,
+          we sign the student out, restrict the account, stop new AI and WhatsApp
+          activity, and notify both the student and the adult. Existing data is
+          kept securely only while the adult chooses reauthorisation or permanent
+          deletion, subject to any limited retention required by law.
         </p>
       </>
     ),
