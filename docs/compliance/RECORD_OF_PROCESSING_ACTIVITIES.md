@@ -4,18 +4,23 @@ Status: initial Article 24 accountability record — owners and final decisions
 pending  
 Controller: STUDY BUDDY GLOBAL PROJECTS LIMITED (RC 9825797), 24 Anthony Enahoro Street, Utako, Abuja, FCT, Nigeria
 Privacy contact: `privacy@studybuddyng.com`
-Privacy request handlers: Nick Efe Oni and Chijindu Oreh (jointly)
-Last reviewed: 10 September 2026
+Joint privacy leads: Nick Efe Oni and Chijindu Oreh
+Internal breach contact: both joint privacy leads through
+`security@studybuddyng.com`, with `privacy@studybuddyng.com` copied
+Last reviewed: 11 September 2026
 
 This record must be maintained as the product changes. “Pending” is a work item,
 not approval to process. Confirm the controller/processor role, lawful basis,
 retention, provider region, and transfer safeguard before production use.
+The current first-year planning estimate is approximately 50 registered users,
+including about 40 users (80%) under 18. Review this record if actual scale,
+age distribution, or processing changes materially.
 
 ## Controller processing
 
 | ID | Activity and purpose | Data subjects and data | Preliminary basis | Recipients/transfers | Retention | Owner/status |
 | --- | --- | --- | --- | --- | --- | --- |
-| ROPA-01 | Register, authenticate, recover and secure user accounts | Students/adults; name, email, phone, date of birth, terms version, account/AI-authorisation status, auth ID, session and security data; for ages 13–17, guardian name/email/relationship and decision events | Contract/requested steps; legitimate interests for security; parent/legal guardian authority for ages 13–17 | Supabase primary project in North EU (Stockholm), Sweden (`eu-north-1`); Resend provides production Supabase Auth custom SMTP; CAPTCHA, Resend and hosting processing regions pending | Account life plus 36 months after voluntary deactivation, with expiry notices at 90, 60, 15, and 1 day; confirmed permanent deletion has a 15-day cancellation window and active purge within 30 days | Production Resend custom SMTP and verification/reset delivery are confirmed. Re-test the app-owned callbacks after deployment; other account-lifecycle workflows are implemented and the production scheduler has passed an invocation |
+| ROPA-01 | Register, authenticate, recover and secure user accounts | Students/adults; name, email, phone, date of birth, terms version, account/AI-authorisation status, auth ID, session and security data; for ages 13–17, guardian name/email/relationship and decision events; exceptional verification evidence only for disputed, inconsistent, or suspicious cases | Contract/requested steps; legitimate interests for security; parent/legal guardian authority for ages 13–17 | Supabase primary project in North EU (Stockholm), Sweden (`eu-north-1`); Resend provides production Supabase Auth custom SMTP; CAPTCHA, Resend and hosting processing regions pending | Account life plus 36 months after voluntary deactivation, with expiry notices at 90, 60, 15, and 1 day; confirmed permanent deletion has a 15-day cancellation window and active purge within 30 days; delete raw exceptional verification evidence after recording the result unless law requires limited retention | Production Resend custom SMTP and verification/reset delivery are confirmed. Routine identity documents are not collected. Re-test the app-owned callbacks after deployment; other account-lifecycle workflows are implemented and the production scheduler has passed an invocation |
 | ROPA-02 | Maintain learner profile and preferences | Students; name, phone, grade, exam year, subjects, avatar, settings | Contract/requested service | Supabase/PostgreSQL, hosting | Account life plus approved deletion period | Product owner pending |
 | ROPA-03 | Deliver practice questions, drafts and explanations | Students; question IDs, answers, drafts, results, session/activity data | Contract/requested service; legitimate interests for reliability | Supabase/PostgreSQL; browser local storage | Submitted answers, attempts, and quiz sessions: active account plus 36-month reversible-deactivation period; unfinished cloud/local drafts follow their separate controls | Approved study-history period; cloud/local draft controls remain open |
 | ROPA-04 | Deliver and grade mock exams | Students; template/instance IDs, answers, timing, score and completion status | Contract/requested service | Supabase/PostgreSQL, hosting | Active account plus 36-month reversible-deactivation period; delete with account at expiry or confirmed permanent deletion | Approved period; account-purge cascade implemented |
