@@ -6,6 +6,7 @@ import { fetchWithTimeout } from "@/lib/security/timeouts";
 import { validateCookieMutationOrigin } from "@/lib/security/csrf";
 import { logSecurityEvent } from "@/lib/security/audit-log";
 import { accountStatusDestination } from "@/lib/account-status";
+import { authRedirectUrl } from "@/lib/supabase/auth-redirect";
 
 const protectedPaths = [
   "/dashboard",
@@ -25,6 +26,8 @@ const guestOnlyPaths = [
   "/sign-up",
   "/forgot-password",
   "/check-email",
+  "/auth/password-reset",
+  "/reset-password",
 ];
 
 const productionDisabledPaths = [
@@ -136,7 +139,7 @@ export async function proxy(req: NextRequest) {
 
   if (protectedPaths.some((path) => pathMatches(pathname, path)) && !user) {
     return withContentSecurityPolicy(
-      NextResponse.redirect(new URL("/unauthorized", req.url)),
+      NextResponse.redirect(authRedirectUrl("/unauthorized", req.url)),
       contentSecurityPolicy
     );
   }
@@ -145,7 +148,7 @@ export async function proxy(req: NextRequest) {
     const restrictedDestination = accountStatusDestination(accountStatus);
     if (restrictedDestination && restrictedDestination !== pathname) {
       return withContentSecurityPolicy(
-        NextResponse.redirect(new URL(restrictedDestination, req.url)),
+        NextResponse.redirect(authRedirectUrl(restrictedDestination, req.url)),
         contentSecurityPolicy
       );
     }
@@ -155,7 +158,7 @@ export async function proxy(req: NextRequest) {
     const destination =
       accountStatusDestination(accountStatus) ?? "/already-logged-in";
     return withContentSecurityPolicy(
-      NextResponse.redirect(new URL(destination, req.url)),
+      NextResponse.redirect(authRedirectUrl(destination, req.url)),
       contentSecurityPolicy
     );
   }
