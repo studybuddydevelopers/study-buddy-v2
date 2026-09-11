@@ -2,7 +2,7 @@
 
 Status: operating draft — contact roster and regulator workflow pending  
 Owner: incident commander to be appointed  
-Last reviewed: 9 September 2026
+Last reviewed: 11 September 2026
 
 ## Purpose
 
@@ -26,7 +26,7 @@ Complete this table before launch and keep an offline copy.
 | --- | --- | --- | --- |
 | Incident commander | Pending | Pending | Pending |
 | Engineering/security lead | Pending | Pending | Pending |
-| Privacy lead/DPO | Pending | Pending | Pending |
+| Joint privacy leads and mandatory breach contacts | Nick Efe Oni and Chijindu Oreh | Each other | `security@studybuddyng.com`; copy `privacy@studybuddyng.com` |
 | Company decision-maker | Pending | Pending | Pending |
 | Communications/support lead | Pending | Pending | Pending |
 | External privacy adviser/DPCO | Pending | Pending | Pending |
@@ -39,8 +39,10 @@ Complete this table before launch and keep an offline copy.
 | Paystack escalation | Pending | Pending | Provider portal |
 
 Privacy contact: `privacy@studybuddyng.com`
-Privacy request handlers: Nick Efe Oni and Chijindu Oreh (jointly)
+Joint privacy leads: Nick Efe Oni and Chijindu Oreh
 Security contact: `security@studybuddyng.com`
+Mandatory internal breach contacts: Nick Efe Oni and Chijindu Oreh; send to
+`security@studybuddyng.com` and copy `privacy@studybuddyng.com`
 NDPC contact: [ndpc.gov.ng/contact](https://www.ndpc.gov.ng/contact/)
 
 ## First report
@@ -48,7 +50,8 @@ NDPC contact: [ndpc.gov.ng/contact](https://www.ndpc.gov.ng/contact/)
 Anyone who suspects a breach must immediately:
 
 1. preserve evidence and note the UTC discovery time;
-2. contact the incident commander and security/privacy leads;
+2. notify both Nick Efe Oni and Chijindu Oreh immediately by sending the report
+   to `security@studybuddyng.com` and copying `privacy@studybuddyng.com`;
 3. avoid deleting logs, contacting an attacker, or making public claims;
 4. use a secure channel rather than the affected system where possible; and
 5. record only necessary incident details, not copies of exposed personal data.
