@@ -8,7 +8,7 @@ and commercial questions for Study Buddy. Answers are not treated as legal
 approval by themselves. Public notices, product behaviour, internal records,
 and provider settings must be updated together after each answer is confirmed.
 
-Questions 1–28 and 30–37 have been answered. The confirmed decisions include the company
+Questions 1–28, 30–37, and 39–40 have been answered. The confirmed decisions include the company
 identity and address, `privacy@studybuddyng.com` as the privacy-request mailbox,
 joint request handling by Nick Efe Oni and Chijindu Oreh, a minimum account age
 of 13, independent activation from 18, and parent or legal-guardian approval for
@@ -159,13 +159,37 @@ proportionate additional evidence may be requested only when age, relationship,
 or authority is disputed, inconsistent, or appears suspicious. The raw evidence
 must be deleted after the verification result is recorded unless a documented
 legal requirement justifies limited retention.
+The co-founders have selected contractual necessity for requested core account,
+learning, AI, support, and subscription services provided to adults. For users
+aged 13–17, verified parent or legal-guardian consent is required for processing
+the child's data, with the service agreement made with the guardian where
+appropriate. Legal obligation applies to compulsory financial, compliance,
+privacy-rights, and regulatory records. Legitimate interests apply only to
+necessary security, fraud and abuse prevention, service reliability, limited
+incident investigation, legal claims, and proportionate internal improvement
+after a documented balancing assessment. Optional WhatsApp communications,
+non-essential marketing, and any future use of selected conversations to train
+or evaluate Study Buddy's own AI require separate, specific consent and the
+additional controls already recorded for children. Study Buddy will not rely on
+public interest for its ordinary commercial service. Vital interests are
+reserved for genuine emergencies involving immediate safety. Irreversibly
+anonymised statistics may be used for product planning, but pseudonymised data
+remains personal data. These selections remain subject to the certified DPO's
+formal validation through Question 38.
+The co-founders have confirmed that Study Buddy has not yet verified, accepted,
+and retained suitable data-processing agreements for all providers that process
+personal data. Question 40 is therefore answered **No**. A provider's ordinary
+terms or published privacy policy must not be treated as proof that the required
+DPA is in place. The agreement, applicable contracting entity, version,
+acceptance date, sub-processor terms, and supporting account evidence must be
+recorded for each active processor before the relevant production processing is
+approved. The processor register is the operating checklist for closing this
+known gap.
 
 ## Open questions
 
 29. Who owns or licenses every past question, textbook, explanation, and study resource?
 38. Who will complete and formally approve the children-and-AI Data Protection Impact Assessment, and when?
-39. What lawful basis applies to each processing purpose, including account operation, AI conversations, payments, security logs, marketing, and analytics?
-40. Do all personal-data processors have suitable data-processing agreements, including Supabase, Railway, OpenAI, Resend, Paystack, and any monitoring provider?
 41. What legal safeguard covers each international transfer of personal data outside Nigeria?
 42. How will users exercise access, correction, restriction, objection, and data-portability rights, in addition to deletion?
 43. What is the complete personal-data-breach procedure, including investigation, documentation, risk assessment, escalation, and any required NDPC or user notification?
