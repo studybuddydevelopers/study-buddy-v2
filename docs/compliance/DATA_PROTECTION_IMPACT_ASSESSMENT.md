@@ -186,7 +186,10 @@ decisions, and reasons when a recommendation is not adopted.
 - [ ] Verify 90-day provider backup expiry and implement the remaining approved retention jobs; the account scheduler and chat-only hard deletion are deployed in code and the scheduler has passed a production invocation.
 - [ ] Provider agreements are recorded and a working transfer policy is adopted; verify every country/sub-processor, complete each transfer assessment, record consent evidence where used, obtain certified-DPO validation, and obtain any required NDPC CBDTI approval.
 - [ ] Incident-response contacts and breach register are operational.
-- [ ] Privacy-right request workflow and response register are operational.
+- [ ] Email-first privacy-rights procedure is approved; create the restricted
+  request register and secure export-delivery method, then test access,
+  correction, restriction, objection, withdrawal, portability, refusal, and
+  guardian-request handling end to end.
 - [ ] Accessibility audit covers sign-up, privacy requests, chat, and exams.
 - [ ] Co-founders and privacy adviser accept the residual risks in writing.
 
