@@ -35,7 +35,9 @@ const sections: PolicyDocumentSection[] = [
         <p>
           Study Buddy and its licensors retain their rights in the service,
           software, branding, original explanations, illustrations, and learning
-          materials. Study Buddy has the rights to use and publish the current
+          materials. The current question bank contains AI-generated practice
+          questions rather than genuine past questions. Study Buddy has the
+          rights to use the current practice questions and owns the current
           learner-visible explanations. Third-party material remains owned by
           its respective owner. Nothing on the service transfers ownership to a
           user unless expressly stated in writing.
