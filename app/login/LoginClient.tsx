@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
+import { useRouter } from "next/navigation";
 import Heading2 from "@/components/Heading2";
 import TextField from "@/components/TextField";
 import Button from "@/components/Button";
@@ -14,10 +15,13 @@ import CaptchaChallenge, {
 import { FaHandPeace, FaHandPointDown } from "react-icons/fa6";
 import { FaHandPaper } from "react-icons/fa";
 import { readResponseError } from "@/lib/client-response-error";
+import { useAuthState } from "@/components/AuthStateProvider";
 
 const HAND_ICONS = [FaHandPeace, FaHandPaper, FaHandPointDown];
 
 export default function LoginClient() {
+  const router = useRouter();
+  const { setIsAuthenticated } = useAuthState();
   const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
@@ -72,12 +76,15 @@ export default function LoginClient() {
         return;
       }
 
-      // Authentication changes the cookie-backed root layout. A document
-      // navigation guarantees that the navbar and protected route are rendered
-      // from the newly authenticated request instead of a retained layout.
-      window.location.replace(
-        response.headers.get("X-Study-Buddy-Next") || "/dashboard"
-      );
+      const responseNextPath = response.headers.get("X-Study-Buddy-Next");
+      const nextPath =
+        responseNextPath?.startsWith("/") && !responseNextPath.startsWith("//")
+          ? responseNextPath
+          : "/dashboard";
+
+      setIsAuthenticated(true);
+      router.replace(nextPath);
+      router.refresh();
     } catch {
       setFormError(
         "We couldn't log you in. Check your connection and try again."
