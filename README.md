@@ -77,10 +77,11 @@ necessary core-service transfers use section 43(1)(b) contractual necessity,
 with guardian requirements for child processing and separate consent for
 optional transfers, backed by provider DPAs and technical safeguards. Exact
 destination mapping, provider-specific assessments, certified-DPO validation,
-and any required NDPC-approved transfer instrument remain open. Whether the
-joint privacy leads require a separate formal DPO designation, plus the
-remaining retention periods and payment rules require qualified Nigerian
-legal/privacy review. For the current direct-to-user service, Study Buddy is the
+and any required NDPC-approved transfer instrument remain open. A separate,
+formally designated qualified DPO is required; Chijindu Oreh owns the work of
+identifying or engaging that person and coordinating the children-and-AI DPIA
+and NDPC work. The remaining retention periods and payment rules require
+qualified Nigerian legal/privacy review. For the current direct-to-user service, Study Buddy is the
 data controller and meets the NDPC's DCPMI designation through the education-
 sector criterion regardless of the current sub-200 user forecast. The working
 tier is MDP-OHL, subject to written confirmation by a licensed DPCO or qualified
@@ -98,13 +99,13 @@ operational/security logging is approved.
 | Page | Current status | Why it must be updated later |
 | --- | --- | --- |
 | [`/privacy-policy`](/Users/efeon/study-buddy-v2/app/privacy-policy/page.tsx) | Identifies the registered controller, verified privacy mailbox, current Railway/Cloudflare hosting and Supabase Stockholm primary region; covers current data flows and approved age, access, AI-improvement, retention, international-transfer and email-first privacy-rights policies | Add remaining retention periods and verified provider/Supabase processing locations after the provider assessments |
-| [`/terms-of-service`](/Users/efeon/study-buddy-v2/app/terms-of-service/page.tsx) | Identifies the contracting legal entity and covers minors, AI, user content, payments, consumer rights and Nigerian law | Add the final commercial terms; legal review is required before paid/school launch |
+| [`/terms-of-service`](/Users/efeon/study-buddy-v2/app/terms-of-service/page.tsx) | Identifies the contracting legal entity and covers minors, AI, user content, payments, consumer rights, Nigerian law, and the current absence of textbooks or genuine past-question claims | Add the final commercial terms; legal review is required before paid/school launch |
 | [`/refund-policy`](/Users/efeon/study-buddy-v2/app/refund-policy/page.tsx) | Future paid subscriptions automatically renew after clear disclosure; same-day cancellation automatically refunds prorated unused time; other refunds are limited to duplicate payment, paid service not provided, Study Buddy discontinuation, or Nigerian-law requirements | Implement and test renewal, cancellation, refund and confirmation-email controls and confirm processing targets before accepting payment |
 | [`/parent-student-privacy`](/Users/efeon/study-buddy-v2/app/parent-student-privacy/page.tsx) | Implemented as an age-appropriate summary of the live 13+ rule, guardian email decision flow, and disabled future conversation-improvement choice | Re-review the future opt-in with students, parents and a qualified Nigerian privacy adviser before activation or after any material workflow change |
 | [`/ai-safety`](/Users/efeon/study-buddy-v2/app/ai-safety/page.tsx) | Implemented with limitations, privacy, academic-integrity, prohibited-use, narrow staff-review authority, future AI-improvement safeguards, and reporting rules | Update after child-safety evaluation, reporting UI, staff-access tooling, escalation owners and any new AI model/use case are implemented |
 | [`/cookie-policy`](/Users/efeon/study-buddy-v2/app/cookie-policy/page.tsx) | Accurate for essential auth, local drafts and CAPTCHA; states that advertising/behavioural cookies are not currently used | Update and implement consent controls before adding non-essential analytics, advertising pixels, session replay or similar tracking |
 | [`/accessibility`](/Users/efeon/study-buddy-v2/app/accessibility/page.tsx) | Implemented without making an unsupported conformance claim | Add tested WCAG version, scope, methods, failures and remediation dates after an independent accessibility audit |
-| [`/content-policy`](/Users/efeon/study-buddy-v2/app/content-policy/page.tsx) | Covers permitted use, rights complaints, and the confirmed absence of a current WAEC relationship while permission is being pursued | Update after every learning resource has recorded provenance/licensing or an executed WAEC agreement changes the current position |
+| [`/content-policy`](/Users/efeon/study-buddy-v2/app/content-policy/page.tsx) | Covers permitted use, rights complaints, the current absence of displayed textbooks/genuine past questions, and the absence of a current WAEC relationship | Update only after each future resource has recorded provenance/licensing or an executed WAEC agreement changes the current position |
 
 All pages are linked from the responsive footer. The Privacy Policy and Terms
 also link directly to the detailed notices relevant to their sections.
@@ -125,7 +126,8 @@ also link directly to the detailed notices relevant to their sections.
 | [`DATA_SUBJECT_RIGHTS_REQUEST_PROCEDURE.md`](/Users/efeon/study-buddy-v2/docs/compliance/DATA_SUBJECT_RIGHTS_REQUEST_PROCEDURE.md) | Records the Question 42 email intake, verification, 30-day handling, provider search, JSON/CSV export, secure delivery, refusal, complaint, and review procedure | Create the restricted register and secure export-delivery setup outside source control, then test every request type; the in-app request centre is a future feature |
 | [`SCHOOL_DATA_PROCESSING_SCHEDULE.md`](/Users/efeon/study-buddy-v2/docs/compliance/SCHOOL_DATA_PROCESSING_SCHEDULE.md) | Contract template covering roles, instructions, visibility, security, rights, deletion, incidents and audit | It cannot be signed until both legal entities, controller/processor roles, exact staff visibility, service terms, contacts and retention periods are agreed |
 | [`RECORD_OF_PROCESSING_ACTIVITIES.md`](/Users/efeon/study-buddy-v2/docs/compliance/RECORD_OF_PROCESSING_ACTIVITIES.md) | Initial inventory of current controller and possible school-processor activities | Replace preliminary bases/roles with approved decisions and reconcile it against production provider dashboards and configuration before launch |
-| [`OPEN_COMPLIANCE_QUESTIONS.md`](/Users/efeon/study-buddy-v2/docs/compliance/OPEN_COMPLIANCE_QUESTIONS.md) | Tracks approved working answers through question 44 and the two remaining decisions | Work through questions 29 and 38 and reconcile each answer with the product, notices, compliance records, and operating procedures |
+| [`LEARNING_CONTENT_RIGHTS_REGISTER.md`](/Users/efeon/study-buddy-v2/docs/compliance/LEARNING_CONTENT_RIGHTS_REGISTER.md) | Records the current content scope and the publication gate for contractor, textbook, and genuine past-question material | Add each resource and its evidence before import or publication; Chijindu must first obtain the contractor agreement |
+| [`OPEN_COMPLIANCE_QUESTIONS.md`](/Users/efeon/study-buddy-v2/docs/compliance/OPEN_COMPLIANCE_QUESTIONS.md) | Tracks approved working answers for questions 1–44 | Complete the remaining evidence, reviews, registrations, contracts, and implementation gates without treating the working answers as legal sign-off |
 
 ### Required non-document work
 
@@ -186,7 +188,18 @@ These items cannot be solved by publishing policies and remain launch work:
   memorisation tests, updated DPIA, legal review and release gate documented in
   `NEXT_IMPLEMENTATION_TODOS.md`.
 - [ ] Run an independent WCAG 2.2 AA audit and remediate core-flow barriers.
+- [x] Confirm that the current service displays no textbooks and makes no claim
+  that any displayed question is a genuine past examination question; Study
+  Buddy has the rights to use its current learner-visible explanations.
+- [ ] Chijindu Oreh must obtain a signed contractor assignment or sufficiently
+  broad licence as the next content-rights priority. Keep all contractor
+  material unpublished and out of production imports until it is signed and
+  independently verify rights in any embedded third-party content.
 - [ ] Complete learning-content provenance/licensing records and obtain an appropriate written WAEC licence or permission before reproducing genuine past questions.
+- [ ] Chijindu Oreh must complete and coordinate the children-and-AI DPIA,
+  obtain qualified DPO/Nigerian privacy review, and present it to both founders
+  for written approval before any real user aged 13–17 receives AI or WhatsApp
+  access or the controlled child-facing beta opens.
 - [ ] NDPC registration is **required — not yet filed**. Obtain written
   confirmation of the likely MDP-OHL tier and the six-month trigger date from a
   qualified Nigerian adviser or licensed DPCO, designate the DPO, and complete
