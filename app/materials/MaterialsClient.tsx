@@ -25,7 +25,7 @@ interface HubCard {
 
 const FEATURED_CARDS: HubCard[] = [
   {
-    title: "Past Questions by Topic",
+    title: "Practice Questions by Topic",
     description: "Practice Mathematics topics from the question bank.",
     href: "/materials/past-questions",
     Icon: ClipboardList,
@@ -94,7 +94,7 @@ export default function MaterialsClient({
             <Heading2 gutter="sm">Ongoing</Heading2>
             <div className="grid gap-4 lg:grid-cols-3">
               <OngoingCard
-                title="Mathematics Past Questions"
+                title="Mathematics Practice Questions"
                 href="/materials/past-questions"
                 Icon={ClipboardList}
                 proposal="pastQuestions"
