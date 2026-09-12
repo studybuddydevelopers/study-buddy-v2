@@ -25,7 +25,7 @@ export const metadata = createPageMetadata({
   path: "/privacy-policy",
 });
 
-const LAST_UPDATED = "11 September 2026";
+const LAST_UPDATED = "12 September 2026";
 
 const summaryItems: {
   title: string;
@@ -756,8 +756,8 @@ export default function PrivacyPolicyPage() {
             </ul>
             <p>
               You can deactivate your account or request permanent account
-              deletion in Settings. To exercise another right, or if you cannot
-              access your account, email{" "}
+              deletion in Settings. During beta, the official route for every
+              other privacy-right request is email to{" "}
               <a
                 href={`mailto:${PRIVACY_EMAIL}`}
                 className="font-medium text-primary-600 hover:underline"
@@ -765,10 +765,23 @@ export default function PrivacyPolicyPage() {
                 {PRIVACY_EMAIL}
               </a>
               . Tell us what you are requesting and which account is involved.
-              We may need to verify your identity or authority before acting. We
-              will respond without undue delay and within the period required by
-              applicable law. Some rights have lawful exceptions, which we will
-              explain if they apply.
+              Nick Efe Oni and Chijindu Oreh jointly handle these requests. We
+              normally acknowledge receipt within two working days and complete
+              a sufficiently verified request without undue delay and within 30
+              calendar days.
+            </p>
+            <p>
+              We verify identity through the recorded account email or another
+              proportionate method and request extra evidence only when
+              reasonably necessary. A parent or legal guardian acting for a
+              13–17-year-old must also verify their authority. Eligible exports
+              are provided in a structured format such as JSON or CSV through a
+              private, expiring download link rather than an ordinary unencrypted
+              email attachment. We record the request, verification, systems and
+              providers checked, actions, deadlines, reviewer, and outcome in a
+              restricted register. Some rights have lawful exceptions. If we
+              refuse or limit a request, we will explain why and how to ask us to
+              reconsider or complain to the NDPC.
             </p>
             <p>
               You can also contact or complain to the{" "}
