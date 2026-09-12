@@ -1,19 +1,19 @@
 "use client";
 
-import { createContext, Suspense, useContext } from "react";
+import { Suspense } from "react";
 import dynamic from "next/dynamic";
 import Navbar from "@/components/NavBar";
 import Footer from "@/components/Footer";
+import AuthStateProvider, {
+  useUser,
+} from "@/components/AuthStateProvider";
 
 const BottomNav = dynamic(() => import("@/components/BottomNav"), {
   ssr: false,
   loading: () => null,
 });
 
-export const UserContext = createContext(false);
-export function useUser() {
-  return useContext(UserContext);
-}
+export { useUser } from "@/components/AuthStateProvider";
 
 export default function ClientLayoutWrapper({
   children,
@@ -23,8 +23,20 @@ export default function ClientLayoutWrapper({
   isAuthenticated: boolean;
 }) {
   return (
-    <UserContext.Provider value={isAuthenticated}>
-      {/* Navbar receives the SSR user directly */}
+    <AuthStateProvider
+      key={isAuthenticated ? "authenticated" : "anonymous"}
+      initialIsAuthenticated={isAuthenticated}
+    >
+      <ClientLayoutChrome>{children}</ClientLayoutChrome>
+    </AuthStateProvider>
+  );
+}
+
+function ClientLayoutChrome({ children }: { children: React.ReactNode }) {
+  const isAuthenticated = useUser();
+
+  return (
+    <>
       <Navbar
         isAuthenticated={isAuthenticated}
         signInLink="/login"
@@ -53,6 +65,6 @@ export default function ClientLayoutWrapper({
           <BottomNav />
         </div>
       )}
-    </UserContext.Provider>
+    </>
   );
 }
