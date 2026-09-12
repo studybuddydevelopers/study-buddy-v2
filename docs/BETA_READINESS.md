@@ -52,10 +52,16 @@ readiness sign-off.
    procedure. Nick Efe Oni and Chijindu Oreh are already the mandatory internal
    breach contacts through `security@studybuddyng.com`, with the privacy mailbox
    copied.
-6. Run a child-focused AI safety test and accessibility smoke test across the
-   sign-up, guardian, chat, settings, and privacy-request paths.
-7. Confirm learning-content provenance and display an explicit beta notice,
-   feedback route, known limitations, and support contact.
+6. Chijindu Oreh must complete and coordinate the children-and-AI DPIA, obtain
+   qualified privacy review, and secure recorded co-founder approval before any
+   invited user aged 13–17 receives AI or WhatsApp access. Then run the child-
+   focused AI safety test and accessibility smoke test across the sign-up,
+   guardian, chat, settings, and privacy-request paths.
+7. Keep contractor material unpublished until Chijindu Oreh obtains the signed
+   rights agreement. Confirm every live learning resource's provenance and
+   display an explicit beta notice, feedback route, known limitations, and
+   support contact. Do not display textbooks or describe content as genuine past
+   examination questions until the required rights are documented.
 8. Run the staging OWASP ZAP workflow against the release candidate and resolve
    high-confidence high/critical findings before inviting users.
 9. Study Buddy meets the DCPMI designation through the education-sector
