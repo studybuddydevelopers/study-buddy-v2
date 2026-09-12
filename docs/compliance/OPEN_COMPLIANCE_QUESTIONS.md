@@ -8,7 +8,7 @@ and commercial questions for Study Buddy. Answers are not treated as legal
 approval by themselves. Public notices, product behaviour, internal records,
 and provider settings must be updated together after each answer is confirmed.
 
-Questions 1–28, 30–37, and 39–41 have an approved working answer. The confirmed decisions include the company
+Questions 1–28, 30–37, and 39–42 have an approved working answer. The confirmed decisions include the company
 identity and address, `privacy@studybuddyng.com` as the privacy-request mailbox,
 joint request handling by Nick Efe Oni and Chijindu Oreh, a minimum account age
 of 13, independent activation from 18, and parent or legal-guardian approval for
@@ -201,12 +201,25 @@ Nigerian privacy adviser must validate the necessity analysis, destination map,
 transfer risk assessments, and whether an NDPC-approved CBDTI is required. The
 full provider map and remaining actions are in the
 [International Data Transfer Assessment](./INTERNATIONAL_DATA_TRANSFER_ASSESSMENT.md).
+Question 42 adopts an email-first privacy-rights procedure for beta. Requests for
+access, correction, restriction, objection, consent withdrawal, portability,
+and human review go to `privacy@studybuddyng.com`; the in-app request centre is
+a future feature. Nick Efe Oni and Chijindu Oreh jointly handle requests, target
+acknowledgement within two working days, and complete a sufficiently verified
+request without undue delay and within 30 calendar days. Verification uses the
+recorded account email or another proportionate method, with parent/legal-
+guardian authority verified for child requests and extra evidence requested
+only where reasonably necessary. Exports use JSON or CSV and a private,
+expiring link. Every case records verification, systems/providers searched,
+actions, deadlines, reviewer, delivery, and outcome. Any refusal or limitation
+requires a documented lawful reason, second-person review, a clear explanation,
+and an NDPC complaint route. The approved procedure is in the
+[Data Subject Rights Request Procedure](./DATA_SUBJECT_RIGHTS_REQUEST_PROCEDURE.md).
 
 ## Open questions
 
 29. Who owns or licenses every past question, textbook, explanation, and study resource?
 38. Who will complete and formally approve the children-and-AI Data Protection Impact Assessment, and when?
-42. How will users exercise access, correction, restriction, objection, and data-portability rights, in addition to deletion?
 43. What is the complete personal-data-breach procedure, including investigation, documentation, risk assessment, escalation, and any required NDPC or user notification?
 44. Is Study Buddy legally classified as a Data Controller or Data Processor of Major Importance, and what registration obligations follow?
 
