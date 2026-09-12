@@ -3,9 +3,9 @@ import { getMaterialsOverview } from "../materials-data";
 import PastQuestionsClient from "./PastQuestionsClient";
 
 export const metadata = createPageMetadata({
-  title: "Past Questions",
+  title: "Practice Questions",
   description:
-    "Choose a subject, practise WAEC-style past questions and use your results to identify the topics that need more revision.",
+    "Choose a subject, answer Study Buddy practice questions and use your results to identify the topics that need more revision.",
   index: false,
 });
 
