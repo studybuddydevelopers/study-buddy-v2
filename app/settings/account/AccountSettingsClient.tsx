@@ -6,9 +6,11 @@ import { useRouter } from "next/navigation";
 import Button from "@/components/Button";
 import StudyBuddyIcon from "@/components/StudyBuddyIcon";
 import { readResponseError } from "@/lib/client-response-error";
+import { useAuthState } from "@/components/AuthStateProvider";
 
 export default function AccountSettingsClient() {
   const router = useRouter();
+  const { setIsAuthenticated } = useAuthState();
   const [accountAction, setAccountAction] = useState<
     "deactivate" | "delete" | null
   >(null);
@@ -48,6 +50,7 @@ export default function AccountSettingsClient() {
         setDeleteConfirmation("");
         return;
       }
+      setIsAuthenticated(false);
       router.replace("/login");
       router.refresh();
     } catch {
