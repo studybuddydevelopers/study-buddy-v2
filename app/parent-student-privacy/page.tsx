@@ -238,6 +238,31 @@ const sections: PolicyDocumentSection[] = [
     ),
   },
   {
+    id: "breaches",
+    title: "If personal information is exposed",
+    content: (
+      <>
+        <p>
+          If personal information is lost, exposed, changed, or accessed by
+          someone who should not have it, Study Buddy will investigate, act to
+          stop further harm, and record what happened. We notify the Nigeria
+          Data Protection Commission when the law requires it.
+        </p>
+        <p>
+          If the problem creates a high risk to a student or another person, we
+          will warn the affected people immediately in clear, age-appropriate
+          language unless a specific legal exception applies. Report suspected
+          account access or exposed information to{" "}
+          <a href="mailto:security@studybuddyng.com">
+            security@studybuddyng.com
+          </a>
+          . Do not email passwords, one-time codes, or unnecessary copies of the
+          exposed information.
+        </p>
+      </>
+    ),
+  },
+  {
     id: "safety",
     title: "Getting help",
     content: (
