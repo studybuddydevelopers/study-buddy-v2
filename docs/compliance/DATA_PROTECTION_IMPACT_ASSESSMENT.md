@@ -3,8 +3,9 @@
 Status: preliminary working assessment — not approved for launch  
 Assessment date: 5 September 2026  
 Last updated: 12 September 2026
-Assessment owner: to be appointed  
-Approver: co-founders and qualified Nigerian privacy adviser  
+Assessment owner: Chijindu Oreh  
+Approver: both co-founders after review by the formally designated qualified DPO or another qualified Nigerian privacy adviser  
+Completion deadline: before any real user aged 13–17 receives AI or WhatsApp access and before the controlled child-facing beta opens  
 Next review: before production launch and after any material processing change
 
 ## 1. Decision and scope
@@ -112,8 +113,10 @@ recheck it after organisation ownership or data-control changes.
 
 No team member should assume that consent is always the appropriate basis.
 Every purpose must have one recorded basis and any required balancing or consent
-evidence. These co-founder selections require formal validation by the certified
-DPO who completes or approves this DPIA under open Question 38.
+evidence. These co-founder selections require formal review by the designated
+qualified DPO or another qualified Nigerian privacy adviser before both
+co-founders record the company's approval. Chijindu Oreh owns and coordinates
+that work.
 
 ## 6. Necessity and proportionality
 
@@ -208,11 +211,11 @@ decisions, and reasons when a recommendation is not adopted.
 
 | Role | Name | Decision | Date | Signature/reference |
 | --- | --- | --- | --- | --- |
-| Assessment owner | Pending | Pending | — | — |
+| Assessment owner | Chijindu Oreh | Preparation and coordination assigned; final assessment pending | — | — |
 | Engineering/security owner | Pending | Pending | — | — |
 | Product owner | Pending | Pending | — | — |
-| Privacy adviser/DPO | Pending | Pending | — | — |
-| Company approver | Pending | Pending | — | — |
+| Privacy adviser/DPO | To be formally designated or engaged by Chijindu Oreh | Qualified review pending | — | — |
+| Company approvers | Nick Efe Oni and Chijindu Oreh | Written residual-risk approval pending qualified review | — | — |
 
 Approval is invalid if the underlying processing materially changes or a launch
 gate is incomplete. Re-open the assessment after a serious incident, a new AI
