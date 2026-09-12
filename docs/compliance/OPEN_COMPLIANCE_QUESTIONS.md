@@ -8,7 +8,8 @@ and commercial questions for Study Buddy. Answers are not treated as legal
 approval by themselves. Public notices, product behaviour, internal records,
 and provider settings must be updated together after each answer is confirmed.
 
-Questions 1–28, 30–37, and 39–44 have an approved working answer. The confirmed decisions include the company
+Questions 1–44 now have an approved working answer for the current product
+scope. The confirmed decisions include the company
 identity and address, `privacy@studybuddyng.com` as the privacy-request mailbox,
 joint request handling by Nick Efe Oni and Chijindu Oreh, a minimum account age
 of 13, independent activation from 18, and parent or legal-guardian approval for
@@ -105,15 +106,19 @@ provided, Study Buddy discontinuing a prepaid service, or another refund
 required by Nigerian consumer law. An unauthorised-payment claim, accidental
 purchase, change of mind, outage, or general dissatisfaction is not a separate
 discretionary ground unless the facts also meet one of those four grounds.
-Nick Efe Oni has confirmed that the contractor signed an agreement assigning
-the contractor's original deliverables to Study Buddy Global Projects Limited,
-and that Chijindu Oreh holds the agreement details. This confirmation covers the
-contractor's original analysis and explanations; it does not establish rights
-in any WAEC question, examiner report, marking material, textbook extract, or
-other third-party content included or referenced in a deliverable. The current
-seeded question bank was generated using AI. Question 29 therefore remains open
-until the source and permitted use of every learner-visible item are recorded,
-including separate permission for any genuine past-question content.
+Question 29 is answered for the current product scope. No textbook or material
+described as a genuine past examination question is currently shown to users.
+The co-founders confirm that Study Buddy has the rights to use and publish the
+current learner-visible explanations. Contractor spreadsheet material is not
+approved for import or publication: contrary to the earlier record, the
+contractor has not yet signed a rights agreement. Chijindu Oreh owns the urgent
+action to obtain a written assignment or sufficiently broad licence before any
+of that material is used. That agreement can cover only the contractor's
+original contributions; it cannot transfer rights the contractor does not own
+in WAEC questions, examiner reports, marking materials, textbook extracts, or
+other third-party works. Every future resource must have a recorded source and
+usage right before publication, and genuine past questions or textbooks remain
+disabled until Study Buddy obtains the necessary permission.
 Study Buddy does not currently have an official partnership, licence,
 permission, affiliation, sponsorship, approval, or endorsement from WAEC. The
 co-founders intend to seek an appropriate written relationship or permission.
@@ -155,13 +160,14 @@ The company must formally designate a Data Protection Officer with the required
 expert knowledge. The DPO may be an employee or engaged under a service
 contract. Nick Efe Oni and Chijindu Oreh remain the joint operational privacy
 leads, but that shared role does not by itself complete the formal DPO
-designation. The decision on which qualified person will serve as DPO remains
-part of Question 38 and the registration work.
+designation. Chijindu Oreh owns the work of engaging or identifying the
+qualified DPO and completing the associated NDPC work.
 Co-founders Nick Efe Oni and Chijindu Oreh are appointed as Study Buddy's joint
 privacy leads. They share responsibility through `privacy@studybuddyng.com`.
 Study Buddy's DCPMI classification requires one formally designated, qualified
-DPO, who may be an employee or an external service provider. Selecting that DPO
-and recording the appointment remain open under Question 38.
+DPO, who may be an employee or an external service provider. Chijindu Oreh is
+responsible for coordinating that selection and recording the appointment; he
+is not treated as the formal DPO merely because he owns the work.
 The current planning estimate is approximately 50 registered users during the
 first year. This is a forecast, not an account cap, and must be reviewed if
 actual growth or launch plans materially change.
@@ -267,10 +273,26 @@ and a tabletop exercise remain documented later implementation tasks rather
 than unanswered policy choices. The legal response and notification duties are
 not postponed by that implementation sequencing.
 
-## Open questions
+Question 38 assigns Chijindu Oreh as the accountable internal owner for the
+children-and-AI DPIA and related NDPC work. He will complete and coordinate the
+assessment, obtain review from the formally designated qualified DPO or another
+qualified Nigerian privacy adviser, and present the final residual-risk decision
+to both co-founders for recorded company approval. The deadline is before any
+real user aged 13–17 is given AI or WhatsApp access and before the controlled
+child-facing beta is opened. If either feature is already reachable by a minor,
+that access must remain restricted until the DPIA, required controls, qualified
+review, and written approval are complete. Chijindu's ownership of the work does
+not by itself establish that he has the expert qualifications required to act as
+the formal DPO.
 
-29. Who owns or licenses every past question, textbook, explanation, and study resource?
-38. Who will complete and formally approve the children-and-AI Data Protection Impact Assessment, and when?
+## Remaining evidence and implementation gates
+
+There are no unanswered policy questions in the current 1–44 list. The material
+open items include obtaining the contractor's signed rights agreement, keeping
+unlicensed contractor/past-question/textbook material unpublished, completing
+the content-rights register, completing and approving the children-and-AI DPIA,
+formally designating the qualified DPO, and filing the required NDPC
+registration.
 
 ## Completion rule
 
