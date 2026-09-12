@@ -14,6 +14,7 @@ import {
   SbDiagonalBrushMotionPattern,
   SbEqualizerLoadingPattern,
 } from "@/components/SbSequentialFillPreview";
+import { useAuthState } from "@/components/AuthStateProvider";
 
 const HAND_ICONS = [FaHandPeace, FaHandPaper, FaHandPointDown];
 
@@ -30,6 +31,7 @@ function getHashParams() {
 
 export default function ResetPasswordUpdateClient() {
   const router = useRouter();
+  const { setIsAuthenticated } = useAuthState();
   const [linkStatus, setLinkStatus] = useState<LinkStatus>("checking");
   const [recoveryVerification, setRecoveryVerification] =
     useState<RecoveryVerification>(null);
@@ -203,8 +205,10 @@ export default function ResetPasswordUpdateClient() {
     }
 
     setSuccess(true);
+    setIsAuthenticated(true);
     setTimeout(() => {
-      window.location.replace("/dashboard");
+      router.replace("/dashboard");
+      router.refresh();
     }, 800);
   };
 
