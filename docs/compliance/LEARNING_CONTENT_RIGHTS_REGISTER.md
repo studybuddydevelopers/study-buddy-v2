@@ -13,7 +13,8 @@ legal store; this repository should contain only a non-confidential reference.
 
 | Content class | Current user-visible position | Rights position | Evidence/action |
 | --- | --- | --- | --- |
-| Study Buddy explanations | Visible where used by the current service | Co-founders confirm Study Buddy has the rights to use and publish them | Preserve creation/source records and add item-level references as the catalogue is formalised |
+| AI-generated Study Buddy practice questions | Visible as practice content, not represented as genuine past questions | Co-founders confirm Study Buddy has the rights to use them | Preserve provider/account terms and generation/source records; screen for accidental reproduction or close similarity before publication |
+| Study Buddy explanations | Visible where used by the current service | Co-founders confirm the explanations are owned by Study Buddy | Preserve creation/source records and add item-level references as the catalogue is formalised |
 | Textbooks or textbook extracts | Not displayed | No publication right recorded | Keep disabled until owner permission or another verified lawful basis covers the exact use |
 | Genuine past examination questions, examiner reports, and marking materials | Not displayed or represented as genuine past questions | No WAEC licence, permission, partnership, affiliation, approval, or endorsement | Keep disabled until the appropriate rights are documented; do not imply an official relationship |
 | Contractor spreadsheet and derived material | Not approved for production import or publication | Contractor has not signed an assignment or licence | Chijindu Oreh must obtain the signed agreement and complete the item-level third-party rights review first |
