@@ -46,6 +46,11 @@ Study Buddy v2 is a Next.js learning platform for exam preparation. It combines 
 
 ## Immediate Implementation Queue
 
+The next legal/content action is for Chijindu Oreh to obtain the signed
+contractor rights agreement. No contractor material, textbook, or genuine past
+examination question may be imported or published until its item-level rights
+evidence passes the documented content gate.
+
 The next engineering task is the approved seven-year transaction lifecycle:
 retention-expiry data, documented legal holds, bounded deletion/anonymisation,
 privacy-safe evidence, tests, alerting, and a production verification run. The
@@ -81,9 +86,10 @@ and any required NDPC-approved transfer instrument remain open. A separate,
 formally designated qualified DPO is required; Chijindu Oreh owns the work of
 identifying or engaging that person and coordinating the children-and-AI DPIA
 and NDPC work. The remaining retention periods and payment rules require
-qualified Nigerian legal/privacy review. For the current direct-to-user service, Study Buddy is the
-data controller and meets the NDPC's DCPMI designation through the education-
-sector criterion regardless of the current sub-200 user forecast. The working
+qualified Nigerian legal/privacy review. For the current direct-to-user
+service, Study Buddy is the data controller and meets the NDPC's DCPMI
+designation through the education-sector criterion regardless of the current
+sub-200 user forecast. The working
 tier is MDP-OHL, subject to written confirmation by a licensed DPCO or qualified
 Nigerian privacy adviser. Registration is required but has not yet been filed;
 the company must also formally designate a qualified DPO.
@@ -190,7 +196,8 @@ These items cannot be solved by publishing policies and remain launch work:
 - [ ] Run an independent WCAG 2.2 AA audit and remediate core-flow barriers.
 - [x] Confirm that the current service displays no textbooks and makes no claim
   that any displayed question is a genuine past examination question; Study
-  Buddy has the rights to use its current learner-visible explanations.
+  Buddy has the rights to use its current AI-generated practice questions and
+  owns its current learner-visible explanations.
 - [ ] Chijindu Oreh must obtain a signed contractor assignment or sufficiently
   broad licence as the next content-rights priority. Keep all contractor
   material unpublished and out of production imports until it is signed and
