@@ -31,7 +31,7 @@ const productAreas: ProductArea[] = [
   {
     title: "Practice that feels close to exam day",
     description:
-      "Students can work through topic-based past questions and mock exams while Study Buddy records scores, timing, and progress.",
+      "Students can work through topic-based practice questions and mock exams while Study Buddy records scores, timing, and progress.",
     proposal: "exams",
   },
   {
