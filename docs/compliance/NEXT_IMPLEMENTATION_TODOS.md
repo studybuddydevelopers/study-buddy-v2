@@ -154,6 +154,19 @@ Acceptance criteria:
 
 ## P1 — Privacy operations needed for beta
 
+- [x] Approve the email-first procedure for access, correction, restriction,
+  objection, consent withdrawal, portability, and human-review requests, with a
+  two-working-day acknowledgement target and 30-calendar-day completion target.
+- [ ] Create the access-restricted privacy-request register outside the source
+  repository using the fields in `DATA_SUBJECT_RIGHTS_REQUEST_PROCEDURE.md`.
+- [ ] Create and test a temporary, private export location and expiring-link
+  delivery process; do not send full unencrypted exports as ordinary email
+  attachments.
+- [ ] Add a reviewed export checklist/tool covering every current Study Buddy
+  database table and active provider, using JSON or CSV where eligible.
+- [ ] Future feature: build **Settings → Privacy and data** for authenticated
+  request submission and status tracking. Keep `privacy@studybuddyng.com` as an
+  accessible fallback.
 - [ ] Build a restricted operator action for a verified withdrawal request sent
   to `privacy@studybuddyng.com`; do not expose a general admin or self-service
   endpoint. It must verify the requesting adult against the authorisation record,
@@ -162,8 +175,8 @@ Acceptance criteria:
   both the student and adult.
 - [ ] Add the restricted pending-choice state for reauthorisation or permanent
   deletion, define its maximum retention period, and test both outcomes.
-- [ ] Create secure privacy-request and personal-data-breach registers with named
-  owners, access restrictions, deadlines, and escalation rules.
+- [ ] Create the separate personal-data-breach register with named owners,
+  access restrictions, deadlines, and escalation rules.
 - [ ] Test account access, correction, restriction, objection, portability, and
   deletion workflows end to end.
 - [ ] Run and record the incident-response exercise and provider escalation test.
