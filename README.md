@@ -92,7 +92,7 @@ operational/security logging is approved.
 
 | Page | Current status | Why it must be updated later |
 | --- | --- | --- |
-| [`/privacy-policy`](/Users/efeon/study-buddy-v2/app/privacy-policy/page.tsx) | Identifies the registered controller, verified privacy mailbox, current Railway/Cloudflare hosting and Supabase Stockholm primary region; covers current data flows and approved age, access, AI-improvement, retention and international-transfer policy | Add remaining retention periods and verified provider/Supabase processing locations after the provider assessments |
+| [`/privacy-policy`](/Users/efeon/study-buddy-v2/app/privacy-policy/page.tsx) | Identifies the registered controller, verified privacy mailbox, current Railway/Cloudflare hosting and Supabase Stockholm primary region; covers current data flows and approved age, access, AI-improvement, retention, international-transfer and email-first privacy-rights policies | Add remaining retention periods and verified provider/Supabase processing locations after the provider assessments |
 | [`/terms-of-service`](/Users/efeon/study-buddy-v2/app/terms-of-service/page.tsx) | Identifies the contracting legal entity and covers minors, AI, user content, payments, consumer rights and Nigerian law | Add the final commercial terms; legal review is required before paid/school launch |
 | [`/refund-policy`](/Users/efeon/study-buddy-v2/app/refund-policy/page.tsx) | Future paid subscriptions automatically renew after clear disclosure; same-day cancellation automatically refunds prorated unused time; other refunds are limited to duplicate payment, paid service not provided, Study Buddy discontinuation, or Nigerian-law requirements | Implement and test renewal, cancellation, refund and confirmation-email controls and confirm processing targets before accepting payment |
 | [`/parent-student-privacy`](/Users/efeon/study-buddy-v2/app/parent-student-privacy/page.tsx) | Implemented as an age-appropriate summary of the live 13+ rule, guardian email decision flow, and disabled future conversation-improvement choice | Re-review the future opt-in with students, parents and a qualified Nigerian privacy adviser before activation or after any material workflow change |
@@ -117,9 +117,10 @@ also link directly to the detailed notices relevant to their sections.
 | [`PROCESSOR_AND_VENDOR_REGISTER.md`](/Users/efeon/study-buddy-v2/docs/compliance/PROCESSOR_AND_VENDOR_REGISTER.md) | Initial register for Supabase, OpenAI, Meta, Paystack, Railway, Cloudflare, CAPTCHA, email and source-control providers; Question 40 agreement coverage and the Question 41 working transfer policy are recorded | Strengthen company-account/acceptance evidence and verify production regions, sub-processors, retention and provider-specific transfer assessments; re-run the gate before enabling WhatsApp, Paystack or any new provider |
 | [`PROVIDER_AGREEMENT_EVIDENCE.md`](/Users/efeon/study-buddy-v2/docs/compliance/PROVIDER_AGREEMENT_EVIDENCE.md) | Non-confidential index, sources and hashes for locally saved public provider agreements | Account-specific executed agreements and acceptance screenshots must be stored privately and must never be committed to this repository |
 | [`INTERNATIONAL_DATA_TRANSFER_ASSESSMENT.md`](/Users/efeon/study-buddy-v2/docs/compliance/INTERNATIONAL_DATA_TRANSFER_ASSESSMENT.md) | Records the Question 41 policy, current provider-transfer map, statutory grounds, supporting safeguards, and approval boundary | Exact countries/sub-processors, provider-specific risk assessments, consent evidence where used, certified-DPO validation, and any required NDPC CBDTI approval remain open |
+| [`DATA_SUBJECT_RIGHTS_REQUEST_PROCEDURE.md`](/Users/efeon/study-buddy-v2/docs/compliance/DATA_SUBJECT_RIGHTS_REQUEST_PROCEDURE.md) | Records the Question 42 email intake, verification, 30-day handling, provider search, JSON/CSV export, secure delivery, refusal, complaint, and review procedure | Create the restricted register and secure export-delivery setup outside source control, then test every request type; the in-app request centre is a future feature |
 | [`SCHOOL_DATA_PROCESSING_SCHEDULE.md`](/Users/efeon/study-buddy-v2/docs/compliance/SCHOOL_DATA_PROCESSING_SCHEDULE.md) | Contract template covering roles, instructions, visibility, security, rights, deletion, incidents and audit | It cannot be signed until both legal entities, controller/processor roles, exact staff visibility, service terms, contacts and retention periods are agreed |
 | [`RECORD_OF_PROCESSING_ACTIVITIES.md`](/Users/efeon/study-buddy-v2/docs/compliance/RECORD_OF_PROCESSING_ACTIVITIES.md) | Initial inventory of current controller and possible school-processor activities | Replace preliminary bases/roles with approved decisions and reconcile it against production provider dashboards and configuration before launch |
-| [`OPEN_COMPLIANCE_QUESTIONS.md`](/Users/efeon/study-buddy-v2/docs/compliance/OPEN_COMPLIANCE_QUESTIONS.md) | Tracks approved working answers through question 41 and every remaining decision through question 44 | Work through the open questions in order and reconcile each answer with the product, notices, compliance records, and operating procedures |
+| [`OPEN_COMPLIANCE_QUESTIONS.md`](/Users/efeon/study-buddy-v2/docs/compliance/OPEN_COMPLIANCE_QUESTIONS.md) | Tracks approved working answers through question 42 and every remaining decision through question 44 | Work through the open questions in order and reconcile each answer with the product, notices, compliance records, and operating procedures |
 
 ### Required non-document work
 
@@ -186,7 +187,14 @@ These items cannot be solved by publishing policies and remain launch work:
   complete any required registration before the applicable deadline.
 - [x] Name Nick Efe Oni and Chijindu Oreh as mandatory internal breach contacts;
   reports go to `security@studybuddyng.com` with `privacy@studybuddyng.com` copied.
-- [ ] Appoint incident owners, create secure request/breach registers and run a breach exercise.
+- [x] Approve the email-first privacy-rights procedure, including joint
+  ownership, proportionate verification, two-working-day acknowledgement,
+  30-calendar-day completion, secure exports, refusals, and complaints.
+- [ ] Create the access-restricted privacy-request register and secure expiring-
+  link export-delivery setup outside source control, then test every request
+  type. The in-app request centre is a future feature.
+- [ ] Appoint incident owners, create the separate secure breach register, and
+  run a breach exercise.
 - [ ] Have a qualified Nigerian privacy/consumer lawyer or licensed DPCO review the final system and documents.
 
 ## Deployment Security TODOs
