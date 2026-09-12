@@ -1,12 +1,12 @@
-# Open Legal and Compliance Questions
+# Legal and Compliance Decision Register
 
 Status: co-founder decisions and external verification required  
 Last updated: 12 September 2026
 
-This is the authoritative working list of unresolved legal, privacy, product,
-and commercial questions for Study Buddy. Answers are not treated as legal
+This is the authoritative working register of Study Buddy's legal, privacy,
+product, and commercial questions. Working answers are not treated as legal
 approval by themselves. Public notices, product behaviour, internal records,
-and provider settings must be updated together after each answer is confirmed.
+and provider settings must stay aligned with each confirmed answer.
 
 Questions 1–44 now have an approved working answer for the current product
 scope. The confirmed decisions include the company
@@ -108,8 +108,11 @@ purchase, change of mind, outage, or general dissatisfaction is not a separate
 discretionary ground unless the facts also meet one of those four grounds.
 Question 29 is answered for the current product scope. No textbook or material
 described as a genuine past examination question is currently shown to users.
-The co-founders confirm that Study Buddy has the rights to use and publish the
-current learner-visible explanations. Contractor spreadsheet material is not
+The current question bank contains AI-generated practice questions rather than
+genuine past questions, and the co-founders confirm Study Buddy has the rights
+to use the current practice questions and owns the learner-visible
+explanations. The public product labels them as practice questions. Contractor
+spreadsheet material is not
 approved for import or publication: contrary to the earlier record, the
 contractor has not yet signed a rights agreement. Chijindu Oreh owns the urgent
 action to obtain a written assignment or sufficiently broad licence before any
@@ -210,8 +213,8 @@ additional controls already recorded for children. Study Buddy will not rely on
 public interest for its ordinary commercial service. Vital interests are
 reserved for genuine emergencies involving immediate safety. Irreversibly
 anonymised statistics may be used for product planning, but pseudonymised data
-remains personal data. These selections remain subject to the certified DPO's
-formal validation through Question 38.
+remains personal data. These selections remain subject to the qualified privacy
+review and company approval recorded in Question 38.
 Question 40 is answered **Yes** for the current beta provider set. Railway's DPA
 is fully executed, while the applicable Supabase, OpenAI, Resend, Cloudflare,
 and GoDaddy/Microsoft 365 DPAs or processing terms form part of their accepted
