@@ -16,10 +16,14 @@ without a completed DPIA and approved controls.
 
 The current first-year planning estimate is approximately 50 registered users,
 with about 40 (80%) expected to be under 18. These forecasts are not technical
-account limits and do not by themselves determine Study Buddy's NDPC
-registration or DCPMI classification. The expected child majority means that
-child safeguards must be part of the normal product design rather than an edge
-case.
+account limits. Study Buddy is the controller for the current direct-to-user
+service and meets the NDPC's DCPMI designation through the education-sector
+criterion; the alternative threshold of more than 200 data subjects in six
+months is not a minimum for an education provider. The working tier is MDP-OHL,
+subject to written confirmation by a licensed DPCO or qualified Nigerian
+privacy adviser. Registration has not yet been filed, and a qualified DPO must
+be formally designated. The expected child majority means that child safeguards
+must be part of the normal product design rather than an edge case.
 
 This assessment covers:
 
@@ -190,6 +194,9 @@ decisions, and reasons when a recommendation is not adopted.
   storage, mailbox/Signal resilience, provider/adviser contacts, and the
   tabletop exercise are recorded in the later implementation queue; statutory
   response duties still apply immediately.
+- [ ] Confirm the likely MDP-OHL tier and registration trigger date with a
+  licensed DPCO or qualified Nigerian privacy adviser, formally designate a
+  qualified DPO, and complete the required NDPC registration.
 - [ ] Email-first privacy-rights procedure is approved; create the restricted
   request register and secure export-delivery method, then test access,
   correction, restriction, objection, withdrawal, portability, refusal, and
