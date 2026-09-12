@@ -80,7 +80,12 @@ destination mapping, provider-specific assessments, certified-DPO validation,
 and any required NDPC-approved transfer instrument remain open. Whether the
 joint privacy leads require a separate formal DPO designation, plus the
 remaining retention periods and payment rules require qualified Nigerian
-legal/privacy review.
+legal/privacy review. For the current direct-to-user service, Study Buddy is the
+data controller and meets the NDPC's DCPMI designation through the education-
+sector criterion regardless of the current sub-200 user forecast. The working
+tier is MDP-OHL, subject to written confirmation by a licensed DPCO or qualified
+Nigerian privacy adviser. Registration is required but has not yet been filed;
+the company must also formally designate a qualified DPO.
 Supabase Auth with Resend custom SMTP is the approved production provider path
 for account verification and password recovery. Production custom SMTP and live
 delivery have been verified; re-test the app-owned callbacks after their next
@@ -120,7 +125,7 @@ also link directly to the detailed notices relevant to their sections.
 | [`DATA_SUBJECT_RIGHTS_REQUEST_PROCEDURE.md`](/Users/efeon/study-buddy-v2/docs/compliance/DATA_SUBJECT_RIGHTS_REQUEST_PROCEDURE.md) | Records the Question 42 email intake, verification, 30-day handling, provider search, JSON/CSV export, secure delivery, refusal, complaint, and review procedure | Create the restricted register and secure export-delivery setup outside source control, then test every request type; the in-app request centre is a future feature |
 | [`SCHOOL_DATA_PROCESSING_SCHEDULE.md`](/Users/efeon/study-buddy-v2/docs/compliance/SCHOOL_DATA_PROCESSING_SCHEDULE.md) | Contract template covering roles, instructions, visibility, security, rights, deletion, incidents and audit | It cannot be signed until both legal entities, controller/processor roles, exact staff visibility, service terms, contacts and retention periods are agreed |
 | [`RECORD_OF_PROCESSING_ACTIVITIES.md`](/Users/efeon/study-buddy-v2/docs/compliance/RECORD_OF_PROCESSING_ACTIVITIES.md) | Initial inventory of current controller and possible school-processor activities | Replace preliminary bases/roles with approved decisions and reconcile it against production provider dashboards and configuration before launch |
-| [`OPEN_COMPLIANCE_QUESTIONS.md`](/Users/efeon/study-buddy-v2/docs/compliance/OPEN_COMPLIANCE_QUESTIONS.md) | Tracks approved working answers through question 43 and every remaining decision through question 44 | Work through the open questions in order and reconcile each answer with the product, notices, compliance records, and operating procedures |
+| [`OPEN_COMPLIANCE_QUESTIONS.md`](/Users/efeon/study-buddy-v2/docs/compliance/OPEN_COMPLIANCE_QUESTIONS.md) | Tracks approved working answers through question 44 and the two remaining decisions | Work through questions 29 and 38 and reconcile each answer with the product, notices, compliance records, and operating procedures |
 
 ### Required non-document work
 
@@ -130,7 +135,7 @@ These items cannot be solved by publishing policies and remain launch work:
 - [x] Publish the verified privacy-request mailbox (`privacy@studybuddyng.com`).
 - [x] Assign privacy requests jointly to co-founders Nick Efe Oni and Chijindu Oreh.
 - [x] Appoint co-founders Nick Efe Oni and Chijindu Oreh as joint privacy leads.
-- [ ] Confirm during the DCPMI assessment whether a separate formal DPO designation or external DPO service is required.
+- [ ] Formally designate one qualified DPO, either an employee with the required expertise or an external service provider; the two founders remain joint operational privacy leads.
 - [x] Set the product minimum to 13 and independent-account age to 18; ages 13–17 require a parent or legal guardian, not a school substitute.
 - [x] Minimise routine age/guardian verification to declared date of birth,
   guardian email-link control, and an adult declaration; request extra evidence
@@ -182,9 +187,10 @@ These items cannot be solved by publishing policies and remain launch work:
   `NEXT_IMPLEMENTATION_TODOS.md`.
 - [ ] Run an independent WCAG 2.2 AA audit and remediate core-flow barriers.
 - [ ] Complete learning-content provenance/licensing records and obtain an appropriate written WAEC licence or permission before reproducing genuine past questions.
-- [ ] NDPC registration is currently **No — planned**. Obtain a written DCPMI
-  classification from a qualified Nigerian adviser or licensed DPCO and
-  complete any required registration before the applicable deadline.
+- [ ] NDPC registration is **required — not yet filed**. Obtain written
+  confirmation of the likely MDP-OHL tier and the six-month trigger date from a
+  qualified Nigerian adviser or licensed DPCO, designate the DPO, and complete
+  registration without waiting for the user count to reach 200.
 - [x] Name Nick Efe Oni and Chijindu Oreh as mandatory internal breach contacts;
   reports go to `security@studybuddyng.com` with `privacy@studybuddyng.com` copied.
 - [x] Approve the email-first privacy-rights procedure, including joint
