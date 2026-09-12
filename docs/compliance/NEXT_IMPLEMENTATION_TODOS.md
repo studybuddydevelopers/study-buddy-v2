@@ -1,7 +1,7 @@
 # Next Implementation TODOs
 
 Status: ordered engineering queue  
-Last updated: 11 September 2026
+Last updated: 12 September 2026
 
 This file turns approved retention decisions into concrete engineering work.
 Items stay open until their acceptance checks pass in staging and the relevant
@@ -175,11 +175,8 @@ Acceptance criteria:
   both the student and adult.
 - [ ] Add the restricted pending-choice state for reauthorisation or permanent
   deletion, define its maximum retention period, and test both outcomes.
-- [ ] Create the separate personal-data-breach register with named owners,
-  access restrictions, deadlines, and escalation rules.
 - [ ] Test account access, correction, restriction, objection, portability, and
   deletion workflows end to end.
-- [ ] Run and record the incident-response exercise and provider escalation test.
 
 ## P1 — Before enabling automatically renewing paid subscriptions
 
@@ -236,6 +233,32 @@ Acceptance criteria:
    approved minimum seven-year financial evidence.
 4. Consumer-law review, operational support ownership, and end-to-end Paystack
    tests are complete before paid launch.
+
+## P2 — Later breach-response operational setup
+
+The Question 43 responsibilities, containment steps, and statutory notification
+deadlines already apply and are not postponed by moving this setup work into the
+later queue. Until the permanent tools below exist, the acting incident
+commander must use an encrypted, access-restricted local case file, preserve an
+encrypted backup, and follow `PERSONAL_DATA_BREACH_RESPONSE_PLAN.md`.
+
+- [ ] Create the separate personal-data-breach register with named owners,
+  access restrictions, deadlines, and escalation rules in the company Microsoft
+  365 OneDrive. Require MFA, named access only, no public links, separate raw-
+  evidence storage, and an encrypted minimal offline recovery copy.
+- [ ] Give Chijindu Oreh a separate secured company identity for security-mailbox
+  and OneDrive access. Until then, configure named guest access with MFA and use
+  a private Signal message or call for the minimal out-of-band alert without
+  forwarding incident data to personal email or ordinary chat.
+- [ ] Exchange and test the founders' private Signal contact route. Use it only
+  for a minimal incident alert; keep raw personal data in the restricted case
+  file and approved provider systems.
+- [ ] Complete the private emergency roster with provider escalation paths,
+  personal out-of-band contact details, and the appointed DPCO/privacy adviser;
+  do not commit private contact information to this repository.
+- [ ] Run and record an exposed-child-AI-chat tabletop exercise and provider
+  escalation test; repeat at least annually and after major architectural
+  changes.
 
 ## P2 — Before enabling conversation-based AI improvement
 
