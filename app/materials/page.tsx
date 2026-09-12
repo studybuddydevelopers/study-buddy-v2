@@ -5,7 +5,7 @@ import { getMaterialsOverview } from "./materials-data";
 export const metadata = createPageMetadata({
   title: "Study Materials",
   description:
-    "Browse your Study Buddy learning materials by subject, including past questions, topic practice, flashcard collections and textbooks.",
+    "Browse Study Buddy practice questions and flashcards by subject, with additional learning resources coming later.",
   index: false,
 });
 
