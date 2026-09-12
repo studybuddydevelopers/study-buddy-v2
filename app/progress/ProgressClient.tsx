@@ -12,7 +12,7 @@ import type { ProgressFullReport } from "@/app/dashboard/dashboard.types";
 import LocalDateTime from "@/components/LocalDateTime";
 
 const PROGRESS_HELP_TEXT =
-  "Based on study materials practice, graded mock exams, and every past question you submit. Numbers update as you work.";
+  "Based on study materials practice, graded mock exams, and every practice question you submit. Numbers update as you work.";
 
 function formatDurationMinutes(m: number | null | undefined): string {
   if (m == null || m <= 0) return "—";
@@ -162,7 +162,7 @@ export default function ProgressClient({
           detail={
             pq.totalAttempts > 0
               ? `${pq.correctAttempts} correct of ${pq.totalAttempts} attempts`
-              : "No past question attempts yet"
+              : "No practice question attempts yet"
           }
         />
       </div>
@@ -306,7 +306,7 @@ export default function ProgressClient({
       <section className="space-y-4">
         <Heading2 gutter="sm">Practice by subject</Heading2>
         <Paragraph variant="muted" className="text-sm max-w-2xl">
-          All past question attempts (including outside study materials).
+          All practice-question attempts, including those outside study materials.
         </Paragraph>
         {pq.perSubject.length === 0 ? (
           <Paragraph variant="muted">No attempts yet.</Paragraph>
