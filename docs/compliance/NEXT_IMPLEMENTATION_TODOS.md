@@ -8,6 +8,65 @@ Items stay open until their acceptance checks pass in staging and the relevant
 production configuration or migration is verified. Do not treat an approved
 policy sentence as proof that its automation exists.
 
+## P0 — Execute the contractor rights agreement and enforce the content gate
+
+No textbook or material represented as a genuine past examination question is
+currently shown to users, and Study Buddy has confirmed its rights to the
+current learner-visible explanations. Contrary to an earlier record, the
+contractor has not signed a rights agreement. Chijindu Oreh owns this as the
+next content-rights priority.
+
+- [ ] Obtain a signed written assignment or sufficiently broad licence covering
+  the contractor's original deliverables and the intended storage, editing,
+  digitisation, publication, database, AI/retrieval, and commercial uses.
+- [ ] Require a resource/source schedule and warranties identifying any WAEC,
+  textbook, examiner, publisher, or other third-party material. Do not treat the
+  contractor agreement as transferring rights the contractor does not own.
+- [ ] Store the executed agreement and supporting evidence privately, record a
+  non-confidential reference in the content-rights register, and have a
+  qualified lawyer review the final wording where possible.
+- [ ] Keep all contractor spreadsheets and derived records out of production
+  imports and learner-visible pages until the agreement and item-level rights
+  checks pass.
+- [ ] Add a publication control requiring every future resource to have a source,
+  rights basis, permitted uses, evidence reference, owner, review date, and
+  approval state. Genuine past questions and textbooks stay disabled until the
+  necessary owner/examination-body permission is recorded.
+
+Acceptance criteria:
+
+1. The contractor agreement is signed and stored in the restricted company
+   legal records.
+2. Every imported item is mapped to evidence of a right that covers its actual
+   use; an agreement never cures unidentified third-party rights.
+3. Unapproved resources cannot be published or described as genuine past
+   examination questions.
+
+## P0 — Complete and approve the children-and-AI DPIA
+
+Chijindu Oreh is the accountable internal assessment owner and coordinator. He
+does not become the formal DPO merely by owning this work.
+
+- [ ] Complete the assessment against the production data map, guardian flow,
+  AI/WhatsApp processing, providers, retention, access, security, incident, and
+  international-transfer controls.
+- [ ] Appoint or engage the qualified DPO and obtain that person's review, or
+  obtain equivalent review from another qualified Nigerian privacy adviser
+  while the formal appointment is completed.
+- [ ] Resolve or formally reject each recommended control, record residual
+  risks, and obtain dated approval from Nick Efe Oni and Chijindu Oreh.
+- [ ] Keep AI and WhatsApp access unavailable to real users aged 13–17 until the
+  assessment, controls, qualified review, and written approval are complete.
+- [ ] Re-open the DPIA after any material change to child access, AI use,
+  providers, content training/evaluation, schools, advertising, or tracking.
+
+Acceptance criteria:
+
+1. Chijindu Oreh has completed the DPIA and its evidence checklist.
+2. A qualified reviewer has recorded advice and both founders have signed the
+   residual-risk decision.
+3. No production minor receives AI or WhatsApp access before the gate passes.
+
 ## P0 — Complete the required NDPC registration and DPO designation
 
 Study Buddy is the data controller for its current direct-to-user service and
