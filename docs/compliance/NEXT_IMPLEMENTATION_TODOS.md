@@ -1,18 +1,20 @@
 # Next Implementation TODOs
 
-Status: ordered engineering queue  
+Status: ordered compliance and engineering queue
 Last updated: 12 September 2026
 
-This file turns approved retention decisions into concrete engineering work.
-Items stay open until their acceptance checks pass in staging and the relevant
-production configuration or migration is verified. Do not treat an approved
-policy sentence as proof that its automation exists.
+This file turns approved compliance decisions into concrete legal, operational,
+and engineering work. Items stay open until their evidence is retained, their
+acceptance checks pass where applicable, and the relevant production
+configuration or migration is verified. Do not treat an approved policy
+sentence as proof that its implementation exists.
 
 ## P0 — Execute the contractor rights agreement and enforce the content gate
 
 No textbook or material represented as a genuine past examination question is
-currently shown to users, and Study Buddy has confirmed its rights to the
-current learner-visible explanations. Contrary to an earlier record, the
+currently shown to users. The current bank contains AI-generated practice
+questions, and Study Buddy has confirmed its rights to use them and ownership
+of the current learner-visible explanations. Contrary to an earlier record, the
 contractor has not signed a rights agreement. Chijindu Oreh owns this as the
 next content-rights priority.
 
