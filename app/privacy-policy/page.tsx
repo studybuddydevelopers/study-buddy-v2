@@ -809,9 +809,13 @@ export default function PrivacyPolicyPage() {
             </p>
             <p>
               No online service is completely secure. If we become aware of a
-              personal-data breach, we will investigate and notify affected
-              people and the NDPC when required by law. Contact us immediately
-              if you suspect unauthorised access to your account.
+              personal-data breach, we will contain and investigate it, record
+              what happened and the action taken, and notify the NDPC within 72
+              hours where the breach is likely to risk people&apos;s rights and
+              freedoms. Where a breach creates a high risk, we will warn affected
+              people immediately in clear and, where relevant, age-appropriate
+              language, unless a specific lawful exception applies. Contact us
+              immediately if you suspect unauthorised access to your account.
             </p>
             <p>
               To report a suspected technical vulnerability, email{" "}
