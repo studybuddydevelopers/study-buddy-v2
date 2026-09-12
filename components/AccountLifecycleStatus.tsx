@@ -7,6 +7,7 @@ import FormErrorMessage from "@/components/FormErrorMessage";
 import Heading1 from "@/components/Heading1";
 import { accountStatusDestination } from "@/lib/account-status";
 import { readResponseError } from "@/lib/client-response-error";
+import { useAuthState } from "@/components/AuthStateProvider";
 
 interface LifecycleResponse {
   accountStatus: string;
@@ -21,6 +22,7 @@ export default function AccountLifecycleStatus({
   mode: "deactivated" | "deletion-pending";
 }) {
   const router = useRouter();
+  const { setIsAuthenticated } = useAuthState();
   const [scheduledFor, setScheduledFor] = useState<string | null>(null);
   const [cancellationAllowed, setCancellationAllowed] = useState(true);
   const [loading, setLoading] = useState(true);
@@ -35,7 +37,9 @@ export default function AccountLifecycleStatus({
           cache: "no-store",
         });
         if (response.status === 401) {
+          setIsAuthenticated(false);
           router.replace("/login");
+          router.refresh();
           return;
         }
         const data = (await response.json().catch(() => null)) as
@@ -73,7 +77,7 @@ export default function AccountLifecycleStatus({
     return () => {
       active = false;
     };
-  }, [mode, router]);
+  }, [mode, router, setIsAuthenticated]);
 
   async function restoreAccess() {
     setSubmitting(true);
@@ -92,6 +96,7 @@ export default function AccountLifecycleStatus({
         );
         return;
       }
+      setIsAuthenticated(false);
       router.replace("/login");
       router.refresh();
     } catch {
@@ -104,10 +109,18 @@ export default function AccountLifecycleStatus({
   async function signOut() {
     setSubmitting(true);
     try {
-      await fetch("/api/v1/logout", { method: "POST" });
-    } finally {
+      const response = await fetch("/api/v1/logout", { method: "POST" });
+      if (!response.ok) {
+        setError("We couldn't sign you out. Try again.");
+        return;
+      }
+      setIsAuthenticated(false);
       router.replace("/login");
       router.refresh();
+    } catch {
+      setError("We couldn't sign you out. Check your connection and try again.");
+    } finally {
+      setSubmitting(false);
     }
   }
 
