@@ -10,6 +10,7 @@ import { usePathname, useRouter } from "next/navigation";
 import StudyBuddyIcon, {
   type StudyBuddyIconName,
 } from "./StudyBuddyIcon";
+import { useAuthState } from "./AuthStateProvider";
 
 interface NavLink {
   label: string;
@@ -46,6 +47,7 @@ export default function NavBar({
 }: Readonly<NavBarProps>) {
   const pathname = usePathname();
   const router = useRouter();
+  const { setIsAuthenticated } = useAuthState();
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [loadingLogin, setLoadingLogin] = useState(false);
   const [loadingSignup, setLoadingSignup] = useState(false);
@@ -68,9 +70,9 @@ export default function NavBar({
         setLoadingLogOut(false);
         return;
       }
-      // Logout changes the cookie-backed root layout. Replace the document so
-      // authenticated navigation cannot remain visible from retained state.
-      window.location.replace("/login");
+      setIsAuthenticated(false);
+      router.replace("/login");
+      router.refresh();
     } catch {
       setLoadingLogOut(false);
     }
