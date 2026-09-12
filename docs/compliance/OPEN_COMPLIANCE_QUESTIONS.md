@@ -8,7 +8,7 @@ and commercial questions for Study Buddy. Answers are not treated as legal
 approval by themselves. Public notices, product behaviour, internal records,
 and provider settings must be updated together after each answer is confirmed.
 
-Questions 1–28, 30–37, and 39–42 have an approved working answer. The confirmed decisions include the company
+Questions 1–28, 30–37, and 39–43 have an approved working answer. The confirmed decisions include the company
 identity and address, `privacy@studybuddyng.com` as the privacy-request mailbox,
 joint request handling by Nick Efe Oni and Chijindu Oreh, a minimum account age
 of 13, independent activation from 18, and parent or legal-guardian approval for
@@ -215,12 +215,32 @@ actions, deadlines, reviewer, delivery, and outcome. Any refusal or limitation
 requires a documented lawful reason, second-person review, a clear explanation,
 and an NDPC complaint route. The approved procedure is in the
 [Data Subject Rights Request Procedure](./DATA_SUBJECT_RIGHTS_REQUEST_PROCEDURE.md).
+Question 43 adopts the
+[Personal Data Breach Response Plan](./PERSONAL_DATA_BREACH_RESPONSE_PLAN.md).
+Nick Efe Oni is the primary incident commander and technical-containment lead;
+Chijindu Oreh is the communications lead and backup commander. Both remain
+mandatory privacy contacts and jointly review notification decisions, while the
+acting commander may contain immediately and file a time-critical notification
+when waiting would risk the statutory deadline. All suspected incidents go to
+`security@studybuddyng.com` with `privacy@studybuddyng.com` copied, followed by
+a minimal alert through a private Signal message or call. Every
+personal-data breach is recorded. A breach likely to risk rights and freedoms is
+notified to the NDPC within 72 hours of awareness; affected people are notified
+immediately when high risk applies, using accessible and age-appropriate
+language. An external DPCO/adviser will support the process when appointed, but
+urgent action and deadlines never wait for that appointment. The restricted
+breach register will be kept in the company Microsoft 365 OneDrive with MFA,
+named access only, no public links, separate restricted evidence, and an
+encrypted minimal offline recovery copy. Mailbox resilience, the external
+contact, Signal contact exchange, register configuration, provider contacts,
+and a tabletop exercise remain documented later implementation tasks rather
+than unanswered policy choices. The legal response and notification duties are
+not postponed by that implementation sequencing.
 
 ## Open questions
 
 29. Who owns or licenses every past question, textbook, explanation, and study resource?
 38. Who will complete and formally approve the children-and-AI Data Protection Impact Assessment, and when?
-43. What is the complete personal-data-breach procedure, including investigation, documentation, risk assessment, escalation, and any required NDPC or user notification?
 44. Is Study Buddy legally classified as a Data Controller or Data Processor of Major Importance, and what registration obligations follow?
 
 ## Completion rule
