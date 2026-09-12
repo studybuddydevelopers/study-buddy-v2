@@ -6,8 +6,10 @@ import Button from "@/components/Button";
 import FormErrorMessage from "@/components/FormErrorMessage";
 import Heading1 from "@/components/Heading1";
 import StudyBuddyIcon from "@/components/StudyBuddyIcon";
+import { useAuthState } from "@/components/AuthStateProvider";
 
 export default function AccountDeletionConfirmationClient() {
+  const { setIsAuthenticated } = useAuthState();
   const [token, setToken] = useState("");
   const [loadingToken, setLoadingToken] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -52,6 +54,7 @@ export default function AccountDeletionConfirmationClient() {
         return;
       }
       setToken("");
+      setIsAuthenticated(false);
       setConfirmed({
         scheduledFor: data.deletionScheduledFor,
         notificationEmailSent: Boolean(data.notificationEmailSent),
