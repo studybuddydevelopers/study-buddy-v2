@@ -111,7 +111,7 @@ also link directly to the detailed notices relevant to their sections.
 | [`DATA_PROTECTION_IMPACT_ASSESSMENT.md`](/Users/efeon/study-buddy-v2/docs/compliance/DATA_PROTECTION_IMPACT_ASSESSMENT.md) | Scope, data map, preliminary bases, necessity review, risk matrix, mitigations and launch gates | Formal approval requires student/parent consultation, named owners, implemented controls, provider evidence and written residual-risk sign-off |
 | [`PARENTAL_AUTHORIZATION_RECORD.md`](/Users/efeon/study-buddy-v2/docs/compliance/PARENTAL_AUTHORIZATION_RECORD.md) | Describes the implemented database record, guardian email decision workflow, feature scope and event history | The approved verified-email operator withdrawal workflow and retention automation remain pending; live records stay in the production database, never this repository |
 | [`DATA_RETENTION_AND_DELETION_SCHEDULE.md`](/Users/efeon/study-buddy-v2/docs/compliance/DATA_RETENTION_AND_DELETION_SCHEDULE.md) | Data-category inventory, deletion steps, legal-hold rules, active-account conversation retention, approved learning-record and seven-year transaction retention, chat hard deletion, 36-month deactivated-account expiry with four notices, and email-confirmed account deletion | Other periods need legal/finance approval; transaction-expiry/legal-hold tooling, cloud-draft expiry, and provider backup configuration still need completion |
-| [`PERSONAL_DATA_BREACH_RESPONSE_PLAN.md`](/Users/efeon/study-buddy-v2/docs/compliance/PERSONAL_DATA_BREACH_RESPONSE_PLAN.md) | Incident stages, statutory decision clock, risk assessment, notice content, child safeguards and closure process | Names, secure channels, provider contacts, breach register location and exercise evidence require organisational setup outside the codebase |
+| [`PERSONAL_DATA_BREACH_RESPONSE_PLAN.md`](/Users/efeon/study-buddy-v2/docs/compliance/PERSONAL_DATA_BREACH_RESPONSE_PLAN.md) | Question 43 is answered with named founder roles, reporting and escalation, containment, evidence, risk decisions, the 72-hour NDPC rule, immediate high-risk user notice, register design, child safeguards and closure | Configure the restricted Microsoft 365 register/evidence store, mailbox and out-of-band resilience, provider/external contacts, and complete the tabletop exercise |
 | [`CONVERSATION_ACCESS_POLICY.md`](/Users/efeon/study-buddy-v2/docs/compliance/CONVERSATION_ACCESS_POLICY.md) | Approved no-routine-reading rule, narrow permitted cases, two-founder beta authority, minimum access controls and emergency review rule | The restricted, time-limited, audited break-glass workflow remains to be implemented and tested |
 | [`CONVERSATION_AI_IMPROVEMENT_POLICY.md`](/Users/efeon/study-buddy-v2/docs/compliance/CONVERSATION_AI_IMPROVEMENT_POLICY.md) | Records the in-principle decision, current disabled state, off-by-default participation rule, data controls, withdrawal requirements and activation gate | Consent UI/records, de-identification, isolated datasets, lineage/deletion, retention, testing, revised DPIA and legal review remain to be implemented before activation |
 | [`PROCESSOR_AND_VENDOR_REGISTER.md`](/Users/efeon/study-buddy-v2/docs/compliance/PROCESSOR_AND_VENDOR_REGISTER.md) | Initial register for Supabase, OpenAI, Meta, Paystack, Railway, Cloudflare, CAPTCHA, email and source-control providers; Question 40 agreement coverage and the Question 41 working transfer policy are recorded | Strengthen company-account/acceptance evidence and verify production regions, sub-processors, retention and provider-specific transfer assessments; re-run the gate before enabling WhatsApp, Paystack or any new provider |
@@ -120,7 +120,7 @@ also link directly to the detailed notices relevant to their sections.
 | [`DATA_SUBJECT_RIGHTS_REQUEST_PROCEDURE.md`](/Users/efeon/study-buddy-v2/docs/compliance/DATA_SUBJECT_RIGHTS_REQUEST_PROCEDURE.md) | Records the Question 42 email intake, verification, 30-day handling, provider search, JSON/CSV export, secure delivery, refusal, complaint, and review procedure | Create the restricted register and secure export-delivery setup outside source control, then test every request type; the in-app request centre is a future feature |
 | [`SCHOOL_DATA_PROCESSING_SCHEDULE.md`](/Users/efeon/study-buddy-v2/docs/compliance/SCHOOL_DATA_PROCESSING_SCHEDULE.md) | Contract template covering roles, instructions, visibility, security, rights, deletion, incidents and audit | It cannot be signed until both legal entities, controller/processor roles, exact staff visibility, service terms, contacts and retention periods are agreed |
 | [`RECORD_OF_PROCESSING_ACTIVITIES.md`](/Users/efeon/study-buddy-v2/docs/compliance/RECORD_OF_PROCESSING_ACTIVITIES.md) | Initial inventory of current controller and possible school-processor activities | Replace preliminary bases/roles with approved decisions and reconcile it against production provider dashboards and configuration before launch |
-| [`OPEN_COMPLIANCE_QUESTIONS.md`](/Users/efeon/study-buddy-v2/docs/compliance/OPEN_COMPLIANCE_QUESTIONS.md) | Tracks approved working answers through question 42 and every remaining decision through question 44 | Work through the open questions in order and reconcile each answer with the product, notices, compliance records, and operating procedures |
+| [`OPEN_COMPLIANCE_QUESTIONS.md`](/Users/efeon/study-buddy-v2/docs/compliance/OPEN_COMPLIANCE_QUESTIONS.md) | Tracks approved working answers through question 43 and every remaining decision through question 44 | Work through the open questions in order and reconcile each answer with the product, notices, compliance records, and operating procedures |
 
 ### Required non-document work
 
@@ -193,8 +193,14 @@ These items cannot be solved by publishing policies and remain launch work:
 - [ ] Create the access-restricted privacy-request register and secure expiring-
   link export-delivery setup outside source control, then test every request
   type. The in-app request centre is a future feature.
-- [ ] Appoint incident owners, create the separate secure breach register, and
-  run a breach exercise.
+- [x] Appoint Nick Efe Oni as primary incident commander/technical lead and
+  Chijindu Oreh as communications lead/backup commander, with both founders
+  reviewing breach-notification decisions.
+- [ ] Later breach-response setup: configure the separate restricted Microsoft
+  365 register/evidence store, Chijindu's secured company identity, Signal alert
+  route, provider/adviser roster, and exposed-child-AI-chat tabletop exercise.
+  The response and statutory notification duties apply immediately and are not
+  postponed by this implementation deferral.
 - [ ] Have a qualified Nigerian privacy/consumer lawyer or licensed DPCO review the final system and documents.
 
 ## Deployment Security TODOs
