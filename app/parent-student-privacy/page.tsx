@@ -203,8 +203,14 @@ const sections: PolicyDocumentSection[] = [
           An account holder can deactivate the account or request permanent
           deletion in Settings. For other requests, or if the account cannot be
           accessed, email <a href={`mailto:${PRIVACY_EMAIL}`}>{PRIVACY_EMAIL}</a>.
-          We may ask for information needed to verify identity and parental or
-          guardian authority. A web AI chat has a permanent-delete control.
+          We normally reply to confirm receipt within two working days and
+          complete a sufficiently verified request within 30 calendar days. We
+          may ask for the minimum information needed to verify identity and
+          parental or guardian authority. If someone asks for a copy, we provide
+          eligible information through a private, expiring download link. If we
+          cannot complete all or part of a request, we explain why and how to ask
+          us to reconsider or complain to the NDPC. A web AI chat has a
+          permanent-delete control.
           WhatsApp users can send <strong>DELETE MY CHAT</strong> and confirm the
           displayed instruction within 15 minutes to delete only their saved
           WhatsApp conversation. Submitted answers, practice and mock-exam
