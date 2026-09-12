@@ -23,7 +23,7 @@ export default function PastQuestionsClient({
               Back to materials
             </Link>
             <h1 className="mt-4 text-4xl font-bold tracking-normal text-gray-900">
-              Past Questions by Topic
+              Practice Questions by Topic
             </h1>
             <p className="mt-3 max-w-2xl text-sm leading-6 text-gray-600">
               Pick a subject, then open a topic to start a practice session.
