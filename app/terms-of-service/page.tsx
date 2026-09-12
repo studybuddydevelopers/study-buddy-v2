@@ -27,7 +27,7 @@ export const metadata = createPageMetadata({
   path: "/terms-of-service",
 });
 
-const LAST_UPDATED = "11 September 2026";
+const LAST_UPDATED = "12 September 2026";
 
 const summaryItems: {
   title: string;
@@ -394,9 +394,16 @@ export default function TermsOfServicePage() {
 
           <TermsSection id="study-content" title="8. Study content and licences">
             <p>
-              Practice questions, explanations, mock exams, flashcards,
-              textbooks, and other materials are provided for study support. We
-              try to keep content useful and accurate, but errors can happen.
+              Any practice questions, explanations, mock exams, flashcards,
+              textbooks, and other materials made available through the service
+              are provided for study support. We try to keep content useful and
+              accurate, but errors can happen.
+            </p>
+            <p>
+              The current service does not display textbooks or describe any
+              question as a genuine past examination question. Those materials
+              may be introduced later only after Study Buddy records the source
+              and confirms the necessary permission.
             </p>
             <p>
               If you notice a question, answer, explanation, or topic mapping
