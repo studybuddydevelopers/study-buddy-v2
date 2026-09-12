@@ -12,6 +12,11 @@ Last reviewed: 12 September 2026
 This record must be maintained as the product changes. “Pending” is a work item,
 not approval to process. Confirm the controller/processor role, lawful basis,
 retention, provider region, and transfer safeguard before production use.
+Study Buddy is the controller for the current direct-to-user service and meets
+the NDPC's DCPMI designation through the education-sector criterion. The likely
+classification is MDP-OHL, subject to written confirmation. Registration is
+required but has not yet been filed, and a qualified DPO has not yet been
+formally designated.
 The current first-year planning estimate is approximately 50 registered users,
 including about 40 users (80%) under 18. Review this record if actual scale,
 age distribution, or processing changes materially.
