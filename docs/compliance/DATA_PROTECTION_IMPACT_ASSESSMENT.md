@@ -185,7 +185,11 @@ decisions, and reasons when a recommendation is not adopted.
 - [ ] AI safety evaluation passes agreed child-safety and educational thresholds.
 - [ ] Verify 90-day provider backup expiry and implement the remaining approved retention jobs; the account scheduler and chat-only hard deletion are deployed in code and the scheduler has passed a production invocation.
 - [ ] Provider agreements are recorded and a working transfer policy is adopted; verify every country/sub-processor, complete each transfer assessment, record consent evidence where used, obtain certified-DPO validation, and obtain any required NDPC CBDTI approval.
-- [ ] Incident-response contacts and breach register are operational.
+- [x] Incident roles and the breach-response procedure are approved, with an
+  encrypted local case-file fallback. Permanent OneDrive register/evidence
+  storage, mailbox/Signal resilience, provider/adviser contacts, and the
+  tabletop exercise are recorded in the later implementation queue; statutory
+  response duties still apply immediately.
 - [ ] Email-first privacy-rights procedure is approved; create the restricted
   request register and secure export-delivery method, then test access,
   correction, restriction, objection, withdrawal, portability, refusal, and
