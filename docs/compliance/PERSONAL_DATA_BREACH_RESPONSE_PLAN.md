@@ -1,35 +1,41 @@
 # Personal Data Breach Response Plan
 
-Status: operating draft — contact roster and regulator workflow pending  
-Owner: incident commander to be appointed  
-Last reviewed: 11 September 2026
+Status: approved working procedure — secure register setup, external contact,
+mailbox resilience, and exercise evidence pending
+
+Owner: Nick Efe Oni (primary incident commander); Chijindu Oreh (backup)
+
+Last reviewed: 12 September 2026
 
 ## Purpose
 
 This plan applies to suspected or confirmed loss, destruction, alteration,
 unauthorised disclosure of, or access to personal data. Examples include an
-account takeover, exposed database credential, school access-control failure,
-AI prompt leakage, lost administrative device, misdirected export, malicious
-insider action, or provider incident.
+account takeover, exposed database credential, AI prompt leakage, lost
+administrative device, misdirected export, malicious insider action, provider
+incident, or—in a future school service—a school access-control failure.
 
 The Nigeria Data Protection Act 2023 requires notification to the Nigeria Data
 Protection Commission within 72 hours after awareness when a breach is likely to
 risk individuals’ rights and freedoms. A high-risk breach must be communicated
-to affected data subjects immediately in plain language. Legal/privacy must
-confirm each decision and any applicable GAID procedure.
+to affected data subjects immediately in plain language. All personal-data
+breaches must be recorded, including those that do not meet a notification
+threshold. Incomplete information may be provided in phases without undue delay.
 
 ## Emergency contacts
 
-Complete this table before launch and keep an offline copy.
+Keep an offline copy of this table and the private contact details needed to use
+each secure channel. Personal phone numbers and credentials must not be committed
+to this repository.
 
 | Role | Primary contact | Backup contact | Secure channel |
 | --- | --- | --- | --- |
-| Incident commander | Pending | Pending | Pending |
-| Engineering/security lead | Pending | Pending | Pending |
+| Incident commander | Nick Efe Oni | Chijindu Oreh | `security@studybuddyng.com`, followed by the founders' private Signal message or call |
+| Engineering/security lead | Nick Efe Oni | Chijindu Oreh | Restricted incident channel and provider dashboards |
 | Joint privacy leads and mandatory breach contacts | Nick Efe Oni and Chijindu Oreh | Each other | `security@studybuddyng.com`; copy `privacy@studybuddyng.com` |
-| Company decision-maker | Pending | Pending | Pending |
-| Communications/support lead | Pending | Pending | Pending |
-| External privacy adviser/DPCO | Pending | Pending | Pending |
+| Company notification decision | Nick Efe Oni and Chijindu Oreh jointly | Acting incident commander when the other is unavailable and a deadline cannot wait | Restricted decision record |
+| Communications/support lead | Chijindu Oreh | Nick Efe Oni | Approved notice templates and company mailboxes |
+| External privacy adviser/DPCO | To be engaged | Proceed without waiting when urgent containment or the 72-hour deadline requires action | Record in the private contact roster when appointed |
 | Cyber-insurance contact | Not confirmed | Not confirmed | Not confirmed |
 | Supabase escalation | Pending | Pending | Provider portal |
 | Railway escalation | Pending | Pending | Provider portal |
@@ -43,7 +49,17 @@ Joint privacy leads: Nick Efe Oni and Chijindu Oreh
 Security contact: `security@studybuddyng.com`
 Mandatory internal breach contacts: Nick Efe Oni and Chijindu Oreh; send to
 `security@studybuddyng.com` and copy `privacy@studybuddyng.com`
-NDPC contact: [ndpc.gov.ng/contact](https://www.ndpc.gov.ng/contact/)
+NDPC breach portal: [services.ndpc.gov.ng/breach](https://services.ndpc.gov.ng/breach/)
+
+The incident commander directs the response and owns the timeline; this does not
+remove the joint privacy leads' responsibilities. Chijindu Oreh automatically
+becomes incident commander when Nick Efe Oni is unavailable, is affected by a
+conflict, or delegates the role. The acting commander may contain the incident
+immediately and may make a time-critical regulator notification after recording
+the available facts when waiting for the other founder or an external adviser
+would risk missing the legal deadline. When the notification threshold remains
+genuinely uncertain near the deadline, the conservative default is to notify
+with the available information and follow up in phases.
 
 ## First report
 
@@ -55,6 +71,13 @@ Anyone who suspects a breach must immediately:
 3. avoid deleting logs, contacting an attacker, or making public claims;
 4. use a secure channel rather than the affected system where possible; and
 5. record only necessary incident details, not copies of exposed personal data.
+
+The founder who first sees the report must alert the other through a private
+Signal message or call using only the incident identifier and an instruction to
+join the restricted response channel. Do not forward raw personal data into
+personal email or ordinary chat. Until both founders have separate secured
+company identities with mailbox access, Nick Efe Oni monitors the company
+security mailbox and the Signal alert is the backup route.
 
 The 72-hour assessment clock is measured from organisational awareness, not from
 the end of the investigation. Record the awareness decision and its basis.
@@ -68,14 +91,15 @@ the end of the investigation. Record the awareness decision and its basis.
 - Confirm whether personal data may be involved.
 - Contain ongoing exposure without destroying forensic evidence.
 - Revoke or rotate affected credentials and sessions when safe.
-- Preserve relevant application, database, provider, school, and audit logs.
+- Preserve relevant application, database, provider, and audit logs, plus school
+  logs if a future school service is involved.
 
 ### First 4 hours
 
 - Identify affected systems, categories of data, people, approximate volumes,
   start time, continuing access, and geographic/provider scope.
 - Assess whether children, AI conversations, passwords/tokens, payment data,
-  school records, or sensitive data are involved.
+  sensitive data, or future school records are involved.
 - Contact relevant providers under their incident procedures.
 - Begin the risk assessment and notification decision record.
 
@@ -91,7 +115,9 @@ the end of the investigation. Record the awareness decision and its basis.
 
 ### Before 72 hours
 
-- Privacy/legal decides and records whether NDPC notification is required.
+- Both privacy leads decide and record whether NDPC notification is required;
+  the acting incident commander follows the time-critical rule above if joint
+  review is unavailable.
 - Submit the available notice on time when required, even if investigation is
   incomplete, and provide updates as permitted.
 - If notification is not made, record a reasoned threshold assessment.
@@ -134,8 +160,10 @@ Do not disclose details that create a new security risk.
 ## Child-specific response
 
 - Notify and support the child in language they can understand.
-- Determine whether and how to notify a parent, guardian, or school without
-  creating a safeguarding risk.
+- Determine whether and how to notify a parent or guardian without creating a
+  safeguarding risk. Contact a school only when a specific legal or urgent
+  safety reason requires it; the current product gives schools no account data
+  access.
 - Provide a trusted-adult and non-digital support route.
 - Prioritise exposed AI conversations, contact details, school links, or content
   that could enable bullying, coercion, exploitation, or physical targeting.
@@ -154,14 +182,52 @@ Do not disclose details that create a new security risk.
 
 ## Breach register fields
 
-Keep the register in a secure system, not this repository: incident ID, detection
-and awareness times, reporter, systems, data and people affected, child/sensitive
-data flags, timeline, containment, risk decision, NDPC decision/time/reference,
-data-subject notice decision/time, provider notifications, actions, owner,
-closure date, and lessons learned.
+Keep the register in a restricted folder in the company's Microsoft 365
+OneDrive, not this repository. Require MFA, disable public/anonymous links, give
+access only to Nick Efe Oni, Chijindu Oreh through a named identity, and an
+appointed privacy adviser when necessary, and review access quarterly. Until
+Chijindu has a separate company identity, named guest access with MFA may be
+used as a temporary measure; do not share the folder through an unrestricted
+link. Keep an encrypted offline recovery copy of the minimal register so that a
+Microsoft 365 incident does not make the response record unavailable.
+
+This permanent setup is in the later implementation queue. Until it is ready,
+the acting incident commander must create an encrypted, access-restricted local
+case file, keep an encrypted backup on a separate controlled device, and share
+only the minimum necessary information with the other founder through the
+restricted incident channel. The temporary file must later be migrated into the
+permanent register and securely removed from the temporary devices.
+
+The register contains: incident ID, detection and awareness times, reporter,
+systems, data and people affected, child/sensitive-data flags, timeline,
+containment, risk decision, NDPC decision/time/reference, data-subject notice
+decision/time, provider notifications, actions, owner, closure date, and lessons
+learned. Store raw evidence in a separate restricted incident folder and link it
+by reference; do not duplicate exposed personal data into the register.
+
+## Notification decision record
+
+For every incident, record one of these outcomes before closure:
+
+- **No personal-data breach:** explain the evidence supporting that conclusion.
+- **Breach unlikely to risk rights and freedoms:** do not notify the NDPC, but
+  retain the reasoned assessment in the breach register.
+- **Breach likely to risk rights and freedoms:** notify the NDPC within 72 hours
+  of awareness through the current official channel, even if facts must be
+  supplied in phases.
+- **High risk to affected people:** notify the NDPC as required and communicate
+  to affected people immediately in accessible, plain, age-appropriate language,
+  unless a specific lawful exception is documented.
+
+Notification is a risk decision, not a public-relations decision. Cost,
+embarrassment, uncertainty, or the absence of an external adviser is not a
+reason to delay or suppress a legally required notice.
 
 ## Exercises
 
-Run at least an annual exercise and after major architectural change. Include a
-scenario involving a school permission failure or exposed child AI chat. Record
-participants, response times, notification decision quality, gaps, and owners.
+The tabletop exercise is in the later implementation queue. When scheduled, use
+an exposed child AI-chat scenario, record participants, response times,
+notification-decision quality, gaps, and owners, then repeat at least annually
+and after a major architectural change. A future school service must add a
+school permission-failure scenario before activation. Deferring the exercise
+does not defer the response and notification duties in this plan.
