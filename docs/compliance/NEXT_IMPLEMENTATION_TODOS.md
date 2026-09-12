@@ -8,6 +8,47 @@ Items stay open until their acceptance checks pass in staging and the relevant
 production configuration or migration is verified. Do not treat an approved
 policy sentence as proof that its automation exists.
 
+## P0 — Complete the required NDPC registration and DPO designation
+
+Study Buddy is the data controller for its current direct-to-user service and
+meets the current DCPMI designation through the education-sector criterion. The
+best working tier is MDP-OHL, but an education app is not expressly named in the
+NDPC's examples, so the tier and registration trigger date require written
+confirmation. The forecast of fewer than 200 users does not remove the
+registration duty.
+
+- [ ] Engage a licensed DPCO or qualified Nigerian privacy adviser to confirm in
+  writing the likely MDP-OHL tier and the date on which Study Buddy became, or
+  will become, a DCPMI.
+- [ ] Formally designate one DPO with expert knowledge of data-protection law
+  and practice. Record whether the role is held by a suitably qualified employee
+  or an external service provider, publish the approved contact details, and
+  notify the NDPC as required. The founders may continue to support the DPO as
+  joint privacy leads.
+- [ ] Prepare the registration information: company and DPO details; personal-
+  data categories and approximate data-subject numbers; processing purposes;
+  recipient and processor categories; destination countries; material risks;
+  safeguards; and security measures.
+- [ ] Submit the registration through the NDPC channel within the applicable
+  six-month period, pay the fee for the tier the NDPC confirms, and store the
+  receipt, submission, and certificate in the restricted company compliance
+  store rather than in this repository.
+- [ ] Record the renewal date and owners. If OHL and still below 200 data
+  subjects, renew annually and document the NDPC's current CAR exemption; reassess
+  immediately if scale, processing, sector, or the assigned tier changes.
+- [ ] Add a control to notify the NDPC of significant changes to registered
+  information within 60 days, including changes to the DPO, processing,
+  processors, destinations, risks, safeguards, or security measures.
+
+Acceptance criteria:
+
+1. Written tier/trigger-date advice and the formal DPO appointment are retained.
+2. The NDPC submission is complete, paid, and supported by a certificate or
+   other official acknowledgement.
+3. Annual renewal and 60-day change-notification reminders have named owners.
+4. Public and internal records use the assigned tier and never claim
+   registration before official confirmation is received.
+
 ## P0 — Implement the approved seven-year transaction lifecycle
 
 This is the next implementation task. The current `Transaction` relation uses
