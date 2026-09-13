@@ -193,7 +193,7 @@ Acceptance criteria:
    routine product improvement, or training/evaluation outside the separately
    approved de-identified and opted-in future workflow.
 
-## P1 — Password-reset abuse alerts and user-controlled temporary lock
+## P0 — Password-reset abuse alerts and user-controlled temporary lock
 
 Notify a verified account owner when the account-specific password-reset limit
 is first exceeded. The email must say that someone made several reset requests,
