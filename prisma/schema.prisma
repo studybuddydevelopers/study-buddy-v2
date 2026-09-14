@@ -180,6 +180,20 @@ enum GuardianAuthorizationEventType {
   SUPERSEDED
 }
 
+enum PasswordResetSecurityEventType {
+  ALERT_REQUESTED
+  ALERT_SENT
+  ALERT_SUPPRESSED
+  ALERT_DELIVERY_FAILED
+  LOCK_CONFIRMED
+  AUTH_LOCK_APPLIED
+  AUTH_LOCK_FAILED
+  RECOVERY_REQUESTED
+  RECOVERY_EMAIL_SENT
+  RECOVERY_FAILED
+  UNLOCKED
+}
+
 // =========================================================
 //  AUTH & USER PROFILES
 // =========================================================
@@ -198,6 +212,7 @@ model User {
   inactiveWarning60SentAt DateTime?
   inactiveWarning15SentAt DateTime?
   inactiveWarning1SentAt  DateTime?
+  authEmailFingerprint    String?       @unique @db.VarChar(64)
 
   adminUser AdminUser?
 
@@ -218,9 +233,50 @@ model User {
   deletionRequest        AccountDeletionRequest?
   uploadedResources      Resource[]              @relation("ResourceUploadedBy")
   approvedResources      Resource[]              @relation("ResourceApprovedBy")
+  passwordResetSecurityState  PasswordResetSecurityState?
+  passwordResetSecurityEvents PasswordResetSecurityEvent[]
 
   @@index([createdAt], map: "User_createdAt_idx")
   @@index([accountStatus, inactiveDeletionAt], map: "User_accountStatus_inactiveDeletionAt_idx")
+}
+
+/// One row per account. Raw email addresses and bearer tokens are deliberately
+/// excluded; only keyed email and one-way token hashes are persisted.
+model PasswordResetSecurityState {
+  userId                 String   @id
+  lastAlertAttemptAt     DateTime?
+  alertDay               DateTime? @db.Date
+  alertCount             Int      @default(0)
+  lockTokenHash          String?  @unique @db.VarChar(64)
+  lockTokenExpiresAt     DateTime?
+  lockTokenUsedAt        DateTime?
+  lockedAt               DateTime?
+  lockedUntil            DateTime?
+  authLockAppliedAt      DateTime?
+  recoveryTokenHash      String?  @unique @db.VarChar(64)
+  recoveryTokenExpiresAt DateTime?
+  recoveryTokenUsedAt    DateTime?
+  recoveryStartedAt      DateTime?
+  recoveryCompletedAt    DateTime?
+  createdAt              DateTime @default(now())
+  updatedAt              DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([lockedUntil], map: "PasswordResetSecurityState_lockedUntil_idx")
+  @@index([recoveryTokenExpiresAt], map: "PasswordResetSecurityState_recoveryTokenExpiry_idx")
+}
+
+model PasswordResetSecurityEvent {
+  id        String                         @id @default(uuid())
+  userId    String
+  eventType PasswordResetSecurityEventType
+  details   Json?
+  createdAt DateTime                       @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt], map: "PasswordResetSecurityEvent_user_created_idx")
 }
 
 /// Minimal, retryable evidence and work queue for permanent account deletion.
