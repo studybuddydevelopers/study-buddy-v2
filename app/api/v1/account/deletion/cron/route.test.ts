@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 const mocks = vi.hoisted(() => ({
   processDueAccountDeletions: vi.fn(),
   processInactiveAccountRetention: vi.fn(),
+  recordExpiredPasswordResetSecurityLocks: vi.fn(),
 }));
 
 vi.mock("@/lib/account-lifecycle", () => ({
@@ -12,6 +13,11 @@ vi.mock("@/lib/account-lifecycle", () => ({
 
 vi.mock("@/lib/security/audit-log", () => ({
   logSecurityEvent: vi.fn(),
+}));
+
+vi.mock("@/lib/password-reset-security", () => ({
+  recordExpiredPasswordResetSecurityLocks:
+    mocks.recordExpiredPasswordResetSecurityLocks,
 }));
 
 import { POST } from "./route";
@@ -31,6 +37,11 @@ describe("account deletion cron", () => {
       warningsSent: 1,
       warningsFailed: 0,
       expirationsScheduled: 1,
+    });
+    mocks.recordExpiredPasswordResetSecurityLocks.mockReset();
+    mocks.recordExpiredPasswordResetSecurityLocks.mockResolvedValue({
+      examined: 1,
+      recorded: 1,
     });
   });
 
@@ -68,9 +79,16 @@ describe("account deletion cron", () => {
         completed: 1,
         failed: 0,
       },
+      passwordSecurityLocks: {
+        examined: 1,
+        recorded: 1,
+      },
     });
     expect(mocks.processInactiveAccountRetention).toHaveBeenCalledOnce();
     expect(mocks.processDueAccountDeletions).toHaveBeenCalledOnce();
+    expect(
+      mocks.recordExpiredPasswordResetSecurityLocks
+    ).toHaveBeenCalledOnce();
   });
 });
 
