@@ -162,7 +162,7 @@ export class PostgresResourceSearchRepository
         c."topicId",
         c."questionNumber",
         NULL::float AS "keywordScore",
-        (e."embedding" <=> ${vectorLiteral}::extensions.vector)::float AS "vectorDistance"
+        (e."embedding" OPERATOR(extensions.<=>) ${vectorLiteral}::extensions.vector)::float AS "vectorDistance"
       FROM "ResourceChunkEmbedding" e
       JOIN "ResourceChunk" c ON c."id" = e."resourceChunkId"
       JOIN "Resource" r ON r."id" = c."resourceId"
@@ -171,7 +171,7 @@ export class PostgresResourceSearchRepository
         AND e."status" = ${ResourceChunkEmbeddingStatus.COMPLETED}::"ResourceChunkEmbeddingStatus"
         AND e."contentHash" = c."contentHash"
       ORDER BY
-        e."embedding" <=> ${vectorLiteral}::extensions.vector ASC,
+        e."embedding" OPERATOR(extensions.<=>) ${vectorLiteral}::extensions.vector ASC,
         r."id" ASC,
         c."chunkIndex" ASC,
         c."id" ASC
