@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
   after: vi.fn(),
@@ -35,6 +35,76 @@ describe("password-reset request abuse alert", () => {
     mocks.getClientIp.mockReturnValue("203.0.113.9");
     mocks.after.mockImplementation((callback: () => unknown) => callback());
     mocks.processPasswordResetLimitAlert.mockResolvedValue({ outcome: "sent" });
+  });
+
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
+  it("uses school-safe account, IP, and global reset limits by default", async () => {
+    mocks.enforceRateLimitRules.mockResolvedValue(
+      Response.json({ error: "RATE_LIMITED" }, { status: 429 })
+    );
+
+    await POST(makeRequest("student@example.com"));
+
+    expect(mocks.enforceRateLimitRules).toHaveBeenCalledWith(
+      [
+        {
+          scope: "auth:password-reset:account",
+          identifier: "student@example.com",
+          limit: 3,
+          windowMs: 3_600_000,
+        },
+        {
+          scope: "auth:password-reset:ip",
+          identifier: "203.0.113.9",
+          limit: 300,
+          windowMs: 3_600_000,
+        },
+        {
+          scope: "auth:password-reset:global",
+          identifier: "all-password-reset-requests",
+          limit: 1_000,
+          windowMs: 3_600_000,
+        },
+      ],
+      expect.any(Function)
+    );
+  });
+
+  it("reads password-reset limits from the environment", async () => {
+    vi.stubEnv("PASSWORD_RESET_RATE_LIMIT_ACCOUNT_MAX", "4");
+    vi.stubEnv("PASSWORD_RESET_RATE_LIMIT_IP_MAX", "450");
+    vi.stubEnv("PASSWORD_RESET_RATE_LIMIT_GLOBAL_MAX", "1500");
+    vi.stubEnv("PASSWORD_RESET_RATE_LIMIT_WINDOW_MS", "7200000");
+    mocks.enforceRateLimitRules.mockResolvedValue(
+      Response.json({ error: "RATE_LIMITED" }, { status: 429 })
+    );
+
+    await POST(makeRequest("Student@Example.com"));
+
+    expect(mocks.enforceRateLimitRules).toHaveBeenCalledWith(
+      [
+        expect.objectContaining({
+          scope: "auth:password-reset:account",
+          identifier: "student@example.com",
+          limit: 4,
+          windowMs: 7_200_000,
+        }),
+        expect.objectContaining({
+          scope: "auth:password-reset:ip",
+          limit: 450,
+          windowMs: 7_200_000,
+        }),
+        expect.objectContaining({
+          scope: "auth:password-reset:global",
+          limit: 1_500,
+          windowMs: 7_200_000,
+        }),
+      ],
+      expect.any(Function)
+    );
   });
 
   it("schedules an alert after only the first account-scoped rejection", async () => {
