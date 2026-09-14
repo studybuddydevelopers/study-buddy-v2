@@ -1022,7 +1022,7 @@ function extractNumericValues(
       createNumericValue({
         state,
         span: sliceSentenceSpan(sentence, ofValue.index ?? 0, ofValue[0].length),
-        quantity: cleanConcept(ofValue[1] ?? ""),
+        quantity: cleanLeadingNumericQuantity(ofValue[1] ?? ""),
         value: Number(ofValue[2]),
         role: inferNumericRole(ofValue[1] ?? "", undefined),
       })
