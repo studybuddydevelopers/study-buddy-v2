@@ -690,7 +690,9 @@ function buildFacetRequirement(
 ): RequirementDraft | undefined {
   const measured =
     firstMatch(question, /\bwhat\s+(?:is|are)\s+(.+?)\s+measured\s+in(?:[?.]|$)/i) ??
-    firstMatch(question, /\b(?:unit|units)\s+of\s+(.+?)(?:[?.]|$)/i);
+    firstMatch(question, /\b(?:unit|units)\s+of\s+(.+?)(?:[?.]|$)/i) ??
+    firstMatch(question, /\bwhich\s+units?\s+(?:is|are)\s+used\s+for\s+(.+?)(?:[?.]|$)/i) ??
+    firstMatch(question, /\bwhat\s+units?\s+(?:is|are)\s+used\s+for\s+(.+?)(?:[?.]|$)/i);
   if (measured) {
     const target = cleanConcept(measured);
     return {
@@ -705,6 +707,7 @@ function buildFacetRequirement(
   const useful =
     firstMatch(question, /\bwhy\s+(?:is|are)\s+(.+?)\s+useful(?:[?.]|$)/i) ??
     firstMatch(question, /\bwhat\s+is\s+(?:the\s+)?purpose\s+of\s+(.+?)(?:[?.]|$)/i) ??
+    firstMatch(question, /\b(?:explain|describe|state)\s+(?:the\s+)?purpose\s+of\s+(.+?)(?:[?.]|$)/i) ??
     firstMatch(question, /\bwhat\s+is\s+(.+?)\s+used\s+for(?:[?.]|$)/i);
   if (useful) {
     const target = cleanConcept(useful);
@@ -1225,6 +1228,7 @@ function buildProcessRequirement(
   const process =
     firstMatch(question, /\b(?:teach|explain|describe)\s+(?:the\s+)?process\s+of\s+(.+?)(?:[?.]|$)/i) ??
     firstMatch(question, /\bwhat\s+happens\s+in\s+(.+?)(?:[?.]|$)/i) ??
+    firstMatch(question, /\bhow\s+(?:do|does)\s+(.+?)\s+happen(?:s)?(?:[?.]|$)/i) ??
     firstMatch(question, /\b(?:explain|describe)\s+(.+?)(?:[?.]|$)/i);
 
   if (!process) return undefined;
@@ -1928,7 +1932,10 @@ function extractFormulaConcept(question: string): string {
 
   const direct =
     firstMatch(question, /\bformula\s+(?:for|of)\s+(.+?)(?:\s+and\b|[?.]|$)/i) ??
-    firstMatch(question, /\b(?:give|state|write|what\s+is|teach|explain)\s+(?:the\s+)?(.+?)\s+formula(?:\s+and\b|[?.]|$)/i);
+    firstMatch(question, /\b(?:equation|relation)\s+(?:for|of)\s+(.+?)(?:\s+and\b|[?.]|$)/i) ??
+    firstMatch(question, /\b(?:give|state|write|what\s+is|teach|explain)\s+(?:the\s+)?(.+?)\s+(?:formula|equation|relation)(?:\s+and\b|[?.]|$)/i) ??
+    firstMatch(question, /\bwhat\s+(?:equation|relation)\s+(?:gives?|shows?|represents?)\s+(.+?)(?:[?.]|$)/i) ??
+    firstMatch(question, /\bgive\s+(?:the\s+)?(?:equation|relation)\s+for\s+(.+?)(?:[?.]|$)/i);
 
   return cleanConcept(direct ?? "");
 }
