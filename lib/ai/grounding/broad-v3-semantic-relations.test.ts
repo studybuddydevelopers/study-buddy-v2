@@ -78,6 +78,8 @@ describe("Stage 4.1 broad-property v3 semantic relation normalization", () => {
       "What is osmosis?",
       "Explain osmosis.",
       "Give the meaning of osmosis.",
+      "Tell me the meaning of osmosis. Please answer from the note.",
+      "Tell me the meaning of osmosis. Explain simply.",
     ]) {
       expectSupported(question, content);
     }
@@ -180,6 +182,115 @@ describe("Stage 4.1 broad-property v3 semantic relation normalization", () => {
       "Which pack is cheaper per pen?",
       "Unit cost is found by dividing total cost by number of items. Pack R costs 600 naira for 12 pens. Pack S costs 450 naira for 9 pens."
     );
+    expectSupported(
+      "Which option has the lower cost per item, option A or option B?",
+      "Unit cost is found by dividing total cost by number of items. Option A costs 600 naira for 12 pens. Option B costs 450 naira for 9 pens."
+    );
+  });
+
+  it("matches formula symbol unit requirements through compact unit evidence", () => {
+    for (const content of [
+      "Ohm's law is V = I x R. V is measured in volts, I in amperes, and R in ohms.",
+      "For V = I x R: voltage uses volts; current uses amperes; resistance uses ohms.",
+      "In Ohm's law, the unit of V is volt, the unit of I is ampere, and the unit of R is ohm.",
+    ]) {
+      for (const question of [
+        "What units are used for V, I, and R in Ohm's law?",
+        "Give the units for voltage, current, and resistance in V = I x R.",
+        "State the units of each quantity in Ohm's law.",
+      ]) {
+        expectSupported(question, content);
+      }
+    }
+  });
+
+  it("matches compound and SI unit lookup variants without requiring a definition", () => {
+    for (const content of [
+      "Density is measured in kilogram per cubic metre, written as kg/m^3.",
+      "The SI unit of density is kg m^-3, meaning kilograms per cubic metre.",
+      "- Density unit: kg/m3, kilograms per cubic metre.",
+    ]) {
+      for (const question of [
+        "What compound unit is used for density?",
+        "State the SI unit for density.",
+        "Give density's unit in kilograms and metres.",
+      ]) {
+        expectSupported(question, content);
+      }
+    }
+  });
+
+  it("matches triangle area formula and height-condition variants", () => {
+    for (const content of [
+      "Triangle area is 1/2 x base x height. The height must be perpendicular to the base.",
+      "Use A = 1/2bh for triangle area, where h is the perpendicular height, not a slanted side.",
+      "Study note. Area of a triangle: one half times base times perpendicular height.",
+    ]) {
+      for (const question of [
+        "State the triangle area formula and the height condition.",
+        "When using triangle area, what kind of height is required?",
+        "Give the triangle area equation and explain the height rule.",
+      ]) {
+        expectSupported(question, content);
+      }
+    }
+  });
+
+  it("matches ratio allocation evidence without swapping semantic roles", () => {
+    for (const content of [
+      "For boys:girls = 2:3 and total learners 25, total parts are 5. Boys use 2 parts and girls use 3 parts.",
+      "Ratio method: add 2 + 3 = 5 parts. With 25 learners, boys are 2 parts and girls are 3 parts.",
+      "- Boys:girls is 2:3. The total is 25 learners. One share is found from 25 divided by 5, then multiply by each labelled part.",
+    ]) {
+      for (const question of [
+        "Use the ratio boys:girls = 2:3 to share 25 learners.",
+        "For boys to girls in the ratio 2 to 3, find each group from 25 learners.",
+        "Work out boys and girls if 25 learners are split in ratio 2:3.",
+      ]) {
+        expectSupported(question, content);
+      }
+    }
+  });
+
+  it("matches bounded probability count variants and keeps missing-count cases refused", () => {
+    for (const content of [
+      "Probability of rolling even is 3 out of 6.",
+      "A fair die has 6 outcomes and 3 are even. Probability is favourable outcomes divided by total outcomes.",
+      "- For rolling even, favourable outcomes are 3 and total outcomes are 6. Probability uses favourable divided by total.",
+    ]) {
+      for (const question of [
+        "What is the probability of rolling an even number?",
+        "Find the chance of rolling even on a fair die.",
+        "Calculate the probability for rolling an even number.",
+      ]) {
+        expectSupported(question, content);
+      }
+    }
+
+    expectInsufficient(
+      "What is the probability of rolling an even number?",
+      "For rolling even, favourable outcomes are 3. The total count is not given."
+    );
+    expectInsufficient(
+      "What is the probability of rolling an even number?",
+      "Probability is favourable outcomes divided by total outcomes."
+    );
+  });
+
+  it("matches formula-symbol presentation variants through canonical symbol support", () => {
+    for (const content of [
+      "P = F / A, where P means pressure and A means area.",
+      "Pressure formula is P = F / A. P represents pressure. A represents area.",
+      "For pressure, P = F / A. In this equation P means pressure and A means area.",
+    ]) {
+      for (const question of [
+        "Give the pressure formula and define P and A.",
+        "State P = F / A and explain P and A.",
+        "Define P and A in the pressure formula.",
+      ]) {
+        expectSupported(question, content);
+      }
+    }
   });
 
   it("keeps wrong-scope unit, condition, and symbol relations unsupported", () => {
