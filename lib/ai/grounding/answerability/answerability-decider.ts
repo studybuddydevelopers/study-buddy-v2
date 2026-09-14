@@ -1764,6 +1764,9 @@ function numericMatchesInputComponent(
   if (input.concept && numeric.canonicalConcept?.id === input.concept.baseConcept) {
     return true;
   }
+  if (input.concept && numeric.canonicalConcept?.id) {
+    return false;
+  }
   const inputId = input.concept?.baseConcept ?? "";
   const aliases = input.concept?.aliases ?? [];
   const text = normalizedText(
@@ -2673,13 +2676,31 @@ function findDefinitionFact(
   );
   if (!/\b(unit|units|measured|measure)\b/.test(requested)) return undefined;
 
+  const targetIds = canonicalTargetIds(requirement, context.request);
+  const targetTexts = uniqueStrings(
+    [
+      ...requirement.targetConcepts,
+      requirement.baseConcept?.aliases?.join(" "),
+      requirement.baseConcept?.baseConcept?.replace(/-/g, " "),
+    ].filter((value): value is string => Boolean(value))
+  ).map(normalizedText);
+
   return context.definitions.find((candidate) => {
     if (candidate.polarity !== "POSITIVE") return false;
     const combined = normalizedText(
       `${candidate.canonicalConcept.label} ${candidate.canonicalConcept.aliases.join(" ")} ${candidate.definitionText} ${candidate.evidenceSpan.text}`
     );
-    return /\b(measured|unit|units|volts?|amperes?|ohms?|metres?|meters?|seconds?|grams?|kilograms?)\b/.test(
-      combined
+    if (
+      !/\b(measured|unit|units|volts?|amperes?|ohms?|metres?|meters?|seconds?|grams?|kilograms?)\b/.test(
+        combined
+      )
+    ) {
+      return false;
+    }
+    if (targetIds.length === 0) return true;
+    if (targetIds.includes(candidate.canonicalConcept.id)) return true;
+    return targetTexts.some(
+      (target) => target.length > 0 && includesTokens(combined, target)
     );
   });
 }
@@ -3000,24 +3021,36 @@ function findBoundedProbabilityCountSupport(context: MatchContext):
 }
 
 function isFavourableOutcomeNumeric(numeric: NumericCapability) {
+  if (numeric.canonicalConcept?.id) {
+    return (
+      numeric.value !== undefined &&
+      Number.isFinite(numeric.value) &&
+      numeric.canonicalConcept.id === "favourable-outcomes"
+    );
+  }
   return (
     numeric.value !== undefined &&
     Number.isFinite(numeric.value) &&
-    (numeric.canonicalConcept?.id === "favourable-outcomes" ||
-      /\bfavou?rable\b/.test(
-        normalizedText(`${numeric.quantity} ${numeric.qualifier ?? ""} ${numeric.evidenceSpan.text}`)
-      ))
+    /\bfavou?rable\b/.test(
+      normalizedText(`${numeric.quantity} ${numeric.qualifier ?? ""} ${numeric.evidenceSpan.text}`)
+    )
   );
 }
 
 function isTotalOutcomeNumeric(numeric: NumericCapability) {
+  if (numeric.canonicalConcept?.id) {
+    return (
+      numeric.value !== undefined &&
+      Number.isFinite(numeric.value) &&
+      numeric.canonicalConcept.id === "total-outcomes"
+    );
+  }
   return (
     numeric.value !== undefined &&
     Number.isFinite(numeric.value) &&
-    (numeric.canonicalConcept?.id === "total-outcomes" ||
-      /\b(?:total|possible)\b.{0,40}\boutcomes?\b/.test(
-        normalizedText(`${numeric.quantity} ${numeric.qualifier ?? ""} ${numeric.evidenceSpan.text}`)
-      ))
+    /\b(?:total|possible)\b.{0,40}\boutcomes?\b/.test(
+      normalizedText(`${numeric.quantity} ${numeric.qualifier ?? ""} ${numeric.evidenceSpan.text}`)
+    )
   );
 }
 
