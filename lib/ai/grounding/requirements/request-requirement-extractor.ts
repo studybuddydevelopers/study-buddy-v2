@@ -520,11 +520,19 @@ function extractFormulaUnitSymbols(question: string): string[] {
   if (formula) {
     for (const raw of formula.match(/\b[A-Za-z]\b/g) ?? []) {
       const symbol = cleanSymbolToken(raw);
+      if (isMultiplicationOperatorToken(symbol, formula)) continue;
       if (symbol && isSymbolToken(symbol)) symbols.add(symbol);
     }
   }
 
   return [...symbols];
+}
+
+function isMultiplicationOperatorToken(symbol: string, formula: string): boolean {
+  return (
+    symbol.toLowerCase() === "x" &&
+    /\b[A-Za-z0-9]\s*x\s*[A-Za-z0-9]\b/i.test(formula)
+  );
 }
 
 function formulaUnitConceptForSymbol(
