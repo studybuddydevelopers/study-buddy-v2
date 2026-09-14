@@ -6,6 +6,7 @@ import {
 } from "@prisma/client";
 import { buildResourceChunks, hashContent } from "./chunking";
 import { extractDocument } from "./extraction";
+import { validateAndScanUpload } from "@/lib/security/upload-scan";
 
 const mocks = vi.hoisted(() => ({
   download: vi.fn(),
@@ -53,6 +54,16 @@ vi.mock("@/lib/supabase/admin", () => ({
   }),
 }));
 
+vi.mock("@/lib/security/upload-scan", async (importOriginal) => {
+  const original = await importOriginal<typeof import("@/lib/security/upload-scan")>();
+  return {
+    ...original,
+    validateAndScanUpload: vi.fn(async (file: { arrayBuffer(): Promise<ArrayBuffer> }) =>
+      Buffer.from(await file.arrayBuffer())
+    ),
+  };
+});
+
 import { ResourceService } from "./resource-service";
 
 const markdown = "# Algebra\n\nQuestion 1. Solve x + 2 = 5.\nAnswer: x = 3";
@@ -86,6 +97,9 @@ describe("ResourceService processing lifecycle", () => {
     mocks.resourceUpdate.mockResolvedValue({});
     mocks.upload.mockResolvedValue({ error: null });
     mocks.remove.mockResolvedValue({ error: null });
+    vi.mocked(validateAndScanUpload).mockImplementation(async (file) =>
+      Buffer.from(await file.arrayBuffer())
+    );
   });
 
   it("marks an initial acquired resource failed when private storage download fails", async () => {
