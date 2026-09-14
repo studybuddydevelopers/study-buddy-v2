@@ -22,6 +22,9 @@ export default async function ProgressPage({
 }) {
   const resolvedSearchParams = searchParams ? await searchParams : {};
   const mockPage = firstQueryValue(resolvedSearchParams.mockPage) ?? "1";
+  const range = firstQueryValue(resolvedSearchParams.range) ?? "30d";
+  const subject = firstQueryValue(resolvedSearchParams.subject);
+  const topic = firstQueryValue(resolvedSearchParams.topic);
   const cookieStore = await cookies();
   const cookieHeader = cookieStore
     .getAll()
@@ -32,6 +35,9 @@ export default async function ProgressPage({
   const progressUrl = new URL(`${baseUrl}/api/v1/progress/full-report`);
   progressUrl.searchParams.set("page", mockPage);
   progressUrl.searchParams.set("pageSize", "10");
+  progressUrl.searchParams.set("range", range);
+  if (subject) progressUrl.searchParams.set("subject", subject);
+  if (topic) progressUrl.searchParams.set("topic", topic);
 
   const progressRes = await fetch(progressUrl, {
     headers: { Cookie: cookieHeader },
