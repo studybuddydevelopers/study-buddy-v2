@@ -40,9 +40,11 @@ import {
   structuredRepairInstruction,
   validateFormulaContractCompleteness,
   validateStructuredFormulaOutput,
+  type CalculationContract,
   type StructuredTaskValidationError,
   type TaskOutputMode,
 } from "../task-output";
+import type { CalculationPlanFailureReason } from "../calculation/types";
 import { executeCalculationPlan } from "../calculation/deterministic-calculation-executor";
 import type {
   CapabilityGroundingCitation,
@@ -59,6 +61,14 @@ const CAPABILITY_MAX_OUTPUT_TOKENS = 700;
 
 export class CapabilityGroundingPipeline implements GroundingPipeline {
   constructor(private readonly options: CapabilityPipelineOptions = {}) {}
+
+  static classifyCalculationPlanFailureForTest(
+    contract: CalculationContract
+  ): "SUPPORTED" | "INSUFFICIENT_CONTEXT" | "FAILED" {
+    const execution = executeCalculationPlan(contract);
+    if (execution.ok) return "SUPPORTED";
+    return classifyCalculationPlanFailureReasons(execution.failure.reasons);
+  }
 
   async generate(input: {
     context: GroundingPipelineContext;
@@ -313,6 +323,9 @@ export class CapabilityGroundingPipeline implements GroundingPipeline {
     });
     const execution = executeCalculationPlan(contract);
     if (!execution.ok) {
+      const failureClassification = classifyCalculationPlanFailureReasons(
+        execution.failure.reasons
+      );
       const diagnostics = structuredDiagnostics({
         diagnosticsBase: input.diagnosticsBase,
         mode: "STRUCTURED_CALCULATION",
@@ -328,6 +341,15 @@ export class CapabilityGroundingPipeline implements GroundingPipeline {
         },
         repairResult: { attempted: false, successful: false },
       });
+      if (failureClassification === "INSUFFICIENT_CONTEXT") {
+        return {
+          kind: "INSUFFICIENT_CONTEXT",
+          content: refusalMessage("MISSING_REQUIRED_EVIDENCE"),
+          insufficientContext: true,
+          diagnostics,
+          citations: [],
+        };
+      }
       return {
         kind: "FAILED",
         failureCode: AiGenerationFailureCode.INVALID_PROVIDER_RESPONSE,
@@ -493,6 +515,21 @@ export class CapabilityGroundingPipeline implements GroundingPipeline {
       };
     }
   }
+}
+
+function classifyCalculationPlanFailureReasons(
+  reasons: CalculationPlanFailureReason[]
+): "INSUFFICIENT_CONTEXT" | "FAILED" {
+  const evidenceIncompleteReasons = new Set<CalculationPlanFailureReason>([
+    "MISSING_AUTHORISED_METHOD",
+    "UNREACHABLE_FINAL_TARGET",
+    "MISSING_INPUT_BINDING",
+  ]);
+
+  return reasons.length > 0 &&
+    reasons.every((reason) => evidenceIncompleteReasons.has(reason))
+    ? "INSUFFICIENT_CONTEXT"
+    : "FAILED";
 }
 
 export function buildCapabilityGroundedTeachPrompt(input: {
