@@ -608,9 +608,16 @@ function parseUnitFactors(text: string): UnitFactor[] {
 }
 
 function addUnitTokens(factors: Map<string, number>, text: string, sign: 1 | -1) {
-  for (const rawToken of text.split(/\s+/)) {
+  const rawTokens = text.split(/\s+/).filter(Boolean);
+  for (const rawToken of rawTokens) {
     const token = rawToken.trim();
-    if (!token || /^(?:the|a|an|in|of|for|when|if|and|or)$/.test(token)) continue;
+    if (!token) continue;
+    if (
+      /^(?:the|an|in|of|for|when|if|and|or)$/.test(token) ||
+      (token === "a" && rawTokens.length > 1)
+    ) {
+      continue;
+    }
     const match = token.match(/^([a-z%]+)(?:\^?(-?\d+))?$/);
     if (!match) continue;
     const unit = match[1] ?? "";
