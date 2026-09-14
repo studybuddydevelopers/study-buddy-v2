@@ -343,12 +343,17 @@ function buildFormulaAndUnitRequirement(
   if (!concept) return undefined;
 
   const unitTarget = inferUnitFactTarget(question, concept);
+  const completeFormulaSymbolUnits =
+    formulaish && asksForCompleteFormulaSymbolUnits(question);
   const unitChild: RequirementDraft = {
     kind: "FACT_LOOKUP",
     targetConcepts: compactStrings([unitTarget]),
     requestedFact: `${unitTarget} units used`,
     requestedFacet: "UNIT",
     requestedAction: "STATE_UNIT",
+    constraints: completeFormulaSymbolUnits
+      ? ["complete formula symbol units"]
+      : undefined,
   };
 
   if (formulaish) {
@@ -384,6 +389,33 @@ function buildFormulaAndUnitRequirement(
       unitChild,
     ],
   };
+}
+
+function asksForCompleteFormulaSymbolUnits(question: string): boolean {
+  if (/\b(?:its|the)\s+unit\b/i.test(question) && !/\bunits\b/i.test(question)) {
+    return false;
+  }
+  if (
+    /\b(?:formula|law|equation|relation)\b[^?.!]{0,80}\bunits\b/i.test(question) ||
+    /\bunits\b[^?.!]{0,80}\b(?:formula|law|equation|relation)\b/i.test(question)
+  ) {
+    return true;
+  }
+  if (
+    /\b(?:with|and)\s+units\b/i.test(question) &&
+    /\b(?:law|formula|equation|relation)\b|[A-Za-z]\s*=\s*[A-Za-z0-9]/i.test(
+      question
+    )
+  ) {
+    return true;
+  }
+  if (
+    /\bunits?\s+used\b/i.test(question) &&
+    /\b(?:voltage|current|resistance)\b/i.test(question)
+  ) {
+    return true;
+  }
+  return false;
 }
 
 function buildFormulaVariableRequirement(
@@ -457,8 +489,15 @@ function buildFormulaConditionRequirement(
       },
       {
         kind: "FACT_LOOKUP",
-        targetConcepts: compactStrings([cleanedCondition]),
-        requestedFact: cleanedCondition,
+        targetConcepts: compactStrings([
+          cleanedCondition === "condition" ? concept ?? context.contextConcept : cleanedCondition,
+        ]),
+        requestedFact: compactStrings([
+          concept ?? context.contextConcept,
+          cleanedCondition,
+        ]).join(" "),
+        requestedFacet: "CONDITION",
+        constraints: compactStrings([cleanedCondition === "condition" ? undefined : cleanedCondition]),
         requestedAction: "EXPLAIN",
       },
     ],
@@ -1227,9 +1266,10 @@ function buildProcessRequirement(
 
   const process =
     firstMatch(question, /\b(?:teach|explain|describe)\s+(?:the\s+)?process\s+of\s+(.+?)(?:[?.]|$)/i) ??
+    firstMatch(question, /\b(?:describe|explain)\s+what\s+happens\s+(?:in|during)\s+(.+?)(?:[?.]|$)/i) ??
     firstMatch(question, /\bwhat\s+happens\s+in\s+(.+?)(?:[?.]|$)/i) ??
     firstMatch(question, /\bhow\s+(?:do|does)\s+(.+?)\s+happen(?:s)?(?:[?.]|$)/i) ??
-    firstMatch(question, /\b(?:explain|describe)\s+(.+?)(?:[?.]|$)/i);
+    firstMatch(question, /\bhow\s+(?:do|does)\s+(.+?)\s+works?(?:[?.]|$)/i);
 
   if (!process) return undefined;
 
@@ -1854,7 +1894,7 @@ function extractStandaloneSymbolFollowUp(question: string): string | undefined {
 }
 
 function hasNamedPossessiveFacetTarget(question: string): boolean {
-  return /\b(?:teach|explain|tell\s+me|define|what\s+is)\s+(?:me\s+)?(?:the\s+)?(?!it\b|its\b|this\b|that\b)([a-z][a-z0-9 -]+?)\s+(?:and|including|with)\s+(?:its\s+|the\s+)?(?:units?|formula)\b/i.test(
+  return /\b(?:teach|explain|tell\s+me|define|what\s+is)\s+(?:me\s+)?(?:the\s+)?(?!it\b|its\b|this\b|that\b)([a-z][a-z0-9 -]+?)\s+(?:and|including|include|with)\s+(?:its\s+|the\s+)?(?:units?|formula)\b/i.test(
     question
   );
 }
