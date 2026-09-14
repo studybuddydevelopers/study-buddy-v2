@@ -3311,9 +3311,9 @@ function deriveRequiredFormulaVariables(
           ) ?? component.symbol!,
         meaning:
           termMeanings.get(normalizeFormulaSymbolKey(component.symbol!)) ??
-          component.concept?.aliases?.[0] ??
-          component.text?.replace(component.symbol!, "").trim() ??
-          component.symbol!,
+          (cleanMeaningPhrase(component.text ?? "") ||
+            component.concept?.aliases?.[0] ||
+            component.symbol!),
         sourceLabels: [unit.sourceLabel],
       }))
   );
@@ -3458,7 +3458,13 @@ function deriveRequiredFormulaUnits(
       (unit.semanticComponents ?? [])
         .filter((component) => component.kind === "UNIT" && component.text)
         .flatMap((component) =>
-          extractUnitMappings(component.text!).map((mapping) => {
+          [
+            ...extractLeadingUnitMapping(
+              component.text!,
+              component.concept?.aliases?.[0]
+            ),
+            ...extractUnitMappings(component.text!),
+          ].map((mapping) => {
             const quantity =
               normalizeQuantity(mapping.quantity) === "measured"
                 ? component.concept?.aliases?.[0] ?? mapping.quantity
@@ -3473,6 +3479,19 @@ function deriveRequiredFormulaUnits(
     ),
     (unit) => `${normalizeQuantity(unit.quantity)}:${normalizeUnit(unit.unit)}`
   );
+}
+
+function extractLeadingUnitMapping(
+  text: string,
+  defaultQuantity?: string
+): Array<{ quantity: string; unit: string }> {
+  if (!defaultQuantity) return [];
+  const match = text.match(
+    /^\s*unit\s+([A-Za-zΩΩµμ][A-Za-zΩΩµμ0-9/%²³ -]*?(?:\s+per\s+[A-Za-z0-9²³-]+(?:\s+squared)?)?)(?=\s*(?:,|\.|\band\b|\bwhen\b|\bif\b|$))/i
+  );
+  const unit = normalizeUnitDisplay(match?.[1] ?? "");
+  if (!unit) return [];
+  return [{ quantity: defaultQuantity, unit }];
 }
 
 function extractFormulaTerms(expression: string) {
@@ -3566,13 +3585,20 @@ function extractUnitMappings(text: string) {
   const unitPattern =
     /(?:^|[,.]\s*|\band\s+|\bwhen\s+)([A-Za-z][A-Za-z\s-]{1,60}?)\s+(?:is\s+)?(?:measured\s+)?in\s+([A-Za-zΩΩµμ][A-Za-zΩΩµμ0-9/%²³-]*(?:\s+per\s+[A-Za-z0-9²³-]+(?:\s+squared)?)?)(?=\s*(?:,|\.|\band\b|\bwhen\b|$))/gi;
   for (const match of text.matchAll(unitPattern)) {
-    const quantity = cleanMeaningPhrase(match[1] ?? "");
+    const quantity = cleanUnitQuantityPhrase(match[1] ?? "");
     const unit = normalizeUnitDisplay(match[2] ?? "");
     if (quantity && unit) {
       mappings.push({ quantity, unit });
     }
   }
   return mappings;
+}
+
+function cleanUnitQuantityPhrase(value: string) {
+  return cleanMeaningPhrase(value)
+    .replace(/^unit\s+.+?\s+when\s+/i, "")
+    .replace(/^unit\s+/i, "")
+    .trim();
 }
 
 function parseBinaryFormulaExpression(expression: string) {
