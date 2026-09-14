@@ -385,7 +385,12 @@ describe("Stage 4.1 request requirement extraction", () => {
   });
 
   it("extracts process-explanation requests", () => {
-    const requirement = firstRequirement("Explain filtration.");
+    const general = firstRequirement("Explain filtration.");
+
+    expectKind(general, "CONCEPT_DEFINITION");
+    expect(general.targetConcepts).toEqual(["filtration"]);
+
+    const requirement = firstRequirement("Explain the process of filtration.");
 
     expectKind(requirement, "PROCESS_EXPLANATION");
     expect(requirement.targetConcepts).toEqual(["filtration"]);
