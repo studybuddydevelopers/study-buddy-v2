@@ -111,6 +111,23 @@ describe("Stage 4.1 broad-property v3 calculation and probability role binding",
     expect(force.execution?.ok && force.execution.trace.finalResult).toBe(12);
   });
 
+  it("binds percentage-change operands when the original value is introduced with from", () => {
+    const result = expectSupportedCalculation("Calculate the percentage change from the complete card.", [
+      "Percentage change = change / original value x 100. A change of 15 from an original value of 60 gives 15 / 60 x 100 = 25 percent.",
+    ]);
+
+    expect(result.contract.authorisedMethods).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          targetQuantity: "percentage change",
+          expression: "15 / 60 * 100",
+          result: "25",
+        }),
+      ])
+    );
+    expect(result.execution?.ok && result.execution.trace.finalResult).toBe(25);
+  });
+
   it("keeps ratio method support distinct from numeric ratio calculation", () => {
     const method = run("How do I make equivalent ratios?", [
       "Equivalent ratios are made by multiplying both terms by the same non-zero number.",
