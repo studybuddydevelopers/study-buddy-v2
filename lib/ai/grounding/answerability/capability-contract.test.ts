@@ -113,7 +113,7 @@ describe("Stage 4.1 capability cross-layer contract", () => {
   it("supports formula requests from structural formula capabilities without numeric operands", () => {
     const result = expectSupported("Teach me Ohm's law and the units used.", [
       chunk(
-        "Ohm's law states that potential difference equals current times resistance: V = I x R. Voltage is measured in volts."
+        "Ohm's law states that potential difference equals current times resistance: V = I x R. Voltage is measured in volts, current in amperes, and resistance in ohms."
       ),
     ]);
 
@@ -121,10 +121,21 @@ describe("Stage 4.1 capability cross-layer contract", () => {
     expect(result.evidenceCapabilities[0]?.formulas[0]?.canonicalConcept?.id).toBe(
       "ohms-law"
     );
-    expect(result.decision.validatedEvidenceUnits.map((unit) => unit.allowedUses)).toEqual([
-      ["FORMULA"],
-      ["DEFINE"],
+    expect(result.decision.validatedEvidenceUnits.map((unit) => unit.allowedUses)).toEqual(
+      expect.arrayContaining([["FORMULA"], ["DEFINE"]])
+    );
+  });
+
+  it("does not satisfy a formula unit request with only partial symbol units", () => {
+    const result = expectInsufficient("Teach me Ohm's law and the units used.", [
+      chunk(
+        "Ohm's law states that potential difference equals current times resistance: V = I x R. Voltage is measured in volts."
+      ),
     ]);
+
+    expect(result.decision.requirementResults[0]?.missingComponents).toContain(
+      "complete formula symbol units"
+    );
   });
 
   it("does not satisfy a formula request with an unrelated formula", () => {
