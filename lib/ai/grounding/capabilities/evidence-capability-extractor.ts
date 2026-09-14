@@ -266,7 +266,7 @@ function extractConceptDefinitions(
     text.match(/\b(?:in\s+(?:these|the|this)\s+notes,\s*)?(.+?)\s+units?\s+(?:are|is)\s+(.+)$/i) ??
     text.match(/\bif\b.+?,\s*(.+?)\s+is\s+([A-Za-z0-9/%^²³ΩΩ ]+)$/i);
   if (unitDefinition && !isFormulaLike(text)) {
-    const concept = cleanUnitConcept(unitDefinition[1] ?? "");
+    const concept = resolveUnitConcept(unitDefinition[1] ?? "", state);
     const unitText = cleanMeaning(unitDefinition[2] ?? "");
     if (concept && unitText) {
       return [
@@ -415,7 +415,7 @@ function extractDirectUnitDefinitions(
     sentence.text.match(/\b(?:the\s+)?(?:si\s+|compound\s+)?units?\s+(?:of|for)\s+(.+?)\s+(?:is|are)\s+(.+)$/i);
   if (!directUnit || isFormulaLike(sentence.text)) return [];
 
-  const concept = cleanUnitConcept(directUnit[1] ?? "");
+  const concept = resolveUnitConcept(directUnit[1] ?? "", state);
   const unitText = cleanMeaning(directUnit[2] ?? "");
   if (!concept || !unitText) return [];
 
@@ -441,7 +441,7 @@ function extractScopedUnitDefinitions(
     /\b([A-Za-z][A-Za-z -]{1,40}?)\s+(?:uses?|has)\s+([A-Za-z0-9/%^²³ΩΩ]+(?:\s+per\s+[A-Za-z0-9/%^²³ΩΩ]+)?)(?=,?\s+(?:and\s+)?[A-Za-z][A-Za-z -]{1,40}?\s+(?:uses?|has)\b|[,.;]|$)/gi;
 
   for (const match of sentence.text.matchAll(clausePattern)) {
-    const concept = cleanUnitConcept(match[1] ?? "");
+    const concept = resolveUnitConcept(match[1] ?? "", state);
     const unit = cleanMeaning(match[2] ?? "");
     if (!concept || !unit || !canonicalizeUnitExpression(unit)) continue;
     const key = `${concept}:${unit.toLowerCase()}`;
@@ -1373,7 +1373,7 @@ function extractRelations(
 
     const subject = cleanConcept(relationMatch[1] ?? "");
     const relation = normalizeRelation(relationMatch[2] ?? "");
-    const object = cleanConcept(relationMatch[3] ?? "");
+    const object = cleanRelationObject(relationMatch[3] ?? "");
     if (!subject || !relation || !object) continue;
 
     relations.push({
@@ -2476,20 +2476,45 @@ function createNumericValue(input: {
   optionScope?: string;
   role?: NumericCapability["role"];
 }): NumericCapability {
+  const quantity = canonicalNumericQuantityForFormulaSymbol(input.quantity, input.state);
   return {
     id: nextCapabilityId(input.state, "numeric"),
     resourceChunkId: input.state.chunk.resourceChunkId,
     sourceLabel: input.state.chunk.sourceLabel,
     evidenceSpan: input.span,
     confidence: "HIGH",
-    quantity: input.quantity,
-    canonicalConcept: canonicalizeConcept(input.quantity, input.state.chunk),
+    quantity,
+    canonicalConcept: canonicalizeConcept(quantity, input.state.chunk),
     value: input.value,
     unit: input.unit,
     qualifier: input.qualifier,
     optionScope: input.optionScope ?? optionScopeFromQualifier(input.qualifier),
     role: input.role,
   };
+}
+
+function canonicalNumericQuantityForFormulaSymbol(
+  quantity: string,
+  state: CapabilityState
+): string {
+  const symbol = normalizeSymbol(quantity)?.normalized;
+  const formulaContext = state.lastFormulaContext;
+  if (!symbol || !formulaContext?.symbols.includes(symbol)) return quantity;
+
+  if (
+    formulaContext.normalizedExpression.includes("i=p*r*t/100") ||
+    formulaContext.normalizedExpression.includes("i=p*r*t/100=")
+  ) {
+    const simpleInterestSymbols: Record<string, string> = {
+      i: "interest",
+      p: "principal",
+      r: "rate",
+      t: "time",
+    };
+    return simpleInterestSymbols[symbol] ?? quantity;
+  }
+
+  return quantity;
 }
 
 function createExplicitFact(input: {
@@ -2763,7 +2788,7 @@ function cleanAdjacentNumericQuantity(value: string): string {
 
 function cleanLeadingNumericQuantity(value: string): string {
   return cleanConcept(value)
-    .replace(/\b(?:if|then|so|and|with|for)\b/g, " ")
+    .replace(/\b(?:if|then|so|and|with|for|from|a|an|the)\b/g, " ")
     .replace(/\s+/g, " ")
     .trim();
 }
@@ -2859,12 +2884,29 @@ function cleanConcept(value: string): string {
     .trim();
 }
 
+function cleanRelationObject(value: string): string {
+  return cleanConcept(
+    value.replace(/\b(?:even\s+when|when|while|although|though)\b.+$/i, "")
+  );
+}
+
 function cleanUnitConcept(value: string): string {
   return cleanConcept(value)
     .replace(/^(?:si|compound)\s+units?\s+(?:of|for)\s+/, "")
     .replace(/\s+units?$/i, "")
     .replace(/\s+/g, " ")
     .trim();
+}
+
+function resolveUnitConcept(value: string, state: CapabilityState): string {
+  const concept = cleanUnitConcept(value);
+  if (
+    /^(?:it|this|that|these|those)$/.test(concept) &&
+    state.lastSemanticTarget
+  ) {
+    return cleanUnitConcept(state.lastSemanticTarget);
+  }
+  return concept;
 }
 
 function cleanMeaning(value: string): string {
