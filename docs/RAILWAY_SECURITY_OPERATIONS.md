@@ -191,6 +191,38 @@ insert its `AdminUser` row with a meaningful operational role, and verify
 
 ## Security event monitoring
 
+Password-reset abuse protection additionally emits
+`password_reset_abuse_alert_sent`, `password_reset_abuse_alert_failed`,
+`password_reset_security_lock_applied`,
+`password_reset_security_lock_failed`,
+`password_reset_security_recovery_started`, and
+`password_reset_security_recovery_completed`. Alert on failures and investigate
+unexpected lock volume without putting raw email addresses or tokens in alerts.
+
+### Password-reset security deployment
+
+1. Apply migration `20260914090000_add_password_reset_security_lock` with the
+   migration-owner database URL. Confirm the restricted Railway runtime role
+   received CRUD rights on the two new tables through the configured future-
+   table default privileges; do not grant browser roles access.
+2. Keep the existing `RATE_LIMIT_HASH_SECRET` stable. Add the four optional
+   password-reset settings from `.env.example`, or rely on their approved
+   defaults: one alert per 24 hours, a 30-minute review link, and a 24-hour
+   provider lock.
+3. Once after the migration, run
+   `npm run security:backfill-auth-email-fingerprints` in a trusted Railway job
+   with the production database and Supabase server-admin variables. The output
+   contains counts only. New sign-ups and successful email logins maintain the
+   fingerprint automatically.
+4. Re-run the backfill immediately after any intentional rotation of
+   `RATE_LIMIT_HASH_SECRET`; until then existing fingerprints were produced by
+   the previous key and cannot match new password-reset requests.
+5. Exercise the complete flow with a disposable verified account. Confirm the
+   fourth account request in the one-hour window receives the same public 429,
+   one warning email arrives, merely opening it changes nothing, explicit
+   confirmation revokes sessions and rejects the old password, and the newest
+   recovery email permits a new password.
+
 The app emits single-line structured JSON events to stdout. Railway parses their
 attributes automatically. Useful Log Explorer filters are:
 
