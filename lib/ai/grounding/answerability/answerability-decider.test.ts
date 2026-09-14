@@ -419,11 +419,15 @@ describe("Stage 4.1 answerability decider golden cases", () => {
   });
 
   it("supports process explanations only from process capabilities", () => {
-    expectSupported("Explain filtration.", [
+    expectSupported("Explain the process of filtration.", [
       chunk("Filtration uses a filter to separate an insoluble solid from a liquid."),
     ]);
 
-    expectInsufficient("Explain filtration.", [
+    expectInsufficient("Explain the process of filtration.", [
+      chunk("Filtration is a separation technique."),
+    ]);
+
+    expectSupported("Explain filtration.", [
       chunk("Filtration is a separation technique."),
     ]);
   });
