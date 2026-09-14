@@ -2289,7 +2289,10 @@ function findUnitFactSupport(
       if (component.kind !== "UNIT" || !component.sourceCapabilityId) return false;
       if (targetIds.length === 0) return true;
       if (component.concept && targetIds.includes(component.concept.baseConcept)) return true;
-      return semanticTextMatches(component.text ?? "", requested);
+      const componentText = normalizedText(component.text ?? "");
+      return targetTexts.some(
+        (target) => target.length > 0 && includesTokens(componentText, target)
+      );
     })
     .map((component) => component.sourceCapabilityId)
     .filter((id): id is string => Boolean(id));
@@ -2306,8 +2309,7 @@ function findUnitFactSupport(
         ) &&
         (targetIds.length === 0 ||
           targetIds.includes(candidate.canonicalConcept.id) ||
-          targetTexts.some((target) => target.length > 0 && includesTokens(combined, target)) ||
-          semanticTextMatches(combined, requested))
+          targetTexts.some((target) => target.length > 0 && includesTokens(combined, target)))
       );
     })
     .map((candidate) => candidate.id);
