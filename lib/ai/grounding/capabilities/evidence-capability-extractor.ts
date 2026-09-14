@@ -208,6 +208,81 @@ function extractConceptDefinitions(
   state: CapabilityState
 ): CapabilityFact[] {
   const text = sentence.text;
+  const headingOnly = text.match(/^([A-Za-z][A-Za-z -]{2,40})$/);
+  if (headingOnly && !isFormulaLike(text) && !isMostlyVerbPhrase(text)) {
+    const concept = cleanConcept(headingOnly[1] ?? "");
+    if (concept) {
+      return [
+        createConceptDefinition({
+          state,
+          span: sentence,
+          concept,
+          definitionText: text,
+          polarity: "POSITIVE",
+          confidence: "MEDIUM",
+        }),
+      ];
+    }
+  }
+
+  const headedDefinition =
+    text.match(/^([A-Za-z][A-Za-z -]{2,40})\s*[:\-]\s*(.+)$/) ??
+    text.match(/^(.+?)\s+(?:means|refers to)\s+(.+)$/i);
+  if (headedDefinition && !isFormulaLike(text) && !isSymbolDefinitionSentence(text)) {
+    const concept = cleanConcept(headedDefinition[1] ?? "");
+    const definitionText = cleanMeaning(headedDefinition[2] ?? "");
+    if (concept && definitionText) {
+      return [
+        createConceptDefinition({
+          state,
+          span: sentence,
+          concept,
+          definitionText,
+          polarity: "POSITIVE",
+          confidence: "HIGH",
+        }),
+      ];
+    }
+  }
+
+  const unitDefinition =
+    text.match(/\b(?:the\s+)?unit\s+used\s+for\s+(.+?)\s+is\s+(.+)$/i) ??
+    text.match(/\b(.+?)\s+has\s+(?:the\s+)?units?\s+(.+)$/i);
+  if (unitDefinition && !isFormulaLike(text)) {
+    const concept = cleanConcept(unitDefinition[1] ?? "");
+    const unitText = cleanMeaning(unitDefinition[2] ?? "");
+    if (concept && unitText) {
+      return [
+        createConceptDefinition({
+          state,
+          span: sentence,
+          concept,
+          definitionText: `unit ${unitText}`,
+          polarity: "POSITIVE",
+          confidence: "HIGH",
+        }),
+      ];
+    }
+  }
+
+  const purposeDefinition = text.match(/\b(?:the\s+)?purpose\s+of\s+(.+?)\s+is\s+(.+)$/i);
+  if (purposeDefinition && !isFormulaLike(text)) {
+    const concept = cleanConcept(purposeDefinition[1] ?? "");
+    const purposeText = cleanMeaning(purposeDefinition[2] ?? "");
+    if (concept && purposeText) {
+      return [
+        createConceptDefinition({
+          state,
+          span: sentence,
+          concept,
+          definitionText: `purpose is ${purposeText}`,
+          polarity: "POSITIVE",
+          confidence: "HIGH",
+        }),
+      ];
+    }
+  }
+
   const absentMatch =
     text.match(/^(?:no\s+)?definition\s+of\s+(.+?)\s+(?:is\s+)?(?:not\s+)?(?:given|provided|stated|defined)(?:\s+here)?$/i) ??
     text.match(/^(.+?)\s+is\s+not\s+(?:defined|given|provided|stated|explained)(?:\s+here)?$/i);
@@ -886,6 +961,8 @@ function extractMethods(
 ): MethodCapability[] {
   const text = sentence.text;
   const matches = [
+    text.match(/\b(?:finding|calculating|working\s+out|determining)\s+(.+?)\s+requires\s+(.+)$/i),
+    text.match(/\b(.+?)\s+method\s*:\s*(.+)$/i),
     text.match(/\b(.+?)\s+can\s+be\s+(?:solved|found|calculated|worked\s+out|balanced|separated|prepared|made|done)\s+by\s+(.+)$/i),
     text.match(/\b(.+?)\s+(?:is|are)\s+(?:found|calculated|worked\s+out)\s+by\s+(.+)$/i),
     text.match(/\bto\s+(?:find|calculate|work\s+out|compute|determine)\s+(?:the\s+)?(.+?),\s*(.+)$/i),
@@ -954,7 +1031,7 @@ function extractRelations(
   const relations: RelationCapability[] = [];
   for (const clause of splitRelationClauses(sentence)) {
     const relationMatch =
-      clause.text.match(/\b(.+?)\s+(increases|decreases|reduces|affects|causes|depends on|leads to|turns?|changes?|transfers?|makes?|eats?|applies to)\s+(.+)$/i) ??
+      clause.text.match(/\b(.+?)\s+(increases|decreases|reduces|affects|causes|depends on|leads to|turns?|changes?|transfers?|makes?|eats?|applies to|helps?)\s+(.+)$/i) ??
       clause.text.match(/\b(.+?)\s+(carry|carries|transport|transports)\s+(.+)$/i) ??
       clause.text.match(/\b(.+?)\s+(increases|decreases)\s+with\s+(.+)$/i);
     if (!relationMatch) continue;
@@ -983,6 +1060,15 @@ function extractRelations(
 }
 
 function extractComparisonSides(
+  sentence: SentenceSpan,
+  state: CapabilityState
+): ComparisonSideCapability[] {
+  return splitRelationClauses(sentence).flatMap((clause) =>
+    extractComparisonSidesFromClause(clause, state)
+  );
+}
+
+function extractComparisonSidesFromClause(
   sentence: SentenceSpan,
   state: CapabilityState
 ): ComparisonSideCapability[] {
@@ -1077,7 +1163,27 @@ function extractProcessFacts(
     sentence.text.match(/\b(.+?)\s+is\s+the\s+process\s+by\s+which\s+(.+)$/i) ??
     sentence.text.match(/\b(.+?)\s+uses\s+(.+?)\s+to\s+(.+)$/i) ??
     sentence.text.match(/\b(.+?)\s+separates\s+(.+)$/i);
-  if (!match) return [];
+  if (!match) {
+    if (
+      state.lastSemanticTarget &&
+      /\b(?:changes?|changing|turns?|turning|moves?|moving|passes?|passing|leaves?|leaving|transfers?|transferring|produces?|producing|forms?|forming|uses?|using|separates?|separating)\b/i.test(
+        sentence.text
+      )
+    ) {
+      return [
+        {
+          id: nextCapabilityId(state, "process"),
+          resourceChunkId: state.chunk.resourceChunkId,
+          sourceLabel: state.chunk.sourceLabel,
+          evidenceSpan: sentence,
+          confidence: "HIGH",
+          process: state.lastSemanticTarget,
+          fact: cleanMeaning(sentence.text),
+        },
+      ];
+    }
+    return [];
+  }
 
   const process = cleanConcept(match[1] ?? "");
   if (!process) return [];
@@ -1665,7 +1771,7 @@ function definitionFacets(definitionText: string, evidenceText: string): Semanti
   if (/\b(?:function|role|transports?|carries|allows?|does not allow)\b/.test(combined)) {
     facets.push("FUNCTION");
   }
-  if (/\b(?:process|by which|changes?|separates?|produces?|forms?|turns?|passes?)\b/.test(combined)) {
+  if (/\b(?:process|by which|changes?|changing|separates?|separating|produces?|producing|forms?|forming|turns?|turning|passes?|passing)\b/.test(combined)) {
     facets.push("PROCESS");
   }
   if (/\b(?:limitation|cannot|can not|does not|do not|not suitable|rather than)\b/.test(combined)) {
@@ -1679,8 +1785,8 @@ function definitionFacets(definitionText: string, evidenceText: string): Semanti
 
 function relationFacet(relation: string, evidenceText: string): SemanticComponent["kind"] {
   const combined = normalizeConceptText(`${relation} ${evidenceText}`);
-  if (/\b(?:transport|carry|allow|does not allow|do not allow|make|eat|transfer|appl(?:y|ies|ied|ication))\b/.test(combined)) return "FUNCTION";
   if (/\b(?:purpose|useful|used for|needed for|helps?)\b/.test(combined)) return "PURPOSE";
+  if (/\b(?:transport|carry|allow|does not allow|do not allow|make|eat|transfer|appl(?:y|ies|ied|ication))\b/.test(combined)) return "FUNCTION";
   if (/\b(?:cannot|can not|does not|do not|limitation|rather than)\b/.test(combined)) return "LIMITATION";
   if (/\b(?:cause|lead to|reduce|increase|effect|result)\b/.test(combined)) return "CONSEQUENCE";
   return "RELATION";
