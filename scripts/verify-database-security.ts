@@ -7,6 +7,7 @@ interface SecurityCheck {
   browserCrudGrants: number;
   legacyAdminColumns: number;
   aiBudgetTable: boolean;
+  passwordResetSecurityRuntimeCrud: boolean;
 }
 
 async function main() {
@@ -45,7 +46,16 @@ async function main() {
           AND table_name = 'User'
           AND column_name = 'isAdmin'
       ) AS "legacyAdminColumns",
-      to_regclass('public."AiGlobalDailyUsage"') IS NOT NULL AS "aiBudgetTable"
+      to_regclass('public."AiGlobalDailyUsage"') IS NOT NULL AS "aiBudgetTable",
+      has_table_privilege(
+        current_user,
+        'public."PasswordResetSecurityState"',
+        'SELECT,INSERT,UPDATE,DELETE'
+      ) AND has_table_privilege(
+        current_user,
+        'public."PasswordResetSecurityEvent"',
+        'SELECT,INSERT,UPDATE,DELETE'
+      ) AS "passwordResetSecurityRuntimeCrud"
   `);
 
   if (
@@ -53,7 +63,8 @@ async function main() {
     check.tables !== check.rlsTables ||
     check.browserCrudGrants !== 0 ||
     check.legacyAdminColumns !== 0 ||
-    !check.aiBudgetTable
+    !check.aiBudgetTable ||
+    !check.passwordResetSecurityRuntimeCrud
   ) {
     throw new Error(
       `Database security assertions failed: ${JSON.stringify(check)}`
