@@ -17,6 +17,7 @@ import { fetchWithTimeout } from "@/lib/security/timeouts";
 import {
   logSecurityEvent,
   securityFingerprint,
+  securityIdentifierHash,
 } from "@/lib/security/audit-log";
 import {
   CHILD_PRIVACY_NOTICE_VERSION,
@@ -251,6 +252,7 @@ export async function POST(req: Request) {
       await transaction.user.create({
         data: {
           id: persistedUserId,
+          authEmailFingerprint: securityIdentifierHash(normalizedEmail),
           accountStatus: isMinor
             ? "GUARDIAN_AUTHORIZATION_REQUIRED"
             : "ACTIVE",
