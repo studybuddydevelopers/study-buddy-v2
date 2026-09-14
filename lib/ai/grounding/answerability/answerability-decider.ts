@@ -31,6 +31,7 @@ import type {
   RequestRequirements,
 } from "../requirements/types";
 import {
+  conditionTextMatches,
   semanticComponentMatches,
   canonicalizeSemanticConcept,
   type SemanticComponent,
@@ -224,6 +225,10 @@ function evaluateDirectRequirement(
     return buildMatch(requirement.id, "CONFLICTING", [], [], relevantConflicts);
   }
 
+  if (isFormulaScopedUnitRequirement(requirement, context)) {
+    return evaluateFactLookupRequirement(requirement, context);
+  }
+
   const semanticMatch = evaluateSemanticComponents(requirement, context);
   if (semanticMatch?.status === "SUPPORTED" && canUseSemanticFastMatch(requirement)) {
     return semanticMatch;
@@ -274,7 +279,8 @@ function canUseSemanticFastMatch(requirement: RequestRequirement): boolean {
   }
   if (
     requirement.kind === "FACT_LOOKUP" &&
-    /\b(?:variables?|symbols?|units?|kinds?)\b/i.test(requirement.requestedFact ?? "")
+    (requirement.requestedFacet === "UNIT" ||
+      /\b(?:variables?|symbols?|units?|kinds?)\b/i.test(requirement.requestedFact ?? ""))
   ) {
     return false;
   }
@@ -381,6 +387,8 @@ function allowedUsesForSemanticComponent(component: SemanticComponent): AllowedE
       return ["RELATION"];
     case "CONSEQUENCE":
       return ["CONSEQUENCE"];
+    case "CONDITION":
+      return ["DEFINE", "FORMULA"];
     case "LIMITATION":
     case "PURPOSE":
     case "UNIT":
@@ -852,6 +860,23 @@ function evaluateFactLookupRequirement(
   const formulaVariableSupport = findFormulaVariableSupport(requirement, context);
   if (formulaVariableSupport.length > 0) {
     return buildMatch(requirement.id, "SUPPORTED", formulaVariableSupport);
+  }
+
+  const conditionSupport = findConditionFactSupport(requirement, context);
+  if (conditionSupport.length > 0) {
+    return buildMatch(requirement.id, "SUPPORTED", conditionSupport);
+  }
+
+  if (isClosedFormulaUnitRequirement(requirement, context)) {
+    const unitSupport = findUnitFactSupport(requirement, context);
+    return unitSupport.length > 0
+      ? buildMatch(requirement.id, "SUPPORTED", unitSupport)
+      : buildMatch(
+          requirement.id,
+          "MISSING",
+          [],
+          ["complete formula symbol units"]
+        );
   }
 
   const unitSupport = findUnitFactSupport(requirement, context);
@@ -1951,6 +1976,16 @@ function findUnitFactSupport(
   if (!/\b(unit|units|measured|measure)\b/.test(requested)) return [];
 
   const targetIds = canonicalTargetIds(requirement, context.request);
+  const formulaUnitSupports = formulaSymbolUnitSupports(requirement, context);
+  if (
+    requirement.constraints?.includes("complete formula symbol units") ||
+    requiresFormulaUnitSet(requirement, context, targetIds) ||
+    isFormulaScopedUnitRequirement(requirement, context) ||
+    targetIds.some((target) => /(?:^|-)law$/.test(target))
+  ) {
+    return formulaUnitSupports;
+  }
+
   const targetTexts = uniqueStrings(
     [
       ...requirement.targetConcepts,
@@ -1986,12 +2021,121 @@ function findUnitFactSupport(
     })
     .map((candidate) => candidate.id);
 
-  const formulaUnitSupports = formulaSymbolUnitSupports(requirement, context);
-
   return uniqueSupportRefs(
     uniqueStrings([...semanticSupports, ...definitionSupports]).map((id) =>
       supportRef(requirement.id, id, ["DEFINE"])
     ).concat(formulaUnitSupports)
+  );
+}
+
+function findConditionFactSupport(
+  requirement: RequestRequirement,
+  context: MatchContext
+): CapabilitySupportRef[] {
+  const requested = normalizedText(
+    `${requirement.requestedFact ?? ""} ${requirement.targetConcepts.join(" ")} ${requirement.constraints?.join(" ") ?? ""}`
+  );
+  if (requirement.requestedFacet !== "CONDITION" && !/\b(?:condition|valid|applicability|perpendicular|right angle)\b/.test(requested)) {
+    return [];
+  }
+
+  const targetIds = canonicalTargetIds(requirement, context.request);
+  const requestedHasConcreteCondition =
+    /\b(?:height|base|perpendicular|right angle|slanted|valid)\b/.test(requested);
+  const semanticSupports = context.semanticComponents
+    .filter((component) => {
+      if (component.kind !== "CONDITION" || !component.sourceCapabilityId) return false;
+      if (
+        targetIds.length > 0 &&
+        component.concept &&
+        targetIds.includes(component.concept.baseConcept)
+      ) {
+        return true;
+      }
+      if (requestedHasConcreteCondition && conditionTextMatches(component.text ?? "", requested)) {
+        return true;
+      }
+      return targetIds.length === 0 && conditionTextMatches(component.text ?? "", requested);
+    })
+    .map((component) => component.sourceCapabilityId)
+    .filter((id): id is string => Boolean(id));
+
+  const factSupports = context.explicitFacts
+    .filter((fact) => {
+      if (fact.polarity !== "POSITIVE") return false;
+      const combined = `${fact.factKey} ${fact.factText} ${fact.canonicalConcept?.id ?? ""}`;
+      if (!/\b(?:condition|perpendicular|right angle|valid|slanted)\b/i.test(combined)) {
+        return false;
+      }
+      if (
+        targetIds.length > 0 &&
+        fact.canonicalConcept &&
+        targetIds.includes(fact.canonicalConcept.id)
+      ) {
+        return true;
+      }
+      return conditionTextMatches(combined, requested);
+    })
+    .map((fact) => fact.id);
+
+  return uniqueSupportRefs(
+    uniqueStrings([...semanticSupports, ...factSupports]).map((id) =>
+      supportRef(requirement.id, id, ["DEFINE", "FORMULA"])
+    )
+  );
+}
+
+function isFormulaScopedUnitRequirement(
+  requirement: RequestRequirement,
+  context: MatchContext
+): boolean {
+  if (requirement.kind !== "FACT_LOOKUP" || requirement.requestedFacet !== "UNIT") {
+    return false;
+  }
+  const targetText = normalizedText(
+    `${requirement.targetConcepts.join(" ")} ${requirement.requestedFact ?? ""} ${requirement.baseConcept?.baseConcept ?? ""}`
+  );
+  if (!/\b(?:law|formula|equation|relation)\b/.test(targetText)) return false;
+  return context.formulas.some((formula) =>
+    formulaMatchesRequirement(formula, requirement, context)
+  );
+}
+
+function isClosedFormulaUnitRequirement(
+  requirement: RequestRequirement,
+  context: MatchContext
+): boolean {
+  if (requirement.kind !== "FACT_LOOKUP") return false;
+  const requested = normalizedText(
+    `${requirement.requestedFact ?? ""} ${requirement.targetConcepts.join(" ")}`
+  );
+  if (requirement.requestedFacet !== "UNIT" && !/\bunits?\b/.test(requested)) {
+    return false;
+  }
+  const targetIds = canonicalTargetIds(requirement, context.request);
+  return (
+    requirement.constraints?.includes("complete formula symbol units") ||
+    requiresFormulaUnitSet(requirement, context, targetIds) ||
+    isFormulaScopedUnitRequirement(requirement, context) ||
+    targetIds.some((target) => /(?:^|-)law$/.test(target))
+  );
+}
+
+function requiresFormulaUnitSet(
+  requirement: RequestRequirement,
+  context: MatchContext,
+  targetIds: string[] = canonicalTargetIds(requirement, context.request)
+): boolean {
+  const requested = normalizedText(
+    `${requirement.requestedFact ?? ""} ${requirement.targetConcepts.join(" ")}`
+  );
+  if (requirement.requestedFacet !== "UNIT" && !/\bunits?\b/.test(requested)) return false;
+  const asksForFormulaScopedUnits =
+    /\b(?:law|formula|equation|relation)\b/.test(requested) ||
+    targetIds.some((target) => /(?:^|-)law$/.test(target));
+  if (!asksForFormulaScopedUnits) return false;
+  return context.formulas.some((formula) =>
+    formulaMatchesRequirement(formula, requirement, context)
   );
 }
 
@@ -2007,31 +2151,103 @@ function formulaSymbolUnitSupports(
   const refs: CapabilitySupportRef[] = [];
   for (const formula of matchingFormulas) {
     const formulaSymbolSet = new Set(formula.symbols.map((symbol) => symbol.normalized));
-    const unitSymbols = context.symbols.filter(
-      (symbol) =>
-        symbol.polarity === "POSITIVE" &&
-        symbol.resourceChunkId === formula.resourceChunkId &&
-        symbol.sourceLabel === formula.sourceLabel &&
-        formulaSymbolSet.has(symbol.symbol.normalized) &&
-        /\b(?:measured\s+in|unit|units|volts?|amperes?|amps?|ohms?|newtons?|metres?|meters?|seconds?|grams?|kilograms?)\b/i.test(
+    const supportBySymbol = new Map<string, string[]>();
+    for (const symbol of context.symbols) {
+      if (
+        symbol.polarity !== "POSITIVE" ||
+        symbol.resourceChunkId !== formula.resourceChunkId ||
+        symbol.sourceLabel !== formula.sourceLabel ||
+        !formulaSymbolSet.has(symbol.symbol.normalized) ||
+        !/\b(?:measured\s+in|unit|units|volts?|amperes?|amps?|ohms?|newtons?|metres?|meters?|seconds?|grams?|kilograms?)\b/i.test(
           symbol.meaning ?? symbol.evidenceSpan.text
         )
-    );
-    if (unitSymbols.length === 0) continue;
+      ) {
+        continue;
+      }
+      supportBySymbol.set(symbol.symbol.normalized, [
+        ...(supportBySymbol.get(symbol.symbol.normalized) ?? []),
+        symbol.id,
+      ]);
+    }
+
+    for (const definition of context.definitions) {
+      if (
+        definition.polarity !== "POSITIVE" ||
+        definition.resourceChunkId !== formula.resourceChunkId ||
+        definition.sourceLabel !== formula.sourceLabel ||
+        !isUnitDefinition(definition)
+      ) {
+        continue;
+      }
+      for (const symbol of formulaSymbolSet) {
+        if (!unitDefinitionMatchesFormulaSymbol(definition, symbol, formula, context)) {
+          continue;
+        }
+        supportBySymbol.set(symbol, [...(supportBySymbol.get(symbol) ?? []), definition.id]);
+      }
+    }
+
+    if (supportBySymbol.size === 0) continue;
     if (
       formulaSymbolSet.size > 0 &&
-      requiresCompleteFormulaSymbolUnits(requirement, formula, context) &&
-      unitSymbols.length < formulaSymbolSet.size
+      (requirement.constraints?.includes("complete formula symbol units") ||
+        requiresCompleteFormulaSymbolUnits(requirement, formula, context)) &&
+      supportBySymbol.size < formulaSymbolSet.size
     ) {
       continue;
     }
     refs.push(supportRef(requirement.id, formula.id, ["FORMULA"]));
     refs.push(
-      ...unitSymbols.map((symbol) => supportRef(requirement.id, symbol.id, ["DEFINE"]))
+      ...uniqueStrings([...supportBySymbol.values()].flat()).map((id) =>
+        supportRef(requirement.id, id, ["DEFINE"])
+      )
     );
   }
 
   return uniqueSupportRefs(refs);
+}
+
+function isUnitDefinition(definition: CapabilityFact): boolean {
+  return Boolean(
+    definition.semanticComponents?.some((component) => component.kind === "UNIT")
+  );
+}
+
+function unitDefinitionMatchesFormulaSymbol(
+  definition: CapabilityFact,
+  symbol: string,
+  formula: FormulaCapability,
+  context: MatchContext
+): boolean {
+  const candidateConcepts = formulaSymbolQuantityConcepts(symbol, formula);
+  if (candidateConcepts.includes(definition.canonicalConcept.id)) return true;
+  const combined = normalizedText(
+    `${definition.canonicalConcept.label} ${definition.canonicalConcept.aliases.join(" ")} ${definition.definitionText} ${definition.evidenceSpan.text}`
+  );
+  return candidateConcepts.some((concept) =>
+    semanticTextMatches(combined, canonicalizeConcept(concept, context.request).label)
+  );
+}
+
+function formulaSymbolQuantityConcepts(
+  symbol: string,
+  formula: FormulaCapability
+): string[] {
+  const mapped: Record<string, string[]> = {
+    a: ["acceleration"],
+    f: ["force"],
+    i: ["current"],
+    m: ["mass"],
+    p: ["power", "pressure"],
+    r: ["resistance"],
+    t: ["time"],
+    v: ["voltage", "potential difference", "volume"],
+  };
+  const concepts = mapped[normalizedText(symbol)] ?? [];
+  if (formula.outputQuantity === normalizedText(symbol) && formula.canonicalConcept?.id) {
+    return uniqueStrings([formula.canonicalConcept.id, ...concepts]);
+  }
+  return concepts;
 }
 
 function requiresCompleteFormulaSymbolUnits(
@@ -2042,7 +2258,7 @@ function requiresCompleteFormulaSymbolUnits(
   const requested = normalizedText(
     `${requirement.requestedFact ?? ""} ${requirement.targetConcepts.join(" ")}`
   );
-  if (!/\bunits\b/.test(requested)) return false;
+  if (!/\bunits?\b/.test(requested)) return false;
   if (!/\b(?:law|formula|equation|relation)\b/.test(requested)) return false;
 
   const targetIds = canonicalTargetIds(requirement, context.request);
