@@ -66,6 +66,7 @@ export interface MockExamEntry {
 
 export interface MockExamReport {
   count: number;
+  allTimeCount: number;
   inProgressCount: number;
   totalScore: number;
   averageScore: number;
@@ -99,11 +100,56 @@ export interface AIActivity {
   persistentThreadsStarted?: number;
 }
 
+export type ProgressRange = "7d" | "30d" | "90d";
+
+export interface ProgressFilterSubject {
+  id: string;
+  name: string;
+}
+
+export interface ProgressFilterTopic {
+  id: string;
+  title: string;
+  subjectId: string;
+  subjectName: string;
+}
+
+export interface ProgressReportFilters {
+  range: ProgressRange;
+  rangeLabel: string;
+  rangeStart: string;
+  rangeEnd: string;
+  subjectId: string | null;
+  topicId: string | null;
+  subjects: ProgressFilterSubject[];
+  topics: ProgressFilterTopic[];
+}
+
+export interface ProgressTrendPoint {
+  startDate: string;
+  endDate: string;
+  label: string;
+  questionsAttempted: number;
+  correctAnswers: number;
+  accuracyPct: number | null;
+  mockExamsCompleted: number;
+  averageMockScorePct: number | null;
+}
+
+export interface ProgressTopicInsights {
+  focusTopics: TopicBreakdown[];
+  recommendedTopic: RecommendedTopic | null;
+  minimumEvidenceQuestions: number;
+}
+
 export interface ProgressFullReport {
+  filters: ProgressReportFilters;
   subjects: SubjectProgress[];
   studyMaterials: StudyMaterialsProgress;
   pastQuestions: PastQuestionsReport;
   mockExams: MockExamReport;
+  trend: ProgressTrendPoint[];
+  topicInsights: ProgressTopicInsights;
   aiActivity: AIActivity;
 }
 
