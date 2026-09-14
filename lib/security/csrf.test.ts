@@ -1,6 +1,9 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { NextRequest } from "next/server";
-import { validateCookieMutationOrigin } from "./csrf";
+import {
+  validateCookieMutationOrigin,
+  validatePublicMutationOrigin,
+} from "./csrf";
 
 const authCookie = "sb-project-ref-auth-token=encoded-session";
 
@@ -86,6 +89,40 @@ describe("cookie-authenticated mutation Origin validation", () => {
     const request = makeRequest("POST", "/api/v1/login");
 
     expect(validateCookieMutationOrigin(request)).toEqual({ ok: true });
+  });
+});
+
+describe("public security-token mutation Origin validation", () => {
+  afterEach(() => vi.unstubAllEnvs());
+
+  it("allows the exact configured production origin", () => {
+    vi.stubEnv("NODE_ENV", "production");
+    vi.stubEnv("APP_ORIGIN", "https://studybuddyng.com");
+    const request = new Request(
+      "https://studybuddyng.com/api/v1/account/security/password-reset-lock",
+      { method: "POST", headers: { origin: "https://studybuddyng.com" } }
+    );
+
+    expect(validatePublicMutationOrigin(request)).toEqual({ ok: true });
+  });
+
+  it("rejects missing and cross-site origins", () => {
+    vi.stubEnv("NODE_ENV", "production");
+    vi.stubEnv("APP_ORIGIN", "https://studybuddyng.com");
+    const target =
+      "https://studybuddyng.com/api/v1/account/security/password-reset-lock";
+
+    expect(
+      validatePublicMutationOrigin(new Request(target, { method: "POST" }))
+    ).toEqual({ ok: false, reason: "MISSING_ORIGIN" });
+    expect(
+      validatePublicMutationOrigin(
+        new Request(target, {
+          method: "POST",
+          headers: { origin: "https://attacker.example" },
+        })
+      )
+    ).toEqual({ ok: false, reason: "UNTRUSTED_ORIGIN" });
   });
 });
 
