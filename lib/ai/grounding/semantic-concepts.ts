@@ -5,6 +5,7 @@ export type SemanticFacet =
   | "PURPOSE"
   | "FUNCTION"
   | "PROCESS"
+  | "CONDITION"
   | "LIMITATION"
   | "CONSEQUENCE"
   | "METHOD";
@@ -41,6 +42,17 @@ export type SemanticComponent = {
   sourceLabel?: string;
 };
 
+export type UnitFactor = {
+  unit: string;
+  exponent: number;
+};
+
+export type UnitExpression = {
+  canonical: string;
+  display: string;
+  factors: UnitFactor[];
+};
+
 export type CanonicalConcept = {
   id: string;
   label: string;
@@ -61,8 +73,8 @@ const CONTROLLED_CONCEPTS: ConceptAliasEntry[] = [
     label: "Simple interest",
     aliases: ["simple interest", "simple-interest", "si"],
   },
-  { id: "area-of-circle", label: "Area of a circle", aliases: ["circle area", "area of a circle", "area circle"] },
-  { id: "area-of-triangle", label: "Area of a triangle", aliases: ["triangle area", "area of a triangle", "area triangle"] },
+  { id: "area-of-circle", label: "Area of a circle", aliases: ["circle area", "area of a circle", "area of circle", "area circle"] },
+  { id: "area-of-triangle", label: "Area of a triangle", aliases: ["triangle area", "area of a triangle", "area of triangle", "area triangle"] },
   { id: "perimeter", label: "Perimeter", aliases: ["perimeter"] },
   { id: "circumference", label: "Circumference", aliases: ["circumference", "circle boundary"] },
   { id: "density", label: "Density", aliases: ["density"] },
@@ -265,6 +277,13 @@ export function normalizeSemanticBaseConcept(
   if (/^parallel(?: circuit)? resistance$/.test(cleaned)) return "parallel resistance rule";
   if (/^series parallel circuit resistance$/.test(cleaned)) return "resistance";
   if (/^heater h(?:'| )?s electrical power$/.test(cleaned)) return "electrical power";
+  const controlledPrefix = controlledConceptPrefix(cleaned);
+  if (controlledPrefix) return controlledPrefix;
+  const controlledHead = controlledConceptHead(cleaned, facet);
+  if (controlledHead) return controlledHead;
+  if (/^(?:simplify|simplifying|simplified)\s+(?:a\s+)?(.+)$/.test(cleaned)) {
+    return cleaned.replace(/^(?:simplify|simplifying|simplified)\s+(?:a\s+)?/, "");
+  }
   if (/^suffix$/.test(cleaned)) return "suffix";
   if (/^voltage$/.test(cleaned)) return "voltage";
   if (/^mitosis$/.test(cleaned)) return "mitosis";
@@ -277,9 +296,10 @@ export function inferRequestedFacet(question: string): SemanticFacet | undefined
   const normalized = normalizeConceptText(question);
   if (/\b(?:formula|equation|relation)\b/.test(normalized)) return "FORMULA";
   if (/\b(?:measured in|unit|units)\b/.test(normalized)) return "UNIT";
+  if (/\b(?:condition|valid|applicability|perpendicular|right angle)\b/.test(normalized)) return "CONDITION";
   if (/\b(?:purpose|why is|why are|useful|used for)\b/.test(normalized)) return "PURPOSE";
   if (/\b(?:function|role)\b/.test(normalized)) return "FUNCTION";
-  if (/\b(?:process|how does|how do|explain|describe)\b/.test(normalized)) return "PROCESS";
+  if (/\b(?:process|how does|how do|what happens|happen|works?)\b/.test(normalized)) return "PROCESS";
   if (/\b(?:limitation|caveat|cannot|can not|does not|do not)\b/.test(normalized)) {
     return "LIMITATION";
   }
@@ -317,6 +337,15 @@ export function semanticComponentMatches(
   if (requirement.object && evidence.object && !semanticTextMatches(evidence.object, requirement.object)) {
     return false;
   }
+  if (requirement.unit && !unitExpressionsEqual(requirement.unit, evidence.unit)) return false;
+  if (
+    requirement.kind === "CONDITION" &&
+    requirement.text &&
+    evidence.text &&
+    !conditionTextMatches(requirement.text, evidence.text)
+  ) {
+    return false;
+  }
   return constraintsSatisfied(requirement.constraints ?? [], evidence);
 }
 
@@ -333,7 +362,66 @@ export function componentKindMatches(
   if (required === "FUNCTION" && ["FUNCTION", "PURPOSE", "RELATION"].includes(evidence)) return true;
   if (required === "PURPOSE" && ["PURPOSE", "FUNCTION"].includes(evidence)) return true;
   if (required === "CONSEQUENCE" && ["CONSEQUENCE", "RELATION"].includes(evidence)) return true;
+  if (required === "CONDITION" && ["CONDITION", "EXPLICIT_FACT", "RELATION"].includes(evidence)) return true;
   return false;
+}
+
+export function canonicalizeUnitExpression(rawUnit: string | undefined): UnitExpression | undefined {
+  if (!rawUnit) return undefined;
+  const display = rawUnit.trim();
+  const text = normalizeUnitText(display)
+    .replace(/^(?:unit|units|measured in|called)\s+/, "")
+    .replace(/\bcalled\b.+$/g, " ")
+    .replace(/[(),.;:]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+  if (!text || /^(?:is|are|give|gives|so|then|from|with|using|and|but)$/.test(text)) {
+    return undefined;
+  }
+
+  const factors = parseUnitFactors(text);
+  if (factors.length === 0) return undefined;
+  const canonical = factors
+    .sort((left, right) => left.unit.localeCompare(right.unit))
+    .map((factor) => `${factor.unit}${factor.exponent === 1 ? "" : `^${factor.exponent}`}`)
+    .join("*");
+  return {
+    canonical,
+    display,
+    factors,
+  };
+}
+
+export function unitExpressionsEqual(
+  left: string | undefined,
+  right: string | undefined
+): boolean {
+  const leftUnit = canonicalizeUnitExpression(left);
+  const rightUnit = canonicalizeUnitExpression(right);
+  if (!leftUnit || !rightUnit) return false;
+  return leftUnit.canonical === rightUnit.canonical;
+}
+
+export function canonicalizeConditionText(value: string | undefined): string {
+  if (!value) return "";
+  return normalizeConceptText(value)
+    .replace(/\b(?:must|should|needs? to|has to|is valid when|valid when|condition|applicability|applies when)\b/g, " ")
+    .replace(/\b(?:perpendicular to|at a right angle to|meets? .+? at a right angle)\b/g, " perpendicular right angle ")
+    .replace(/\b(?:not a slanted side|not slanted|rather than slanted)\b/g, " perpendicular right angle ")
+    .replace(/\b(?:height|perpendicular height)\b/g, " height ")
+    .replace(/\b(?:base)\b/g, " base ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+export function conditionTextMatches(haystack: string, needle: string): boolean {
+  const normalizedHaystack = canonicalizeConditionText(haystack);
+  const normalizedNeedle = canonicalizeConditionText(needle);
+  if (!normalizedHaystack || !normalizedNeedle) return false;
+  if (normalizedHaystack.includes(normalizedNeedle) || normalizedNeedle.includes(normalizedHaystack)) {
+    return true;
+  }
+  return semanticTextMatches(normalizedHaystack, normalizedNeedle);
 }
 
 export function findMentionedCanonicalConcepts(
@@ -440,6 +528,93 @@ function findControlledConcept(
       entry.aliases.some((alias) => singularizeConcept(normalizeConceptText(alias)) === normalized)
     );
   });
+}
+
+function controlledConceptPrefix(cleaned: string): string | undefined {
+  const relationPrefix = cleaned.match(
+    /^(.+?)\s+(?:compares?|uses?|requires?|needs?|shows?|describes?|explains?|means?|refers to|is|are|has|have|measured in|unit|units)\b/
+  );
+  if (!relationPrefix) return undefined;
+  const prefix = singularizeConcept((relationPrefix[1] ?? "").trim());
+  return findControlledConcept(prefix)?.aliases[0];
+}
+
+function controlledConceptHead(
+  cleaned: string,
+  facet?: SemanticFacet
+): string | undefined {
+  if (facet && !["DEFINITION", "UNIT", "CONDITION", "PROCESS"].includes(facet)) {
+    return undefined;
+  }
+  const singularCleaned = singularizeConcept(cleaned);
+  return CONTROLLED_CONCEPTS.find((entry) =>
+    entry.aliases.some((alias) => {
+      const normalizedAlias = singularizeConcept(normalizeConceptText(alias));
+      return (
+        normalizedAlias.length > 0 &&
+        singularCleaned !== normalizedAlias &&
+        singularCleaned.startsWith(`${normalizedAlias} `)
+      );
+    })
+  )?.aliases[0];
+}
+
+function normalizeUnitText(value: string): string {
+  return value
+    .toLowerCase()
+    .replace(/[ΩΩ]/g, " ohm ")
+    .replace(/²/g, "^2")
+    .replace(/³/g, "^3")
+    .replace(/\bper\b/g, " / ")
+    .replace(/[÷]/g, "/")
+    .replace(/[×*]/g, " ")
+    .replace(/\bcubic\s+(?:metres?|meters?|m)\b/g, "m^3")
+    .replace(/\bsquare\s+(?:metres?|meters?|m)\b/g, "m^2")
+    .replace(/\bseconds?\s+squared\b/g, "s^2")
+    .replace(/\bmetres?\b|\bmeters?\b/g, "m")
+    .replace(/\bkilograms?\b/g, "kg")
+    .replace(/\bgrams?\b/g, "g")
+    .replace(/\bseconds?\b/g, "s")
+    .replace(/\bnewtons?\b/g, "n")
+    .replace(/\bvolts?\b/g, "v")
+    .replace(/\bamperes?\b|\bamps?\b/g, "a")
+    .replace(/\bohms?\b/g, "ohm")
+    .replace(/\bwatts?\b/g, "w")
+    .replace(/\bpascals?\b/g, "pa")
+    .replace(/\bpercent\b/g, "percent")
+    .replace(/\bm([23])\b/g, "m^$1")
+    .replace(/\bs([23])\b/g, "s^$1")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function parseUnitFactors(text: string): UnitFactor[] {
+  const factors = new Map<string, number>();
+  const [numerator, ...denominators] = text.split(/\s*\/\s*/);
+  addUnitTokens(factors, numerator ?? "", 1);
+  for (const denominator of denominators) {
+    addUnitTokens(factors, denominator, -1);
+  }
+  return [...factors.entries()]
+    .filter(([, exponent]) => exponent !== 0)
+    .map(([unit, exponent]) => ({ unit, exponent }));
+}
+
+function addUnitTokens(factors: Map<string, number>, text: string, sign: 1 | -1) {
+  for (const rawToken of text.split(/\s+/)) {
+    const token = rawToken.trim();
+    if (!token || /^(?:the|a|an|in|of|for|when|if|and|or)$/.test(token)) continue;
+    const match = token.match(/^([a-z%]+)(?:\^?(-?\d+))?$/);
+    if (!match) continue;
+    const unit = match[1] ?? "";
+    if (!isKnownUnit(unit)) continue;
+    const exponent = Number(match[2] ?? "1") * sign;
+    factors.set(unit, (factors.get(unit) ?? 0) + exponent);
+  }
+}
+
+function isKnownUnit(unit: string): boolean {
+  return /^(?:m|s|kg|g|n|v|a|ohm|w|pa|percent|ngn|naira|pound|dollar)$/.test(unit);
 }
 
 function singularizeConcept(value: string): string {
