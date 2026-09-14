@@ -113,6 +113,15 @@ describe("PostgresResourceSearchRepository", () => {
 
     expect(source).toContain("Prisma.sql`0::integer`");
   });
+
+  it("qualifies the pgvector distance operator for Supabase extension schemas", () => {
+    const source = fs.readFileSync(
+      path.resolve(__dirname, "postgres-resource-search-repository.ts"),
+      "utf8"
+    );
+
+    expect(source).toContain("OPERATOR(extensions.<=>)");
+  });
 });
 
 function fakePrisma(options: {
