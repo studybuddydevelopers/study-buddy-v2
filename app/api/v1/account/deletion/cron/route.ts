@@ -5,6 +5,7 @@ import {
   processInactiveAccountRetention,
 } from "@/lib/account-lifecycle";
 import { logSecurityEvent } from "@/lib/security/audit-log";
+import { recordExpiredPasswordResetSecurityLocks } from "@/lib/password-reset-security";
 
 export async function POST(request: Request) {
   const expected = process.env.ACCOUNT_DELETION_CRON_SECRET;
@@ -19,8 +20,10 @@ export async function POST(request: Request) {
   try {
     const inactiveAccounts = await processInactiveAccountRetention();
     const deletions = await processDueAccountDeletions();
+    const passwordSecurityLocks =
+      await recordExpiredPasswordResetSecurityLocks();
     return NextResponse.json(
-      { inactiveAccounts, deletions },
+      { inactiveAccounts, deletions, passwordSecurityLocks },
       { headers: { "Cache-Control": "no-store" } }
     );
   } catch {
