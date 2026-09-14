@@ -17,6 +17,7 @@ import { fetchWithTimeout } from "@/lib/security/timeouts";
 import {
   logSecurityEvent,
   securityFingerprint,
+  securityIdentifierHash,
 } from "@/lib/security/audit-log";
 import { syncAuthAccountStatus } from "@/lib/guardian-authorization";
 import { accountStatusDestination } from "@/lib/account-status";
@@ -119,7 +120,7 @@ export async function POST(req: Request) {
 
   const dbUser = await prisma.user.findUnique({
     where: { id: authenticatedUserId },
-    select: { accountStatus: true },
+    select: { accountStatus: true, authEmailFingerprint: true },
   });
   if (!dbUser) {
     logSecurityEvent("login_user_record_missing", "error", {
@@ -127,6 +128,22 @@ export async function POST(req: Request) {
     });
     res.headers.set("X-Study-Buddy-Next", "/unauthorized");
     return res;
+  }
+
+  if (isEmail) {
+    const authEmailFingerprint = securityIdentifierHash(identifier);
+    if (dbUser.authEmailFingerprint !== authEmailFingerprint) {
+      try {
+        await prisma.user.update({
+          where: { id: authenticatedUserId },
+          data: { authEmailFingerprint },
+        });
+      } catch {
+        logSecurityEvent("auth_email_fingerprint_sync_failed", "warn", {
+          accountFingerprint: securityFingerprint(authenticatedUserId),
+        });
+      }
+    }
   }
 
   const nextPath =
