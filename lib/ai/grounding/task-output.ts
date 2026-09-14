@@ -652,7 +652,10 @@ export function buildFormulaContract(
     units
       .flatMap((unit) =>
         (unit.semanticComponents ?? [])
-          .filter((component) => component.kind === "EXPLICIT_FACT" && component.text)
+          .filter(
+            (component) =>
+              ["CONDITION", "EXPLICIT_FACT"].includes(component.kind) && component.text
+          )
           .map((component) => ({
             text: component.text!,
             sourceLabels: [unit.sourceLabel],
