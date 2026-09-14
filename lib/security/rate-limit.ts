@@ -20,7 +20,7 @@ interface RateLimitRule {
   windowMs: number;
 }
 
-interface RateLimitResult {
+export interface RateLimitResult {
   allowed: boolean;
   limit: number;
   remaining: number;
@@ -70,10 +70,16 @@ function configuredProxyProvider() {
   return process.env.NODE_ENV === "production" ? "direct" : "development";
 }
 
-export async function enforceRateLimitRules(rules: RateLimitRule[]) {
+export async function enforceRateLimitRules(
+  rules: RateLimitRule[],
+  onRejected?: (result: RateLimitResult) => void
+) {
   for (const rule of rules) {
     const result = await consumeRateLimit(rule);
-    if (!result.allowed) return rateLimitResponse(result);
+    if (!result.allowed) {
+      onRejected?.(result);
+      return rateLimitResponse(result);
+    }
   }
 
   return null;
