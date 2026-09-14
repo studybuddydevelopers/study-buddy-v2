@@ -15,6 +15,7 @@ export default function ProgressBar({
   showPercentage = true,
   color = "primary",
 }: ProgressBarProps) {
+  const boundedPercentage = Math.max(0, Math.min(100, percentage));
   const colorClasses: Record<NonNullable<ProgressBarProps["color"]>, string> = {
     primary: "bg-primary-600",
     secondary: "bg-secondary-700",
@@ -34,17 +35,26 @@ export default function ProgressBar({
             <span className="font-medium text-gray-900">{helperText}</span>
           ) : (
             showPercentage && (
-              <span className="font-medium text-gray-900">{percentage}%</span>
+              <span className="font-medium text-gray-900">
+                {Math.round(boundedPercentage)}%
+              </span>
             )
           )}
         </div>
       )}
 
       {/* Progress bar track */}
-      <div className="bg-gray-100 rounded-full h-3 overflow-hidden">
+      <div
+        className="bg-gray-100 rounded-full h-3 overflow-hidden"
+        role="progressbar"
+        aria-label={label ?? "Progress"}
+        aria-valuemin={0}
+        aria-valuemax={100}
+        aria-valuenow={Math.round(boundedPercentage)}
+      >
         <div
           className={`h-full rounded-full transition-all duration-300 ease-in-out ${colorClasses[color]}`}
-          style={{ width: `${Math.min(percentage, 100)}%` }}
+          style={{ width: `${boundedPercentage}%` }}
         />
       </div>
     </div>
