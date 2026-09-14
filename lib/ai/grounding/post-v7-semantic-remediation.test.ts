@@ -3,7 +3,6 @@ import { decideAnswerability } from "./answerability/answerability-decider";
 import { extractEvidenceCapabilities } from "./capabilities/evidence-capability-extractor";
 import type { AuthorizedEvidenceChunk } from "./capabilities/types";
 import { CapabilityGroundingPipeline } from "./pipelines/capability-grounding-pipeline";
-import type { CapabilityGroundingOutcome } from "./pipelines/types";
 import { extractRequestRequirements } from "./requirements/request-requirement-extractor";
 import type { RequestContextMessage, RequestRequirements } from "./requirements/types";
 import {
