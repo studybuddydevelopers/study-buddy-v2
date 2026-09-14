@@ -31,11 +31,6 @@ const guestOnlyPaths = [
 ];
 
 const productionDisabledPaths = [
-  "/icon-audit",
-  "/temp-logo-preview",
-  "/new-logo-preview",
-  "/cube-usage-audit",
-  "/demo-showcase",
   "/api/v1/whatsapp/webhook",
 ];
 
