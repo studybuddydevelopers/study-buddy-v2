@@ -259,11 +259,28 @@ function buildRatioRequirement(question: string): RequirementDraft | undefined {
     };
   }
 
+  const ratioValue = extractRatioValue(question);
+  if (
+    ratioValue &&
+    /\b(?:share|split|find|work\s+out|each\s+group|each\s+labelled\s+part|learners?|pupils?|students?)\b/i.test(
+      question
+    )
+  ) {
+    return {
+      kind: "CALCULATION",
+      targetConcepts: ["ratio"],
+      requestedAction: "CALCULATE",
+      requestedFact: compactStrings(["ratio share", ratioValue, extractRatioTotal(question)])
+        .join(" "),
+      requiredInputConcepts: ["ratio parts", "total amount"],
+      constraints: compactStrings(["ratio share calculation", ratioValue, extractRatioTotal(question)]),
+    };
+  }
+
   if (!/\b(compare|comparison|compares|amounts?|quantit(?:y|ies)|parts?)\b/i.test(question)) {
     return undefined;
   }
   if (!/\b\d+\s*(?::|to)\s*\d+\b/i.test(question)) return undefined;
-  const ratioValue = extractRatioValue(question);
 
   return {
     kind: "CONCEPT_DEFINITION",
@@ -336,11 +353,28 @@ function buildFormulaAndUnitRequirement(
 
   const formulaish =
     /\bformula\b/i.test(question) ||
-    /\blaw\b/i.test(question) ||
-    /\b[A-Za-z]\s*=\s*[A-Za-z0-9]/.test(question) ||
+    /\b(?:equation|relation)\b/i.test(question) ||
+    (/\b[A-Za-z]\s*=\s*[A-Za-z0-9]/.test(question) &&
+      !isUnitsOnlyFormulaScopeQuestion(question)) ||
+    (/\blaw\b/i.test(question) && !isUnitsOnlyFormulaScopeQuestion(question)) ||
     /\bone\s+formula\b/i.test(question);
   const concept = inferFormulaUnitTarget(question, context);
   if (!concept) return undefined;
+
+  if (isUnitsOnlyFormulaScopeQuestion(question)) {
+    const unitRequirements = buildUnitsOnlyRequirements(question, concept);
+    return {
+      kind: "MULTI_PART",
+      targetConcepts: compactStrings([concept, ...unitRequirements.flatMap((item) => item.targetConcepts)]),
+      requestedAction: "STATE_UNIT",
+      presentationStyle: detectPresentationStyle(question),
+      childRequirements: unitRequirements,
+    };
+  }
+
+  if (!formulaish && isPureUnitLookupQuestion(question)) {
+    return undefined;
+  }
 
   const unitTarget = inferUnitFactTarget(question, concept);
   const completeFormulaSymbolUnits =
@@ -389,6 +423,120 @@ function buildFormulaAndUnitRequirement(
       unitChild,
     ],
   };
+}
+
+function isUnitsOnlyFormulaScopeQuestion(question: string): boolean {
+  if (/\b(?:formula|equation|relation)\b/i.test(question)) return false;
+  return (
+    /\bwhat\s+units?\s+(?:are|is)\s+used\b/i.test(question) ||
+    /\b(?:give|state|list)\s+(?:the\s+)?units?\s+(?:for|of)\b/i.test(question) ||
+    /\bstate\s+(?:the\s+)?units?\s+of\s+each\s+quantity\b/i.test(question)
+  );
+}
+
+function isPureUnitLookupQuestion(question: string): boolean {
+  return (
+    /\bwhat\s+(?:compound\s+|si\s+)?units?\s+(?:is|are)\s+used\s+for\b/i.test(question) ||
+    /\b(?:give|state|list|name)\s+(?:the\s+)?(?:compound\s+|si\s+)?units?\s+(?:of|for)\b/i.test(question) ||
+    /\b(?:give|state|list|name)\s+.+?'?s\s+(?:compound\s+|si\s+)?units?\b/i.test(question)
+  );
+}
+
+function buildUnitsOnlyRequirements(
+  question: string,
+  formulaScopeConcept: string
+): RequirementDraft[] {
+  const targets = inferRequestedUnitTargets(question, formulaScopeConcept);
+  if (targets.length === 0) {
+    return [
+      {
+        kind: "FACT_LOOKUP",
+        targetConcepts: [formulaScopeConcept],
+        requestedFact: `${formulaScopeConcept} units used`,
+        requestedFacet: "UNIT",
+        requestedAction: "STATE_UNIT",
+      },
+    ];
+  }
+
+  return targets.map((target) => ({
+    kind: "FACT_LOOKUP",
+    targetConcepts: [target.concept],
+    requestedFact: `${target.label} unit used`,
+    requestedFacet: "UNIT",
+    requestedAction: "STATE_UNIT",
+    requiredSymbols: target.symbol ? [target.symbol] : undefined,
+  }));
+}
+
+function inferRequestedUnitTargets(
+  question: string,
+  formulaScopeConcept: string
+): Array<{ concept: string; label: string; symbol?: string }> {
+  const lower = question.toLowerCase();
+  const targets: Array<{ concept: string; label: string; symbol?: string }> = [];
+  const push = (concept: string, label: string, symbol?: string) => {
+    if (targets.some((target) => target.concept === concept && target.symbol === symbol)) {
+      return;
+    }
+    targets.push({ concept, label, symbol });
+  };
+
+  if (/\bvoltage\b|\bpotential\s+difference\b/i.test(lower)) push("voltage", "voltage", "V");
+  if (/\bcurrent\b|\belectric\s+current\b/i.test(lower)) push("current", "current", "I");
+  if (/\bresistance\b/i.test(lower)) push("resistance", "resistance", "R");
+
+  for (const symbol of extractFormulaUnitSymbols(question)) {
+    const concept = formulaUnitConceptForSymbol(symbol, formulaScopeConcept);
+    push(concept ?? symbol, symbol, symbol);
+  }
+
+  if (
+    targets.length === 0 &&
+    /\bohm'?s?\s+law\b/i.test(formulaScopeConcept) &&
+    /\b(?:each\s+quantity|quantities|voltage|current|resistance|v\s*,?\s*i\s*,?\s*(?:and\s+)?r)\b/i.test(
+      question
+    )
+  ) {
+    push("voltage", "V", "V");
+    push("current", "I", "I");
+    push("resistance", "R", "R");
+  }
+
+  return targets;
+}
+
+function extractFormulaUnitSymbols(question: string): string[] {
+  const symbols = new Set<string>();
+  const explicitList = question.match(/\bfor\s+([A-Za-z](?:\s*,\s*[A-Za-z])*(?:,?\s+and\s+[A-Za-z])?)\s+in\b/i);
+  if (explicitList) {
+    for (const raw of (explicitList[1] ?? "").split(/\s*(?:,|and)\s*/i)) {
+      const symbol = cleanSymbolToken(raw);
+      if (symbol && isSymbolToken(symbol)) symbols.add(symbol);
+    }
+  }
+
+  const formula = extractFormulaContextExpression(question);
+  if (formula) {
+    for (const raw of formula.match(/\b[A-Za-z]\b/g) ?? []) {
+      const symbol = cleanSymbolToken(raw);
+      if (symbol && isSymbolToken(symbol)) symbols.add(symbol);
+    }
+  }
+
+  return [...symbols];
+}
+
+function formulaUnitConceptForSymbol(
+  symbol: string,
+  formulaScopeConcept: string
+): string | undefined {
+  if (!/\bohm'?s?\s+law\b/i.test(formulaScopeConcept)) return undefined;
+  const normalized = cleanSymbolToken(symbol).toLowerCase();
+  if (normalized === "v") return "voltage";
+  if (normalized === "i") return "current";
+  if (normalized === "r") return "resistance";
+  return undefined;
 }
 
 function asksForCompleteFormulaSymbolUnits(question: string): boolean {
@@ -461,6 +609,24 @@ function buildFormulaConditionRequirement(
   question: string,
   context: RequirementBuildContext
 ): RequirementDraft | undefined {
+  const usageCondition = question.match(
+    /\bwhen\s+using\s+(?:the\s+)?(.+?),?\s+what\s+(?:kind|type)\s+of\s+(.+?)\s+is\s+required(?:[?.]|$)/i
+  );
+  if (usageCondition) {
+    const concept = cleanConcept(usageCondition[1] ?? "");
+    const quantity = cleanConditionTarget(usageCondition[2] ?? "condition");
+    if (concept || context.contextConcept) {
+      return {
+        kind: "FACT_LOOKUP",
+        targetConcepts: compactStrings([quantity === "condition" ? concept : quantity, concept, context.contextConcept]),
+        requestedFact: compactStrings([concept || context.contextConcept, quantity, "required condition"]).join(" "),
+        requestedFacet: "CONDITION",
+        constraints: compactStrings([quantity === "condition" ? undefined : quantity]),
+        requestedAction: "EXPLAIN",
+      };
+    }
+  }
+
   if (
     !/\b(?:formula|law|equation|relation)\b/i.test(question) &&
     !/\b(?:valid\s+when|applies?\s+to)\b/i.test(question)
@@ -751,6 +917,9 @@ function buildFacetRequirement(
   context: RequirementBuildContext
 ): RequirementDraft | undefined {
   const measured =
+    firstMatch(question, /\bwhat\s+(?:compound\s+|si\s+)?units?\s+(?:is|are)\s+used\s+for\s+(.+?)(?:[?.]|$)/i) ??
+    firstMatch(question, /\b(?:state|give|list|name)\s+(?:the\s+)?(?:compound\s+|si\s+)?units?\s+(?:of|for)\s+(.+?)(?:[?.]|$)/i) ??
+    firstMatch(question, /\b(?:state|give|list|name)\s+(.+?)'?s\s+(?:compound\s+|si\s+)?units?(?:\s+in\b|[?.]|$)/i) ??
     firstMatch(question, /\bwhat\s+(?:is|are)\s+(.+?)\s+measured\s+in(?:[?.]|$)/i) ??
     firstMatch(question, /\b(?:unit|units)\s+of\s+(.+?)(?:[?.]|$)/i) ??
     firstMatch(question, /\bwhich\s+units?\s+(?:is|are)\s+used\s+for\s+(.+?)(?:[?.]|$)/i) ??
@@ -1022,7 +1191,7 @@ function buildFormulaWithSymbolsRequirement(
     return undefined;
   }
   if (
-    !/\b(define|meaning|means|mean|represent|represents|stands for|explain what|what .* stands for|what .* means)\b/i.test(
+    !/\b(define|meaning|means|mean|represent|represents|stands for|explain what|explain\s+[A-Za-z](?:\s*(?:,|and|&)\s*[A-Za-z])+|what .* stands for|what .* means)\b/i.test(
       question
     )
   ) {
@@ -1401,6 +1570,7 @@ function buildDefinitionRequirement(
     firstMatch(question, /\bwhat\s+does\s+(.+?)\s+(?:mean|means|refer to|describe)\b/i) ??
     firstMatch(question, /\btell\s+me\s+what\s+(.+?)\s+(?:mean|means|refer to|describe)\b/i) ??
     firstMatch(question, /\bdefine\s+(.+?)(?:[?.]|$)/i) ??
+    firstMatch(question, /\btell\s+me\s+(?:the\s+)?meaning\s+of\s+(.+?)(?:[?.]|$)/i) ??
     firstMatch(question, /\b(?:state|give)\s+(?:the\s+)?meaning\s+of\s+(.+?)(?:[?.]|$)/i) ??
     firstMatch(question, /\b(?:teach|answer|explain)\s+(?:the\s+)?(.+?)(?:[?.]|$)/i);
 
@@ -1882,6 +2052,9 @@ function extractFormulaContextExpression(question: string): string | undefined {
 
   const left = normalizeFormulaContextLeft(match[1] ?? "");
   const right = normalizeFormulaSide(match[2] ?? "");
+  if (/:/.test(right) && !/[+\-*/×÷^]/.test(right)) {
+    return undefined;
+  }
   if (!left || !right || !/[A-Za-z\u0370-\u03ff]/.test(`${left}${right}`)) {
     return undefined;
   }
@@ -2034,7 +2207,8 @@ function extractFormulaConcept(question: string): string {
     firstMatch(question, /\b(?:equation|relation)\s+(?:for|of)\s+(.+?)(?:\s+and\b|[?.]|$)/i) ??
     firstMatch(question, /\b(?:give|state|write|what\s+is|teach|explain)\s+(?:the\s+)?(.+?)\s+(?:formula|equation|relation)(?:\s+and\b|[?.]|$)/i) ??
     firstMatch(question, /\bwhat\s+(?:equation|relation)\s+(?:gives?|shows?|represents?)\s+(.+?)(?:[?.]|$)/i) ??
-    firstMatch(question, /\bgive\s+(?:the\s+)?(?:equation|relation)\s+for\s+(.+?)(?:[?.]|$)/i);
+    firstMatch(question, /\bgive\s+(?:the\s+)?(?:equation|relation)\s+for\s+(.+?)(?:[?.]|$)/i) ??
+    firstMatch(question, /\bin\s+(?:the\s+)?(.+?)\s+formula(?:[?.]|$)/i);
 
   return cleanConcept(direct ?? "");
 }
@@ -2111,6 +2285,7 @@ function extractRequestedSymbols(question: string): string[] {
   const symbols = new Set<string>();
   const symbolClauses = [
     ...question.matchAll(/\bdefine\s+(.+?)(?:[?.]|$)/gi),
+    ...question.matchAll(/\bexplain\s+([A-Za-z](?:\s*(?:,|and|&)\s*[A-Za-z])+)(?:\s+in\b|[?.]|$)/gi),
     ...question.matchAll(/\bwhat\s+do\s+(.+?)\s+mean(?:\s+in\b|[?.]|$)/gi),
     ...question.matchAll(/\bwhat\s+does\s+(?:the\s+)?symbol\s+(.+?)\s+(?:mean|represent|stand for)(?:[?.]|$)/gi),
     ...question.matchAll(/\bexplain\s+what\s+(.+?)\s+(?:means?|represents?|stands for)(?:[?.]|$)/gi),
@@ -2176,6 +2351,19 @@ function extractRatioValue(question: string): string | undefined {
   return `${match[1]}:${match[2]}`;
 }
 
+function extractRatioTotal(question: string): string | undefined {
+  const numbers = [...question.matchAll(/\b\d+(?:\.\d+)?\b/g)]
+    .map((match) => ({ value: match[0] ?? "", index: match.index ?? 0 }))
+    .filter((match) => {
+      const previous = question.charAt(match.index - 1);
+      const next = question.charAt(match.index + match.value.length);
+      return previous !== ":" && next !== ":";
+    })
+    .map((match) => match.value);
+  const total = numbers[numbers.length - 1];
+  return total ? `total ${total}` : undefined;
+}
+
 function splitConjoinedConcepts(value: string): string[] {
   return value
     .split(/\s+and\s+/i)
@@ -2196,7 +2384,8 @@ function cleanWorkedExampleTarget(value: string): string {
 
 function inferOptionSides(question: string): string[] {
   const explicit = [...question.matchAll(/\b(pack|option|choice|crate|plan|shop|bundle|ticket)\s+([A-Za-z0-9]+)\b/gi)]
-    .map((match) => `${(match[1] ?? "option").toLowerCase()} ${match[2] ?? ""}`.trim());
+    .map((match) => `${(match[1] ?? "option").toLowerCase()} ${match[2] ?? ""}`.trim())
+    .filter(isValidExplicitComparisonOption);
   if (explicit.length >= 2) return uniqueStrings(explicit);
   if (/\btwo\b/i.test(question)) return ["option 1", "option 2"];
   if (/\bthree\b/i.test(question)) return ["option 1", "option 2", "option 3"];
@@ -2208,7 +2397,8 @@ function inferComparisonOptions(question: string): ComparisonOptionRequirement[]
     .map((match) => {
       const label = `${(match[1] ?? "option").toLowerCase()} ${match[2] ?? ""}`.trim();
       return comparisonOption(label);
-    });
+    })
+    .filter((option) => isValidExplicitComparisonOption(option.label));
   if (explicit.length >= 2) return uniqueComparisonOptions(explicit);
   if (/\btwo\b/i.test(question)) {
     return [comparisonOption("option 1"), comparisonOption("option 2")];
@@ -2221,6 +2411,13 @@ function inferComparisonOptions(question: string): ComparisonOptionRequirement[]
     ];
   }
   return [];
+}
+
+function isValidExplicitComparisonOption(label: string): boolean {
+  const normalized = normalizeOptionId(label);
+  return !/^(?:pack|option|choice|crate|plan|shop|bundle|ticket)\s+(?:has|have|had|is|are|was|were|with|without|the)$/i.test(
+    normalized
+  );
 }
 
 function comparisonOption(label: string): ComparisonOptionRequirement {
@@ -2376,6 +2573,7 @@ function normalizeRelationIntent(value: string): string {
 function cleanSymbolToken(value: string): string {
   return normalizeQuestion(value)
     .replace(/[?.!,;:]+$/g, "")
+    .replace(/\s+in\s+(?:the\s+)?[A-Za-z][A-Za-z -]*?\s+(?:formula|equation|relation)$/i, "")
     .replace(/^(?:the|a|an)\s+/i, "")
     .trim();
 }
