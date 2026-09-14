@@ -2860,6 +2860,15 @@ function findBoundedProbabilityCalculationSupport(
     ]);
   }
 
+  const numericPairSupport = findBoundedProbabilityNumericPairSupport(
+    requirement,
+    context,
+    formula
+  );
+  if (numericPairSupport.length > 0) {
+    return numericPairSupport;
+  }
+
   if (!event || !hasBoundedProbabilityCountAndTotal(event)) {
     return [];
   }
@@ -2868,6 +2877,24 @@ function findBoundedProbabilityCalculationSupport(
       ? [supportRef(requirement.id, formula.id, ["CALCULATE", "FORMULA"])]
       : []),
     supportRef(requirement.id, event.id, ["CALCULATE"]),
+  ]);
+}
+
+function findBoundedProbabilityNumericPairSupport(
+  requirement: RequestRequirement,
+  context: MatchContext,
+  formula: FormulaCapability | undefined
+): CapabilitySupportRef[] {
+  const favourable = context.numerics.find(isFavourableOutcomeNumeric);
+  const total = context.numerics.find(isTotalOutcomeNumeric);
+  if (!favourable || !total || total.value <= 0) return [];
+
+  return uniqueSupportRefs([
+    ...(formula
+      ? [supportRef(requirement.id, formula.id, ["CALCULATE", "FORMULA"])]
+      : []),
+    supportRef(requirement.id, favourable.id, ["CALCULATE"]),
+    supportRef(requirement.id, total.id, ["CALCULATE"]),
   ]);
 }
 
@@ -2960,10 +2987,14 @@ function findBoundedProbabilityCountSupport(context: MatchContext):
     context.numerics.filter(isTotalOutcomeNumeric),
     (numeric) => `${numeric.value}:${numeric.resourceChunkId}:${numeric.sourceLabel}`
   );
-  if (favourable.length !== 1 || totals.length !== 1) return undefined;
-  const total = totals[0]!;
+  const favourableValues = uniqueStrings(favourable.map((numeric) => String(numeric.value)));
+  const totalValues = uniqueStrings(totals.map((numeric) => String(numeric.value)));
+  if (favourableValues.length !== 1 || totalValues.length !== 1) return undefined;
+  const favourableCandidate = favourable[0];
+  const total = totals[0];
+  if (!favourableCandidate || !total) return undefined;
   if (!Number.isFinite(total.value) || total.value <= 0) return undefined;
-  return { favourable: favourable[0]!, total };
+  return { favourable: favourableCandidate, total };
 }
 
 function isFavourableOutcomeNumeric(numeric: NumericCapability) {
