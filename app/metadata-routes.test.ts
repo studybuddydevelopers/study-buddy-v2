@@ -19,7 +19,7 @@ describe("metadata routes", () => {
     expect(urls).not.toContain("https://studybuddy.example/login");
   });
 
-  it("keeps protected, account and internal routes out of crawler access", () => {
+  it("keeps protected and account routes out of crawler access", () => {
     vi.stubEnv("APP_ORIGIN", "https://studybuddy.example");
 
     const result = robots();
@@ -33,7 +33,7 @@ describe("metadata routes", () => {
         "/dashboard",
         "/login",
         "/materials",
-        "/temp-logo-preview",
+        "/settings",
       ])
     );
     expect(result.sitemap).toBe("https://studybuddy.example/sitemap.xml");
