@@ -295,6 +295,10 @@ describe("Stage 4.1 broad-property v3 semantic relation normalization", () => {
 
   it("keeps wrong-scope unit, condition, and symbol relations unsupported", () => {
     expectInsufficient(
+      "State the unit of force.",
+      "Pressure is measured in pascals."
+    );
+    expectInsufficient(
       "What unit is density measured in?",
       "Speed is measured in metres per second."
     );
