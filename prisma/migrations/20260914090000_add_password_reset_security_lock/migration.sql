@@ -8,6 +8,7 @@ CREATE TYPE "PasswordResetSecurityEventType" AS ENUM (
     'LOCK_CONFIRMED',
     'AUTH_LOCK_APPLIED',
     'AUTH_LOCK_FAILED',
+    'LOCK_EXPIRED',
     'RECOVERY_REQUESTED',
     'RECOVERY_EMAIL_SENT',
     'RECOVERY_FAILED',
@@ -23,6 +24,7 @@ CREATE UNIQUE INDEX "User_authEmailFingerprint_key"
 CREATE TABLE "PasswordResetSecurityState" (
     "userId" TEXT NOT NULL,
     "lastAlertAttemptAt" TIMESTAMP(3),
+    "lastAlertSentAt" TIMESTAMP(3),
     "alertDay" DATE,
     "alertCount" INTEGER NOT NULL DEFAULT 0,
     "lockTokenHash" VARCHAR(64),
@@ -30,6 +32,7 @@ CREATE TABLE "PasswordResetSecurityState" (
     "lockTokenUsedAt" TIMESTAMP(3),
     "lockedAt" TIMESTAMP(3),
     "lockedUntil" TIMESTAMP(3),
+    "lockExpiryRecordedAt" TIMESTAMP(3),
     "authLockAppliedAt" TIMESTAMP(3),
     "recoveryTokenHash" VARCHAR(64),
     "recoveryTokenExpiresAt" TIMESTAMP(3),
