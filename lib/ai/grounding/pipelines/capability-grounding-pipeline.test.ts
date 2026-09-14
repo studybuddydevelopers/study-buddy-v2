@@ -566,10 +566,10 @@ describe("Stage 4.1 capability grounding pipeline", () => {
   });
 
   it.each([
-    "What is its formula?",
-    "Define P in that formula.",
-    "State that equation.",
-  ])("supports scoped pressure context follow-up: %s", async (message) => {
+    { message: "What is its formula?", expectedKind: "FORMULA" },
+    { message: "Define P in that formula.", expectedKind: "FORMULA_WITH_SYMBOLS" },
+    { message: "State that equation.", expectedKind: "FORMULA" },
+  ] as const)("supports scoped pressure context follow-up: $message", async ({ message, expectedKind }) => {
     const supported = await runPipeline({
       message,
       recentMessages: [{ role: "USER", content: "Tell me about pressure." }],
@@ -592,7 +592,7 @@ describe("Stage 4.1 capability grounding pipeline", () => {
     expect(supported.outcome.kind).toBe("COMPLETED");
     expect(supported.provider.structuredInputs).toHaveLength(1);
     const diagnostics = expectDiagnostics(supported.outcome);
-    expect(diagnostics.requestRequirements.requirements[0]?.kind).toBe("FORMULA");
+    expect(diagnostics.requestRequirements.requirements[0]?.kind).toBe(expectedKind);
     expect(
       diagnostics.requestRequirements.requirements[0]?.targetConcepts
     ).toContain("pressure");
