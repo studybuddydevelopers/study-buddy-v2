@@ -17,7 +17,10 @@ Auth & Account
 - POST `/account/lifecycle` (auth, including restricted accounts) — Body action is `DEACTIVATE`, `REQUEST_DELETION`, `REACTIVATE`, or `CANCEL_DELETION`. `REQUEST_DELETION` requires the current password and exact `confirmation: "DELETE"`, then sends a 24-hour one-time email link without restricting the account. Deactivation, reactivation, and cancellation clear the browser session.
 - POST `/account/deletion/confirm` — Public token exchange used by the email-confirmation page. A valid unused token immediately locks the account, starts the 15-day cancellation window, schedules the retryable purge, clears any browser session, and sends the final pending-deletion notice.
 - POST `/account/deletion/cron` (server-to-server) — Requires `x-cron-secret` matching `ACCOUNT_DELETION_CRON_SECRET`; sends the 90/60/15/1-day inactive-account notices, queues accounts whose 36-month inactive period expired, and purges due application and Supabase Auth accounts in retry-safe bounded batches.
-- POST `/reset-password` — Body: `email`. Triggers Supabase reset flow redirecting to `/auth/password-reset`. Returns `{ ok: true }` or `{ error }`.
+- POST `/reset-password` — Body: `email`. Triggers Supabase reset flow redirecting to `/auth/password-reset`. The first account-scoped rejection schedules a privacy-safe abuse warning for a matching verified account without changing the public 429 response. Returns `{ ok: true }` or `{ error }`.
+- POST `/account/security/password-reset-lock` — Body: one-time `token` from the abuse-warning URL fragment. An explicit same-origin POST replaces the old password, revokes sessions through Supabase Auth, and applies a 24-hour provider ban. A GET or email preview cannot lock the account.
+- POST `/account/security/password-reset-recovery` — Body: one-time `token` from the post-lock recovery URL fragment. Explicitly lifts the provider ban and sends Supabase password-reset instructions while the application restriction remains until a new password is set.
+- POST `/account/security/password-reset-recovery/complete` (recovery session) — Clears the application security restriction only after the server verifies a post-lock Supabase sign-in/recovery event.
 - GET `/me` (auth) — Returns user basics, profile, and latest subscription `{ id, createdAt, isAdmin, profile, subscription }`; 404 if no DB user record.
 
 Profile
