@@ -74,6 +74,31 @@ describe("rate limiting", () => {
     expect(response?.headers.get("X-RateLimit-Limit")).toBe("2");
   });
 
+  it("reports the first rejected bucket without changing the 429 response", async () => {
+    const onRejected = vi.fn();
+    prismaMocks.queryRaw.mockResolvedValue([{ count: 3 }]);
+
+    const response = await enforceRateLimitRules(
+      [
+        {
+          scope: "auth:password-reset:account",
+          identifier: "student@example.com",
+          limit: 2,
+          windowMs: 60_000,
+        },
+      ],
+      onRejected
+    );
+
+    expect(response?.status).toBe(429);
+    expect(onRejected).toHaveBeenCalledWith(
+      expect.objectContaining({
+        scope: "auth:password-reset:account",
+        firstRejection: true,
+      })
+    );
+  });
+
   it("enforces account, IP, then daily AI quota", async () => {
     prismaMocks.queryRaw
       .mockResolvedValueOnce([{ count: 1 }])
