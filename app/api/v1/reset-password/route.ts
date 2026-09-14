@@ -1,5 +1,5 @@
 // app/api/v1/reset-password/route.ts
-import { NextResponse } from "next/server";
+import { after, NextResponse } from "next/server";
 import { createServerClient, type CookieOptions } from "@supabase/ssr";
 import { getServerSupabaseConfig } from "@/lib/supabase/config";
 import { isRecord } from "@/lib/type-utils";
@@ -17,6 +17,7 @@ import {
   securityFingerprint,
 } from "@/lib/security/audit-log";
 import { authRedirectUrl } from "@/lib/supabase/auth-redirect";
+import { processPasswordResetLimitAlert } from "@/lib/password-reset-security";
 
 export async function POST(req: Request) {
   const parsedBody = await parseJsonRequest(req, REQUEST_LIMITS.publicFormJson);
@@ -34,20 +35,35 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Email is required" }, { status: 400 });
   }
 
-  const rateLimitResponse = await enforceRateLimitRules([
-    {
-      scope: "auth:password-reset:ip",
-      identifier: getClientIp(req.headers),
-      limit: 5,
-      windowMs: 60 * 60_000,
-    },
-    {
-      scope: "auth:password-reset:account",
-      identifier: email.trim().toLowerCase(),
-      limit: 3,
-      windowMs: 60 * 60_000,
-    },
-  ]);
+  const normalizedEmail = email.trim().toLowerCase();
+  const rateLimitResponse = await enforceRateLimitRules(
+    [
+      {
+        scope: "auth:password-reset:ip",
+        identifier: getClientIp(req.headers),
+        limit: 5,
+        windowMs: 60 * 60_000,
+      },
+      {
+        scope: "auth:password-reset:account",
+        identifier: normalizedEmail,
+        limit: 3,
+        windowMs: 60 * 60_000,
+      },
+    ],
+    (rejection) => {
+      if (
+        rejection.scope === "auth:password-reset:account" &&
+        rejection.firstRejection
+      ) {
+        // Next.js keeps the Railway request alive long enough to finish this
+        // callback without delaying or changing the public 429 response.
+        after(() =>
+          processPasswordResetLimitAlert({ email: normalizedEmail })
+        );
+      }
+    }
+  );
   if (rateLimitResponse) return rateLimitResponse;
 
   const res = NextResponse.json({ ok: true });
@@ -79,7 +95,7 @@ export async function POST(req: Request) {
   // Supabase stores the PKCE verifier on this response before emailing the link.
   let failed = false;
   try {
-    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+    const { error } = await supabase.auth.resetPasswordForEmail(normalizedEmail, {
       redirectTo: authRedirectUrl("/auth/password-reset", req.url),
       captchaToken,
     });
@@ -92,7 +108,7 @@ export async function POST(req: Request) {
     // Deliberately return the same response for missing accounts, provider
     // throttling, and accepted requests to prevent account enumeration.
     logSecurityEvent("password_reset_request_failed", "warn", {
-      accountFingerprint: securityFingerprint(email),
+      accountFingerprint: securityFingerprint(normalizedEmail),
       ipFingerprint: securityFingerprint(getClientIp(req.headers)),
     });
   }
