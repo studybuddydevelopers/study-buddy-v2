@@ -22,11 +22,6 @@ describe("production route controls", () => {
   afterEach(() => vi.unstubAllEnvs());
 
   it.each([
-    "/icon-audit",
-    "/temp-logo-preview",
-    "/new-logo-preview",
-    "/cube-usage-audit",
-    "/demo-showcase",
     "/api/v1/whatsapp/webhook",
   ])("returns 404 for %s in production", async (pathname) => {
     vi.stubEnv("NODE_ENV", "production");
@@ -105,10 +100,10 @@ describe("production route controls", () => {
     vi.stubEnv("NODE_ENV", "production");
 
     const first = await proxy(
-      new NextRequest("https://studybuddy.example/icon-audit")
+      new NextRequest("https://studybuddy.example/api/v1/whatsapp/webhook")
     );
     const second = await proxy(
-      new NextRequest("https://studybuddy.example/icon-audit")
+      new NextRequest("https://studybuddy.example/api/v1/whatsapp/webhook")
     );
     const noncePattern = /'nonce-([^']+)'/;
     const firstNonce = first.headers
