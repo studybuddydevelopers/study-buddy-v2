@@ -20,7 +20,8 @@
     "resources:evaluate-retrieval": "tsx scripts/evaluate-retrieval.ts",
     "ai:evaluate-grounding": "tsx scripts/evaluate-grounded-chat.ts",
     "cron:account-lifecycle": "node scripts/run-account-lifecycle-cron.mjs",
-    "security:verify-database": "tsx scripts/verify-database-security.ts"
+    "security:verify-database": "tsx scripts/verify-database-security.ts",
+    "security:backfill-auth-email-fingerprints": "tsx scripts/backfill-auth-email-fingerprints.ts"
   },
   "dependencies": {
     "@hcaptcha/react-hcaptcha": "^2.0.2",
