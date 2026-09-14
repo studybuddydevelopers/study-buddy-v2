@@ -248,7 +248,9 @@ export default function PrivacyPolicyPage() {
                 <strong>Account and identity information:</strong> first name,
                 optional middle names, last names, email address, phone number,
                 date of birth, authentication identifiers, current terms
-                version, and account status.
+                version, account status, and a keyed email fingerprint used to
+                find a matching account without duplicating its raw email in
+                our application database.
               </ListItem>
               <ListItem>
                 <strong>Parent or legal guardian authorisation:</strong> the
@@ -293,6 +295,8 @@ export default function PrivacyPolicyPage() {
                 address, browser or device information, request timestamps,
                 pages or features used, CAPTCHA results, security events, and
                 rate-limit records produced by our app and hosting providers.
+                This includes password-reset warning, temporary-lock, recovery,
+                and delivery events where those controls are triggered.
               </ListItem>
             </ul>
             <p>
@@ -803,8 +807,11 @@ export default function PrivacyPolicyPage() {
               proxying, and network protection. We use measures designed to
               protect personal data, including HTTPS/TLS in transit, access
               controls, service authentication, rate limiting, and security
-              monitoring. Supabase Auth manages password credentials; Study
-              Buddy does not store plaintext passwords in its application
+              monitoring. When repeated password-reset requests reach our
+              account limit, we may warn the verified account owner and offer a
+              user-confirmed 24-hour lock. Opening the warning link alone does
+              not lock an account. Supabase Auth manages password credentials;
+              Study Buddy does not store plaintext passwords in its application
               database.
             </p>
             <p>
