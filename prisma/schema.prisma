@@ -188,6 +188,7 @@ enum PasswordResetSecurityEventType {
   LOCK_CONFIRMED
   AUTH_LOCK_APPLIED
   AUTH_LOCK_FAILED
+  LOCK_EXPIRED
   RECOVERY_REQUESTED
   RECOVERY_EMAIL_SENT
   RECOVERY_FAILED
@@ -216,23 +217,23 @@ model User {
 
   adminUser AdminUser?
 
-  profile                UserProfile?
-  settings               UserSettings?
-  aiChats                AiChat[]
-  aiQuestions            AiQuestion[]
-  attempts               PastQuestionAttempt[]
-  practiceDrafts         PracticeAnswerDraft[]
-  practiceSessions       PracticeQuizSession[]
-  mockExams              MockExamInstance[]
-  recommendations        Recommendation[]
-  aiDailyUsage           AiDailyUsage[]
-  progress               ProgressTrack[]
-  subscriptions          Subscription[]
-  transactions           Transaction[]
-  guardianAuthorizations GuardianAuthorization[]
-  deletionRequest        AccountDeletionRequest?
-  uploadedResources      Resource[]              @relation("ResourceUploadedBy")
-  approvedResources      Resource[]              @relation("ResourceApprovedBy")
+  profile                     UserProfile?
+  settings                    UserSettings?
+  aiChats                     AiChat[]
+  aiQuestions                 AiQuestion[]
+  attempts                    PastQuestionAttempt[]
+  practiceDrafts              PracticeAnswerDraft[]
+  practiceSessions            PracticeQuizSession[]
+  mockExams                   MockExamInstance[]
+  recommendations             Recommendation[]
+  aiDailyUsage                AiDailyUsage[]
+  progress                    ProgressTrack[]
+  subscriptions               Subscription[]
+  transactions                Transaction[]
+  guardianAuthorizations      GuardianAuthorization[]
+  deletionRequest             AccountDeletionRequest?
+  uploadedResources           Resource[]                   @relation("ResourceUploadedBy")
+  approvedResources           Resource[]                   @relation("ResourceApprovedBy")
   passwordResetSecurityState  PasswordResetSecurityState?
   passwordResetSecurityEvents PasswordResetSecurityEvent[]
 
@@ -243,23 +244,25 @@ model User {
 /// One row per account. Raw email addresses and bearer tokens are deliberately
 /// excluded; only keyed email and one-way token hashes are persisted.
 model PasswordResetSecurityState {
-  userId                 String   @id
+  userId                 String    @id
   lastAlertAttemptAt     DateTime?
+  lastAlertSentAt        DateTime?
   alertDay               DateTime? @db.Date
-  alertCount             Int      @default(0)
-  lockTokenHash          String?  @unique @db.VarChar(64)
+  alertCount             Int       @default(0)
+  lockTokenHash          String?   @unique @db.VarChar(64)
   lockTokenExpiresAt     DateTime?
   lockTokenUsedAt        DateTime?
   lockedAt               DateTime?
   lockedUntil            DateTime?
+  lockExpiryRecordedAt   DateTime?
   authLockAppliedAt      DateTime?
-  recoveryTokenHash      String?  @unique @db.VarChar(64)
+  recoveryTokenHash      String?   @unique @db.VarChar(64)
   recoveryTokenExpiresAt DateTime?
   recoveryTokenUsedAt    DateTime?
   recoveryStartedAt      DateTime?
   recoveryCompletedAt    DateTime?
-  createdAt              DateTime @default(now())
-  updatedAt              DateTime @updatedAt
+  createdAt              DateTime  @default(now())
+  updatedAt              DateTime  @updatedAt
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
