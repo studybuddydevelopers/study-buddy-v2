@@ -604,6 +604,11 @@ The app expects environment variables for:
 - production application origin and optional additional CSRF origins:
   - `APP_ORIGIN=https://app.example.com`
   - `CSRF_TRUSTED_ORIGINS=`
+- password-reset abuse limits (defaults shown):
+  - `PASSWORD_RESET_RATE_LIMIT_ACCOUNT_MAX=3`
+  - `PASSWORD_RESET_RATE_LIMIT_IP_MAX=300`
+  - `PASSWORD_RESET_RATE_LIMIT_GLOBAL_MAX=1000`
+  - `PASSWORD_RESET_RATE_LIMIT_WINDOW_MS=3600000`
 - private ClamAV upload scanning:
   - `MALWARE_SCAN_REQUIRED=true`
   - `CLAMAV_HOST=clamav.railway.internal`
