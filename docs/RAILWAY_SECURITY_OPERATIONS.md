@@ -139,6 +139,18 @@ address in Railway's `X-Forwarded-For` chain. It intentionally ignores
 `X-Real-IP`, Cloudflare, and Vercel headers in this topology so a client cannot
 choose whichever forwarding header is most convenient to spoof.
 
+Password-reset throttling is configured separately from the general
+authenticated-request limits. The production defaults are three requests per
+account, 300 per source IP, and 1,000 globally in a one-hour fixed window. The
+account rule runs first, so repeated requests against one account do not use up
+the aggregate allowance for a school or household sharing a public IP. Configure
+these with `PASSWORD_RESET_RATE_LIMIT_ACCOUNT_MAX`,
+`PASSWORD_RESET_RATE_LIMIT_IP_MAX`,
+`PASSWORD_RESET_RATE_LIMIT_GLOBAL_MAX`, and
+`PASSWORD_RESET_RATE_LIMIT_WINDOW_MS`. Turnstile remains the interactive abuse
+control when Supabase Auth CAPTCHA is enabled; temporarily disabling it for an
+integration test does not require removing these server-side limits.
+
 ## Private ClamAV service
 
 1. Add a separate Railway service using an official ClamAV image such as
