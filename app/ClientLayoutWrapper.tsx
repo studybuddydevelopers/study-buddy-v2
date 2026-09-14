@@ -53,7 +53,7 @@ function ClientLayoutChrome({ children }: { children: React.ReactNode }) {
       <div
         className={
           isAuthenticated
-            ? "bg-accent-500 pb-16 min-[1110px]:pb-0"
+            ? "bg-accent-500 pb-[calc(4rem+env(safe-area-inset-bottom))] min-[1110px]:pb-0"
             : undefined
         }
       >
