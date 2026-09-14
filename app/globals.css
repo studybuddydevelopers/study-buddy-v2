@@ -6,6 +6,7 @@
    LIGHT MODE VARIABLES
 -----------------------------------------------------------*/
 :root {
+  color-scheme: light;
   --background: #ffffff;
   --foreground: #171717;
 
@@ -58,16 +59,6 @@
 
   --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, 
                "Liberation Mono", monospace;
-}
-
-/* ----------------------------------------------------------
-   DARK MODE OVERRIDE
------------------------------------------------------------*/
-@media (prefers-color-scheme: light) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
 }
 
 /* ----------------------------------------------------------
