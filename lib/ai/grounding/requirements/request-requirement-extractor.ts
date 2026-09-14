@@ -461,18 +461,30 @@ function buildFormulaConditionRequirement(
   question: string,
   context: RequirementBuildContext
 ): RequirementDraft | undefined {
-  if (!/\bformula\b/i.test(question) || !/\bconditions?\b/i.test(question)) {
+  if (
+    !/\b(?:formula|law|equation|relation)\b/i.test(question) &&
+    !/\b(?:valid\s+when|applies?\s+to)\b/i.test(question)
+  ) {
+    return undefined;
+  }
+  if (!/\b(?:conditions?|valid\s+when|applies?\s+to|applicability)\b/i.test(question)) {
     return undefined;
   }
 
-  const concept = extractFormulaConcept(question);
+  const concept =
+    extractFormulaConcept(question) ||
+    firstMatch(question, /\bin\s+(.+?)(?:[?.]|$)/i) ||
+    firstMatch(
+      question,
+      /\bfor\s+(?:the\s+)?(.+?)(?:\s+formula|\s+law|\s+equation|\s+relation|[?.]|$)/i
+    );
   if (!concept && !context.contextConcept) return undefined;
 
   const conditionMatch =
     question.match(/\b(?:and|with)\s+(?:the\s+)?([A-Za-z][A-Za-z -]*?\bconditions?)\b/i) ??
     question.match(/\b(?:the\s+)?([A-Za-z][A-Za-z -]*?\bconditions?)\b/i);
   const conditionTarget = conditionMatch?.[1] ?? "condition";
-  const cleanedCondition = cleanConcept(conditionTarget);
+  const cleanedCondition = cleanConditionTarget(conditionTarget);
 
   return {
     kind: "MULTI_PART",
@@ -502,6 +514,17 @@ function buildFormulaConditionRequirement(
       },
     ],
   };
+}
+
+function cleanConditionTarget(value: string): string {
+  const cleaned = cleanConcept(value)
+    .replace(/\b(?:state|give|explain|describe|what|when|is|are|the|a|an)\b/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+  if (!cleaned || cleaned === "condition" || cleaned === "conditions") {
+    return "condition";
+  }
+  return cleaned;
 }
 
 function buildWorkedExampleRequirement(question: string): RequirementDraft | undefined {
@@ -731,7 +754,8 @@ function buildFacetRequirement(
     firstMatch(question, /\bwhat\s+(?:is|are)\s+(.+?)\s+measured\s+in(?:[?.]|$)/i) ??
     firstMatch(question, /\b(?:unit|units)\s+of\s+(.+?)(?:[?.]|$)/i) ??
     firstMatch(question, /\bwhich\s+units?\s+(?:is|are)\s+used\s+for\s+(.+?)(?:[?.]|$)/i) ??
-    firstMatch(question, /\bwhat\s+units?\s+(?:is|are)\s+used\s+for\s+(.+?)(?:[?.]|$)/i);
+    firstMatch(question, /\bwhat\s+units?\s+(?:is|are)\s+used\s+for\s+(.+?)(?:[?.]|$)/i) ??
+    firstMatch(question, /\b(?:give|state|explain|teach)\s+(?:the\s+)?(.+?)\s+(?:and|with|including)\s+(?:its\s+|the\s+)?units?(?:[?.]|$)/i);
   if (measured) {
     const target = cleanConcept(measured);
     return {
@@ -740,6 +764,34 @@ function buildFacetRequirement(
       requestedFact: `${target} unit`,
       requestedFacet: "UNIT",
       requestedAction: "state unit",
+    };
+  }
+
+  const inputs =
+    firstMatch(question, /\b(?:explain|state|give|teach|list|name)\s+(?:the\s+)?(.+?)\s+(?:and|with|including)\s+(?:its\s+|the\s+)?inputs?(?:[?.]|$)/i) ??
+    firstMatch(question, /\b(?:explain|state|give|teach|list|name)\s+(?:the\s+)?(.+?)\s+inputs?(?:[?.]|$)/i);
+  if (inputs) {
+    const target = cleanConcept(inputs);
+    return {
+      kind: "FACT_LOOKUP",
+      targetConcepts: compactStrings([target]),
+      requestedFact: `${target} inputs`,
+      requestedFacet: "FUNCTION",
+      requestedAction: "state inputs",
+      constraints: ["inputs"],
+      requiredSemanticComponents: [
+        makeSemanticComponent({
+          kind: "FUNCTION",
+          concept: canonicalizeSemanticConcept({
+            rawConcept: target,
+            subjectId: context.subjectId,
+            topicId: context.topicId,
+            facet: "FUNCTION",
+          }),
+          text: "inputs",
+          constraints: ["inputs"],
+        }),
+      ],
     };
   }
 
@@ -761,7 +813,8 @@ function buildFacetRequirement(
 
   const kindMentioned =
     firstMatch(question, /\bwhat\s+(?:kinds?|types?)\s+of\s+(.+?)\s+are\s+mentioned(?:[?.]|$)/i) ??
-    firstMatch(question, /\bwhat\s+(?:is|are)\s+(?:a\s+|an\s+|the\s+)?(.+?),\s+and\s+what\s+(?:kinds?|types?)\s+are\s+mentioned(?:[?.]|$)/i);
+    firstMatch(question, /\bwhat\s+(?:is|are)\s+(?:a\s+|an\s+|the\s+)?(.+?),\s+and\s+what\s+(?:kinds?|types?)\s+are\s+mentioned(?:[?.]|$)/i) ??
+    firstMatch(question, /\b(?:define|explain|teach|state)\s+(?:a\s+|an\s+|the\s+)?(.+?)\s+and\s+(?:give|state|list|name)\s+(?:the\s+)?(?:kinds?|types?)\s+mentioned(?:[?.]|$)/i);
   if (kindMentioned) {
     const target = cleanConcept(kindMentioned);
     return {
@@ -850,7 +903,9 @@ function buildProcedureMethodRequirement(
     firstMatch(question, /\bhow\s+do\s+i\s+(?:get|make|create|form)\s+(.+?)(?:[?.]|$)/i) ??
     firstMatch(question, /\bhow\s+(?:is|are)\s+(.+?)\s+(?:made|formed|created|produced)(?:[?.]|$)/i) ??
     firstMatch(question, /\bwhat\s+do\s+i\s+do\s+to\s+(?:get|make|create|form)\s+(.+?)(?:[?.]|$)/i) ??
-    firstMatch(question, /\bshow\s+me\s+how\s+to\s+(?:get|make|create|form)\s+(.+?)(?:[?.]|$)/i);
+    firstMatch(question, /\bshow\s+me\s+how\s+to\s+(?:get|make|create|form)\s+(.+?)(?:[?.]|$)/i) ??
+    firstMatch(question, /\b(?:explain|describe|state|give)\s+(?:the\s+)?steps?\s+(?:for|of|to)\s+(.+?)(?:[?.]|$)/i) ??
+    firstMatch(question, /\bwhat\s+method\s+(?:makes?|creates?|forms?)\s+(.+?)(?:[?.]|$)/i);
   if (madeTarget) {
     let target = cleanConcept(madeTarget);
     if (context.contextConcept && /\bequivalent\s+forms?\b/i.test(target)) {
@@ -963,7 +1018,9 @@ function buildFormulaWithSymbolsRequirement(
   question: string,
   context: RequirementBuildContext
 ): RequirementDraft | undefined {
-  if (!/\bformula\b/i.test(question)) return undefined;
+  if (!/\bformula\b/i.test(question) && !context.currentFormula && !context.contextFormula) {
+    return undefined;
+  }
   if (
     !/\b(define|meaning|means|mean|represent|represents|stands for|explain what|what .* stands for|what .* means)\b/i.test(
       question
@@ -974,6 +1031,7 @@ function buildFormulaWithSymbolsRequirement(
 
   const symbols = extractRequestedSymbols(question);
   if (symbols.length === 0) return undefined;
+  if (!/\bformula\b/i.test(question) && symbols.length === 1) return undefined;
 
   return {
     kind: "FORMULA_WITH_SYMBOLS",
@@ -1266,6 +1324,7 @@ function buildProcessRequirement(
 
   const process =
     firstMatch(question, /\b(?:teach|explain|describe)\s+(?:the\s+)?process\s+of\s+(.+?)(?:[?.]|$)/i) ??
+    firstMatch(question, /\b(?:teach|explain|describe)\s+(?:the\s+)?(.+?)\s+process(?:[?.]|$)/i) ??
     firstMatch(question, /\b(?:describe|explain)\s+what\s+happens\s+(?:in|during)\s+(.+?)(?:[?.]|$)/i) ??
     firstMatch(question, /\bwhat\s+happens\s+in\s+(.+?)(?:[?.]|$)/i) ??
     firstMatch(question, /\bhow\s+(?:do|does)\s+(.+?)\s+happen(?:s)?(?:[?.]|$)/i) ??
@@ -1894,7 +1953,7 @@ function extractStandaloneSymbolFollowUp(question: string): string | undefined {
 }
 
 function hasNamedPossessiveFacetTarget(question: string): boolean {
-  return /\b(?:teach|explain|tell\s+me|define|what\s+is)\s+(?:me\s+)?(?:the\s+)?(?!it\b|its\b|this\b|that\b)([a-z][a-z0-9 -]+?)\s+(?:and|including|include|with)\s+(?:its\s+|the\s+)?(?:units?|formula)\b/i.test(
+  return /\b(?:teach|explain|tell\s+me|define|state|give|what\s+is)\s+(?:me\s+)?(?:the\s+)?(?!it\b|its\b|this\b|that\b)([a-z][a-z0-9 -]+?)\s+(?:and|including|include|with)\s+(?:its\s+|the\s+)?(?:units?|formula)\b/i.test(
     question
   );
 }
@@ -1911,7 +1970,7 @@ function hasExplicitCurrentConcept(question: string): boolean {
 function extractLikelyConcept(question: string): string | undefined {
   const normalized = normalizeQuestion(question);
   const candidates = [
-    firstMatch(normalized, /\b(?:teach|explain|tell\s+me|define|what\s+is)\s+(?:me\s+)?(?:the\s+)?(.+?)\s+(?:and|including|with)\s+(?:its\s+|the\s+)?units?(?:[?.]|$)/i),
+    firstMatch(normalized, /\b(?:teach|explain|tell\s+me|define|state|give|what\s+is)\s+(?:me\s+)?(?:the\s+)?(.+?)\s+(?:and|including|with)\s+(?:its\s+|the\s+)?units?(?:[?.]|$)/i),
     firstMatch(normalized, /\bwhat\s+(?:is|are)\s+(.+?)(?:[?.]|$)/i),
     firstMatch(normalized, /\bdefine\s+(.+?)(?:[?.]|$)/i),
     firstMatch(normalized, /\bformula\s+(?:for|of)\s+(.+?)(?:[?.]|$)/i),
@@ -2052,6 +2111,7 @@ function extractRequestedSymbols(question: string): string[] {
   const symbols = new Set<string>();
   const symbolClauses = [
     ...question.matchAll(/\bdefine\s+(.+?)(?:[?.]|$)/gi),
+    ...question.matchAll(/\bwhat\s+do\s+(.+?)\s+mean(?:\s+in\b|[?.]|$)/gi),
     ...question.matchAll(/\bwhat\s+does\s+(?:the\s+)?symbol\s+(.+?)\s+(?:mean|represent|stand for)(?:[?.]|$)/gi),
     ...question.matchAll(/\bexplain\s+what\s+(.+?)\s+(?:means?|represents?|stands for)(?:[?.]|$)/gi),
     ...question.matchAll(/\bwhat\s+(.+?)\s+(?:means?|represents?|stands for)(?:[?.]|$)/gi),
@@ -2231,6 +2291,8 @@ function cleanConcept(value: string): string {
     .replace(/[?.!]+$/g, "")
     .replace(/\baccording\s+to\s+(?:the\s+)?(?:[a-z0-9 -]+?\s+)?(?:cards?|notes?|sources?|evidence)\b/gi, " ")
     .replace(/\b(?:using|from|with)\s+(?:these|the|this|two)?\s*(?:[a-z0-9]+\s+){0,3}(?:notes?|cards?|sources?|evidence|formula notes?)$/i, "")
+    .replace(/\s+(?:in|with|as)\s+(?:short\s+)?(?:bullet\s+points?|bullets?|clear\s+steps?|simple\s+steps?)$/i, "")
+    .replace(/\s+(?:clearly|briefly|neatly|simply)$/i, "")
     .replace(/\s+as\s+.+$/i, "")
     .replace(/\s+and\s+(?:name|define|identify|explain)\s+(?:the\s+)?(?:variables?|symbols?)$/i, "")
     .replace(/\s+and\s+what\s+(?:do|does|is|are)\s+.+$/i, "")
