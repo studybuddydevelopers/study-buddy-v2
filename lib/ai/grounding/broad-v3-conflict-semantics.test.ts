@@ -88,6 +88,58 @@ describe("Stage 4.1 broad-property v3 typed value conflict semantics", () => {
     expect(result.decision.validatedEvidenceUnits).toEqual([]);
   });
 
+  it("keeps fill-style list definitions under the required-relation conflict gate", () => {
+    const result = run("What is diffusion?", [
+      chunk("- Diffusion means particles spread from high to low concentration.", {
+        resourceChunkId: "definition-path-positive",
+        sourceLabel: "SOURCE_1",
+      }),
+      chunk("- Diffusion means heat transfer by direct contact.", {
+        resourceChunkId: "definition-path-conflict",
+        sourceLabel: "SOURCE_2",
+      }),
+    ]);
+
+    expect(result.conflicts).toContainEqual(
+      expect.objectContaining({
+        conflictType: "DEFINITION_CONFLICT",
+        scopeKey: "definition:diffusion",
+      })
+    );
+    expect(result.decision.classification).toBe("INSUFFICIENT_CONTEXT");
+    expect(result.decision.refusalReason).toBe("UNRESOLVED_CONFLICT");
+    expect(result.decision.requirementResults[0]?.status).toBe("CONFLICTING");
+    expect(result.decision.validatedEvidenceUnits).toEqual([]);
+  });
+
+  it("keeps fill-style list definition conflicts stable when the conflicting source comes first", () => {
+    const first = run("What is diffusion?", [
+      chunk("- Diffusion means particles spread from high to low concentration.", {
+        resourceChunkId: "definition-order-a",
+        sourceLabel: "SOURCE_1",
+      }),
+      chunk("- Diffusion means heat transfer by direct contact.", {
+        resourceChunkId: "definition-order-b",
+        sourceLabel: "SOURCE_2",
+      }),
+    ]);
+    const second = run("What is diffusion?", [
+      chunk("- Diffusion means heat transfer by direct contact.", {
+        resourceChunkId: "definition-order-b",
+        sourceLabel: "SOURCE_2",
+      }),
+      chunk("- Diffusion means particles spread from high to low concentration.", {
+        resourceChunkId: "definition-order-a",
+        sourceLabel: "SOURCE_1",
+      }),
+    ]);
+
+    expect(first.decision.refusalReason).toBe("UNRESOLVED_CONFLICT");
+    expect(second.decision.refusalReason).toBe("UNRESOLVED_CONFLICT");
+    expect(first.decision.requirementResults[0]?.status).toBe("CONFLICTING");
+    expect(second.decision.requirementResults[0]?.status).toBe("CONFLICTING");
+  });
+
   it("detects same-scope incompatible units only for unit requirements", () => {
     const chunks = [
       chunk("Speed is distance divided by time. Speed is measured in metres per second.", {
