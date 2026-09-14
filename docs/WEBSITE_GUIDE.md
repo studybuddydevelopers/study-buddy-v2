@@ -58,7 +58,6 @@ This guide maps the current website implementation to the codebase using exact f
 - contact: [`app/contact-us/page.tsx`](/Users/efeon/study-buddy-v2/app/contact-us/page.tsx)
 - privacy: [`app/privacy-policy/page.tsx`](/Users/efeon/study-buddy-v2/app/privacy-policy/page.tsx)
 - terms: [`app/terms-of-service/page.tsx`](/Users/efeon/study-buddy-v2/app/terms-of-service/page.tsx)
-- demo: [`app/demo-showcase/page.tsx`](/Users/efeon/study-buddy-v2/app/demo-showcase/page.tsx)
 
 ## 7. Auth Pages
 
