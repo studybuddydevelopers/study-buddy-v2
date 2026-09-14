@@ -28,6 +28,7 @@ import type {
 import {
   canonicalizeConcept as sharedCanonicalizeConcept,
   canonicalizeSemanticConcept,
+  canonicalizeUnitExpression,
   findMentionedCanonicalConcepts,
   makeSemanticComponent,
   normalizeSemanticBaseConcept,
@@ -247,7 +248,10 @@ function extractConceptDefinitions(
 
   const unitDefinition =
     text.match(/\b(?:the\s+)?unit\s+used\s+for\s+(.+?)\s+is\s+(.+)$/i) ??
-    text.match(/\b(.+?)\s+has\s+(?:the\s+)?units?\s+(.+)$/i);
+    text.match(/\b(.+?)\s+has\s+(?:the\s+)?units?\s+(.+)$/i) ??
+    text.match(/\b(.+?)\s+is\s+measured\s+in\s+(.+)$/i) ??
+    text.match(/\b(?:in\s+(?:these|the|this)\s+notes,\s*)?(.+?)\s+units?\s+(?:are|is)\s+(.+)$/i) ??
+    text.match(/\bif\b.+?,\s*(.+?)\s+is\s+([A-Za-z0-9/%^²³ΩΩ ]+)$/i);
   if (unitDefinition && !isFormulaLike(text)) {
     const concept = cleanConcept(unitDefinition[1] ?? "");
     const unitText = cleanMeaning(unitDefinition[2] ?? "");
@@ -343,7 +347,7 @@ function extractConceptDefinitions(
   const definitionMatch =
     text.match(/^(?:(?:an|a|the)\s+)?(.+?)\s+(?:is|are|means|refers to)\s+(.+)$/i) ??
     text.match(/^(?:(?:an|a|the)\s+)?(.+?)\s+(shows?)\s+how\s+(.+)$/i) ??
-    text.match(/^(?:(?:an|a|the)\s+)?(.+?)\s+(shows?|compares|describes|explains?|proves?|gives?)\s+(.+)$/i);
+    text.match(/^(?:(?:an|a|the)\s+)?(.+?)\s+(shows?|compares|describes|explains?|proves?|gives?|uses?|produces?|forms?|makes?|separates?)\s+(.+)$/i);
   if (!definitionMatch) return [];
   if (isFormulaLike(text) || isSymbolDefinitionSentence(text)) return [];
 
@@ -872,17 +876,57 @@ function extractExplicitFacts(
     const concept = cleanConcept(conditionMatch[1] ?? "");
     const factText = text;
     if (concept && factText) {
+      const scopedConcept =
+        state.lastSemanticTarget && isConditionQuantity(concept)
+          ? state.lastSemanticTarget
+          : concept;
       facts.push(
         createExplicitFact({
           state,
           span: sentence,
-          factKey: `${concept} condition`,
+          factKey: `${scopedConcept} ${concept} condition`,
           factText,
-          concept,
+          concept: scopedConcept,
           polarity: "POSITIVE",
         })
       );
     }
+  }
+
+  const rightAngleCondition = text.match(
+    /\b(?:the\s+)?(.+?)\s+(?:meets?|should\s+meet|must\s+meet)\s+(?:the\s+)?(.+?)\s+at\s+a\s+right\s+angle\b/i
+  );
+  if (rightAngleCondition && !isFormulaLike(text)) {
+    const quantity = cleanConcept(rightAngleCondition[1] ?? "");
+    const scopedConcept = state.lastSemanticTarget ?? quantity;
+    if (quantity && scopedConcept) {
+      facts.push(
+        createExplicitFact({
+          state,
+          span: sentence,
+          factKey: `${scopedConcept} ${quantity} condition`,
+          factText: text,
+          concept: scopedConcept,
+          polarity: "POSITIVE",
+        })
+      );
+    }
+  }
+
+  const imperativeCondition = text.match(
+    /\buse\s+(.+?\b(?:height|base|side|value|input)\b.+)$/i
+  );
+  if (imperativeCondition && !isFormulaLike(text) && state.lastSemanticTarget) {
+    facts.push(
+      createExplicitFact({
+        state,
+        span: sentence,
+        factKey: `${state.lastSemanticTarget} condition`,
+        factText: text,
+        concept: state.lastSemanticTarget,
+        polarity: "POSITIVE",
+      })
+    );
   }
 
   const patterns: Array<{ match: RegExp; key: (match: RegExpMatchArray) => string; concept?: (match: RegExpMatchArray) => string }> = [
@@ -1105,7 +1149,7 @@ function extractComparisonSidesFromClause(
   }
 
   const actionDefinition = sentence.text.match(
-    /\b(?:an|a|the)?\s*(.+?)\s+(produces?|neutralises?|neutralizes?|forms?|makes?|uses?)\s+(.+)$/i
+    /\b(?:an|a|the)?\s*(.+?)\s+(produces?|neutralises?|neutralizes?|forms?|makes?|uses?|separates?)\s+(.+)$/i
   );
   if (actionDefinition && !isFormulaLike(sentence.text)) {
     return createComparisonSide({
@@ -1159,6 +1203,26 @@ function extractProcessFacts(
   sentence: SentenceSpan,
   state: CapabilityState
 ): ProcessCapability[] {
+  const headedProcess = sentence.text.match(
+    /^([A-Za-z][A-Za-z -]{2,40})\s*[:\-]\s*(.+\b(?:uses?|converts?|changes?|produces?|makes?|forms?|transfers?|moves?|passes?|separates?)\b.+)$/i
+  );
+  if (headedProcess && !isFormulaLike(sentence.text)) {
+    const process = cleanConcept(headedProcess[1] ?? "");
+    if (process) {
+      return [
+        {
+          id: nextCapabilityId(state, "process"),
+          resourceChunkId: state.chunk.resourceChunkId,
+          sourceLabel: state.chunk.sourceLabel,
+          evidenceSpan: sentence,
+          confidence: "HIGH",
+          process,
+          fact: cleanMeaning(headedProcess[2] ?? sentence.text),
+        },
+      ];
+    }
+  }
+
   const match =
     sentence.text.match(/\b(.+?)\s+is\s+the\s+process\s+by\s+which\s+(.+)$/i) ??
     sentence.text.match(/\b(.+?)\s+uses\s+(.+?)\s+to\s+(.+)$/i) ??
@@ -1297,6 +1361,7 @@ function detectDefinitionConflicts(
   for (const capability of capabilities) {
     for (const definition of capability.conceptDefinitions) {
       if (definition.polarity !== "POSITIVE") continue;
+      if (isNonDefinitionalFacetDefinition(definition)) continue;
       const key = `definition:${definition.canonicalConcept.id}`;
       grouped.set(key, [...(grouped.get(key) ?? []), definition]);
     }
@@ -1304,6 +1369,19 @@ function detectDefinitionConflicts(
 
   return buildPairwiseConflicts(grouped, "DEFINITION_CONFLICT", (left, right) =>
     normalizedMeaning(left.definitionText) !== normalizedMeaning(right.definitionText)
+  );
+}
+
+function isNonDefinitionalFacetDefinition(definition: CapabilityFact): boolean {
+  const facets = definition.semanticComponents
+    ?.map((component) => component.kind)
+    .filter((kind) => kind !== "DEFINITION") ?? [];
+  if (facets.some((facet) => ["UNIT", "CONDITION", "PURPOSE", "FUNCTION", "LIMITATION"].includes(facet))) {
+    return true;
+  }
+  const normalized = normalizedMeaning(`${definition.definitionText} ${definition.evidenceSpan.text}`);
+  return /\b(?:unit|units|measured in|purpose|used for|limitation|condition|perpendicular|right angle)\b/.test(
+    normalized
   );
 }
 
@@ -1570,15 +1648,22 @@ function attachSemanticComponents(capability: EvidenceCapability) {
       fact.semanticComponents = [];
       continue;
     }
+    const facets = definitionFacets(fact.factText, fact.evidenceSpan.text).filter(
+      (facet) => facet !== "DEFINITION"
+    );
+    const explicitKind: SemanticComponent["kind"] =
+      facets.includes("CONDITION") || /\bcondition\b/i.test(fact.factKey)
+        ? "CONDITION"
+        : "EXPLICIT_FACT";
     fact.semanticComponents = [
       component({
-        kind: "EXPLICIT_FACT",
+        kind: explicitKind,
         conceptRaw: fact.canonicalConcept?.aliases[0] ?? fact.factKey,
         capability: fact,
         text: fact.factText,
       }),
-      ...definitionFacets(fact.factText, fact.evidenceSpan.text)
-        .filter((facet) => facet !== "DEFINITION")
+      ...facets
+        .filter((facet) => facet !== explicitKind)
         .map((facet) =>
           component({
             kind: facet,
@@ -1765,6 +1850,9 @@ function definitionFacets(definitionText: string, evidenceText: string): Semanti
   if (/\b(?:measured in|unit|units|volts?|amperes?|amps?|ohms?|watts?|metres?|meters?|seconds?|grams?|kilograms?|pascals?|newtons?)\b/.test(combined)) {
     facets.push("UNIT");
   }
+  if (/\b(?:condition|conditions|valid when|applicability|perpendicular|right angle|must|should|needs? to|not a slanted side)\b/.test(combined)) {
+    facets.push("CONDITION");
+  }
   if (/\b(?:purpose|used for|useful for|helps?|needed for|for growth|for repair|role is)\b/.test(combined)) {
     facets.push("PURPOSE");
   }
@@ -1808,6 +1896,7 @@ function isSemanticFacet(kind: SemanticComponent["kind"]): kind is SemanticFacet
     "PURPOSE",
     "FUNCTION",
     "PROCESS",
+    "CONDITION",
     "LIMITATION",
     "CONSEQUENCE",
     "METHOD",
@@ -2327,7 +2416,7 @@ function normalizeUnit(unit: string | undefined): string | undefined {
   if (!unit) return undefined;
   if (/^(?:is|are|give|gives|so|then|from|with|using)$/i.test(unit)) return undefined;
   if (unit === "%") return "percent";
-  return unit.toLowerCase();
+  return canonicalizeUnitExpression(unit)?.canonical ?? unit.toLowerCase();
 }
 
 function normalizeExtractedUnit(unit: string | undefined): string | undefined {
@@ -2336,6 +2425,10 @@ function normalizeExtractedUnit(unit: string | undefined): string | undefined {
     return undefined;
   }
   return unit === "%" ? "percent" : unit;
+}
+
+function isConditionQuantity(value: string): boolean {
+  return /\b(?:height|base|side|input|value|term|quantity)\b/i.test(value);
 }
 
 function optionScopeFromQualifier(qualifier: string | undefined): string | undefined {
