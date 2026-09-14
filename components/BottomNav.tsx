@@ -35,8 +35,12 @@ export default function BottomNav() {
 
   return (
     <nav
+      aria-label="Primary mobile navigation"
       className="fixed bottom-0 left-0 right-0 z-50 flex bg-white border-t border-gray-100"
-      style={{ height: 64 }}
+      style={{
+        height: "calc(64px + env(safe-area-inset-bottom))",
+        paddingBottom: "env(safe-area-inset-bottom)",
+      }}
     >
       {TABS.map(({ label, href, iconName, imageSrc }) => {
         const isActive = pathname.startsWith(href);
@@ -47,6 +51,7 @@ export default function BottomNav() {
             key={href}
             href={href}
             prefetch={false}
+            aria-current={isActive ? "page" : undefined}
             className="flex flex-1 flex-col items-center justify-center gap-1"
           >
             {imageSrc ? (
@@ -75,7 +80,9 @@ export default function BottomNav() {
                 className={isActive ? "" : "opacity-55 grayscale-[35%]"}
               />
             ) : null}
-            <span style={{ color, fontSize: 10 }}>{label}</span>
+            <span className="text-[11px] leading-none" style={{ color }}>
+              {label}
+            </span>
           </Link>
         );
       })}
