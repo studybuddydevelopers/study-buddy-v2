@@ -67,15 +67,17 @@ readiness sign-off.
    examination questions until the required rights are documented.
 7. **Not started:** Run the staging OWASP ZAP workflow against the release candidate and resolve
    high-confidence high/critical findings before inviting users.
-8. **Not started:** Complete the password-reset abuse alert and user-confirmed temporary-account-
-   lock workflow specified in `compliance/NEXT_IMPLEMENTATION_TODOS.md`. Keep
-   public reset responses indistinguishable and prevent email previews from
-   changing account state.
-9. **Not started; upload use is conditional:** Fix the remaining upload-service test isolation failure. The application has
-   admin-only resource and curriculum upload API routes even though it currently
-   has no ordinary-user upload interface. Before using those admin routes in
-   production, verify the private ClamAV service and Ghostscript CDR path with
-   harmless test files; otherwise keep the routes unused.
+8. **Implemented; production verification pending:** Deploy the password-reset
+   abuse alert and user-confirmed temporary-account-lock workflow, apply its
+   database migration, backfill existing account email fingerprints, and run
+   the disposable-account integration exercise specified in
+   `compliance/NEXT_IMPLEMENTATION_TODOS.md`.
+9. **Automated test fixed; production upload use is conditional:** The
+   application has admin-only resource and curriculum upload API routes even
+   though it currently has no ordinary-user upload interface. Before using
+   those admin routes in production, verify the private ClamAV service and
+   Ghostscript CDR path with harmless test files; otherwise keep the routes
+   unused.
 10. **Ongoing:** Study Buddy meets the DCPMI designation through the education-sector
    criterion and is likely MDP-OHL. Obtain written confirmation of the tier and
    six-month trigger date from a qualified Nigerian privacy adviser or licensed
