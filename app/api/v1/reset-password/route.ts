@@ -19,6 +19,11 @@ import {
 import { authRedirectUrl } from "@/lib/supabase/auth-redirect";
 import { processPasswordResetLimitAlert } from "@/lib/password-reset-security";
 
+const HOUR_MS = 60 * 60_000;
+const DEFAULT_PASSWORD_RESET_ACCOUNT_LIMIT = 3;
+const DEFAULT_PASSWORD_RESET_IP_LIMIT = 300;
+const DEFAULT_PASSWORD_RESET_GLOBAL_LIMIT = 1_000;
+
 export async function POST(req: Request) {
   const parsedBody = await parseJsonRequest(req, REQUEST_LIMITS.publicFormJson);
   if (!parsedBody.ok) return parsedBody.response;
@@ -36,19 +41,40 @@ export async function POST(req: Request) {
   }
 
   const normalizedEmail = email.trim().toLowerCase();
+  const rateLimitWindowMs = positiveIntegerFromEnv(
+    "PASSWORD_RESET_RATE_LIMIT_WINDOW_MS",
+    HOUR_MS
+  );
   const rateLimitResponse = await enforceRateLimitRules(
     [
-      {
-        scope: "auth:password-reset:ip",
-        identifier: getClientIp(req.headers),
-        limit: 5,
-        windowMs: 60 * 60_000,
-      },
+      // Check the account first so repeated attacks against one address do not
+      // consume a shared school, library, or household IP's aggregate budget.
       {
         scope: "auth:password-reset:account",
         identifier: normalizedEmail,
-        limit: 3,
-        windowMs: 60 * 60_000,
+        limit: positiveIntegerFromEnv(
+          "PASSWORD_RESET_RATE_LIMIT_ACCOUNT_MAX",
+          DEFAULT_PASSWORD_RESET_ACCOUNT_LIMIT
+        ),
+        windowMs: rateLimitWindowMs,
+      },
+      {
+        scope: "auth:password-reset:ip",
+        identifier: getClientIp(req.headers),
+        limit: positiveIntegerFromEnv(
+          "PASSWORD_RESET_RATE_LIMIT_IP_MAX",
+          DEFAULT_PASSWORD_RESET_IP_LIMIT
+        ),
+        windowMs: rateLimitWindowMs,
+      },
+      {
+        scope: "auth:password-reset:global",
+        identifier: "all-password-reset-requests",
+        limit: positiveIntegerFromEnv(
+          "PASSWORD_RESET_RATE_LIMIT_GLOBAL_MAX",
+          DEFAULT_PASSWORD_RESET_GLOBAL_LIMIT
+        ),
+        windowMs: rateLimitWindowMs,
       },
     ],
     (rejection) => {
@@ -114,4 +140,9 @@ export async function POST(req: Request) {
   }
 
   return res;
+}
+
+function positiveIntegerFromEnv(name: string, fallback: number) {
+  const parsed = Number.parseInt(process.env[name] ?? "", 10);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
 }
