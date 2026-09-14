@@ -36,9 +36,12 @@ import {
   semanticConceptMatches,
   canonicalizeSemanticConcept,
   type SemanticComponent,
+  type SemanticFacet,
 } from "../semantic-concepts";
 import {
   formulaContextKey,
+  relationKindsCompatible,
+  semanticRelationFromComponent,
   semanticComponentRelationMatches,
 } from "../semantic-relations";
 import type {
@@ -74,6 +77,7 @@ type MatchContext = {
   passageInterpretations: PassageInterpretationCapability[];
   semanticComponents: SemanticComponent[];
   evidenceSpansByCapabilityId: Map<string, EvidenceSpan>;
+  educationalCapabilitiesById: ReturnType<typeof indexEducationalCapabilities>;
 };
 
 export function decideAnswerability(
@@ -144,6 +148,7 @@ function buildMatchContext(
   evidenceCapabilities: EvidenceCapability[],
   conflicts: ConflictCapability[]
 ): MatchContext {
+  const educationalCapabilitiesById = indexEducationalCapabilities(evidenceCapabilities);
   return {
     request,
     evidenceCapabilities,
@@ -164,11 +169,12 @@ function buildMatchContext(
     ),
     semanticComponents: evidenceCapabilities.flatMap((capability) => capability.semanticComponents),
     evidenceSpansByCapabilityId: new Map(
-      [...indexEducationalCapabilities(evidenceCapabilities)].map(([id, capability]) => [
+      [...educationalCapabilitiesById].map(([id, capability]) => [
         id,
         capability.evidenceSpan,
       ])
     ),
+    educationalCapabilitiesById,
   };
 }
 
@@ -565,6 +571,11 @@ function evaluateCalculationRequirement(
   );
   if (boundedProbabilitySupport.length > 0) {
     return buildMatch(requirement.id, "SUPPORTED", boundedProbabilitySupport);
+  }
+
+  const ratioShareSupport = findRatioShareCalculationSupport(requirement, context);
+  if (ratioShareSupport.length > 0) {
+    return buildMatch(requirement.id, "SUPPORTED", ratioShareSupport);
   }
 
   const paths = buildCalculationPaths(requirement, context);
@@ -1178,6 +1189,16 @@ function findRelevantConflicts(
   return context.conflicts
     .filter((conflict) => {
       if (
+        conflictMatchesRequiredSemanticRelation(
+          conflict,
+          requirement,
+          context,
+          targetIds
+        )
+      ) {
+        return true;
+      }
+      if (
         conflict.conflictType === "VALUE_CONFLICT" &&
         valueConflictAppliesToRequirement(
           conflict.scopeKey,
@@ -1242,6 +1263,165 @@ function findRelevantConflicts(
       return false;
     })
     .map((conflict) => conflict.id);
+}
+
+function conflictMatchesRequiredSemanticRelation(
+  conflict: ConflictCapability,
+  requirement: RequestRequirement,
+  context: MatchContext,
+  targetIds: string[]
+): boolean {
+  if (conflict.conflictType !== "DEFINITION_CONFLICT") {
+    return false;
+  }
+
+  const requiredComponents = requiredConflictComponents(requirement, context);
+  if (requiredComponents.length === 0) return false;
+
+  const conflictComponents = conflict.conflictingCapabilityIds.flatMap((id) =>
+    semanticComponentsForCapability(id, context)
+  );
+  if (
+    conflictComponents.some((candidate) =>
+      requiredComponents.some((required) =>
+        conflictComponentMatchesRequired(required, candidate)
+      )
+    )
+  ) {
+    return true;
+  }
+
+  if (conflict.conflictType === "DEFINITION_CONFLICT") {
+    return conflictComponents.some((component) =>
+      component.concept
+        ? targetIds.includes(component.concept.baseConcept)
+        : false
+    );
+  }
+
+  return false;
+}
+
+function requiredConflictComponents(
+  requirement: RequestRequirement,
+  context: MatchContext
+): SemanticComponent[] {
+  const explicit = requirement.requiredSemanticComponents ?? [];
+  if (explicit.length > 0) return explicit;
+
+  const targetIds = canonicalTargetIds(requirement, context.request);
+  const semanticKind = semanticKindForRequirement(requirement);
+  if (!semanticKind || targetIds.length === 0) return [];
+
+  return targetIds.map((target) => ({
+    kind: semanticKind,
+    concept: {
+      baseConcept: target,
+      facet: semanticKindForConceptFacet(semanticKind),
+      subjectId: requirement.subjectId,
+      topicId: requirement.topicId,
+    },
+    text: [
+      requirement.requestedRelation,
+      requirement.requestedFact,
+      requirement.requestedMethod,
+      requirement.requestedProcess,
+    ].filter(Boolean).join(" "),
+  }));
+}
+
+function semanticKindForRequirement(
+  requirement: RequestRequirement
+): SemanticComponent["kind"] | undefined {
+  switch (requirement.kind) {
+    case "CONCEPT_DEFINITION":
+    case "CONTEXTUAL_FOLLOW_UP":
+      return "DEFINITION";
+    case "FORMULA":
+    case "FORMULA_WITH_SYMBOLS":
+      return "FORMULA";
+    case "SYMBOL_DEFINITION":
+      return "SYMBOL";
+    case "CALCULATION":
+      return "QUANTITY";
+    case "COMPARISON":
+      return "COMPARISON_SIDE";
+    case "MULTI_OPTION_COMPARISON":
+      return "QUANTITY";
+    case "RELATION_MECHANISM_CONSEQUENCE":
+      return requirement.requestedFacet === "CONSEQUENCE"
+        ? "CONSEQUENCE"
+        : "RELATION";
+    case "PROCESS_EXPLANATION":
+      return "PROCESS";
+    case "FACT_LOOKUP":
+      if (requirement.requestedFacet === "UNIT") return "UNIT";
+      if (requirement.requestedFacet === "CONDITION") return "CONDITION";
+      if (requirement.requestedFacet === "FORMULA") return "FORMULA";
+      return "EXPLICIT_FACT";
+    case "PROCEDURE_METHOD":
+      return "METHOD";
+    case "PASSAGE_INTERPRETATION":
+      return "PASSAGE_INTERPRETATION";
+    case "MULTI_PART":
+      return undefined;
+  }
+}
+
+function semanticKindForConceptFacet(
+  kind: SemanticComponent["kind"]
+): SemanticFacet | undefined {
+  switch (kind) {
+    case "FORMULA":
+    case "UNIT":
+    case "CONDITION":
+    case "METHOD":
+    case "PROCESS":
+    case "CONSEQUENCE":
+    case "DEFINITION":
+      return kind;
+    default:
+      return undefined;
+  }
+}
+
+function semanticComponentsForCapability(
+  capabilityId: string,
+  context: MatchContext
+): SemanticComponent[] {
+  const capability = context.educationalCapabilitiesById.get(capabilityId);
+  return capability?.semanticComponents ?? [];
+}
+
+function conflictComponentMatchesRequired(
+  required: SemanticComponent,
+  candidate: SemanticComponent
+): boolean {
+  if (
+    semanticComponentMatches(required, candidate) ||
+    semanticComponentRelationMatches(required, candidate)
+  ) {
+    return true;
+  }
+
+  const requiredRelation = semanticRelationFromComponent(required);
+  const candidateRelation = semanticRelationFromComponent(candidate);
+  if (
+    !relationKindsCompatible(
+      requiredRelation.relationKind,
+      candidateRelation.relationKind
+    )
+  ) {
+    return false;
+  }
+  if (
+    required.concept &&
+    !semanticConceptMatches(required.concept, candidate.concept)
+  ) {
+    return false;
+  }
+  if (required.symbol && required.symbol !== candidate.symbol) return false;
+  return true;
 }
 
 function valueConflictAppliesToRequirement(
@@ -2092,6 +2272,11 @@ function findUnitFactSupport(
     return formulaUnitSupports;
   }
 
+  const requestedSymbolUnitSupports = findRequestedSymbolUnitSupports(requirement, context);
+  if (requestedSymbolUnitSupports.length > 0) {
+    return requestedSymbolUnitSupports;
+  }
+
   const targetTexts = uniqueStrings(
     [
       ...requirement.targetConcepts,
@@ -2134,6 +2319,31 @@ function findUnitFactSupport(
   );
 }
 
+function findRequestedSymbolUnitSupports(
+  requirement: RequestRequirement,
+  context: MatchContext
+): CapabilitySupportRef[] {
+  const requestedSymbols = uniqueStrings(
+    (requirement.requiredSymbols ?? [])
+      .map((symbol) => normalizeSymbol(symbol)?.normalized)
+      .filter((symbol): symbol is string => Boolean(symbol))
+  );
+  if (requestedSymbols.length === 0) return [];
+
+  const matchingSymbols = context.symbols.filter(
+    (symbol) =>
+      symbol.polarity === "POSITIVE" &&
+      requestedSymbols.includes(symbol.symbol.normalized) &&
+      /\b(?:measured\s+in|unit|units|volts?|amperes?|amps?|ohms?|newtons?|metres?|meters?|seconds?|grams?|kilograms?)\b/i.test(
+        symbol.meaning ?? symbol.evidenceSpan.text
+      )
+  );
+  if (matchingSymbols.length === 0) return [];
+  return uniqueSupportRefs(
+    matchingSymbols.map((symbol) => supportRef(requirement.id, symbol.id, ["SYMBOL"]))
+  );
+}
+
 function findConditionFactSupport(
   requirement: RequestRequirement,
   context: MatchContext
@@ -2161,6 +2371,9 @@ function findConditionFactSupport(
       if (requestedHasConcreteCondition && conditionTextMatches(component.text ?? "", requested)) {
         return true;
       }
+      if (requestedHasConcreteCondition && conditionQuantityMatches(component.text ?? "", requested, targetIds)) {
+        return true;
+      }
       return targetIds.length === 0 && conditionTextMatches(component.text ?? "", requested);
     })
     .map((component) => component.sourceCapabilityId)
@@ -2180,6 +2393,9 @@ function findConditionFactSupport(
       ) {
         return true;
       }
+      if (requestedHasConcreteCondition && conditionQuantityMatches(combined, requested, targetIds)) {
+        return true;
+      }
       return conditionTextMatches(combined, requested);
     })
     .map((fact) => fact.id);
@@ -2188,6 +2404,24 @@ function findConditionFactSupport(
     uniqueStrings([...semanticSupports, ...factSupports]).map((id) =>
       supportRef(requirement.id, id, ["DEFINE", "FORMULA"])
     )
+  );
+}
+
+function conditionQuantityMatches(
+  candidateText: string,
+  requestedText: string,
+  targetIds: string[]
+): boolean {
+  const candidate = normalizedText(candidateText);
+  const requested = normalizedText(requestedText);
+  const targetText = targetIds.join(" ");
+  const asksHeight =
+    /\bheight\b/.test(requested) ||
+    /\bheight\b/.test(targetText.replace(/concept:/g, "").replace(/-/g, " "));
+  if (!asksHeight) return false;
+  return (
+    /\bheight\b/.test(candidate) &&
+    /\b(?:perpendicular|right angle|slanted|base)\b/.test(candidate)
   );
 }
 
@@ -2634,6 +2868,65 @@ function findBoundedProbabilityCalculationSupport(
       ? [supportRef(requirement.id, formula.id, ["CALCULATE", "FORMULA"])]
       : []),
     supportRef(requirement.id, event.id, ["CALCULATE"]),
+  ]);
+}
+
+function findRatioShareCalculationSupport(
+  requirement: RequestRequirement,
+  context: MatchContext
+): CapabilitySupportRef[] {
+  const requested = `${requirement.requestedFact ?? ""} ${requirement.constraints?.join(" ") ?? ""}`;
+  if (
+    requirement.kind !== "CALCULATION" ||
+    !/\bratio\s+share\s+calculation\b/i.test(requested)
+  ) {
+    return [];
+  }
+
+  const ratio = requested.match(/\b(\d+(?:\.\d+)?)\s*:\s*(\d+(?:\.\d+)?)\b/);
+  const total = requested.match(/\btotal\s+(\d+(?:\.\d+)?)\b/i)?.[1];
+  const matchingCapabilities = context.evidenceCapabilities.filter((capability) => {
+    const raw = capability.sourceContent.toLowerCase();
+    const normalized = normalizedText(capability.sourceContent);
+    const hasRatio = ratio
+      ? ratioEvidenceMatches(raw, ratio[1] ?? "", ratio[2] ?? "")
+      : /\bratio\b/.test(normalized);
+    const hasTotal = total
+      ? new RegExp(`\\b${escapeRegExp(total)}(?:\\.0+)?\\b`).test(raw) &&
+        /\b(?:total|learners?|pupils?|students?)\b/i.test(raw)
+      : /\btotal\b.{0,40}\d/.test(raw);
+    const hasAllocationMethod =
+      /\b(?:parts?|share|labelled|multiply|divide|boys?|girls?|group)\b/i.test(raw);
+    return hasRatio && hasTotal && hasAllocationMethod;
+  });
+
+  return uniqueSupportRefs(
+    matchingCapabilities.flatMap((capability) =>
+      capabilityIdsForEvidenceCapability(capability).map((id) =>
+        supportRef(requirement.id, id, ["CALCULATE", "PROCESS"])
+      )
+    )
+  );
+}
+
+function ratioEvidenceMatches(text: string, left: string, right: string): boolean {
+  const leftNumber = escapeRegExp(left);
+  const rightNumber = escapeRegExp(right);
+  return (
+    new RegExp(`\\b\\w[\\w -]{0,30}:\\w[\\w -]{0,30}\\s*(?:=|is)?\\s*${leftNumber}\\s*:\\s*${rightNumber}\\b`, "i").test(text) ||
+    new RegExp(`\\bratio\\b.{0,80}\\b${leftNumber}\\s*(?::|to)\\s*${rightNumber}\\b`, "i").test(text) ||
+    new RegExp(`\\b[A-Za-z][A-Za-z -]{0,30}\\s+(?:use|uses|are|is)\\s+${leftNumber}\\s+parts?\\b.{0,120}\\b[A-Za-z][A-Za-z -]{0,30}\\s+(?:use|uses|are|is)\\s+${rightNumber}\\s+parts?\\b`, "i").test(text)
+  );
+}
+
+function capabilityIdsForEvidenceCapability(capability: EvidenceCapability): string[] {
+  return uniqueStrings([
+    ...capability.formulas.map((item) => item.id),
+    ...capability.symbolDefinitions.map((item) => item.id),
+    ...capability.numericValues.map((item) => item.id),
+    ...capability.explicitFacts.map((item) => item.id),
+    ...capability.methods.map((item) => item.id),
+    ...capability.conceptDefinitions.map((item) => item.id),
   ]);
 }
 
