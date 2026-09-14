@@ -241,6 +241,8 @@ export function normalizeSemanticBaseConcept(
     .replace(/\b(?:ignore|bypass|override|disregard)\b.+?\b(?:sources?|evidence|citations?|resources?|context|instructions?)\b/g, " ")
     .replace(/\buse\s+source[_\s-]*\d+\b/g, " ")
     .replace(/\buse only the source label(?: the server gives you)?\b/g, " ")
+    .replace(/\b(?:in|with|as)\s+(?:short\s+)?(?:bullet\s+points?|bullets?|clear\s+steps?|simple\s+steps?)\b/g, " ")
+    .replace(/\b(?:clearly|briefly|neatly|simply)\b/g, " ")
     .replace(/\b(?:explain|teach|define|state|give|tell me|show me|help me understand|work through|walk me through|walk through|go through|what is|what are|what does|why is|why are|how does|how do|how to|show how to|calculate|work out|find|compare|contrast|differentiate|distinguish)\b/g, " ")
     .replace(/\b(?:formula|process|method|rule|rules|definition|meaning|concept|lesson|card|note|notes)\b/g, " ")
     .replace(/\s+and\s+(?:name|define|identify|explain)\s+(?:the\s+)?(?:variables?|symbols?)$/g, " ")
@@ -508,6 +510,11 @@ function constraintsSatisfied(constraints: string[], evidence: SemanticComponent
     const normalized = normalizeConceptText(constraint);
     if (normalized === "kinds mentioned") {
       return /\b(?:common|proper|types?|kinds?)\b/i.test(text);
+    }
+    if (normalized === "inputs") {
+      return /\b(?:inputs?|uses?|using|from|reactants?|materials?|light energy|carbon dioxide|water|oxygen|glucose)\b/i.test(
+        text
+      );
     }
     return semanticTextMatches(text, constraint);
   });
