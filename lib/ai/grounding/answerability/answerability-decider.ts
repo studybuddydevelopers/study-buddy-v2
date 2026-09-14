@@ -33,9 +33,14 @@ import type {
 import {
   conditionTextMatches,
   semanticComponentMatches,
+  semanticConceptMatches,
   canonicalizeSemanticConcept,
   type SemanticComponent,
 } from "../semantic-concepts";
+import {
+  formulaContextKey,
+  semanticComponentRelationMatches,
+} from "../semantic-relations";
 import type {
   AnswerabilityDecision,
   AnswerabilityRefusalReason,
@@ -336,7 +341,28 @@ function findEvidenceSemanticComponent(
     ) {
       return false;
     }
-    if (semanticComponentMatches(requiredComponent, candidate)) return true;
+    if (
+      requiredComponent.kind === "PROCESS" &&
+      candidate.kind === "RELATION" &&
+      !hasProcessMechanismText(candidate.text)
+    ) {
+      return false;
+    }
+    if (
+      requiredComponent.kind === "DEFINITION" &&
+      candidate.kind === "PROCESS" &&
+      requiredComponent.concept &&
+      semanticConceptMatches(requiredComponent.concept, candidate.concept) &&
+      hasProcessMechanismText(candidate.text)
+    ) {
+      return true;
+    }
+    if (
+      semanticComponentMatches(requiredComponent, candidate) ||
+      semanticComponentRelationMatches(requiredComponent, candidate)
+    ) {
+      return true;
+    }
     if (
       requiredComponent.kind === "COMPARISON_SIDE" &&
       requiredComponent.concept &&
@@ -845,12 +871,37 @@ function evaluateProcessRequirement(
 function findDefinitionProcessFallback(
   requirement: RequestRequirement,
   context: MatchContext
-): CapabilityFact | undefined {
+): { id: string } | undefined {
   const targetIds = canonicalTargetIds(requirement, context.request);
-  if (!targetIds.includes("current")) return undefined;
-  return requirement.targetConcepts
-    .map((target) => findDefinitionForConcept(target, context))
-    .find(Boolean);
+  const component = context.semanticComponents.find((candidate) => {
+    if (!candidate.sourceCapabilityId) return false;
+    if (!["PROCESS", "METHOD", "RELATION"].includes(candidate.kind)) {
+      return false;
+    }
+    if (candidate.kind === "RELATION" && !hasProcessMechanismText(candidate.text)) {
+      return false;
+    }
+    if (targetIds.length === 0) return false;
+    return Boolean(
+      candidate.concept && targetIds.includes(candidate.concept.baseConcept)
+    );
+  });
+  if (component?.sourceCapabilityId) {
+    return { id: component.sourceCapabilityId };
+  }
+
+  return context.definitions.find(
+    (definition) =>
+      definition.polarity === "POSITIVE" &&
+      targetIds.includes(definition.canonicalConcept.id) &&
+      definition.semanticComponents?.some((candidate) => candidate.kind === "PROCESS")
+  );
+}
+
+function hasProcessMechanismText(value: string | undefined): boolean {
+  return /\b(?:process\s+by\s+which|happens?\s+when|uses?\s+.+?\s+to|changes?\s+.+?\s+(?:into|to)|converts?\s+.+?\s+(?:into|to)|produces?|forms?|transfers?|moves?|passes?|separates?)\b/i.test(
+    value ?? ""
+  );
 }
 
 function evaluateFactLookupRequirement(
@@ -1127,6 +1178,17 @@ function findRelevantConflicts(
   return context.conflicts
     .filter((conflict) => {
       if (
+        conflict.conflictType === "VALUE_CONFLICT" &&
+        valueConflictAppliesToRequirement(
+          conflict.scopeKey,
+          requirement,
+          targetIds,
+          normalizedSymbols
+        )
+      ) {
+        return true;
+      }
+      if (
         conflict.conflictType === "DEFINITION_CONFLICT" &&
         (targetIds.some((target) => conflict.scopeKey === `definition:${target}`) ||
           (isFormulaRequirement(requirement) &&
@@ -1180,6 +1242,70 @@ function findRelevantConflicts(
       return false;
     })
     .map((conflict) => conflict.id);
+}
+
+function valueConflictAppliesToRequirement(
+  scopeKey: string,
+  requirement: RequestRequirement,
+  targetIds: string[],
+  normalizedSymbols: string[]
+): boolean {
+  if (scopeKey.startsWith("value:definition:")) {
+    return targetIds.some((target) => scopeKey === `value:definition:${target}`);
+  }
+
+  if (scopeKey.startsWith("value:unit:")) {
+    return isUnitRequirement(requirement) &&
+      targetIds.some((target) => scopeKey === `value:unit:${target}`);
+  }
+
+  if (scopeKey.startsWith("value:symbol:")) {
+    if (
+      !["SYMBOL_DEFINITION", "FORMULA_WITH_SYMBOLS", "FORMULA"].includes(
+        requirement.kind
+      )
+    ) {
+      return false;
+    }
+    if (!normalizedSymbols.some((symbol) => scopeKey.startsWith(`value:symbol:${symbol}:`))) {
+      return false;
+    }
+    const formulaContext = normalizeFormulaContext(requirement.formulaContext);
+    return !formulaContext || scopeKey.includes(`:formula:${formulaContext}`);
+  }
+
+  if (scopeKey.startsWith("value:condition:")) {
+    return isConditionRequirement(requirement) &&
+      targetIds.some((target) => scopeKey === `value:condition:${target}`);
+  }
+
+  return false;
+}
+
+function isUnitRequirement(requirement: RequestRequirement): boolean {
+  return (
+    requirement.requestedFacet === "UNIT" ||
+    (requirement.requiredSemanticComponents ?? []).some(
+      (component) => component.kind === "UNIT"
+    ) ||
+    /\b(?:units?|measured in)\b/i.test(requirement.requestedFact ?? "")
+  );
+}
+
+function isConditionRequirement(requirement: RequestRequirement): boolean {
+  return (
+    requirement.requestedFacet === "CONDITION" ||
+    (requirement.requiredSemanticComponents ?? []).some(
+      (component) => component.kind === "CONDITION"
+    ) ||
+    /\b(?:conditions?|applicability|valid when|right angle|perpendicular)\b/i.test(
+      `${requirement.requestedRelation ?? ""} ${requirement.requestedFact ?? ""}`
+    )
+  );
+}
+
+function normalizeFormulaContext(context: string | undefined): string | undefined {
+  return formulaContextKey(context);
 }
 
 function formulaConflictScopeMatches(scopeKey: string, target: string): boolean {
@@ -1677,27 +1803,7 @@ function formulaMatchesExplicitContext(
 }
 
 function normalizeFormulaExpressionForMatch(value: string): string {
-  return value
-    .toLowerCase()
-    .replace(/[’']/g, "'")
-    .replace(/π/g, "pi")
-    .replace(/[×·]/g, " * ")
-    .replace(/[÷]/g, " / ")
-    .replace(/[^a-z0-9\u0370-\u03ff=/*+\-²³\s]/g, " ")
-    .replace(/\s+/g, " ")
-    .trim()
-    .replace(/\brho\b/g, "ρ")
-    .replace(/\blambda\b/g, "λ")
-    .replace(/\btheta\b/g, "θ")
-    .replace(/\balpha\b/g, "α")
-    .replace(/\bbeta\b/g, "β")
-    .replace(/\bgamma\b/g, "γ")
-    .replace(/\bpi\b/g, "π")
-    .replace(/\bdelta\b/g, "δ")
-    .replace(/\s*\b(?:x|times|multiply|multiplied by)\b\s*/g, "*")
-    .replace(/\s*(?:\b(?:over|divided by)\b|\/)\s*/g, "/")
-    .replace(/\s*=\s*/g, "=")
-    .replace(/\s+/g, "");
+  return formulaContextKey(value) ?? "";
 }
 
 function formulaSideTerms(value: string): string[] {
@@ -2509,13 +2615,12 @@ function findBoundedProbabilityCalculationSupport(
 
   const event = findEventFact(requirement, context);
   const countSupport = findBoundedProbabilityCountSupport(context);
-  if (!formula) {
-    return [];
-  }
 
   if (countSupport) {
     return uniqueSupportRefs([
-      supportRef(requirement.id, formula.id, ["CALCULATE", "FORMULA"]),
+      ...(formula
+        ? [supportRef(requirement.id, formula.id, ["CALCULATE", "FORMULA"])]
+        : []),
       supportRef(requirement.id, countSupport.favourable.id, ["CALCULATE"]),
       supportRef(requirement.id, countSupport.total.id, ["CALCULATE"]),
     ]);
@@ -2525,7 +2630,9 @@ function findBoundedProbabilityCalculationSupport(
     return [];
   }
   return uniqueSupportRefs([
-    supportRef(requirement.id, formula.id, ["CALCULATE", "FORMULA"]),
+    ...(formula
+      ? [supportRef(requirement.id, formula.id, ["CALCULATE", "FORMULA"])]
+      : []),
     supportRef(requirement.id, event.id, ["CALCULATE"]),
   ]);
 }
