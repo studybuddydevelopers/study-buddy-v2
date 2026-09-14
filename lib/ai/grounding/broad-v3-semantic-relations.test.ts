@@ -310,6 +310,10 @@ describe("Stage 4.1 broad-property v3 semantic relation normalization", () => {
       "In R = V / I, what does R mean?",
       "A = pi r^2, where r is radius."
     );
+    expectInsufficient(
+      "What is speed according to the motion card?",
+      "Velocity is speed in a stated direction. Changing direction changes velocity even when speed stays the same."
+    );
   });
 });
 
