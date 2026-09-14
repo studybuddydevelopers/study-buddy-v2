@@ -31,11 +31,22 @@ export function logSecurityEvent(
 
 /** Stable pseudonym for grouping abuse without putting raw identifiers in logs. */
 export function securityFingerprint(value: string) {
+  return securityIdentifierHash(value).slice(0, 24);
+}
+
+/**
+ * Stable keyed identifier used for equality lookups without duplicating a raw
+ * email address in the application database. Keep RATE_LIMIT_HASH_SECRET stable
+ * and re-run the documented backfill after rotating it.
+ */
+export function securityIdentifierHash(value: string) {
   const normalized = value.trim().toLowerCase();
   const secret = process.env.RATE_LIMIT_HASH_SECRET;
-  const digest = secret
+  if (!secret && process.env.NODE_ENV === "production") {
+    throw new Error("RATE_LIMIT_HASH_SECRET is required in production.");
+  }
+
+  return secret
     ? createHmac("sha256", secret).update(normalized).digest("hex")
     : createHash("sha256").update(normalized).digest("hex");
-
-  return digest.slice(0, 24);
 }
