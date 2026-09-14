@@ -2936,8 +2936,9 @@ function findRatioShareCalculationSupport(
   const ratio = requested.match(/\b(\d+(?:\.\d+)?)\s*:\s*(\d+(?:\.\d+)?)\b/);
   const total = requested.match(/\btotal\s+(\d+(?:\.\d+)?)\b/i)?.[1];
   const matchingCapabilities = context.evidenceCapabilities.filter((capability) => {
-    const raw = capability.sourceContent.toLowerCase();
-    const normalized = normalizedText(capability.sourceContent);
+    const sourceContent = capability.sourceContent ?? "";
+    const raw = sourceContent.toLowerCase();
+    const normalized = normalizedText(sourceContent);
     const hasRatio = ratio
       ? ratioEvidenceMatches(raw, ratio[1] ?? "", ratio[2] ?? "")
       : /\bratio\b/.test(normalized);
