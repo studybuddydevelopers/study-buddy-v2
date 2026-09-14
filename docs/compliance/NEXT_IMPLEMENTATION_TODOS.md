@@ -200,33 +200,42 @@ is first exceeded. The email must say that someone made several reset requests,
 ask whether it was the owner, and offer a secure way to temporarily lock the
 account. It must not state that compromise definitely occurred.
 
-- [ ] Trigger the alert only for an existing, verified account and only on the
+- [x] Trigger the alert only for an existing, verified account and only on the
   first account-scoped rejection in a rate-limit window. Keep the public API
   status, response body, timing, and redirect behaviour indistinguishable for
   existing and nonexistent accounts.
-- [ ] Add a separate alert cooldown and daily cap so an attacker cannot use the
+- [x] Add a separate alert cooldown and daily cap so an attacker cannot use the
   password-reset form to flood a victim's inbox. An IP-only limit must not send
   alerts to every submitted address.
-- [ ] Send the alert asynchronously through the approved transactional-email
+- [x] Send the alert asynchronously through the approved transactional-email
   provider. Do not include passwords, reset tokens, full IP addresses, or other
   sensitive diagnostics in the email or application logs.
-- [ ] Use calm wording: “Someone made several password-reset requests for your
+- [x] Use calm wording: “Someone made several password-reset requests for your
   Study Buddy account. If this was you, no action is needed.” Include the time
   and an approximate location only if both are accurate and privacy-approved.
-- [ ] Add a short-lived, single-use, cryptographically random lock-review token;
+- [x] Add a short-lived, single-use, cryptographically random lock-review token;
   store only its hash and never log the token or complete link.
-- [ ] Make the email link open a review/confirmation page. Require an explicit
+- [x] Make the email link open a review/confirmation page. Require an explicit
   POST confirmation before locking so email-security scanners and link-preview
   bots cannot change account state merely by opening the link.
-- [ ] Decide and document the temporary-lock duration and recovery route. The
-  lock must revoke active sessions, block new sign-ins and sensitive actions,
-  preserve the account's data, and provide a verified way to unlock or obtain
-  support without weakening password-reset protections.
-- [ ] Record privacy-safe audit events for alert requested/sent/suppressed,
+- [x] Use the approved 24-hour provider lock. Confirmation replaces the old
+  password with an unknown random value so Supabase revokes existing sessions,
+  and the application remains restricted until verified password recovery is
+  completed. The post-lock email provides a single-use early-recovery route;
+  after 24 hours the ordinary forgot-password route or verified support remains
+  available. The account's data is preserved throughout, and the recovery path
+  does not weaken the password-reset protections.
+- [x] Record privacy-safe audit events for alert requested/sent/suppressed,
   lock confirmed, sessions revoked, unlock, expiry, and delivery failure.
-- [ ] Test account-enumeration resistance, concurrent threshold crossings,
-  cooldown enforcement, email bombing, expired/reused tokens, scanner GETs,
-  CSRF, session revocation, restricted-account states, and recovery.
+- [x] Add automated coverage for unknown and unverified accounts, first
+  account-scoped versus IP-only rejection, cooldown/email bombing, token
+  format and reuse handling, explicit POST, CSRF, restricted authenticated
+  sessions, recovery and provider-lock expiry.
+- [ ] After applying the migration and fingerprint backfill, run a production
+  integration exercise with a disposable verified account. Confirm actual
+  Resend delivery, Supabase session revocation, old-password rejection,
+  same-browser and cross-device recovery, 24-hour provider-ban expiry, and
+  privacy-safe logs before marking the operational control complete.
 
 Acceptance criteria:
 
