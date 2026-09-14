@@ -23,6 +23,7 @@ export const STAGE41_CAPABILITY_BEHAVIOR_FILE_PATHS = [
   "lib/ai/grounding/requirements/request-requirement-extractor.ts",
   "lib/ai/grounding/requirements/types.ts",
   "lib/ai/grounding/semantic-concepts.ts",
+  "lib/ai/grounding/semantic-relations.ts",
   "lib/ai/grounding/structured-output.ts",
   "lib/ai/grounding/task-output.ts",
   "lib/ai/grounding/validation/narrow-grounding-validator.ts",
