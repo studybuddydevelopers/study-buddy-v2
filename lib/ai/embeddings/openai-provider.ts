@@ -8,6 +8,11 @@ import {
 import { EmbeddingProviderError } from "./errors";
 import type { EmbeddingProvider } from "./types";
 
+type OpenAIEmbeddingResponseItem = {
+  embedding?: unknown;
+  index?: unknown;
+};
+
 export interface OpenAIEmbeddingProviderOptions {
   apiKey?: string;
   model?: string;
@@ -45,7 +50,11 @@ export class OpenAIEmbeddingProvider implements EmbeddingProvider {
         }),
         readActualTokens: (result) => result.usage?.total_tokens,
       });
-      return response.data.map((item) => item.embedding);
+      return orderedEmbeddingsFromResponse(
+        response.data,
+        texts.length,
+        this.dimensions
+      );
     } catch (error) {
       throw mapOpenAIEmbeddingError(error);
     }
@@ -75,7 +84,53 @@ function readPositiveInt(value: string | undefined, fallback: number) {
   return Number.isInteger(parsed) && parsed > 0 ? parsed : fallback;
 }
 
+export function orderedEmbeddingsFromResponse(
+  data: OpenAIEmbeddingResponseItem[],
+  expectedCount: number,
+  expectedDimensions: number
+) {
+  if (data.length !== expectedCount) {
+    throw new EmbeddingProviderError("PROVIDER_ERROR");
+  }
+
+  const ordered = new Array<number[]>(expectedCount);
+  const seen = new Set<number>();
+
+  for (const item of data) {
+    const index = item.index;
+    if (
+      !Number.isInteger(index) ||
+      typeof index !== "number" ||
+      index < 0 ||
+      index >= expectedCount ||
+      seen.has(index)
+    ) {
+      throw new EmbeddingProviderError("PROVIDER_ERROR");
+    }
+
+    const embedding = item.embedding;
+    if (
+      !Array.isArray(embedding) ||
+      embedding.length !== expectedDimensions ||
+      !embedding.every((value) => typeof value === "number" && Number.isFinite(value))
+    ) {
+      throw new EmbeddingProviderError("PROVIDER_ERROR");
+    }
+
+    ordered[index] = embedding;
+    seen.add(index);
+  }
+
+  if (ordered.some((embedding) => !embedding)) {
+    throw new EmbeddingProviderError("PROVIDER_ERROR");
+  }
+
+  return ordered;
+}
+
 function mapOpenAIEmbeddingError(error: unknown) {
+  if (error instanceof EmbeddingProviderError) return error;
+
   if (error instanceof GlobalAiBudgetExceededError) {
     return new EmbeddingProviderError("RATE_LIMITED");
   }
