@@ -637,6 +637,44 @@ describe("Stage 4.1 evidence capability mutation properties", () => {
     expect(capability.formulas[0]?.normalizedExpression).toBe(normalizedExpression);
   });
 
+  it("binds simple-interest numeric symbols to canonical quantity roles", () => {
+    const capability = extract(
+      "Simple interest formula: I = P x R x T / 100. P is 600, R is 5 percent, and T is 2 years."
+    );
+
+    expect(
+      capability.numericValues.map((numeric) => [
+        numeric.quantity,
+        numeric.canonicalConcept?.id,
+        numeric.value,
+        numeric.unit,
+      ])
+    ).toEqual(
+      expect.arrayContaining([
+        ["principal", "principal", 600, undefined],
+        ["rate", "rate", 5, "percent"],
+        ["time", "time", 2, "years"],
+      ])
+    );
+  });
+
+  it("carries pronoun unit definitions back to the previous concept", () => {
+    const capability = extract(
+      "Voltage is potential difference. It is measured in volts."
+    );
+
+    expect(
+      capability.conceptDefinitions.map((definition) => [
+        definition.canonicalConcept.id,
+        definition.definitionText,
+      ])
+    ).toEqual(
+      expect.arrayContaining([
+        ["voltage", "unit volts"],
+      ])
+    );
+  });
+
   it("normalizes supported symbol display forms without unbounded notation", () => {
     expect(normalizeSymbol("λ")).toEqual({ display: "λ", normalized: "λ" });
     expect(normalizeSymbol("lambda")).toEqual({ display: "lambda", normalized: "λ" });
