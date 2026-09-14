@@ -138,6 +138,55 @@ describe("Stage 4.1 evidence capability extraction", () => {
     ]);
   });
 
+  it("extracts compact symbol unit clauses as formula-local symbol capabilities", () => {
+    const capability = extract(
+      "Ohm's law is V = I x R. V is measured in volts, I in amperes, and R in ohms."
+    );
+
+    expect(capability.formulas).toHaveLength(1);
+    expect(capability.symbolDefinitions.map((symbol) => [
+      symbol.symbol.normalized,
+      symbol.meaning,
+      symbol.formulaContext?.normalizedExpression,
+    ])).toEqual([
+      ["v", "measured in volts", "v=i*r"],
+      ["i", "measured in amperes", "v=i*r"],
+      ["r", "measured in ohms", "v=i*r"],
+    ]);
+  });
+
+  it("extracts list-style quantity units without requiring symbol wording", () => {
+    const capability = extract(
+      "For V = I x R: voltage uses volts; current uses amperes; resistance uses ohms."
+    );
+
+    expect(capability.formulas[0]?.normalizedExpression).toBe("v=i*r");
+    expect(capability.conceptDefinitions.map((definition) => [
+      definition.canonicalConcept.id,
+      definition.definitionText,
+      definition.semanticComponents?.map((component) => component.kind),
+    ])).toEqual([
+      ["voltage", "unit volts", expect.arrayContaining(["UNIT"])],
+      ["current", "unit amperes", expect.arrayContaining(["UNIT"])],
+      ["resistance", "unit ohms", expect.arrayContaining(["UNIT"])],
+    ]);
+  });
+
+  it("extracts unit-of-symbol clauses as scoped symbol unit capabilities", () => {
+    const capability = extract(
+      "In Ohm's law, the unit of V is volt, the unit of I is ampere, and the unit of R is ohm."
+    );
+
+    expect(capability.symbolDefinitions.map((symbol) => [
+      symbol.symbol.normalized,
+      symbol.meaning,
+    ])).toEqual([
+      ["v", "measured in volt"],
+      ["i", "measured in ampere"],
+      ["r", "measured in ohm"],
+    ]);
+  });
+
   it("extracts local symbol definitions without bleeding to nearby symbols", () => {
     const capability = extract("R means resistance. q is not defined.");
 
@@ -381,6 +430,23 @@ describe("Stage 4.1 evidence capability extraction", () => {
       resourceChunkIds: ["definition-a", "definition-b"],
       sourceLabels: ["SOURCE_1", "SOURCE_2"],
     });
+  });
+
+  it("does not represent connector-only equivalent definitions as conflicts", () => {
+    const capabilities = extractEvidenceCapabilities({
+      chunks: [
+        chunk("Osmosis is movement of water across a partially permeable membrane.", {
+          resourceChunkId: "definition-a",
+          sourceLabel: "SOURCE_1",
+        }),
+        chunk("Osmosis means movement of water through a partially permeable membrane.", {
+          resourceChunkId: "definition-b",
+          sourceLabel: "SOURCE_2",
+        }),
+      ],
+    });
+
+    expect(detectCapabilityConflicts(capabilities)).toEqual([]);
   });
 
   it("represents genuine formula conflicts", () => {
