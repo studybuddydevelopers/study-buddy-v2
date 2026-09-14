@@ -10,8 +10,11 @@ import {
 } from "@/lib/security/rate-limit";
 import { fetchWithTimeout } from "@/lib/security/timeouts";
 import { accountStatusDestination } from "@/lib/account-status";
+import { passwordResetSecurityRestrictionIsActive } from "@/lib/password-reset-security";
 
-export async function requireAuthenticatedUser() {
+export async function requireAuthenticatedUser(
+  options: { allowPasswordResetSecurityRecovery?: boolean } = {}
+) {
   const requestHeaders = await headers();
   const ipLimitResponse = await enforceRequestIpRateLimit(requestHeaders);
   if (ipLimitResponse) return { errorResponse: ipLimitResponse };
@@ -50,6 +53,7 @@ export async function requireAuthenticatedUser() {
 
   const dbUser = await prisma.user.findUnique({
     where: { id: user.id },
+    include: { passwordResetSecurityState: true },
   });
 
   if (!dbUser) {
@@ -57,6 +61,25 @@ export async function requireAuthenticatedUser() {
       errorResponse: NextResponse.json(
         { error: "User record not found" },
         { status: 403 }
+      ),
+    };
+  }
+
+  if (
+    !options.allowPasswordResetSecurityRecovery &&
+    passwordResetSecurityRestrictionIsActive(
+      dbUser.passwordResetSecurityState
+    )
+  ) {
+    return {
+      errorResponse: NextResponse.json(
+        {
+          error: "ACCOUNT_SECURITY_LOCKED",
+          message:
+            "This account is locked for security. Use the newest recovery email or contact security@studybuddyng.com.",
+          nextPath: "/forgot-password",
+        },
+        { status: 423, headers: { "Cache-Control": "no-store" } }
       ),
     };
   }
