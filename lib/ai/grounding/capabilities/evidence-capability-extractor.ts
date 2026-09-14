@@ -26,6 +26,7 @@ import type {
   UnsafeContentType,
 } from "./types";
 import {
+  canonicalizeConditionText,
   canonicalizeConcept as sharedCanonicalizeConcept,
   canonicalizeSemanticConcept,
   canonicalizeUnitExpression,
@@ -167,6 +168,7 @@ export function detectCapabilityConflicts(
   capabilities: EvidenceCapability[]
 ): ConflictCapability[] {
   const candidates = [
+    ...detectSemanticValueConflicts(capabilities),
     ...detectDefinitionConflicts(capabilities),
     ...detectFormulaConflicts(capabilities),
     ...detectNumericConflicts(capabilities),
@@ -304,6 +306,26 @@ function extractConceptDefinitions(
     ];
   }
 
+  const negatedDefinition =
+    text.match(/^(?:(?:an|a|the)\s+)?(.+?)\s+(?:is|are)\s+not\s+(.+)$/i) ??
+    text.match(/^(?:(?:an|a|the)\s+)?(.+?)\s+(?:does|do)\s+not\s+(?:mean|refer to)\s+(.+)$/i);
+  if (negatedDefinition && !isFormulaLike(text) && !isSymbolDefinitionSentence(text)) {
+    const concept = cleanConcept(negatedDefinition[1] ?? "");
+    const definitionText = cleanMeaning(negatedDefinition[2] ?? "");
+    if (concept && definitionText && !/^(?:defined|given|provided|stated|explained)(?:\s+here)?$/i.test(definitionText)) {
+      return [
+        createConceptDefinition({
+          state,
+          span: sentence,
+          concept,
+          definitionText,
+          polarity: "NEGATED",
+          confidence: "HIGH",
+        }),
+      ];
+    }
+  }
+
   const formulaBackedDefinition = text.match(
     /^(?:(?:an|a|the)\s+)?(.+?)\s+(?:is|are|means|refers to)\s+([^:=]+?)\s*:\s*.+?=.+$/i
   );
@@ -344,10 +366,12 @@ function extractConceptDefinitions(
     }
   }
 
+  if (isInfinitiveMethodSentence(text)) return [];
+
   const definitionMatch =
     text.match(/^(?:(?:an|a|the)\s+)?(.+?)\s+(?:is|are|means|refers to)\s+(.+)$/i) ??
     text.match(/^(?:(?:an|a|the)\s+)?(.+?)\s+(shows?)\s+how\s+(.+)$/i) ??
-    text.match(/^(?:(?:an|a|the)\s+)?(.+?)\s+(shows?|compares|describes|explains?|proves?|gives?|uses?|produces?|forms?|makes?|separates?)\s+(.+)$/i);
+    text.match(/^(?:(?:an|a|the)\s+)?(.+?)\s+(shows?|compares|describes|explains?|proves?|gives?|uses?|names?|produces?|forms?|makes?|separates?)\s+(.+)$/i);
   if (!definitionMatch) return [];
   if (isFormulaLike(text) || isSymbolDefinitionSentence(text)) return [];
 
@@ -425,6 +449,12 @@ function extractFormulas(
 
   return dedupeBy(formulas, (formula) =>
     `${formula.canonicalConcept?.id ?? ""}:${formula.outputQuantity ?? ""}:${formula.normalizedExpression}`
+  );
+}
+
+function isInfinitiveMethodSentence(text: string): boolean {
+  return /^\s*to\s+(?:find|calculate|work\s+out|compute|determine|make|create|form)\b.+,\s*.+/i.test(
+    text
   );
 }
 
@@ -563,6 +593,16 @@ function extractNaturalLanguageFormulas(
       right: divided[2] ?? "",
       raw: divided[0] ?? sentence.text,
       start: divided.index,
+    });
+  }
+
+  const equals = sentence.text.match(/\b(.+?)\s+equals?\s+(.+?\b(?:divided by|multiplied by|times|plus|minus|over|per|added to|subtracted from)\b.+)$/i);
+  if (equals?.index !== undefined) {
+    candidates.push({
+      concept: cleanFormulaConceptCandidate(equals[1] ?? ""),
+      right: equals[2] ?? "",
+      raw: equals[0] ?? sentence.text,
+      start: equals.index,
     });
   }
 
@@ -913,6 +953,51 @@ function extractExplicitFacts(
     }
   }
 
+  const usedNotSlantedCondition = text.match(
+    /\b(?:the\s+)?(.+?\b(?:height|base|side|value|input)\b)\s+is\s+used,\s+not\s+(?:an?\s+)?(.+?)$/i
+  );
+  if (usedNotSlantedCondition && !isFormulaLike(text)) {
+    const quantity = cleanConcept(usedNotSlantedCondition[1] ?? "");
+    const scopedConcept = state.lastSemanticTarget ?? quantity;
+    if (quantity && scopedConcept) {
+      facts.push(
+        createExplicitFact({
+          state,
+          span: sentence,
+          factKey: `${scopedConcept} ${quantity} condition`,
+          factText: text,
+          concept: scopedConcept,
+          polarity: "POSITIVE",
+        })
+      );
+    }
+  }
+
+  const validWhenCondition =
+    text.match(/\b(?:the\s+)?formula\s+is\s+valid\s+when\s+(.+)$/i) ??
+    text.match(/\b(.+?)\s+is\s+valid\s+when\s+(.+)$/i);
+  if (validWhenCondition && !isFormulaLike(text)) {
+    const conditionText =
+      validWhenCondition.length >= 3
+        ? `${validWhenCondition[1] ?? ""} valid when ${validWhenCondition[2] ?? ""}`
+        : text;
+    const scopedConcept =
+      state.lastSemanticTarget ??
+      cleanConcept(validWhenCondition.length >= 3 ? validWhenCondition[1] ?? "" : "");
+    if (scopedConcept) {
+      facts.push(
+        createExplicitFact({
+          state,
+          span: sentence,
+          factKey: `${scopedConcept} condition`,
+          factText: conditionText,
+          concept: scopedConcept,
+          polarity: "POSITIVE",
+        })
+      );
+    }
+  }
+
   const imperativeCondition = text.match(
     /\buse\s+(.+?\b(?:height|base|side|value|input)\b.+)$/i
   );
@@ -1009,9 +1094,9 @@ function extractMethods(
     text.match(/\b(.+?)\s+method\s*:\s*(.+)$/i),
     text.match(/\b(.+?)\s+can\s+be\s+(?:solved|found|calculated|worked\s+out|balanced|separated|prepared|made|done)\s+by\s+(.+)$/i),
     text.match(/\b(.+?)\s+(?:is|are)\s+(?:found|calculated|worked\s+out)\s+by\s+(.+)$/i),
-    text.match(/\bto\s+(?:find|calculate|work\s+out|compute|determine)\s+(?:the\s+)?(.+?),\s*(.+)$/i),
+    text.match(/\bto\s+(?:find|calculate|work\s+out|compute|determine|make|create|form)\s+(?:the\s+|an?\s+)?(.+?),\s*(.+)$/i),
     text.match(/\b(.+?)\s+can\s+((?:recover|separate|remove|filter|extract|collect|produce|form|make)\b.+)$/i),
-    text.match(/\bfor\s+(.+?),\s*(.+?\b(?:subtract|add|divide|multiply|balance|filter|heat|cool|apply|remove|separate|mix|measure|solve)\b.+)$/i),
+    text.match(/\bfor\s+(.+?),\s*(.+?\b(?:subtract|add|divide|multiply|scale|balance|filter|heat|cool|apply|remove|separate|mix|measure|solve)\b.+)$/i),
     text.match(/\b(.+?)\s+(?:is|are)\s+made\s+by\s+(.+)$/i),
     text.match(/\b((?:find|calculate|work\s+out)\s+.+?\bfirst\b.+?\bthen\b.+)$/i)
       ? ["", state.lastSemanticTarget ?? "worked example", text] as unknown as RegExpMatchArray
@@ -1225,6 +1310,7 @@ function extractProcessFacts(
 
   const match =
     sentence.text.match(/\b(.+?)\s+is\s+the\s+process\s+by\s+which\s+(.+)$/i) ??
+    sentence.text.match(/\b(.+?)\s+happens?\s+when\s+(.+)$/i) ??
     sentence.text.match(/\b(.+?)\s+uses\s+(.+?)\s+to\s+(.+)$/i) ??
     sentence.text.match(/\b(.+?)\s+separates\s+(.+)$/i);
   if (!match) {
@@ -1382,6 +1468,208 @@ function isNonDefinitionalFacetDefinition(definition: CapabilityFact): boolean {
   const normalized = normalizedMeaning(`${definition.definitionText} ${definition.evidenceSpan.text}`);
   return /\b(?:unit|units|measured in|purpose|used for|limitation|condition|perpendicular|right angle)\b/.test(
     normalized
+  );
+}
+
+type SemanticValueAssertion = ConflictCandidate & {
+  relationIdentity: string;
+  semanticScope: string;
+  value: string;
+  polarity: CapabilityPolarity;
+};
+
+function detectSemanticValueConflicts(
+  capabilities: EvidenceCapability[]
+): Array<Omit<ConflictCapability, "id">> {
+  const grouped = new Map<string, SemanticValueAssertion[]>();
+
+  for (const assertion of collectSemanticValueAssertions(capabilities)) {
+    const key = `value:${assertion.relationIdentity}:${assertion.semanticScope}`;
+    grouped.set(key, [...(grouped.get(key) ?? []), assertion]);
+  }
+
+  return buildPairwiseConflicts(grouped, "VALUE_CONFLICT", semanticValuesConflict);
+}
+
+function collectSemanticValueAssertions(
+  capabilities: EvidenceCapability[]
+): SemanticValueAssertion[] {
+  return capabilities.flatMap((capability) => [
+    ...definitionValueAssertions(capability),
+    ...unitValueAssertions(capability),
+    ...symbolValueAssertions(capability),
+    ...conditionValueAssertions(capability),
+  ]);
+}
+
+function definitionValueAssertions(
+  capability: EvidenceCapability
+): SemanticValueAssertion[] {
+  return capability.conceptDefinitions.flatMap((definition) => {
+    if (definition.polarity === "ABSENT") return [];
+    if (definition.polarity === "POSITIVE") return [];
+    if (isNonDefinitionalFacetDefinition(definition)) return [];
+    if (isAbsenceOnlyDefinition(definition)) return [];
+    const value = normalizedMeaning(definition.definitionText);
+    if (!value) return [];
+    return [
+      semanticValueAssertion({
+        capability: definition,
+        relationIdentity: "definition",
+        semanticScope: definition.canonicalConcept.id,
+        value,
+        polarity: definition.polarity,
+      }),
+    ];
+  }).concat(
+    capability.conceptDefinitions
+      .filter(
+        (definition) =>
+          definition.polarity === "POSITIVE" &&
+          !isNonDefinitionalFacetDefinition(definition) &&
+          !isAbsenceOnlyDefinition(definition)
+      )
+      .map((definition) =>
+        semanticValueAssertion({
+          capability: definition,
+          relationIdentity: "definition",
+          semanticScope: definition.canonicalConcept.id,
+          value: normalizedMeaning(definition.definitionText),
+          polarity: definition.polarity,
+        })
+      )
+  );
+}
+
+function unitValueAssertions(capability: EvidenceCapability): SemanticValueAssertion[] {
+  return capability.conceptDefinitions.flatMap((definition) => {
+    if (definition.polarity !== "POSITIVE") return [];
+    if (!definitionHasFacet(definition, "UNIT")) return [];
+    const unit = canonicalizeUnitExpression(
+      definition.definitionText.replace(/^unit\s+/i, "")
+    )?.canonical;
+    if (!unit) return [];
+    return [
+      semanticValueAssertion({
+        capability: definition,
+        relationIdentity: "unit",
+        semanticScope: definition.canonicalConcept.id,
+        value: unit,
+        polarity: definition.polarity,
+      }),
+    ];
+  });
+}
+
+function symbolValueAssertions(
+  capability: EvidenceCapability
+): SemanticValueAssertion[] {
+  return capability.symbolDefinitions.flatMap((symbol) => {
+    if (symbol.polarity !== "POSITIVE" || !symbol.meaning) return [];
+    const scope = symbol.formulaContext
+      ? `formula:${symbol.formulaContext.normalizedExpression}`
+      : "unscoped";
+    return [
+      semanticValueAssertion({
+        capability: symbol,
+        relationIdentity: `symbol:${symbol.symbol.normalized}`,
+        semanticScope: scope,
+        value: symbol.canonicalConcept?.id ?? normalizedMeaning(symbol.meaning),
+        polarity: symbol.polarity,
+      }),
+    ];
+  });
+}
+
+function conditionValueAssertions(
+  capability: EvidenceCapability
+): SemanticValueAssertion[] {
+  return capability.explicitFacts.flatMap((fact) => {
+    if (fact.polarity !== "POSITIVE") return [];
+    if (!fact.semanticComponents?.some((component) => component.kind === "CONDITION")) {
+      return [];
+    }
+    const value = normalizedConditionValue(fact.factText);
+    if (!value || !isExclusiveConditionValue(value)) return [];
+    const scope = fact.canonicalConcept?.id ?? normalizeFactScope(fact.factKey);
+    return [
+      semanticValueAssertion({
+        capability: fact,
+        relationIdentity: "condition",
+        semanticScope: scope,
+        value,
+        polarity: fact.polarity,
+      }),
+    ];
+  });
+}
+
+function semanticValueAssertion(input: {
+  capability: ConflictCandidate;
+  relationIdentity: string;
+  semanticScope: string;
+  value: string;
+  polarity: CapabilityPolarity;
+}): SemanticValueAssertion {
+  return {
+    id: input.capability.id,
+    resourceChunkId: input.capability.resourceChunkId,
+    sourceLabel: input.capability.sourceLabel,
+    evidenceSpan: input.capability.evidenceSpan,
+    relationIdentity: input.relationIdentity,
+    semanticScope: input.semanticScope,
+    value: input.value,
+    polarity: input.polarity,
+  };
+}
+
+function semanticValuesConflict(
+  left: SemanticValueAssertion,
+  right: SemanticValueAssertion
+): boolean {
+  if (left.polarity === "ABSENT" || right.polarity === "ABSENT") return false;
+  if (left.relationIdentity === "definition") {
+    return left.polarity !== right.polarity && left.value === right.value;
+  }
+  if (left.polarity !== right.polarity) return left.value === right.value;
+  if (left.polarity === "NEGATED") return false;
+  return left.value !== right.value;
+}
+
+function isAbsenceOnlyDefinition(definition: CapabilityFact): boolean {
+  return /\b(?:not\s+defined|no\s+definition|not\s+given|not\s+provided|not\s+stated|not\s+explained)\b/i.test(
+    `${definition.definitionText} ${definition.evidenceSpan.text}`
+  );
+}
+
+function definitionHasFacet(
+  definition: CapabilityFact,
+  facet: SemanticFacet
+): boolean {
+  return definition.semanticComponents?.some((component) => component.kind === facet) ??
+    definitionFacets(definition.definitionText, definition.evidenceSpan.text).includes(facet);
+}
+
+function normalizedConditionValue(value: string): string {
+  const normalized = normalizedMeaning(value);
+  if (/\b(?:slanted|oblique)\b/.test(normalized) && !/\b(?:not|rather than)\s+(?:a\s+)?(?:slanted|oblique)\b/.test(normalized)) {
+    return "slanted";
+  }
+  const canonical = canonicalizeConditionText(value);
+  if (/\b(?:perpendicular|right angle)\b/.test(canonical)) {
+    return "perpendicular-right-angle";
+  }
+  if (/\b(?:dry|wet|open|closed|hot|cold)\b/.test(canonical)) {
+    return canonical;
+  }
+  return canonical;
+}
+
+function isExclusiveConditionValue(value: string): boolean {
+  return (
+    value === "perpendicular-right-angle" ||
+    value === "slanted" ||
+    /\b(?:dry|wet|open|closed|hot|cold)\b/.test(value)
   );
 }
 
@@ -1844,7 +2132,7 @@ function definitionFacets(definitionText: string, evidenceText: string): Semanti
   if (/\b(?:formula|equals?|pi|squared|square|times|multiply|multiplied|multiplying|divide|divided|dividing|add|added|adding|subtract|subtracted|minus)\b/.test(combined)) {
     facets.push("FORMULA");
   }
-  if (/\b(?:found by|calculated by|worked out by|solved by|adding|dividing|multiplying|subtracting|simplified by)\b/.test(combined)) {
+  if (/\b(?:found by|calculated by|worked out by|solved by|adding|dividing|multiplying|subtracting|simplified by|scaling|scale both|scale)\b/.test(combined)) {
     facets.push("METHOD");
   }
   if (/\b(?:measured in|unit|units|volts?|amperes?|amps?|ohms?|watts?|metres?|meters?|seconds?|grams?|kilograms?|pascals?|newtons?)\b/.test(combined)) {
@@ -1859,7 +2147,7 @@ function definitionFacets(definitionText: string, evidenceText: string): Semanti
   if (/\b(?:function|role|transports?|carries|allows?|does not allow)\b/.test(combined)) {
     facets.push("FUNCTION");
   }
-  if (/\b(?:process|by which|changes?|changing|separates?|separating|produces?|producing|forms?|forming|turns?|turning|passes?|passing)\b/.test(combined)) {
+  if (/\b(?:process|by which|separates?|separating|produces?|producing|forms?|forming|turns?|turning|passes?|passing|changes?\s+.+?\s+(?:into|to)|changing\s+.+?\s+(?:into|to))\b/.test(combined)) {
     facets.push("PROCESS");
   }
   if (/\b(?:limitation|cannot|can not|does not|do not|not suitable|rather than)\b/.test(combined)) {
@@ -2379,6 +2667,7 @@ function normalizedMeaning(value: string): string {
     .toLowerCase()
     .replace(/[×x*]/g, "*")
     .replace(/[÷]/g, "/")
+    .replace(/\b(?:a|an|the)\b/g, " ")
     .replace(/\s+/g, " ")
     .trim();
 }
