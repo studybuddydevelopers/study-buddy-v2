@@ -197,13 +197,38 @@ export default function ResetPasswordUpdateClient() {
     }
 
     const { error: updateError } = await supabase.auth.updateUser({ password });
-    setLoading(false);
 
     if (updateError) {
       setErrorMessage(updateError.message);
+      setLoading(false);
       return;
     }
 
+    try {
+      const completionResponse = await fetch(
+        "/api/v1/account/security/password-reset-recovery/complete",
+        { method: "POST" }
+      );
+      if (!completionResponse.ok) {
+        const completion = (await completionResponse.json().catch(() => null)) as {
+          message?: string;
+        } | null;
+        setErrorMessage(
+          completion?.message ??
+            "Your password changed, but the security lock could not be cleared. Contact security@studybuddyng.com."
+        );
+        setLoading(false);
+        return;
+      }
+    } catch {
+      setErrorMessage(
+        "Your password changed, but the security lock could not be cleared. Contact security@studybuddyng.com."
+      );
+      setLoading(false);
+      return;
+    }
+
+    setLoading(false);
     setSuccess(true);
     setIsAuthenticated(true);
     setTimeout(() => {
