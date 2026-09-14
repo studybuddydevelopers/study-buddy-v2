@@ -16,6 +16,24 @@ export type CsrfValidationResult =
       reason: "MISSING_ORIGIN" | "INVALID_ORIGIN" | "UNTRUSTED_ORIGIN";
     };
 
+/** Exact-origin protection for sensitive unauthenticated token mutations. */
+export function validatePublicMutationOrigin(
+  request: Request
+): CsrfValidationResult {
+  const originHeader = request.headers.get("origin");
+  if (!originHeader || originHeader === "null") {
+    return { ok: false, reason: "MISSING_ORIGIN" };
+  }
+
+  const origin = normalizeOrigin(originHeader);
+  if (!origin) return { ok: false, reason: "INVALID_ORIGIN" };
+
+  const trusted = configuredTrustedOrigins(new URL(request.url).origin);
+  return trusted.has(origin)
+    ? { ok: true }
+    : { ok: false, reason: "UNTRUSTED_ORIGIN" };
+}
+
 /**
  * Enforce an exact Origin match for unsafe API requests that carry a Supabase
  * session cookie. Signed webhooks and the authenticated cron endpoint use
@@ -58,6 +76,10 @@ function hasSupabaseAuthCookie(request: NextRequest) {
 }
 
 function getTrustedOrigins(request: NextRequest) {
+  return configuredTrustedOrigins(request.nextUrl.origin);
+}
+
+function configuredTrustedOrigins(requestOrigin: string) {
   const trusted = new Set<string>();
   const configured = [
     process.env.APP_ORIGIN,
@@ -74,7 +96,7 @@ function getTrustedOrigins(request: NextRequest) {
   // Local and test servers frequently use random ports. Production must use
   // an explicit allowlist so an attacker-controlled Host cannot become trusted.
   if (process.env.NODE_ENV !== "production") {
-    trusted.add(request.nextUrl.origin);
+    trusted.add(requestOrigin);
   }
 
   return trusted;
