@@ -2788,7 +2788,10 @@ function cleanAdjacentNumericQuantity(value: string): string {
 
 function cleanLeadingNumericQuantity(value: string): string {
   return cleanConcept(value)
-    .replace(/\b(?:if|then|so|and|with|for|from|a|an|the)\b/g, " ")
+    .replace(/\b(?:if|then|so|and|with|for|from)\b/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .replace(/^(?:a|an|the)\s+/g, "")
     .replace(/\s+/g, " ")
     .trim();
 }
