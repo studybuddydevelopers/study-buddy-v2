@@ -188,8 +188,8 @@ function TrendChart({ progress }: { progress: ProgressFullReport }) {
         </ul>
       </div>
       <p className="mt-3 text-xs leading-5 text-gray-500">
-        Longer ranges group nearby days to keep the trend readable. Mock scores
-        remain separate from question volume.
+        Each bar represents one calendar day. Scroll horizontally to explore
+        longer ranges. Mock scores remain separate from question volume.
       </p>
     </div>
   );
