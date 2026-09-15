@@ -110,6 +110,13 @@ readiness sign-off.
    DPCO, formally designate a qualified DPO, and complete registration by that
    deadline without waiting to reach 200 users. Current registration status is
    **required — not yet filed**.
+11. **Quote-ready, not yet booked:** Complete the independent manual web/API
+   penetration test defined in
+   [`INDEPENDENT_SECURITY_REVIEW.md`](./INDEPENDENT_SECURITY_REVIEW.md) before a
+   large public or paid launch. The staging ZAP baseline does not replace this
+   review. Approve the budget and target date, obtain at least three comparable
+   quotes, sign bounded rules of engagement, fix all critical/high findings and
+   obtain an included retest and closure evidence.
 
 The approved seven-year transaction lifecycle is the next engineering task and
 is specified in
@@ -127,3 +134,5 @@ retention enforcement.
 - Support, privacy, security, and incident mailboxes have an assigned daily owner.
 - Beta feedback is reviewed on a fixed cadence and releases have a rollback path.
 - Co-founders record a go/no-go decision and accepted residual risks.
+- An independent manual penetration test has been completed against the frozen
+  staging launch candidate; all critical/high findings are closed and retested.
