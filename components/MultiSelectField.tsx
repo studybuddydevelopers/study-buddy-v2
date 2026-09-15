@@ -104,7 +104,7 @@ export default function MultiSelectField({
           {options.map((opt) => (
             <label
               key={opt.value}
-              className="flex items-center gap-2 px-4 py-2 cursor-pointer text-[0.9rem] text-gray-900 hover:bg-gray-100"
+              className="flex items-center gap-2 px-4 py-2 cursor-pointer text-xs text-gray-900 hover:bg-gray-100"
             >
               <input
                 type="checkbox"
