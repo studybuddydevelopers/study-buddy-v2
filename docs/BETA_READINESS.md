@@ -43,6 +43,11 @@ readiness sign-off.
   `429` for the fourth. The operator confirmed real alert delivery, explicit
   lock activation, old-password rejection, recovery-email password reset,
   restored access, and the pending-deletion cancellation flow.
+- On 15 September 2026, the app-owned email-confirmation callback and explicit
+  success page were deployed to production. A disposable-account test confirmed
+  that the verification link displays **Email verified** and requires the user
+  to log in explicitly. The production password-reset flow had already been
+  exercised through delivery, callback, password update, and restored access.
 
 ## Work required before the controlled beta
 
