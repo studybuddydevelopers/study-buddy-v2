@@ -8,6 +8,7 @@ interface SecurityCheck {
   adminAuthorityArtifacts: number;
   aiBudgetTable: boolean;
   passwordResetSecurityRuntimeCrud: boolean;
+  securityOperationsRuntimeAccess: boolean;
 }
 
 async function main() {
@@ -60,7 +61,24 @@ async function main() {
         current_user,
         'public."PasswordResetSecurityEvent"',
         'SELECT,INSERT,UPDATE,DELETE'
-      ) AS "passwordResetSecurityRuntimeCrud"
+      ) AS "passwordResetSecurityRuntimeCrud",
+      has_table_privilege(
+        current_user,
+        'public."SecurityAuditEvent"',
+        'SELECT,INSERT,UPDATE,DELETE'
+      ) AND has_table_privilege(
+        current_user,
+        'public."SecurityOperationsEvidence"',
+        'SELECT,INSERT,UPDATE,DELETE'
+      ) AND has_table_privilege(
+        current_user,
+        'public."SecurityOperationsReportRun"',
+        'SELECT,INSERT,UPDATE,DELETE'
+      ) AND has_sequence_privilege(
+        current_user,
+        'public."SecurityAuditEvent_id_seq"',
+        'USAGE,SELECT,UPDATE'
+      ) AS "securityOperationsRuntimeAccess"
   `);
 
   if (
@@ -69,7 +87,8 @@ async function main() {
     check.browserCrudGrants !== 0 ||
     check.adminAuthorityArtifacts !== 0 ||
     !check.aiBudgetTable ||
-    !check.passwordResetSecurityRuntimeCrud
+    !check.passwordResetSecurityRuntimeCrud ||
+    !check.securityOperationsRuntimeAccess
   ) {
     throw new Error(
       `Database security assertions failed: ${JSON.stringify(check)}`
