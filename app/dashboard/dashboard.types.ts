@@ -22,7 +22,6 @@ export interface SubscriptionInfo {
 export interface MeResponse {
   id: string;
   email: string;
-  isAdmin: boolean;
   profile: UserProfile | null;
   subscription: SubscriptionInfo | null;
 }
