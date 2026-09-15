@@ -84,6 +84,13 @@ interface GradeResponse {
   }[];
 }
 
+interface AiMarkSuggestion {
+  answerId: string;
+  suggestedScore: number;
+  rationale: string;
+  confidence: "LOW" | "MEDIUM" | "HIGH";
+}
+
 export default function ExamInstanceClient({
   data,
 }: {
@@ -102,6 +109,13 @@ export default function ExamInstanceClient({
       return acc;
     }, {})
   );
+  const [aiSuggestions, setAiSuggestions] = useState<
+    Record<string, AiMarkSuggestion>
+  >({});
+  const [reviewedAiSuggestions, setReviewedAiSuggestions] = useState<
+    Record<string, boolean>
+  >({});
+  const [aiMarking, setAiMarking] = useState(false);
   const [status, setStatus] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
@@ -290,6 +304,14 @@ export default function ExamInstanceClient({
   };
 
   const handleSelfGrade = async () => {
+    const unreviewedAiSuggestions = Object.keys(aiSuggestions).filter(
+      (answerId) => !reviewedAiSuggestions[answerId]
+    );
+    if (unreviewedAiSuggestions.length > 0) {
+      setError("Review each AI suggestion before saving your final marks.");
+      return;
+    }
+
     setSubmitting(true);
     setError(null);
     setStatus(null);
@@ -341,6 +363,70 @@ export default function ExamInstanceClient({
     }
   };
 
+  const handleAiMarking = async () => {
+    setAiMarking(true);
+    setError(null);
+    setStatus(null);
+
+    try {
+      const res = await fetch("/api/v1/mock-exams/ai-mark", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ instanceId: data.instance.id }),
+      });
+      const body = (await res.json().catch(() => null)) as {
+        suggestions?: AiMarkSuggestion[];
+        message?: string;
+        error?: string;
+      } | null;
+
+      if (!res.ok || !body?.suggestions) {
+        setError(
+          body?.message ||
+            body?.error ||
+            "AI-assisted marking is unavailable. You can still mark this paper manually."
+        );
+        return;
+      }
+
+      const nextSuggestions = body.suggestions.reduce<
+        Record<string, AiMarkSuggestion>
+      >((current, suggestion) => {
+        current[suggestion.answerId] = suggestion;
+        return current;
+      }, {});
+
+      setAiSuggestions(nextSuggestions);
+      setReviewedAiSuggestions(
+        body.suggestions.reduce<Record<string, boolean>>(
+          (current, suggestion) => {
+            current[suggestion.answerId] = false;
+            return current;
+          },
+          {}
+        )
+      );
+      setSelfScores((current) => {
+        const nextScores = { ...current };
+        body.suggestions!.forEach((suggestion) => {
+          nextScores[suggestion.answerId] = String(suggestion.suggestedScore);
+        });
+        return nextScores;
+      });
+      setStatus(
+        body.message ||
+          "AI suggestions are ready. Review every mark before saving."
+      );
+    } catch (err) {
+      console.error(err);
+      setError(
+        "AI-assisted marking is unavailable. You can still mark this paper manually."
+      );
+    } finally {
+      setAiMarking(false);
+    }
+  };
+
   const totalQuestions = data.questions.length;
   const shouldDeferQuestionImages =
     !settingsLoaded || lowDataModeEnabled;
@@ -352,6 +438,12 @@ export default function ExamInstanceClient({
       answer.section === "PART_II" &&
       (answers[answer.id] ?? "").trim() !== ""
   ).length;
+  const hasAiSuggestions = Object.keys(aiSuggestions).length > 0;
+  const allAiSuggestionsReviewed =
+    !hasAiSuggestions ||
+    Object.keys(aiSuggestions).every(
+      (answerId) => reviewedAiSuggestions[answerId]
+    );
 
   const answerByQuestionId = useMemo(
     () =>
@@ -424,8 +516,19 @@ export default function ExamInstanceClient({
           <p className="mt-1">
             Answer all five questions in Part I, then answer exactly five of the
             eight questions in Part II. Show your working. After submission,
-            use the marking guide to award yourself marks out of{" "}
+            use the marking guide to review your marks out of{" "}
             {data.template.totalMarks ?? 100}.
+          </p>
+        </div>
+      ) : null}
+
+      {isWritten && submitted && !data.instance.graded ? (
+        <div className="rounded-xl border border-accent-200 bg-white p-4 text-sm text-gray-700 shadow-sm">
+          <p className="font-semibold text-gray-900">Review before saving</p>
+          <p className="mt-1">
+            You can mark the paper yourself or ask AI for suggestions. AI marks
+            are not final: check each rationale, change any score you disagree
+            with, then save the result yourself.
           </p>
         </div>
       ) : null}
@@ -438,6 +541,9 @@ export default function ExamInstanceClient({
           const value = answerId ? answers[answerId] ?? "" : "";
           const correctAnswer = correctAnswerByQuestionId.get(q.id);
           const markingGuide = markingGuideByQuestionId.get(q.id);
+          const aiSuggestion = answerRow
+            ? aiSuggestions[answerRow.id]
+            : undefined;
           const userLetter = value ? letterForSelection(q, value) : null;
           const correctLetter =
             correctAnswer && letterForSelection(q, correctAnswer);
@@ -522,28 +628,60 @@ export default function ExamInstanceClient({
                     </p>
                   ) : null}
                   {isWritten && value && answerRow && !data.instance.graded ? (
-                    <label className="flex items-center gap-2 border-t border-accent-200 pt-3 text-sm font-semibold text-gray-800">
-                      Your mark
-                      <input
-                        type="number"
-                        inputMode="numeric"
-                        min={0}
-                        max={answerRow.maxScore}
-                        step={1}
-                        className="w-20 rounded-lg border border-accent-300 bg-white px-3 py-2 text-base text-gray-900 focus:outline-none focus:ring-2 focus:ring-primary-400"
-                        value={selfScores[answerRow.id] ?? ""}
-                        onChange={(event) =>
-                          setSelfScores((current) => ({
-                            ...current,
-                            [answerRow.id]: event.target.value,
-                          }))
-                        }
-                        aria-label={`Mark for question ${sectionQuestionNumber} out of ${answerRow.maxScore}`}
-                      />
-                      <span className="font-normal text-gray-600">
-                        / {answerRow.maxScore}
-                      </span>
-                    </label>
+                    <div className="space-y-3 border-t border-accent-200 pt-3">
+                      {aiSuggestion ? (
+                        <div className="rounded-lg border border-primary-200 bg-primary-50 p-3 text-sm text-gray-800">
+                          <p className="font-semibold text-primary-700">
+                            AI suggestion: {aiSuggestion.suggestedScore} /{" "}
+                            {answerRow.maxScore} ·{" "}
+                            {aiSuggestion.confidence.toLowerCase()} confidence
+                          </p>
+                          <p className="mt-1">{aiSuggestion.rationale}</p>
+                          <p className="mt-1 text-gray-600">
+                            Check this against the marking guide and edit the
+                            mark below if needed.
+                          </p>
+                          <label className="mt-2 flex min-h-11 cursor-pointer items-center gap-3 rounded-md border border-primary-200 bg-white px-3 py-2 font-medium text-gray-800">
+                            <input
+                              type="checkbox"
+                              className="h-5 w-5 shrink-0 rounded border-accent-300 text-primary-600 focus:ring-primary-400"
+                              checked={Boolean(
+                                reviewedAiSuggestions[answerRow.id]
+                              )}
+                              onChange={(event) =>
+                                setReviewedAiSuggestions((current) => ({
+                                  ...current,
+                                  [answerRow.id]: event.target.checked,
+                                }))
+                              }
+                            />
+                            I checked this suggestion against the marking guide
+                          </label>
+                        </div>
+                      ) : null}
+                      <label className="flex items-center gap-2 text-sm font-semibold text-gray-800">
+                        Your final mark
+                        <input
+                          type="number"
+                          inputMode="numeric"
+                          min={0}
+                          max={answerRow.maxScore}
+                          step={1}
+                          className="w-20 rounded-lg border border-accent-300 bg-white px-3 py-2 text-base text-gray-900 focus:outline-none focus:ring-2 focus:ring-primary-400"
+                          value={selfScores[answerRow.id] ?? ""}
+                          onChange={(event) =>
+                            setSelfScores((current) => ({
+                              ...current,
+                              [answerRow.id]: event.target.value,
+                            }))
+                          }
+                          aria-label={`Final mark for question ${sectionQuestionNumber} out of ${answerRow.maxScore}`}
+                        />
+                        <span className="font-normal text-gray-600">
+                          / {answerRow.maxScore}
+                        </span>
+                      </label>
+                    </div>
                   ) : null}
                 </div>
               ) : answerId ? (
@@ -648,7 +786,7 @@ export default function ExamInstanceClient({
             {data.instance.graded
               ? `Final score: ${data.instance.totalScore ?? 0} / ${data.template.totalMarks ?? totalQuestions}`
               : submitted
-                ? "Submitted · complete the self-assessment below"
+                ? "Submitted · review every mark before saving"
                 : saving
                   ? "Saving..."
                   : lastSaved
@@ -678,15 +816,30 @@ export default function ExamInstanceClient({
               {isWritten ? "Submit for self-marking" : "Submit & Grade"}
             </Button>
           ) : isWritten && !data.instance.graded ? (
-            <Button
-              variant="primary"
-              size="lg"
-              onClick={handleSelfGrade}
-              loading={submitting}
-              disabled={submitting}
-            >
-              Save final marks
-            </Button>
+            <>
+              <Button
+                variant="outline"
+                size="lg"
+                onClick={handleAiMarking}
+                loading={aiMarking}
+                disabled={aiMarking || submitting}
+                className="w-full sm:w-auto"
+              >
+                Suggest marks with AI
+              </Button>
+              <Button
+                variant="primary"
+                size="lg"
+                onClick={handleSelfGrade}
+                loading={submitting}
+                disabled={
+                  submitting || aiMarking || !allAiSuggestionsReviewed
+                }
+                className="w-full sm:w-auto"
+              >
+                Save final marks
+              </Button>
+            </>
           ) : null}
         </div>
       </div>
