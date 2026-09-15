@@ -30,6 +30,8 @@ export interface ButtonProps {
   className?: string;
   type?: "button" | "submit" | "reset";
   ariaLabel?: string;
+  ariaDisabled?: boolean;
+  ariaDescribedBy?: string;
 }
 
 export default function Button({
@@ -45,6 +47,8 @@ export default function Button({
   className = "",
   type = "button",
   ariaLabel,
+  ariaDisabled = false,
+  ariaDescribedBy,
 }: ButtonProps) {
   useEffect(() => {
     const body = document.body;
@@ -108,11 +112,13 @@ export default function Button({
   const isDisabled = disabled || loading || variant === "disabledPlain";
   const disabledClasses = isDisabled
     ? "opacity-50 cursor-not-allowed pointer-events-none"
-    : "cursor-pointer";
+    : ariaDisabled
+      ? "opacity-50 cursor-help"
+      : "cursor-pointer";
 
   const fullWidthClass = fullWidth ? "w-full" : "";
 
-  const skipRipple = isDisabled;
+  const skipRipple = isDisabled || ariaDisabled;
   const rippleClass = skipRipple ? "" : "ripple";
 
   const buttonClasses = [
@@ -134,6 +140,8 @@ export default function Button({
       className={buttonClasses}
       onClick={isDisabled ? undefined : onClick}
       disabled={isDisabled}
+      aria-disabled={isDisabled || ariaDisabled ? true : undefined}
+      aria-describedby={ariaDescribedBy}
       aria-label={ariaLabel || (typeof children === "string" ? children : undefined)}
     >
       {loading ? (
