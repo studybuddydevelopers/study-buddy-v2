@@ -16,6 +16,8 @@ describe("PasswordResetAlertClient", () => {
     expect(html).toContain("No, I did not request it");
     expect(html).toContain("Nothing has changed yet");
     expect(html).toContain("Checking the secure email link");
+    expect(html).toContain('class="mt-5 border-t border-red-200 pt-5 sm:hidden"');
+    expect(html).toContain("hidden sm:inline-flex");
     expect(html).not.toContain("<main");
   });
 
