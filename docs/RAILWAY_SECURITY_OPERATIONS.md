@@ -367,6 +367,10 @@ and [native monitor limits](https://docs.railway.com/observability).
   `@vitest/mocker` were updated from 4.1.10 to 4.1.11, the first patched release;
   `npm audit` then reported zero known vulnerabilities and the full test, lint
   and production-build checks passed.
+- The same review applied the compatible routine updates for Next.js and
+  `eslint-config-next` 16.3.5, `tsx` 4.23.13, and the latest Node 20 type
+  definitions. All 1,056 tests, lint, the production build, and a fresh
+  `npm audit` passed after the update.
 - GitHub native secret scanning and push protection currently report no open
   alerts after enablement. The manual TruffleHog full-history review found zero
   verified secrets and four unverified Postgres-pattern matches associated with
