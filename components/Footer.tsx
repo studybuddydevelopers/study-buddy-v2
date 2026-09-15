@@ -36,13 +36,16 @@ export default function Footer({
   return (
     <footer className="bg-accent-500 py-6 text-center text-sm mt-2 pb-0">
       {/* Top links */}
-      <nav className="mx-auto mb-4 flex max-w-6xl flex-col items-center gap-3 px-6 min-[769px]:flex-row min-[769px]:flex-wrap min-[769px]:justify-center min-[769px]:gap-x-8 min-[769px]:gap-y-3">
+      <nav
+        aria-label="Footer"
+        className="mx-auto mb-4 flex max-w-6xl flex-col items-center gap-0 px-6 min-[769px]:flex-row min-[769px]:flex-wrap min-[769px]:justify-center min-[769px]:gap-x-8 min-[769px]:gap-y-3"
+      >
         {links.map((link) => (
           <Link
             key={link.href}
             href={link.href}
             prefetch={false}
-            className="text-gray-500 hover:text-primary-500 transition-colors font-medium"
+            className="inline-flex min-h-11 items-center justify-center rounded-lg px-3 font-medium text-gray-500 transition-colors hover:text-primary-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-400 focus-visible:ring-offset-2 min-[769px]:min-h-0 min-[769px]:px-0"
           >
             {link.label}
           </Link>
