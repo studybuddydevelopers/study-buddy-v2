@@ -2,6 +2,16 @@
 
 import Link from "next/link";
 import { ArrowRight, CircleHelp } from "lucide-react";
+import {
+  Area,
+  AreaChart,
+  CartesianGrid,
+  ReferenceDot,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from "recharts";
 import Heading1 from "@/components/Heading1";
 import Heading2 from "@/components/Heading2";
 import Paragraph from "@/components/Paragraph";
@@ -96,9 +106,21 @@ function TrendChart({ progress }: { progress: ProgressFullReport }) {
     1,
     ...progress.trend.map((point) => point.questionsAttempted)
   );
-  const activeBuckets = progress.trend.filter(
+  const activeDays = progress.trend.filter(
     (point) => point.questionsAttempted > 0 || point.mockExamsCompleted > 0
   ).length;
+  const hasActivity = activeDays > 0;
+  const chartData = progress.trend.map((point) => ({
+    ...point,
+    dateLabel: new Date(`${point.startDate}T00:00:00Z`).toLocaleDateString(
+      "en-GB",
+      {
+        day: "numeric",
+        month: "short",
+        timeZone: "UTC",
+      }
+    ),
+  }));
 
   return (
     <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm sm:p-6">
@@ -107,13 +129,13 @@ function TrendChart({ progress }: { progress: ProgressFullReport }) {
           <h3 className="text-lg font-bold text-gray-950">Practice activity</h3>
           <p className="mt-1 text-sm leading-6 text-gray-600">
             {progress.pastQuestions.totalAttempts} question attempts across{" "}
-            {activeBuckets} active time group{activeBuckets === 1 ? "" : "s"}.
+            {activeDays} active day{activeDays === 1 ? "" : "s"}.
           </p>
         </div>
         <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-gray-600">
           <span>
             <span className="mr-2 inline-block h-3 w-3 rounded-sm bg-primary-600" />
-            Questions
+            Question attempts
           </span>
           <span>
             <span className="mr-2 inline-block h-3 w-3 rounded-full bg-secondary-500" />
@@ -122,75 +144,140 @@ function TrendChart({ progress }: { progress: ProgressFullReport }) {
         </div>
       </div>
 
-      <div className="mt-6 overflow-x-auto pb-2">
-        <ul
-          className="grid min-w-[640px] items-end gap-2"
-          style={{
-            gridTemplateColumns: `repeat(${progress.trend.length}, minmax(34px, 1fr))`,
-          }}
-          aria-label={`Practice activity for ${progress.filters.rangeLabel.toLowerCase()}`}
-        >
-          {progress.trend.map((point) => {
-            const height =
-              point.questionsAttempted > 0
-                ? Math.max(10, (point.questionsAttempted / maxAttempts) * 100)
-                : 2;
-            const dateDescription =
-              point.startDate === point.endDate
-                ? point.startDate
-                : `${point.startDate} to ${point.endDate}`;
-            return (
-              <li
-                key={point.startDate}
-                className="flex min-w-0 flex-col items-center"
-                aria-label={`${dateDescription}: ${point.questionsAttempted} practice question attempts, ${point.correctAnswers} correct, ${point.mockExamsCompleted} mock exams completed`}
+      {hasActivity ? (
+        <>
+          <div
+            className="mt-6 h-56 min-w-0 sm:h-64"
+            role="img"
+            aria-label={`Daily practice activity for ${progress.filters.rangeLabel.toLowerCase()}`}
+          >
+            <ResponsiveContainer width="100%" height="100%" minWidth={0}>
+              <AreaChart
+                data={chartData}
+                margin={{ top: 12, right: 8, bottom: 0, left: -16 }}
+                accessibilityLayer
               >
-                <span className="mb-1 text-xs font-semibold text-gray-700 tabular-nums">
-                  {point.questionsAttempted}
-                </span>
-                <div className="relative flex h-36 w-full items-end justify-center rounded-lg bg-gray-50 px-1">
-                  <span
-                    className={`w-full max-w-8 rounded-t-md ${
-                      point.questionsAttempted > 0
-                        ? "bg-primary-600"
-                        : "bg-gray-200"
-                    }`}
-                    style={{ height: `${height}%` }}
-                    aria-hidden="true"
-                  />
-                  {point.mockExamsCompleted > 0 && (
-                    <span
-                      className="absolute right-0.5 top-1 h-3 w-3 rounded-full border-2 border-white bg-secondary-500"
-                      aria-hidden="true"
+                <defs>
+                  <linearGradient id="practiceActivityFill" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="var(--primary-600)" stopOpacity={0.32} />
+                    <stop offset="100%" stopColor="var(--primary-600)" stopOpacity={0.03} />
+                  </linearGradient>
+                </defs>
+                <CartesianGrid
+                  vertical={false}
+                  stroke="#E5E7EB"
+                  strokeDasharray="4 4"
+                />
+                <XAxis
+                  dataKey="dateLabel"
+                  axisLine={false}
+                  tickLine={false}
+                  minTickGap={28}
+                  interval="preserveStartEnd"
+                  tick={{ fill: "#6B7280", fontSize: 12 }}
+                  tickMargin={10}
+                />
+                <YAxis
+                  allowDecimals={false}
+                  axisLine={false}
+                  tickLine={false}
+                  width={42}
+                  domain={[0, maxAttempts]}
+                  tick={{ fill: "#6B7280", fontSize: 12 }}
+                />
+                <Tooltip
+                  cursor={{ stroke: "#D1D5DB", strokeDasharray: "4 4" }}
+                  content={({ active, payload }) => {
+                    if (!active || !payload?.[0]) return null;
+                    const point = payload[0].payload as (typeof chartData)[number];
+                    return (
+                      <div className="rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm shadow-lg">
+                        <p className="font-semibold text-gray-950">{point.dateLabel}</p>
+                        <p className="mt-1 text-gray-700">
+                          {point.questionsAttempted} question attempt
+                          {point.questionsAttempted === 1 ? "" : "s"}
+                        </p>
+                        <p className="text-gray-700">
+                          {point.accuracyPct == null
+                            ? "No answers graded"
+                            : `${point.accuracyPct}% correct`}
+                        </p>
+                        {point.mockExamsCompleted > 0 && (
+                          <p className="text-secondary-700">
+                            {point.mockExamsCompleted} mock completed
+                            {point.averageMockScorePct == null
+                              ? ""
+                              : ` · ${point.averageMockScorePct}% average`}
+                          </p>
+                        )}
+                      </div>
+                    );
+                  }}
+                />
+                <Area
+                  type="linear"
+                  dataKey="questionsAttempted"
+                  name="Question attempts"
+                  stroke="var(--primary-600)"
+                  strokeWidth={3}
+                  fill="url(#practiceActivityFill)"
+                  dot={false}
+                  activeDot={{
+                    r: 6,
+                    fill: "var(--primary-600)",
+                    stroke: "#FFFFFF",
+                    strokeWidth: 3,
+                  }}
+                  isAnimationActive={false}
+                />
+                {chartData
+                  .filter((point) => point.mockExamsCompleted > 0)
+                  .map((point) => (
+                    <ReferenceDot
+                      key={point.startDate}
+                      x={point.dateLabel}
+                      y={Math.max(point.questionsAttempted, maxAttempts * 0.08)}
+                      r={5}
+                      fill="var(--secondary-500)"
+                      stroke="#FFFFFF"
+                      strokeWidth={2}
                     />
-                  )}
-                </div>
-                <span className="mt-2 text-center text-xs leading-4 text-gray-600">
-                  {point.label}
-                </span>
-                <span className="mt-1 text-center text-xs font-semibold leading-4 text-gray-800">
-                  {point.accuracyPct == null
-                    ? "No answers"
-                    : `${point.accuracyPct}% correct`}
-                </span>
-                {point.mockExamsCompleted > 0 && (
-                  <span className="mt-1 text-center text-xs leading-4 text-secondary-700">
-                    {point.mockExamsCompleted} mock
-                    {point.mockExamsCompleted === 1 ? "" : "s"}
-                    {point.averageMockScorePct == null
-                      ? ""
-                      : ` · ${point.averageMockScorePct}%`}
-                  </span>
-                )}
-              </li>
-            );
-          })}
+                  ))}
+              </AreaChart>
+            </ResponsiveContainer>
+          </div>
+          <p className="mt-3 text-xs leading-5 text-gray-500">
+            The purple trend shows daily question volume. Gold markers show days
+            when you completed a mock. Tap or hover for daily details.
+          </p>
+        </>
+      ) : (
+        <div className="mt-6 flex min-h-52 flex-col items-center justify-center rounded-xl border border-dashed border-gray-300 bg-gray-50 px-5 text-center">
+          <StudyBuddyIcon name="progress" size={64} />
+          <p className="mt-3 font-semibold text-gray-900">
+            No activity in this period
+          </p>
+          <p className="mt-1 max-w-sm text-sm leading-6 text-gray-600">
+            Practice questions or complete a mock exam to start your daily trend.
+          </p>
+        </div>
+      )}
+
+      <div className="sr-only">
+        <p>
+          Daily practice activity for {progress.filters.rangeLabel.toLowerCase()}
+        </p>
+        <ul>
+          {chartData.map((point) => (
+            <li key={point.startDate}>
+              {point.dateLabel}: {point.questionsAttempted} questions attempted,{
+              " "}
+              {point.correctAnswers} correct, {point.mockExamsCompleted} mock
+              exams completed.
+            </li>
+          ))}
         </ul>
       </div>
-      <p className="mt-3 text-xs leading-5 text-gray-500">
-        Each bar represents one calendar day. Scroll horizontally to explore
-        longer ranges. Mock scores remain separate from question volume.
-      </p>
     </div>
   );
 }
@@ -545,8 +632,8 @@ export default function ProgressClient({
             Performance over time
           </Heading2>
           <p className="mt-2 text-sm leading-6 text-gray-600">
-            Activity for {filterSummary}. Bar height shows question volume, not
-            how well you performed.
+            Daily activity for {filterSummary}. The trend shows question volume,
+            while accuracy and mock scores remain separate measures.
           </p>
         </div>
         <TrendChart progress={progress} />
