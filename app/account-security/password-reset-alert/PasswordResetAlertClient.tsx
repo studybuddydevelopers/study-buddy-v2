@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import Button from "@/components/Button";
 import FormErrorMessage from "@/components/FormErrorMessage";
@@ -17,12 +17,26 @@ const LOCK_EFFECTS = [
   "Keep the previous password from being used",
 ];
 
+export function revealMissingTokenAlert(
+  alert: HTMLDivElement | null,
+  prefersReducedMotion: boolean
+) {
+  if (!alert) return;
+
+  alert.focus({ preventScroll: true });
+  alert.scrollIntoView({
+    behavior: prefersReducedMotion ? "auto" : "smooth",
+    block: "center",
+  });
+}
+
 export default function PasswordResetAlertClient() {
   const [token, setToken] = useState("");
   const [loadingToken, setLoadingToken] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
   const [locked, setLocked] = useState<LockedAccountState | null>(null);
+  const missingTokenAlertRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.hash.slice(1));
@@ -80,6 +94,18 @@ export default function PasswordResetAlertClient() {
       }).format(new Date(locked.lockedUntil))
     : null;
   const missingToken = !loadingToken && !token;
+
+  function handleMobileLockRequest() {
+    if (missingToken) {
+      revealMissingTokenAlert(
+        missingTokenAlertRef.current,
+        window.matchMedia("(prefers-reduced-motion: reduce)").matches
+      );
+      return;
+    }
+
+    void lockAccount();
+  }
 
   return (
     <div className="flex min-h-[70svh] items-center bg-[#FAF8FB] px-4 py-10 sm:px-6 lg:py-16">
@@ -171,8 +197,12 @@ export default function PasswordResetAlertClient() {
                     <Button
                       variant="destructive"
                       loading={submitting}
-                      disabled={loadingToken || !token || submitting}
-                      onClick={() => void lockAccount()}
+                      disabled={loadingToken || submitting}
+                      ariaDisabled={missingToken}
+                      ariaDescribedBy={
+                        missingToken ? "password-reset-missing-token" : undefined
+                      }
+                      onClick={handleMobileLockRequest}
                       className="min-h-11 w-full px-5"
                     >
                       Secure and lock account
@@ -195,8 +225,11 @@ export default function PasswordResetAlertClient() {
                 )}
                 {missingToken && (
                   <div
+                    ref={missingTokenAlertRef}
+                    id="password-reset-missing-token"
                     role="alert"
-                    className="rounded-2xl border border-red-300 bg-red-50 px-4 py-4 text-red-900"
+                    tabIndex={-1}
+                    className="scroll-mt-6 rounded-2xl border border-red-300 bg-red-50 px-4 py-4 text-red-900 focus:outline-none focus:ring-2 focus:ring-red-400 focus:ring-offset-2"
                   >
                     <p className="font-bold">This security link is incomplete</p>
                     <p className="mt-1 leading-7">
