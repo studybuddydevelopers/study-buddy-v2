@@ -348,7 +348,7 @@ export default function ProgressClient({
               </Heading3>
             </div>
             <div
-              className="mb-2 grid min-w-0 grid-cols-3 gap-px sm:flex sm:flex-nowrap sm:gap-2"
+              className="mb-2 grid min-w-0 grid-cols-3 gap-0 sm:flex sm:flex-nowrap sm:gap-2"
               aria-label="Date range"
             >
               {PROGRESS_RANGE_OPTIONS.map((option) => {
@@ -359,7 +359,7 @@ export default function ProgressClient({
                     href={progressHref(filters, { range: option.value })}
                     prefetch={false}
                     aria-current={active ? "page" : undefined}
-                    className={`inline-flex min-h-11 min-w-0 whitespace-nowrap items-center justify-center rounded-xl border px-0 text-xs font-semibold tracking-[-0.02em] transition focus:outline-none focus:ring-2 focus:ring-primary-300 focus:ring-offset-2 sm:px-4 sm:text-sm sm:tracking-normal ${
+                    className={`inline-flex min-h-11 min-w-0 whitespace-nowrap items-center justify-center rounded-xl border px-0 text-xs font-semibold tracking-[-0.04em] transition focus:outline-none focus:ring-2 focus:ring-primary-300 focus:ring-offset-2 sm:px-4 sm:text-sm sm:tracking-normal ${
                       active
                         ? "border-primary-700 bg-primary-700 text-white"
                         : "border-gray-300 bg-white text-gray-700 hover:border-primary-300 hover:text-primary-700"
