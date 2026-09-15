@@ -76,7 +76,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   return (
     <html lang="en">
       <body>
-        <div className="p-6 flex justify-between flex-col min-h-svh">
+        <div className="flex min-h-svh flex-col justify-between px-[7.5px] py-6">
 
           {/* Provide the user instantly to the client wrapper */}
           <ClientLayoutWrapper isAuthenticated={!!user}>
