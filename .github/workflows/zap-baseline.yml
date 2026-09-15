@@ -41,4 +41,9 @@ jobs:
           allow_issue_writing: false
           fail_action: true
           artifact_name: zap-staging-report
-          cmd_options: -a -m 5
+          # ZAP baseline labels passive findings as WARN by default. Let the
+          # explicit severity gate below decide which findings fail CI.
+          cmd_options: -a -m 5 -I
+
+      - name: Fail on medium or high findings
+        run: node scripts/check-zap-report.mjs report_json.json
