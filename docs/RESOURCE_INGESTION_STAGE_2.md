@@ -1,17 +1,19 @@
 # Resource Ingestion Stage 2
 
-Stage 2 adds admin-only resource ingestion and approval plumbing. It deliberately stops before retrieval/RAG.
+Stage 2 retains internal resource ingestion and approval plumbing. The former
+administrator HTTP routes have been removed; these capabilities are not exposed
+through the application. It deliberately stops before retrieval/RAG.
 
 ## Included
 
 - `Resource` and `ResourceChunk` Prisma models.
-- Private Supabase Storage uploads through a server-side admin client.
+- Private Supabase Storage operations through a server-side service client.
 - Processing states: `UPLOADED`, `PROCESSING`, `PROCESSED`, `FAILED`.
 - Approval states: `PENDING_REVIEW`, `APPROVED`, `REJECTED`.
 - Versioned active chunk sets through `Resource.activeChunkVersion`.
 - Extraction adapters for plain text, Markdown, PDF, and DOCX.
 - Structure-aware chunking for educational material.
-- Admin approval/rejection workflow.
+- Internal approval/rejection service logic for future separately authorised tooling.
 - Conservative legacy `PastQuestion` migration and reporting.
 
 ## Not Included
@@ -30,14 +32,11 @@ The bucket should be private. The application stores only bucket/path metadata i
 
 ## Processing Flow
 
-1. Admin uploads a file to `POST /api/v1/admin/resources`.
-2. The route validates metadata and stores the file privately.
-3. The database record is created as `UPLOADED` and `PENDING_REVIEW`.
-4. Admin calls `POST /api/v1/admin/resources/:resourceId/process`.
-5. The processing service downloads the private object, extracts text, chunks it, and marks the resource `PROCESSED` or `FAILED`.
-6. Admin calls `POST /api/v1/admin/resources/:resourceId/approval`.
-
-The upload route does not perform large extraction/chunking work.
+There is currently no HTTP processing flow. The internal service layer can
+validate metadata, store a file privately, create an `UPLOADED` and
+`PENDING_REVIEW` record, extract and chunk it, and record a separately reviewed
+approval decision. Any future operator interface must add a newly reviewed
+authorization and audit design before exposing these operations.
 
 ## Versioning And Reprocessing
 
@@ -45,7 +44,7 @@ The upload route does not perform large extraction/chunking work.
 
 If extracted content changes, approval is reset to `PENDING_REVIEW`. If extracted content is unchanged, processing refreshes metadata without creating another duplicate chunk version.
 
-Approval requires `PROCESSED`, non-failed extraction quality, and at least one chunk in the active chunk version. `LOW` quality resources, such as best-effort PDF/DOCX extraction, may be approved only through explicit admin review.
+Approval requires `PROCESSED`, non-failed extraction quality, and at least one chunk in the active chunk version. `LOW` quality resources, such as best-effort PDF/DOCX extraction, may be approved only through explicit human review in future separately authorised tooling.
 
 ## Extraction Quality
 
