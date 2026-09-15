@@ -1,6 +1,6 @@
 # Beta Readiness
 
-Last updated: 13 September 2026
+Last updated: 16 September 2026
 
 ## Current position
 
@@ -99,12 +99,11 @@ readiness sign-off.
    been verified. Still record a pre-confirmation login showing that opening the
    warning page alone changes nothing, a cross-device recovery, privacy-safe
    production logs, and natural 24-hour provider-lock expiry.
-9. **Automated test fixed; production upload use is conditional:** The
-   application has admin-only resource and curriculum upload API routes even
-   though it currently has no ordinary-user upload interface. Before using
-   those admin routes in production, verify the private ClamAV service and
-   Ghostscript CDR path with harmless test files; otherwise keep the routes
-   unused.
+9. **HTTP exposure removed:** Study Buddy has no administrator role and the
+   unused resource, curriculum, past-question and user-query administration API
+   routes have been removed. Internal ingestion libraries remain dormant. Any
+   future upload/operator surface requires a new authorization design plus
+   harmless-file verification of the private ClamAV and Ghostscript CDR path.
 10. **Ongoing:** Study Buddy meets the DCPMI designation through the education-sector
    criterion and is likely MDP-OHL. Obtain written confirmation of the tier and
    six-month trigger date from a qualified Nigerian privacy adviser or licensed
