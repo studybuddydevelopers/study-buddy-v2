@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { hasAdminAccess, requireUser } from "@/lib/auth";
+import { requireUser } from "@/lib/auth";
 
 export async function GET(
   req: Request,
@@ -13,7 +13,6 @@ export async function GET(
   if ("errorResponse" in auth) return auth.errorResponse;
 
   const { dbUser } = auth;
-  const isAdmin = await hasAdminAccess(dbUser);
 
   const subscriptionId = (await context.params).id;
 
@@ -41,15 +40,11 @@ export async function GET(
   // ---------------------------------------------------------
   // 3. AUTHORIZATION CHECK
   // ---------------------------------------------------------
-  // Admins can access any subscription
-  if (!isAdmin) {
-    // Non-admin users MUST own the subscription
-    if (subscription.userId !== dbUser.id) {
-      return NextResponse.json(
-        { error: "Forbidden — not your subscription" },
-        { status: 403 }
-      );
-    }
+  if (subscription.userId !== dbUser.id) {
+    return NextResponse.json(
+      { error: "Forbidden — not your subscription" },
+      { status: 403 }
+    );
   }
 
   // ---------------------------------------------------------
