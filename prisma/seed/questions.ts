@@ -361,6 +361,157 @@ const sequencesSeries = (count: number): ResolvableQuestion[] => {
   }));
 };
 
+// ── Paper 2 written mock ──────────────────────────────────────────────────────────────────
+
+const paper2WrittenQuestions: ResolvableQuestion[] = [
+  {
+    subjectName: "WAEC Mathematics",
+    topicTitle: "Number & Numeration",
+    questionNumber: "P2-I-01",
+    questionText:
+      "(a) Express 0.000684 in standard form.\n(b) Evaluate (3/4 - 2/5) ÷ 7/10, giving your answer as a fraction in its lowest terms.",
+    answerText: "(a) 6.84 × 10^-4\n(b) 1/2",
+    explanationText:
+      "Marking guide (8 marks): standard-form coefficient 6.84 (1); correct power 10^-4 (1); common denominator and 3/4 - 2/5 = 7/20 (2); division changed to multiplication by 10/7 (2); cancellation/work shown (1); final answer 1/2 (1).",
+    difficulty: 1,
+  },
+  {
+    subjectName: "WAEC Mathematics",
+    topicTitle: "Algebraic Processes",
+    questionNumber: "P2-I-02",
+    questionText:
+      "A school sold 86 tickets for a play. Student tickets cost ₦1,200 each and adult tickets cost ₦2,000 each. The total amount collected was ₦124,000. Form two equations and find the number of student tickets and adult tickets sold.",
+    answerText: "60 student tickets and 26 adult tickets",
+    explanationText:
+      "Marking guide (8 marks): defines two variables (1); forms s + a = 86 (2); forms 1200s + 2000a = 124000 (2); correct elimination or substitution (2); obtains s = 60 and a = 26 with labels (1).",
+    difficulty: 2,
+  },
+  {
+    subjectName: "WAEC Mathematics",
+    topicTitle: "Sets & Venn Diagrams",
+    questionNumber: "P2-I-03",
+    questionText:
+      "In a class of 50 students, 28 offer Economics, 24 offer Geography and 9 offer neither subject.\n(a) Find the number who offer both subjects.\n(b) Find the probability that a student selected at random offers exactly one of the two subjects.",
+    answerText: "(a) 11 students\n(b) 3/5",
+    explanationText:
+      "Marking guide (8 marks): n(E ∪ G) = 50 - 9 = 41 (2); uses n(E ∪ G) = n(E) + n(G) - n(E ∩ G) (1); obtains intersection 11 (1); Economics only 17 and Geography only 13 (2); exactly one = 30 (1); probability 30/50 = 3/5 (1).",
+    difficulty: 2,
+  },
+  {
+    subjectName: "WAEC Mathematics",
+    topicTitle: "Commercial Arithmetic",
+    questionNumber: "P2-I-04",
+    questionText:
+      "A trader bought a generator for ₦180,000 and paid transport charges equal to 5% of its cost price. She sold it at a profit of 20% on her total cost. Calculate the selling price.",
+    answerText: "₦226,800",
+    explanationText:
+      "Marking guide (8 marks): transport = 5% of ₦180,000 (1); obtains ₦9,000 (1); total cost = ₦189,000 (2); profit = 20% of total cost (1); obtains ₦37,800 (1); adds cost and profit (1); selling price ₦226,800 (1).",
+    difficulty: 2,
+  },
+  {
+    subjectName: "WAEC Mathematics",
+    topicTitle: "Statistics & Probability",
+    questionNumber: "P2-I-05",
+    questionText:
+      "The scores of eight students are 4, 7, 7, 9, 10, 12, 13 and 18. Calculate the mean, median and range of the scores.",
+    answerText: "Mean = 10; median = 9.5; range = 14",
+    explanationText:
+      "Marking guide (8 marks): correct sum 80 (1); divides by 8 (1); mean 10 (1); identifies middle scores 9 and 10 (1); median calculation (9 + 10)/2 (1); median 9.5 (1); range calculation 18 - 4 (1); range 14 (1).",
+    difficulty: 1,
+  },
+  {
+    subjectName: "WAEC Mathematics",
+    topicTitle: "Algebraic Processes",
+    questionNumber: "P2-II-01",
+    questionText:
+      "(a) Solve 2x² - 7x + 3 = 0.\n(b) The length of a rectangle is 3 cm greater than its width. If its area is 54 cm², find its dimensions.",
+    answerText: "(a) x = 3 or x = 1/2\n(b) Width = 6 cm; length = 9 cm",
+    explanationText:
+      "Marking guide (12 marks): factorises 2x² - 7x + 3 as (2x - 1)(x - 3) (3); roots 1/2 and 3 (2); lets width be w and length w + 3 (1); forms w(w + 3) = 54 (2); rearranges/factorises to (w + 9)(w - 6) = 0 (2); rejects the negative length and states 6 cm by 9 cm (2).",
+    difficulty: 2,
+  },
+  {
+    subjectName: "WAEC Mathematics",
+    topicTitle: "Sequences & Series",
+    questionNumber: "P2-II-02",
+    questionText:
+      "The third term of an arithmetic progression is 11 and the eighth term is 31.\n(a) Find the first term and common difference.\n(b) Find the sum of the first 20 terms.",
+    answerText: "(a) First term = 3; common difference = 4\n(b) S20 = 820",
+    explanationText:
+      "Marking guide (12 marks): writes a + 2d = 11 and a + 7d = 31 (3); subtracts to get 5d = 20 and d = 4 (2); obtains a = 3 (1); states the sum formula S20 = 20/2[2a + 19d] (2); substitutes correctly (2); obtains 820 (2).",
+    difficulty: 2,
+  },
+  {
+    subjectName: "WAEC Mathematics",
+    topicTitle: "Mensuration",
+    questionNumber: "P2-II-03",
+    questionText:
+      "A closed cylindrical tank has radius 3.5 m and height 8 m. Using π = 22/7, calculate:\n(a) its volume;\n(b) its total surface area;\n(c) the capacity of the tank in litres.",
+    answerText:
+      "(a) 308 m³\n(b) 253 m²\n(c) 308,000 litres",
+    explanationText:
+      "Marking guide (12 marks): correct volume formula πr²h (1); substitution and volume 308 m³ (3); correct closed-cylinder surface formula 2πr² + 2πrh (2); substitution (1); surface area 253 m² (2); uses 1 m³ = 1000 litres (1); capacity 308,000 litres (2).",
+    difficulty: 2,
+  },
+  {
+    subjectName: "WAEC Mathematics",
+    topicTitle: "Geometry & Trigonometry",
+    questionNumber: "P2-II-04",
+    questionText:
+      "From a point P on level ground, the angle of elevation of the top of a vertical tower is 38°. P is 45 m from the foot of the tower.\n(a) Calculate the height of the tower, correct to one decimal place.\n(b) A second point Q lies on the same straight line, 20 m closer to the tower. Calculate the angle of elevation from Q, correct to the nearest degree.",
+    answerText: "(a) 35.2 m\n(b) 55°",
+    explanationText:
+      "Marking guide (12 marks): suitable labelled right-triangle relation (1); tan 38° = h/45 (2); h = 45 tan 38° (1); height 35.2 m (2); Q-to-tower distance 25 m (1); tan θ = 35.2/25 (2); inverse tangent used correctly (1); angle 55° to nearest degree (2).",
+    difficulty: 3,
+  },
+  {
+    subjectName: "WAEC Mathematics",
+    topicTitle: "Statistics & Probability",
+    questionNumber: "P2-II-05",
+    questionText:
+      "The table shows the number of books read by 30 students in one term.\nBooks: 0, 1, 2, 3, 4\nFrequency: 2, 6, 10, 8, 4\n(a) Calculate the mean number of books.\n(b) Find the modal number.\n(c) If one student is selected at random, find the probability that the student read at least 3 books.",
+    answerText: "(a) Mean = 2.2 books\n(b) Mode = 2 books\n(c) 2/5",
+    explanationText:
+      "Marking guide (12 marks): obtains products 0, 6, 20, 24, 16 (2); total frequency 30 and sum fx = 66 (2); mean 66/30 = 2.2 (2); identifies mode 2 from highest frequency (2); at least 3 gives frequency 8 + 4 = 12 (2); probability 12/30 = 2/5 (2).",
+    difficulty: 2,
+  },
+  {
+    subjectName: "WAEC Mathematics",
+    topicTitle: "Commercial Arithmetic",
+    questionNumber: "P2-II-06",
+    questionText:
+      "A sum of ₦250,000 is invested at 8% compound interest per annum for 3 years.\n(a) Calculate the amount after 3 years.\n(b) Find the compound interest earned.\n(c) Calculate how much more interest is earned than if simple interest had been used for the same period.",
+    answerText:
+      "(a) ₦314,928\n(b) ₦64,928\n(c) ₦4,928 more than simple interest",
+    explanationText:
+      "Marking guide (12 marks): states A = P(1 + r)^n (1); substitutes 250000(1.08)^3 (2); amount ₦314,928 (2); compound interest ₦64,928 (2); simple-interest method PRT/100 (1); simple interest ₦60,000 (2); difference ₦4,928 (2).",
+    difficulty: 2,
+  },
+  {
+    subjectName: "WAEC Mathematics",
+    topicTitle: "Number & Numeration",
+    questionNumber: "P2-II-07",
+    questionText:
+      "(a) Convert 231₄ to base ten.\n(b) Express 45₁₀ in base two.\n(c) Simplify (3² × 3^-5) ÷ 3^-4, leaving your answer as a power of 3 and as an ordinary number.",
+    answerText: "(a) 45₁₀\n(b) 101101₂\n(c) 3¹ = 3",
+    explanationText:
+      "Marking guide (12 marks): expands 231₄ by place value (2); obtains 45 (1); repeated division or place-value conversion for 45 to binary (3); obtains 101101₂ (1); combines powers in the numerator to 3^-3 (2); applies division law to get 3^(-3-(-4)) = 3¹ (2); ordinary value 3 (1).",
+    difficulty: 2,
+  },
+  {
+    subjectName: "WAEC Mathematics",
+    topicTitle: "Geometry & Trigonometry",
+    questionNumber: "P2-II-08",
+    questionText:
+      "The points A(-2, 3), B(4, 7) and C(6, -1) are vertices of a triangle.\n(a) Find the midpoint of AB.\n(b) Calculate the gradient of AB.\n(c) Find the equation of the line through C that is perpendicular to AB, in the form y = mx + c.",
+    answerText:
+      "(a) (1, 5)\n(b) 2/3\n(c) y = -3/2x + 8",
+    explanationText:
+      "Marking guide (12 marks): midpoint formula (1); midpoint (1, 5) (2); gradient calculation (7 - 3)/(4 - (-2)) (2); gradient 2/3 (1); perpendicular gradient -3/2 (2); substitutes C(6, -1) into the line equation (2); obtains y = -3/2x + 8 (2).",
+    difficulty: 3,
+  },
+];
+
 export const questions: ResolvableQuestion[] = [
   ...numberNumeration(30),
   ...algebraicProcesses(30),
@@ -370,4 +521,5 @@ export const questions: ResolvableQuestion[] = [
   ...geometryTrigonometry(10),
   ...setsVennDiagrams(8),
   ...sequencesSeries(8),
+  ...paper2WrittenQuestions,
 ];
