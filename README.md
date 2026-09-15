@@ -250,7 +250,9 @@ These items cannot be solved by publishing policies and remain launch work:
   maximum total across all users and Railway replicas.
 - Dependabot checks npm and GitHub Actions dependencies, TruffleHog scans pushed
   changes and pull requests for secrets, and the weekly ZAP baseline workflow
-  scans the URL in the `STAGING_URL` GitHub repository variable.
+  scans the URL in the `STAGING_URL` GitHub repository variable. Its CI gate
+  fails on medium/high findings while retaining low/informational observations
+  in the downloadable report.
 - Railway deployment topology, ClamAV setup, structured security-log filters,
   alert thresholds, AI-cost monitoring, and edge-WAF guidance are documented in
   [`docs/RAILWAY_SECURITY_OPERATIONS.md`](/Users/efeon/study-buddy-v2/docs/RAILWAY_SECURITY_OPERATIONS.md).
