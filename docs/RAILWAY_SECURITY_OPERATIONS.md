@@ -99,6 +99,15 @@ the Railway web service and keep the owner credential in a separately controlled
 migration job where possible. Test this against staging before switching
 production because a missed table or sequence grant will fail closed.
 
+For a new isolated environment, apply all Prisma migrations with the owner
+connection first, then run `scripts/provision-runtime-role.sql` through `psql`
+with the runtime password supplied as the `runtime_password` variable. The
+script is repeatable: it creates or updates `studybuddy_runtime`, denies schema
+creation and ownership, grants only application table/sequence access, and sets
+matching default privileges for future owner-created objects. Run
+`npm run security:verify-database` through the resulting runtime URL before the
+web service is deployed.
+
 For Railway's persistent Next.js container, use Supabase's Supavisor **Session
 pooler** URI on port `5432` for `DATABASE_URL`, with the username changed to the
 dedicated runtime role. For the current single-replica deployment, append
