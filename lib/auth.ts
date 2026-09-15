@@ -140,27 +140,3 @@ export async function requireAiUser() {
 
   return { user, dbUser };
 }
-
-export async function requireAdmin() {
-  const base = await requireUser();
-  if ("errorResponse" in base) return base;
-
-  const { user, dbUser } = base;
-
-  if (!(await hasAdminAccess(dbUser))) {
-    return {
-      errorResponse: NextResponse.json({ error: "Forbidden" }, { status: 403 }),
-    };
-  }
-
-  return { user, dbUser };
-}
-
-export async function hasAdminAccess(user: { id: string }) {
-  const adminRecord = await prisma.adminUser.findUnique({
-    where: { userId: user.id },
-    select: { id: true },
-  });
-
-  return Boolean(adminRecord);
-}
