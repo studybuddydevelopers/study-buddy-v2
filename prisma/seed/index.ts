@@ -116,6 +116,10 @@ async function main() {
         title: m.title,
         description: m.description ?? null,
         questionCount: m.questionCount,
+        format: m.format,
+        durationMinutes: m.durationMinutes,
+        totalMarks: m.totalMarks,
+        requiredQuestionCount: m.requiredQuestionCount,
       };
     })
     .filter((m): m is NonNullable<typeof m> => Boolean(m));
@@ -126,6 +130,25 @@ async function main() {
   if (newTemplates.length) {
     await prisma.mockExamTemplate.createMany({ data: newTemplates });
   }
+
+  await Promise.all(
+    resolvedTemplates.map((template) =>
+      prisma.mockExamTemplate.updateMany({
+        where: {
+          subjectId: template.subjectId,
+          title: template.title,
+        },
+        data: {
+          description: template.description,
+          questionCount: template.questionCount,
+          format: template.format,
+          durationMinutes: template.durationMinutes,
+          totalMarks: template.totalMarks,
+          requiredQuestionCount: template.requiredQuestionCount,
+        },
+      })
+    )
+  );
 
   console.log("WAEC seed completed");
 }
