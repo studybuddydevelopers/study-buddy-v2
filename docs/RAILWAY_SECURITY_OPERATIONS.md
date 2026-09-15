@@ -323,7 +323,9 @@ and [native monitor limits](https://docs.railway.com/observability).
 - Set the GitHub Actions repository variable `STAGING_URL` to the public HTTPS
   Railway staging URL. The OWASP ZAP baseline workflow runs every Monday and can
   also be launched manually with an alternate target. It is a non-destructive
-  spider/passive scan, fails the workflow on alerts, and uploads its report.
+  spider/passive scan and uploads its report. `scripts/check-zap-report.mjs`
+  fails CI on medium/high alerts; low/informational observations remain in the
+  report for review without making the workflow red.
 - The workflow runs `scripts/validate-zap-target.mjs` before ZAP. It accepts only
   an HTTPS Railway `*.up.railway.app` origin or
   `https://staging.studybuddyng.com`, and explicitly refuses the production
