@@ -56,13 +56,13 @@ describe("buildProgressTrend", () => {
     });
   });
 
-  it("uses compact buckets for longer ranges", () => {
+  it("keeps one daily point for every selected range", () => {
     expect(
       buildProgressTrend("30d", new Date("2026-09-14T12:00:00Z"), [], [])
-    ).toHaveLength(10);
+    ).toHaveLength(30);
     expect(
       buildProgressTrend("90d", new Date("2026-09-14T12:00:00Z"), [], [])
-    ).toHaveLength(13);
+    ).toHaveLength(90);
   });
 });
 
