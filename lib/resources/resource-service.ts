@@ -369,7 +369,7 @@ export class ResourceService {
 
   async decideApproval(
     resourceId: string,
-    adminUserId: string,
+    reviewerUserId: string,
     input: ResourceApprovalInput
   ) {
     const resource = await prisma.resource.findUnique({
@@ -427,7 +427,7 @@ export class ResourceService {
         approvalStatus: approved
           ? ResourceApprovalStatus.APPROVED
           : ResourceApprovalStatus.REJECTED,
-        approvedById: adminUserId,
+        approvedById: reviewerUserId,
         approvedAt: approved ? now : null,
         rejectedAt: approved ? null : now,
         approvalNotes: input.notes?.trim() || null,
