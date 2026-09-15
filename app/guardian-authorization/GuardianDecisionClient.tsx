@@ -3,7 +3,6 @@
 import { useEffect, useRef, useState } from "react";
 import Button from "@/components/Button";
 import FormErrorMessage from "@/components/FormErrorMessage";
-import Heading1 from "@/components/Heading1";
 import { readResponseError } from "@/lib/client-response-error";
 
 type RequestDetails = {
@@ -82,9 +81,11 @@ export default function GuardianDecisionClient() {
   const studentName = details?.studentName ?? "the student";
 
   return (
-    <main className="mx-auto flex min-h-screen w-full max-w-2xl items-center px-6 py-12">
-      <section className="w-full rounded-2xl border border-gray-200 bg-white p-6 shadow-sm sm:p-10">
-        <Heading1 gutter="sm">Guardian authorisation</Heading1>
+    <main className="mx-auto flex min-h-screen min-w-0 w-full max-w-2xl items-center px-4 py-12 [overflow-wrap:anywhere] sm:px-6">
+      <section className="w-full min-w-0 rounded-2xl border border-gray-200 bg-white p-4 shadow-sm sm:p-10">
+        <h1 className="mb-2 text-3xl font-extrabold leading-tight text-gray-900 sm:text-4xl lg:text-5xl">
+          Guardian authorisation
+        </h1>
         {!lookupComplete ? (
           <p className="leading-relaxed text-gray-700" role="status">Checking the secure link…</p>
         ) : completed ? (
