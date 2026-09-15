@@ -72,7 +72,13 @@ module.exports = {
       fontFamily: {
         sans: ["var(--font-sans)", "sans-serif"],
         mono: ["var(--font-mono)", "monospace"],
-      }
+      },
+
+      // Keep supporting text comfortably above the smallest iOS HIG size.
+      fontSize: {
+        xs: ["0.9375rem", { lineHeight: "1.25rem" }],
+        sm: ["1rem", { lineHeight: "1.5rem" }],
+      },
     },
   },
   plugins: [],
