@@ -171,7 +171,7 @@ These items cannot be solved by publishing policies and remain launch work:
   project region is confirmed as North EU (Stockholm), Sweden (`eu-north-1`).
 - [x] Enable Resend custom SMTP in the production Supabase Auth dashboard and
   verify that account-verification and password-reset messages are delivered.
-- [ ] Re-test the complete verification and password-reset flows after deploying
+- [x] Re-test the complete verification and password-reset flows after deploying
   the app-owned callbacks and applying the exact production URL/template settings
   below; preserve privacy-safe evidence without email addresses or live tokens.
 - [x] Confirm that future paid subscriptions renew automatically after clear
