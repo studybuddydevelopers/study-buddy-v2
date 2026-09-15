@@ -528,6 +528,86 @@ function TrendChart({ progress }: { progress: ProgressFullReport }) {
   );
 }
 
+function MockResultsSummary({
+  mocks,
+}: {
+  mocks: ProgressFullReport["mockExams"];
+}) {
+  const items = [
+    { label: "Average score", value: `${mocks.averageScorePercent}%` },
+    {
+      label: "Average time",
+      value: formatDurationMinutes(mocks.averageDurationMinutes),
+    },
+    { label: "Completed", value: String(mocks.count) },
+  ];
+
+  return (
+    <dl className="grid grid-cols-3 divide-x divide-primary-100 overflow-hidden rounded-2xl border border-primary-100 bg-accent-50">
+      {items.map((item) => (
+        <div key={item.label} className="min-w-0 px-2 py-3 text-center sm:p-4">
+          <dt className="text-xs font-medium leading-4 text-gray-600">
+            {item.label}
+          </dt>
+          <dd className="mt-1 truncate text-lg font-bold text-gray-950 tabular-nums sm:text-xl">
+            {item.value}
+          </dd>
+        </div>
+      ))}
+    </dl>
+  );
+}
+
+function MobileMockResults({
+  exams,
+}: {
+  exams: ProgressFullReport["mockExams"]["exams"];
+}) {
+  return (
+    <ol
+      className="divide-y divide-gray-200 overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm min-[769px]:hidden"
+      aria-label="Mock exam results"
+    >
+      {exams.map((exam) => (
+        <li key={exam.instanceId} className="p-4">
+          <div className="flex items-start justify-between gap-3">
+            <h3 className="min-w-0 pt-1 font-bold leading-6 text-gray-950 [overflow-wrap:anywhere]">
+              {exam.templateTitle}
+            </h3>
+            <span className="shrink-0 rounded-full bg-primary-50 px-3 py-1 text-lg font-bold text-primary-800 tabular-nums">
+              {exam.scorePercent == null ? "—" : `${exam.scorePercent}%`}
+            </span>
+          </div>
+
+          <dl className="mt-4 grid grid-cols-2 gap-2 rounded-xl bg-gray-50 p-3">
+            <div className="min-w-0">
+              <dt className="text-xs font-medium text-gray-500">Score</dt>
+              <dd className="mt-0.5 font-semibold text-gray-900 tabular-nums">
+                {exam.score} / {exam.questionCount}
+              </dd>
+            </div>
+            <div className="min-w-0">
+              <dt className="text-xs font-medium text-gray-500">Time</dt>
+              <dd className="mt-0.5 font-semibold text-gray-900 tabular-nums">
+                {formatDurationMinutes(exam.durationMinutes)}
+              </dd>
+            </div>
+          </dl>
+
+          <p className="mt-3 text-xs leading-5 text-gray-500">
+            Submitted{" "}
+            {exam.submittedAt ? (
+              <LocalDateTime value={exam.submittedAt} />
+            ) : (
+              "—"
+            )}
+          </p>
+        </li>
+      ))}
+    </ol>
+  );
+}
+
 export default function ProgressClient({
   progress,
 }: {
@@ -952,60 +1032,11 @@ export default function ProgressClient({
           </div>
         ) : (
           <>
-            <div className="flex flex-wrap gap-x-6 gap-y-2 rounded-xl bg-accent-50 p-4 text-sm text-gray-700">
-              <span>
-                <strong className="text-gray-950">Average score:</strong>{" "}
-                {mocks.averageScorePercent}%
-              </span>
-              <span>
-                <strong className="text-gray-950">Average time:</strong>{" "}
-                {formatDurationMinutes(mocks.averageDurationMinutes)}
-              </span>
-              <span>
-                <strong className="text-gray-950">Completed:</strong>{" "}
-                {mocks.count}
-              </span>
-            </div>
+            <MockResultsSummary mocks={mocks} />
 
-            <ul className="space-y-3 md:hidden" aria-label="Mock exam results">
-              {mocks.exams.map((exam) => (
-                <li
-                  key={exam.instanceId}
-                  className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm"
-                >
-                  <h3 className="font-bold text-gray-950 [overflow-wrap:anywhere]">
-                    {exam.templateTitle}
-                  </h3>
-                  <dl className="mt-4 grid grid-cols-2 gap-4 text-sm">
-                    <div>
-                      <dt className="text-gray-500">Score</dt>
-                      <dd className="mt-1 font-semibold text-gray-900 tabular-nums">
-                        {exam.score} / {exam.questionCount}
-                        {exam.scorePercent == null ? "" : ` (${exam.scorePercent}%)`}
-                      </dd>
-                    </div>
-                    <div>
-                      <dt className="text-gray-500">Time</dt>
-                      <dd className="mt-1 font-semibold text-gray-900 tabular-nums">
-                        {formatDurationMinutes(exam.durationMinutes)}
-                      </dd>
-                    </div>
-                    <div className="col-span-2">
-                      <dt className="text-gray-500">Submitted</dt>
-                      <dd className="mt-1 font-semibold text-gray-900">
-                        {exam.submittedAt ? (
-                          <LocalDateTime value={exam.submittedAt} />
-                        ) : (
-                          "—"
-                        )}
-                      </dd>
-                    </div>
-                  </dl>
-                </li>
-              ))}
-            </ul>
+            <MobileMockResults exams={mocks.exams} />
 
-            <div className="hidden overflow-hidden rounded-2xl border border-gray-200 md:block">
+            <div className="hidden overflow-hidden rounded-2xl border border-gray-200 min-[769px]:block">
               <table className="w-full text-left text-sm">
                 <thead className="bg-accent-50 text-gray-700">
                   <tr>
@@ -1052,19 +1083,19 @@ export default function ProgressClient({
                 <span className="tabular-nums">
                   Showing {mockPageStart}–{mockPageEnd} of {mockPagination.total}
                 </span>
-                <div className="flex gap-2">
+                <div className="grid grid-cols-2 gap-2 sm:flex">
                   {mockPagination.hasPreviousPage ? (
                     <Link
                       href={progressHref(filters, {
                         mockPage: mockPagination.page - 1,
                       })}
                       prefetch={false}
-                      className="inline-flex min-h-11 items-center rounded-xl border-2 border-primary-600 px-4 font-semibold text-primary-700 transition hover:bg-primary-700 hover:text-white focus:outline-none focus:ring-2 focus:ring-primary-300 focus:ring-offset-2"
+                      className="inline-flex min-h-11 items-center justify-center rounded-xl border-2 border-primary-600 px-4 font-semibold text-primary-700 transition hover:bg-primary-700 hover:text-white focus:outline-none focus:ring-2 focus:ring-primary-300 focus:ring-offset-2"
                     >
                       Previous
                     </Link>
                   ) : (
-                    <span className="inline-flex min-h-11 items-center rounded-xl border-2 border-gray-200 px-4 font-semibold text-gray-400">
+                    <span className="inline-flex min-h-11 items-center justify-center rounded-xl border-2 border-gray-200 px-4 font-semibold text-gray-400">
                       Previous
                     </span>
                   )}
@@ -1074,12 +1105,12 @@ export default function ProgressClient({
                         mockPage: mockPagination.page + 1,
                       })}
                       prefetch={false}
-                      className="inline-flex min-h-11 items-center rounded-xl border-2 border-primary-600 px-4 font-semibold text-primary-700 transition hover:bg-primary-700 hover:text-white focus:outline-none focus:ring-2 focus:ring-primary-300 focus:ring-offset-2"
+                      className="inline-flex min-h-11 items-center justify-center rounded-xl border-2 border-primary-600 px-4 font-semibold text-primary-700 transition hover:bg-primary-700 hover:text-white focus:outline-none focus:ring-2 focus:ring-primary-300 focus:ring-offset-2"
                     >
                       Next
                     </Link>
                   ) : (
-                    <span className="inline-flex min-h-11 items-center rounded-xl border-2 border-gray-200 px-4 font-semibold text-gray-400">
+                    <span className="inline-flex min-h-11 items-center justify-center rounded-xl border-2 border-gray-200 px-4 font-semibold text-gray-400">
                       Next
                     </span>
                   )}
