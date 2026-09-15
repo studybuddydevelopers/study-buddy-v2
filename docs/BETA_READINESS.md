@@ -82,11 +82,13 @@ readiness sign-off.
    display an explicit beta notice, feedback route, known limitations, and
    support contact. Do not display textbooks or describe content as genuine past
    examination questions until the required rights are documented.
-7. **In progress:** The staging OWASP ZAP workflow now validates its target and
-   refuses the production domain or an unapproved host. Create the isolated
-   Railway staging deployment, set its public HTTPS origin as the GitHub
-   `STAGING_URL` repository variable, run the workflow, and resolve
-   high-confidence high/critical findings before inviting users.
+7. **Final verification pending:** The isolated Railway/Supabase staging
+   environment and GitHub `STAGING_URL` variable are configured. The ZAP
+   workflow refuses production or unapproved targets. The 15 September 2026
+   follow-up scan found no high/critical alerts and confirmed the prior 500,
+   error-disclosure and HSTS findings were resolved. Deploy the narrowed image
+   CSP, rerun the workflow, and retain its passing report; the CI gate fails on
+   medium/high findings while keeping low/informational observations visible.
 8. **Implemented; final production evidence pending:** The password-reset abuse
    alert and user-confirmed temporary-account-lock workflow is deployed; its
    migration, runtime grants, fingerprint backfill, rate limit, real alert,
