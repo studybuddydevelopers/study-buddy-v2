@@ -56,12 +56,12 @@ function CodeBlock({ children }: { children: ReactNode }) {
       <button
         type="button"
         onClick={() => void copyCode()}
-        className="absolute right-2 top-2 z-10 rounded-md border border-white/20 bg-white/10 px-2 py-1 text-[11px] font-semibold text-white transition hover:bg-white/20 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
+        className="absolute right-2 top-2 z-10 rounded-md border border-white/20 bg-white/10 px-2 py-1 text-xs font-semibold text-white transition hover:bg-white/20 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
         aria-label="Copy code to clipboard"
       >
         {copied ? "Copied" : "Copy code"}
       </button>
-      <pre className="max-w-full overflow-x-auto rounded-lg bg-[#17131C] p-4 pr-24 text-[13px] leading-6 text-gray-100">
+      <pre className="max-w-full overflow-x-auto rounded-lg bg-[#17131C] p-4 pr-24 text-xs leading-6 text-gray-100">
         {children}
       </pre>
     </div>
