@@ -65,19 +65,16 @@ function progressHref(
   return `/progress?${params.toString()}`;
 }
 
-function StatCard({
-  title,
-  value,
-  detail,
-  scope,
-}: {
+interface StatCardProps {
   title: string;
   value: string;
   detail: string;
   scope: string;
-}) {
+}
+
+function StatCard({ title, value, detail, scope }: StatCardProps) {
   return (
-    <article className="flex min-h-0 flex-col rounded-2xl border border-gray-200 bg-white p-4 shadow-sm sm:min-h-44 sm:p-5">
+    <article className="flex min-h-0 w-full shrink-0 snap-start flex-col rounded-2xl border border-gray-200 bg-white p-4 shadow-sm sm:min-h-44 sm:p-5 min-[769px]:snap-none">
       <div className="flex items-start justify-between gap-3">
         <p className="text-sm font-semibold text-gray-700">{title}</p>
         <span className="shrink-0 rounded-full bg-primary-50 px-2.5 py-1 text-xs font-semibold text-primary-700">
@@ -92,21 +89,11 @@ function StatCard({
   );
 }
 
-interface NextAction {
-  id: string;
-  icon: StudyBuddyIconName;
-  eyebrow: string;
-  title: string;
-  detail: string;
-  href: string;
-  linkLabel: string;
-}
-
-function NextActionsCarousel({ actions }: { actions: NextAction[] }) {
+function useCardCarousel() {
   const scrollerRef = useRef<HTMLDivElement>(null);
   const [activeIndex, setActiveIndex] = useState(0);
 
-  function updateActiveAction() {
+  function updateActiveItem() {
     const scroller = scrollerRef.current;
     if (!scroller) return;
 
@@ -127,7 +114,7 @@ function NextActionsCarousel({ actions }: { actions: NextAction[] }) {
     setActiveIndex(nearestIndex);
   }
 
-  function showAction(index: number) {
+  function showItem(index: number) {
     const scroller = scrollerRef.current;
     const card = scroller?.children[index] as HTMLElement | undefined;
     if (!scroller || !card) return;
@@ -142,11 +129,103 @@ function NextActionsCarousel({ actions }: { actions: NextAction[] }) {
     setActiveIndex(index);
   }
 
+  return { activeIndex, scrollerRef, showItem, updateActiveItem };
+}
+
+function CarouselDots({
+  activeIndex,
+  items,
+  itemName,
+  onSelect,
+}: {
+  activeIndex: number;
+  items: Array<{ id: string; label: string }>;
+  itemName: string;
+  onSelect: (index: number) => void;
+}) {
+  if (items.length <= 1) return null;
+
+  return (
+    <div
+      className="mt-2 flex min-h-11 items-center justify-center min-[769px]:hidden"
+      role="group"
+      aria-label={`${itemName} ${activeIndex + 1} of ${items.length}`}
+    >
+      <span className="sr-only" aria-live="polite">
+        Showing {itemName.toLowerCase()} {activeIndex + 1} of {items.length}
+      </span>
+      {items.map((item, index) => (
+        <button
+          key={item.id}
+          type="button"
+          onClick={() => onSelect(index)}
+          className="group inline-flex h-11 w-11 items-center justify-center rounded-full focus:outline-none focus:ring-2 focus:ring-primary-300 focus:ring-offset-2"
+          aria-label={`Show ${itemName.toLowerCase()} ${index + 1}: ${item.label}`}
+          aria-current={activeIndex === index ? "true" : undefined}
+        >
+          <span
+            className={`block rounded-full transition-all ${
+              activeIndex === index
+                ? "h-2.5 w-2.5 bg-primary-700"
+                : "h-2 w-2 bg-gray-300 group-hover:bg-primary-300"
+            }`}
+            aria-hidden="true"
+          />
+        </button>
+      ))}
+    </div>
+  );
+}
+
+interface OverviewStat extends StatCardProps {
+  id: string;
+}
+
+function OverviewCarousel({ stats }: { stats: OverviewStat[] }) {
+  const { activeIndex, scrollerRef, showItem, updateActiveItem } =
+    useCardCarousel();
+
   return (
     <div>
       <div
         ref={scrollerRef}
-        onScroll={updateActiveAction}
+        onScroll={updateActiveItem}
+        className="flex snap-x snap-mandatory gap-4 overflow-x-auto overscroll-x-contain [scrollbar-width:none] [&::-webkit-scrollbar]:hidden min-[769px]:grid min-[769px]:grid-cols-2 min-[769px]:snap-none min-[769px]:overflow-visible xl:grid-cols-4"
+        aria-label="Honest overview statistics"
+      >
+        {stats.map((stat) => (
+          <StatCard key={stat.id} {...stat} />
+        ))}
+      </div>
+      <CarouselDots
+        activeIndex={activeIndex}
+        items={stats.map((stat) => ({ id: stat.id, label: stat.title }))}
+        itemName="Overview card"
+        onSelect={showItem}
+      />
+    </div>
+  );
+}
+
+interface NextAction {
+  id: string;
+  icon: StudyBuddyIconName;
+  eyebrow: string;
+  title: string;
+  detail: string;
+  href: string;
+  linkLabel: string;
+}
+
+function NextActionsCarousel({ actions }: { actions: NextAction[] }) {
+  const { activeIndex, scrollerRef, showItem, updateActiveItem } =
+    useCardCarousel();
+
+  return (
+    <div>
+      <div
+        ref={scrollerRef}
+        onScroll={updateActiveItem}
         className="flex snap-x snap-mandatory gap-4 overflow-x-auto overscroll-x-contain [scrollbar-width:none] [&::-webkit-scrollbar]:hidden min-[769px]:grid min-[769px]:grid-cols-1 min-[769px]:snap-none min-[769px]:overflow-visible lg:grid-cols-2"
         aria-label="Recommended next actions"
       >
@@ -182,36 +261,15 @@ function NextActionsCarousel({ actions }: { actions: NextAction[] }) {
         ))}
       </div>
 
-      {actions.length > 1 && (
-        <div
-          className="mt-2 flex min-h-11 items-center justify-center min-[769px]:hidden"
-          role="group"
-          aria-label={`Recommendation ${activeIndex + 1} of ${actions.length}`}
-        >
-          <span className="sr-only" aria-live="polite">
-            Showing recommendation {activeIndex + 1} of {actions.length}
-          </span>
-          {actions.map((action, index) => (
-            <button
-              key={action.id}
-              type="button"
-              onClick={() => showAction(index)}
-              className="group inline-flex h-11 w-11 items-center justify-center rounded-full focus:outline-none focus:ring-2 focus:ring-primary-300 focus:ring-offset-2"
-              aria-label={`Show recommendation ${index + 1}: ${action.title}`}
-              aria-current={activeIndex === index ? "true" : undefined}
-            >
-              <span
-                className={`block rounded-full transition-all ${
-                  activeIndex === index
-                    ? "h-2.5 w-2.5 bg-primary-700"
-                    : "h-2 w-2 bg-gray-300 group-hover:bg-primary-300"
-                }`}
-                aria-hidden="true"
-              />
-            </button>
-          ))}
-        </div>
-      )}
+      <CarouselDots
+        activeIndex={activeIndex}
+        items={actions.map((action) => ({
+          id: action.id,
+          label: action.title,
+        }))}
+        itemName="Recommendation"
+        onSelect={showItem}
+      />
     </div>
   );
 }
@@ -421,6 +479,48 @@ export default function ProgressClient({
   const mockPagination = mocks.pagination;
   const practiceAccuracyPct =
     practice.totalAttempts > 0 ? pct(practice.accuracyRate) : null;
+  const overviewStats: OverviewStat[] = [
+    {
+      id: "coverage",
+      title: "Question-bank coverage",
+      value:
+        materials.questionsInBank > 0
+          ? `${materials.bankCoveragePercent}%`
+          : "—",
+      detail:
+        materials.questionsInBank > 0
+          ? `${materials.distinctQuestionsPracticed} of ${materials.questionsInBank} different questions tried`
+          : "No question bank is configured yet",
+      scope: "All time",
+    },
+    {
+      id: "accuracy",
+      title: "Practice accuracy",
+      value: practiceAccuracyPct == null ? "—" : `${practiceAccuracyPct}%`,
+      detail:
+        practice.totalAttempts > 0
+          ? `${practice.correctAttempts} correct from ${practice.totalAttempts} submitted answers`
+          : "No practice answers in this view",
+      scope: filters.rangeLabel,
+    },
+    {
+      id: "mock-performance",
+      title: "Mock performance",
+      value: mocks.count > 0 ? `${mocks.averageScorePercent}%` : "—",
+      detail:
+        mocks.count > 0
+          ? `Average across ${mocks.count} completed mock${mocks.count === 1 ? "" : "s"}`
+          : "No graded mock exams in this view",
+      scope: filters.rangeLabel,
+    },
+    {
+      id: "practice-volume",
+      title: "Practice volume",
+      value: String(practice.totalAttempts),
+      detail: `Question attempt${practice.totalAttempts === 1 ? "" : "s"}; shown separately from accuracy`,
+      scope: filters.rangeLabel,
+    },
+  ];
   const selectedSubject = filters.subjects.find(
     (subject) => subject.id === filters.subjectId
   );
@@ -646,48 +746,7 @@ export default function ProgressClient({
         <Heading2 id="progress-overview-heading" size="md" gutter="none">
           Honest overview
         </Heading2>
-        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-          <StatCard
-            title="Question-bank coverage"
-            value={
-              materials.questionsInBank > 0
-                ? `${materials.bankCoveragePercent}%`
-                : "—"
-            }
-            detail={
-              materials.questionsInBank > 0
-                ? `${materials.distinctQuestionsPracticed} of ${materials.questionsInBank} different questions tried`
-                : "No question bank is configured yet"
-            }
-            scope="All time"
-          />
-          <StatCard
-            title="Practice accuracy"
-            value={practiceAccuracyPct == null ? "—" : `${practiceAccuracyPct}%`}
-            detail={
-              practice.totalAttempts > 0
-                ? `${practice.correctAttempts} correct from ${practice.totalAttempts} submitted answers`
-                : "No practice answers in this view"
-            }
-            scope={filters.rangeLabel}
-          />
-          <StatCard
-            title="Mock performance"
-            value={mocks.count > 0 ? `${mocks.averageScorePercent}%` : "—"}
-            detail={
-              mocks.count > 0
-                ? `Average across ${mocks.count} completed mock${mocks.count === 1 ? "" : "s"}`
-                : "No graded mock exams in this view"
-            }
-            scope={filters.rangeLabel}
-          />
-          <StatCard
-            title="Practice volume"
-            value={String(practice.totalAttempts)}
-            detail={`Question attempt${practice.totalAttempts === 1 ? "" : "s"}; shown separately from accuracy`}
-            scope={filters.rangeLabel}
-          />
-        </div>
+        <OverviewCarousel stats={overviewStats} />
         {materials.lastActivityAt && (
           <p className="text-sm text-gray-600">
             Last study-materials practice: {" "}
