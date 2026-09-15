@@ -233,6 +233,7 @@ export async function GET() {
           select: {
             title: true,
             questionCount: true,
+            requiredQuestionCount: true,
             subject: { select: { name: true } },
           },
         },
@@ -294,7 +295,9 @@ export async function GET() {
         answeredCount: lastInProgress.answers.filter(
           (answer) => answer.userAnswer?.trim()
         ).length,
-        questionCount: lastInProgress.template.questionCount,
+        questionCount:
+          lastInProgress.template.requiredQuestionCount ??
+          lastInProgress.template.questionCount,
         startedAt: lastInProgress.startedAt.toISOString(),
       }
     : null;
