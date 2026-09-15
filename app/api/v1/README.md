@@ -4,7 +4,7 @@ API v1 Reference
 Conventions
 -----------
 - All endpoints respond with JSON; errors use `{ "error": string }` and relevant HTTP status.
-- Auth uses Supabase session cookies. `requireUser` blocks unauthenticated requests (401). `requireAdmin` uses the matching `AdminUser` row as the sole admin authority (403 when absent).
+- Auth uses Supabase session cookies. `requireUser` blocks unauthenticated requests (401). The application has no administrator role or administration routes.
 - Unsafe API requests carrying a Supabase session cookie require an exact trusted `Origin`; signed webhooks and the secret-authenticated recommendation cron are exempt from cookie CSRF handling.
 - Paths are shown relative to `/api/v1`.
 
@@ -21,7 +21,7 @@ Auth & Account
 - POST `/account/security/password-reset-lock` — Body: one-time `token` from the abuse-warning URL fragment. An explicit same-origin POST replaces the old password, revokes sessions through Supabase Auth, and applies a 24-hour provider ban. A GET or email preview cannot lock the account.
 - POST `/account/security/password-reset-recovery` — Body: one-time `token` from the post-lock recovery URL fragment. Explicitly lifts the provider ban and sends Supabase password-reset instructions while the application restriction remains until a new password is set.
 - POST `/account/security/password-reset-recovery/complete` (recovery session) — Clears the application security restriction only after the server verifies a post-lock Supabase sign-in/recovery event.
-- GET `/me` (auth) — Returns user basics, profile, and latest subscription `{ id, createdAt, isAdmin, profile, subscription }`; 404 if no DB user record.
+- GET `/me` (auth) — Returns user basics, profile, and latest subscription `{ id, createdAt, profile, subscription }`; 404 if no DB user record.
 
 Profile
 -------
@@ -72,37 +72,24 @@ Progress
 
 Subscriptions
 -------------
-- GET `/subscriptions/list` (auth) — Query: `status?`, `plan?`, `userId?` (admin only), `page?=1`, `pageSize?=20` (max 50). Admins can filter by user; regular users see only their subscriptions. Returns `{ subscriptions, pagination }`.
-- GET `/subscriptions/:id/status` (auth) — Admins can read any; users can read only their own. Returns subscription detail `{ id, plan, status, startDate, endDate, renewalMethod, userId }`.
+- GET `/subscriptions/list` (auth) — Query: `status?`, `plan?`, `page?=1`, `pageSize?=20` (max 50). Users see only their own subscriptions. Returns `{ subscriptions, pagination }`.
+- GET `/subscriptions/:id/status` (auth) — Users can read only their own subscription. Returns subscription detail `{ id, plan, status, startDate, endDate, renewalMethod, userId }`.
 
 Payments
 --------
 - POST `/payments/verify` (auth) — Body: `reference`. Calls Paystack verify, records transaction if not already stored, returns `{ provider: "paystack", verified: true, transaction, duplicate? }`.
 - POST `/payments/webhook` — Paystack webhook (raw body, signature checked). Requires `metadata.userId` from Paystack payload; creates transaction unless reference already exists. Returns `{ success: true }` or `{ received: true }`.
 
-Admin Content
--------------
-- POST `/admin/subjects/create` (admin) — Body: `name` (req), `examCode?`, `description?`. Returns created subject.
-- POST `/admin/topics/create` (admin) — Body: `subjectId`, `title` (req), `examOutlineRef?`, `difficulty?`. Returns created topic.
-- POST `/admin/curriculum/upload` (admin) — Multipart form: `subjectId`, `file` (PDF). Validates the PDF signature and malware-scans it before uploading to Supabase storage; records `{ id, subjectId, fileUrl, uploadedAt }`.
-- POST `/admin/past-questions/upload` (admin) — Multipart form with `subjectId`, `questionText`, `answerText` (req); optional `topicId`, `explanationText`, `year`, `questionNumber`, `difficulty`, `image` (png/jpeg). Validates the image signature/type and malware-scans it before upload, creates the question record, and returns stored fields.
-- POST `/admin/past-questions/batch` (admin) — Body: array of past-question objects (`subjectId`, `questionText`, `answerText`, optional metadata). Inserts each and returns per-index results plus counts.
-- GET `/admin/users/query` (admin) — Query: `search?`, `isAdmin?=true|false`, `page?=1`, `pageSize?=20` (max 50). Returns paginated users with limited profile info.
-
-Admin Resources (Stage 2)
--------------------------
-- GET `/admin/resources` (admin) — Query: `page?=1`, `pageSize?=20` (max 50), `sourceKind?`, `processingStatus?`, `approvalStatus?`, `subjectId?`, `topicId?`. Lists resources ordered by `updatedAt DESC, id DESC`.
-- POST `/admin/resources` (admin) — Multipart form: `file` (PDF, DOCX, Markdown, or plain text), optional `title`, `description`, `subjectId`, `topicId`, `provenance`, `usageRights`. Validates supported file signatures where available, malware-scans every file, stores it in the private resource bucket, and creates a `Resource` with `processingStatus = UPLOADED` and `approvalStatus = PENDING_REVIEW`.
-- GET `/admin/resources/:resourceId` (admin) — Returns resource metadata plus up to 100 active-version chunks ordered by `chunkIndex`.
-- POST `/admin/resources/:resourceId/process` (admin) — Downloads the private object server-side, extracts text, creates versioned structure-aware chunks, and marks the resource `PROCESSED` or `FAILED`. Successful changed content activates a replacement chunk version; failed reprocessing preserves the previous active version.
-- POST `/admin/resources/:resourceId/approval` (admin) — Body: `{ action: "APPROVE" | "REJECT", notes? }`. Approves only successfully processed resources with usable active chunks or rejects with notes.
-- POST `/admin/resources/migrate-past-questions` (admin) — Body: `{ dryRun?: boolean, limit?: number }`. Builds a migration report for legacy `PastQuestion` rows; with `dryRun: false`, creates resource/chunk records. Legacy rows lacking provenance or usage-rights remain pending admin review.
-
-Stage 2 resource APIs do not expose retrieval, embeddings, vector search, citations, source previews, grounded generation, or tutor modes.
+Internal Resources (Stage 2)
+----------------------------
+The former `/admin/*` content, upload, processing, approval and user-query HTTP
+routes have been removed. Resource ingestion service code and controlled CLI
+utilities remain for future internal workflows, but they are not reachable as
+an application HTTP administration surface.
 
 Resource Retrieval (Stage 3)
 ----------------------------
-- Stage 3 retrieval is CLI/internal-only. There are no student-facing or admin-facing HTTP retrieval endpoints yet.
+- Stage 3 retrieval is CLI/internal-only. There are no student-facing or operator-facing HTTP retrieval endpoints yet.
 - Retrieval infrastructure lives under `lib/resources/retrieval/*` and scripts:
   - `npm run resources:rebuild-search-text`
   - `npm run resources:embed-chunks`
