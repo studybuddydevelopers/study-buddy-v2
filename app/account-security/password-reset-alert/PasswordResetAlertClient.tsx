@@ -70,10 +70,10 @@ export default function PasswordResetAlertClient() {
     : null;
 
   return (
-    <main className="mx-auto flex min-h-screen w-full max-w-xl items-center px-6 py-12">
+    <main className="mx-auto flex min-h-screen w-full max-w-3xl items-center px-6 py-12">
       <section className="w-full rounded-2xl border border-gray-200 bg-white p-8 text-center shadow-sm">
         <StudyBuddyIcon name={locked ? "shield" : "warning"} size={64} className="mx-auto" />
-        <Heading1 gutter="sm">
+        <Heading1 gutter="sm" className="justify-self-center">
           {locked ? "Your account is locked" : "Protect your account"}
         </Heading1>
 
@@ -89,6 +89,7 @@ export default function PasswordResetAlertClient() {
           </div>
         ) : (
           <div className="space-y-3 text-gray-700">
+            
             <p>If the password-reset requests were yours, you do not need to do anything.</p>
             <p>If they were not yours, confirm below to revoke active sessions and temporarily lock sign-in for 24 hours.</p>
             <p className="text-sm text-gray-600">
