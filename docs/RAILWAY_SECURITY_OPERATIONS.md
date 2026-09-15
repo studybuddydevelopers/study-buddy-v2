@@ -1,7 +1,7 @@
 # Railway Security and Monitoring Runbook
 
 This runbook is specific to a Railway deployment of Study Buddy. It was checked
-against the linked vendor documentation on 2026-09-05.
+against the linked vendor documentation on 2026-09-16.
 
 ## Production topology
 
@@ -36,6 +36,7 @@ CSRF_TRUSTED_ORIGINS=
 TRUSTED_PROXY_PROVIDER=railway
 AI_GLOBAL_BUDGET_ENABLED=true
 AI_GLOBAL_DAILY_TOKEN_BUDGET=1000000
+SECURITY_AUDIT_DB_ENABLED=true
 ACCOUNT_DELETION_CRON_SECRET=replace-with-at-least-32-random-bytes
 MALWARE_SCAN_REQUIRED=true
 CLAMAV_HOST=clamav.railway.internal
@@ -76,6 +77,88 @@ Settings, set Cron Schedule to `0 * * * *` (hourly, in UTC). The caller rejects
 redirects, times out after five minutes, returns a failing process status for
 any non-2xx response, and exits after every invocation so Railway does not skip
 the next run.
+
+## Monthly security-operations report
+
+Create a third Railway service from the same repository for the monthly report.
+It is an internal cron job: do not give it a public domain. Set its custom build
+command to `npm ci` so the Prisma postinstall generation runs, its custom start
+command to `npm run cron:security-operations-report`, and its Cron Schedule to
+`15 8 1 * *` (08:15 UTC on the first day of every month). It reports on the
+previous complete UTC calendar month and uses the month as an idempotency key,
+so rerunning a successfully delivered period does not send a duplicate email.
+
+Give this cron service only the restricted runtime `DATABASE_URL` and matching
+restricted `DIRECT_URL` (use `connection_limit=1` for this short-lived job),
+plus:
+
+```dotenv
+NODE_ENV=production
+RESEND_API_KEY=replace-me
+TRANSACTIONAL_EMAIL_FROM="Study Buddy Security <no-reply@updates.studybuddyng.com>"
+SECURITY_REPORT_RECIPIENTS=security@studybuddyng.com
+SECURITY_REPORT_LOGIN_FAILURE_THRESHOLD=25
+SECURITY_REPORT_RATE_LIMIT_THRESHOLD=50
+OPENAI_ADMIN_KEY=replace-with-an-organization-admin-key
+OPENAI_ORGANIZATION_ID=
+OPENAI_COST_PROJECT_ID=
+AI_MONTHLY_COST_ALERT_USD=
+```
+
+`SECURITY_REPORT_RECIPIENTS` accepts up to ten comma-separated company
+addresses. Keep the default report at `security@studybuddyng.com`; add
+`privacy@studybuddyng.com` only if both mailboxes should receive every monthly
+report. Store `OPENAI_ADMIN_KEY` only on this isolated reporting service, not on
+the web service and never in a `NEXT_PUBLIC_*` variable. Without it, the report
+still includes database-recorded token use but marks provider cost verification
+as requiring attention. `OPENAI_COST_PROJECT_ID` limits the cost calculation to
+the Study Buddy OpenAI project; without it, the report states that the amount is
+organization-wide. Set `AI_MONTHLY_COST_ALERT_USD` to an approved positive USD
+amount; the report also flags a month of at least USD 1 that is twice the prior
+month.
+
+Enable Railway failure notifications for this cron service. The process closes
+its Prisma connection and exits non-zero if database collection/storage or
+Resend delivery fails. An unavailable OpenAI cost request instead produces an
+`ACTION NEEDED` email. A missing monthly email must be treated as a monitoring
+failure rather than as evidence that nothing happened.
+
+The email contains aggregate counts only: persisted security warnings/errors,
+login failures, rate-limit rejections, invalid webhook signatures, CSRF
+failures, AI tokens and provider cost, completed/failed/overdue deletion work,
+and evidence freshness. It deliberately excludes raw email addresses, IP
+addresses, tokens, log details, and private evidence links. Full investigation
+stays in the restricted database and provider dashboards.
+
+The cron can verify that evidence exists, but it must not pretend to perform a
+safe backup restoration or decide who should retain provider access. During
+each calendar month, an operator must perform both controlled checks and record
+their completion from a trusted one-off Railway shell/job:
+
+```bash
+npm run security:record-operations-evidence -- BACKUP_RESTORE_TEST 2026-09-20T10:00:00Z "Nick Efe Oni" "private evidence reference"
+npm run security:record-operations-evidence -- PROVIDER_ACCESS_REVIEW 2026-09-20T11:00:00Z "Nick Efe Oni and Chijindu Oreh" "private evidence reference"
+```
+
+For `BACKUP_RESTORE_TEST`, restore into an isolated non-production environment,
+verify integrity and recovery steps, verify deleted data cannot be returned to
+normal live processing, then destroy the test copy. For
+`PROVIDER_ACCESS_REVIEW`, review named users, service accounts, API keys and
+recovery methods across Railway, Supabase, Cloudflare, GitHub, OpenAI, Resend,
+Microsoft 365/GoDaddy, Paystack, Meta/WhatsApp and CAPTCHA providers; remove
+stale access and confirm MFA. Store screenshots and detailed evidence in the
+restricted company evidence store, not the repository or the email report. If
+either record is absent from the report month, the email is marked
+`ACTION NEEDED`.
+
+Apply migration `20260916013000_add_security_operations_reporting` before
+deploying this feature. Confirm the runtime role receives CRUD on
+`SecurityAuditEvent`, `SecurityOperationsEvidence`, and
+`SecurityOperationsReportRun`, plus sequence use for
+`SecurityAuditEvent_id_seq`. Run `npm run security:verify-database` afterward.
+The web service writes audit rows on a best-effort basis while retaining its
+immediate structured Railway log; an audit-table outage never turns a user
+request into an application failure.
 
 Use different PostgreSQL credentials for `DATABASE_URL` and `DIRECT_URL` in the
 trusted migration environment. `DATABASE_URL` is the pooled runtime connection
