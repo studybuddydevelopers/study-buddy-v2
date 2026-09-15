@@ -167,6 +167,17 @@ export default function PasswordResetAlertClient() {
                       </li>
                     ))}
                   </ul>
+                  <div className="mt-5 border-t border-red-200 pt-5 sm:hidden">
+                    <Button
+                      variant="destructive"
+                      loading={submitting}
+                      disabled={loadingToken || !token || submitting}
+                      onClick={() => void lockAccount()}
+                      className="min-h-11 w-full px-5"
+                    >
+                      Secure and lock account
+                    </Button>
+                  </div>
                 </div>
 
                 <div className="rounded-2xl border border-primary-200 bg-primary-50 p-4 text-gray-700">
@@ -206,19 +217,21 @@ export default function PasswordResetAlertClient() {
 
             <div className="mt-7 flex flex-col gap-3 sm:flex-row sm:items-center">
               {!locked && (
-                <Button
-                  variant="destructive"
-                  loading={submitting}
-                  disabled={loadingToken || !token || submitting}
-                  onClick={() => void lockAccount()}
-                  className="min-h-11 px-5"
-                >
-                  Secure and lock account
-                </Button>
+                <div className="hidden sm:block">
+                  <Button
+                    variant="destructive"
+                    loading={submitting}
+                    disabled={loadingToken || !token || submitting}
+                    onClick={() => void lockAccount()}
+                    className="min-h-11 px-5"
+                  >
+                    Secure and lock account
+                  </Button>
+                </div>
               )}
               <Link
                 href="/"
-                className="inline-flex min-h-11 items-center justify-center rounded-xl px-5 font-semibold text-primary-700 transition hover:bg-primary-50 hover:underline focus:outline-none focus:ring-2 focus:ring-primary-300 focus:ring-offset-2"
+                className={`${locked ? "inline-flex" : "hidden sm:inline-flex"} min-h-11 items-center justify-center rounded-xl px-5 font-semibold text-primary-700 transition hover:bg-primary-50 hover:underline focus:outline-none focus:ring-2 focus:ring-primary-300 focus:ring-offset-2`}
               >
                 {locked ? "Return to Study Buddy" : "No action needed"}
               </Link>
