@@ -236,6 +236,13 @@ account. It must not state that compromise definitely occurred.
   Resend delivery, Supabase session revocation, old-password rejection,
   same-browser and cross-device recovery, 24-hour provider-ban expiry, and
   privacy-safe logs before marking the operational control complete.
+  - 15 September 2026: migration, runtime grants, fingerprint backfill, the
+    three-per-account production limit, real alert delivery, explicit lock,
+    old-password rejection, same-browser recovery, and restored access passed.
+    Opening the warning page followed only by another reset request is not proof
+    of non-locking because the reset rate-limit window remains active. Still
+    capture a successful pre-confirmation password login, cross-device recovery,
+    privacy-safe logs, and natural 24-hour provider-lock expiry.
 
 Acceptance criteria:
 
