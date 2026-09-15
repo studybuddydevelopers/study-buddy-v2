@@ -133,7 +133,6 @@ The schema lives in [`prisma/schema.prisma`](/Users/efeon/study-buddy-v2/prisma/
 
 - `User`
 - `UserProfile`
-- `AdminUser`
 - `AccountDeletionRequest`
 
 ### Learning content
