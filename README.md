@@ -1,6 +1,6 @@
 # Study Buddy v2
 
-Study Buddy v2 is a Next.js learning platform for exam preparation. It combines practice questions, mock exams, progress tracking, AI-assisted study support, subscriptions, and internal administration in a single app. It does not provide school or teacher accounts.
+Study Buddy v2 is a Next.js learning platform for exam preparation. It combines practice questions, mock exams, progress tracking, AI-assisted study support, and subscriptions in a single app. It does not provide school, teacher, or administrator accounts.
 
 ## Stack
 
@@ -23,10 +23,9 @@ Study Buddy v2 is a Next.js learning platform for exam preparation. It combines 
 - AI Chat Stage 1: persistent general chat threads with provider-neutral generation, idempotent sends, retry-safe failures, and refresh-safe history. This is not yet resource-grounded RAG.
 - AI Chat presentation: streaming-safe Markdown, GitHub-flavoured Markdown, syntax-highlighted code, and inline/block LaTeX render through Streamdown and KaTeX. Chat-title actions use familiar white pencil and bin icons on filled action buttons.
 - AI Chat launch mode: use the Stage 1 persistent general chatbot as the production-ready chat experience. Keep grounded/resource-backed WAEC tutor mode disabled until the grounding validation gates pass.
-- Resource Ingestion Stage 2: admin-only private resource uploads, extraction, chunking, approval workflows, and legacy past-question migration reports. This is not retrieval or RAG yet.
+- Resource Ingestion Stage 2: internal service and CLI plumbing for private resource extraction, chunking, approval workflows, and legacy past-question migration reports. There is no HTTP administration surface, and this is not retrieval or RAG yet.
 - Grounded Chat Stage 4: feature-gated TEACH responses that retrieve approved active StudyBuddy evidence, validate segment-based structured output, persist grounding attempts/citations, and show safe source previews. Disabled by default until evaluations pass.
 - Accounts and billing: auth, profile, subscriptions, and payments
-- Internal administration: content upload and user lookup
 
 ## Product Strategy Reminders
 
@@ -239,12 +238,13 @@ These items cannot be solved by publishing policies and remain launch work:
 
 - Cookie-authenticated API mutations require an exact trusted `Origin` match.
   Set `APP_ORIGIN` to the production site's canonical HTTPS origin.
-- Admin PDF/image/resource uploads are checked using file magic bytes and then
-  malware-scanned before storage. PDFs are reconstructed with Ghostscript and
-  the sanitized output is scanned again. Production uploads fail closed when
-  ClamAV or required PDF reconstruction is unavailable.
-- `AdminUser` is the only source of admin authority; the duplicate `User.isAdmin`
-  field has been removed. There is no public promotion endpoint.
+- Study Buddy has no application administrator role or `/api/v1/admin/*` HTTP
+  routes. The Supabase server service client used for account lifecycle tasks is
+  infrastructure authority, not a user role.
+- Dormant PDF/image/resource ingestion libraries retain file-signature,
+  malware-scan and PDF reconstruction controls. They are not exposed through an
+  HTTP upload route; repeat the security review before adding any future upload
+  surface.
 - A distributed UTC-daily AI token circuit breaker reserves an upper bound
   before every provider call. Configure `AI_GLOBAL_DAILY_TOKEN_BUDGET` for the
   maximum total across all users and Railway replicas.
@@ -385,7 +385,7 @@ The schema is defined in [`prisma/schema.prisma`](/Users/efeon/study-buddy-v2/pr
 
 Key models:
 
-- `User`, `UserProfile`, `AdminUser`
+- `User`, `UserProfile`
 - `Subject`, `Topic`, `PastQuestion`
 - `PastQuestionAttempt`
 - `MockExamTemplate`, `MockExamInstance`, `MockExamAnswer`
@@ -417,16 +417,16 @@ Migration and rollback notes: [`docs/AI_CHAT_STAGE_1_MIGRATION.md`](/Users/efeon
 
 ## Resource Ingestion Stage 2
 
-Implemented admin-only resource ingestion:
+Implemented internal resource-ingestion infrastructure (not exposed over HTTP):
 
 - New Stage 2 models: `Resource` and `ResourceChunk`.
-- Admin uploads store files in a private Supabase Storage bucket configured by `SUPABASE_RESOURCE_BUCKET` (default: `resources-private`). No public resource URLs are stored.
-- Uploads create `Resource.processingStatus = UPLOADED`; extraction/chunking runs through a separate admin process endpoint or CLI flow.
+- The service layer stores files in a private Supabase Storage bucket configured by `SUPABASE_RESOURCE_BUCKET` (default: `resources-private`). No public resource URLs are stored.
+- Ingestion creates `Resource.processingStatus = UPLOADED`; extraction/chunking is available to separately controlled CLI/internal tooling only.
 - Chunks are versioned. `Resource.activeChunkVersion` points at the only active chunk set; replacement chunks become active only after successful processing, and failed reprocessing preserves the previous active chunks.
 - Changed extracted content resets approval to `PENDING_REVIEW`; unchanged reprocessing does not create duplicate chunk versions.
 - Supported extraction adapters exist for plain text, Markdown, PDF, and DOCX. PDF/DOCX extraction is deliberately best-effort and marked low/failed quality when structure cannot be trusted. OCR is not included in Stage 2.
 - Chunking preserves educational structures where possible, including past-question blocks, answer/solution material, headings, syllabus/objective sections, formulas, and mark schemes. Generic token chunking is only a fallback for long ordinary sections.
-- Approval is separate from processing. Only `PROCESSED` resources with a usable active chunk set can be approved, and low-quality extraction remains admin-reviewable.
+- Approval is separate from processing. Only `PROCESSED` resources with a usable active chunk set can be approved, and low-quality extraction still requires human review through future separately authorised tooling.
 - Legacy `PastQuestion` records can be migrated into `Resource`/`ResourceChunk` using a conservative report-first workflow. Existing past questions are not automatically approved unless explicit provenance, completeness, subject mapping, usable content, duplication, and usage-rights checks all pass. The current legacy model lacks provenance and usage-rights fields, so migrated records normally remain `PENDING_REVIEW`.
 
 Migration/report command:
