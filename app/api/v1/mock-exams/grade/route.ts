@@ -1,5 +1,6 @@
 // app/api/v1/mock-exams/grade/route.ts
 import { NextResponse } from "next/server";
+import { MockExamFormat } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/auth";
 import { parseJsonObjectRequest } from "@/lib/security/request-body";
@@ -35,6 +36,7 @@ export async function POST(req: Request) {
   const instance = await prisma.mockExamInstance.findUnique({
     where: { id: instanceId },
     include: {
+      template: { select: { format: true } },
       answers: {
         include: {
           question: true,
@@ -67,6 +69,13 @@ export async function POST(req: Request) {
   if (instance.graded) {
     return NextResponse.json(
       { error: "Exam is already graded" },
+      { status: 400 }
+    );
+  }
+
+  if (instance.template.format === MockExamFormat.WRITTEN) {
+    return NextResponse.json(
+      { error: "Written papers must be scored with the marking guide" },
       { status: 400 }
     );
   }
