@@ -4,7 +4,6 @@ export const REQUEST_LIMITS = {
   json: 64 * 1024,
   aiJson: 16 * 1024,
   publicFormJson: 16 * 1024,
-  adminBatchJson: 2 * 1024 * 1024,
   webhook: 1024 * 1024,
   imageUpload: 6 * 1024 * 1024,
   resourceUpload: 26 * 1024 * 1024,
