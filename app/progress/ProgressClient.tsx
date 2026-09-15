@@ -315,7 +315,7 @@ export default function ProgressClient({
             <span
               role="img"
               aria-label={PROGRESS_HELP_TEXT}
-              className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-gray-300 bg-white text-primary-700 shadow-sm transition group-hover/help:border-primary-300 group-hover/help:bg-primary-50"
+              className="inline-flex h-5 w-5 items-center justify-center rounded-full border border-gray-300 bg-white text-primary-700 shadow-sm transition group-hover/help:border-primary-300 group-hover/help:bg-primary-50"
             >
               <CircleHelp className="h-5 w-5" aria-hidden="true" />
             </span>
@@ -327,9 +327,9 @@ export default function ProgressClient({
             </div>
           </div>
         </div>
-        <Paragraph variant="muted" className="mt-3 max-w-3xl">
+        <Paragraph variant="muted" className="mt-3">
           See what you have covered, how accurately you practise, and how you
-          perform in mock conditions—without treating activity as mastery.
+          perform in mock conditions.
         </Paragraph>
       </header>
 
