@@ -28,7 +28,7 @@ This guide maps the current website implementation to the codebase using exact f
 
 ## 4. Auth and Session Flow
 
-- [`lib/auth.ts`](/Users/efeon/study-buddy-v2/lib/auth.ts): `requireUser()` and `requireAdmin()` for route handlers
+- [`lib/auth.ts`](/Users/efeon/study-buddy-v2/lib/auth.ts): authenticated-user and AI-access guards for route handlers; the app has no administrator role
 - [`lib/getSession.ts`](/Users/efeon/study-buddy-v2/lib/getSession.ts): session helper
 - [`lib/supabaseClient.ts`](/Users/efeon/study-buddy-v2/lib/supabaseClient.ts): browser client
 - [`app/api/v1/signup/route.ts`](/Users/efeon/study-buddy-v2/app/api/v1/signup/route.ts)
@@ -154,7 +154,7 @@ bot. Deletion-control messages are excluded from model context.
 - profile: [`app/api/v1/profile/route.ts`](/Users/efeon/study-buddy-v2/app/api/v1/profile/route.ts)
 - subscriptions: [`app/api/v1/subscriptions/list/route.ts`](/Users/efeon/study-buddy-v2/app/api/v1/subscriptions/list/route.ts), [`app/api/v1/subscriptions/[id]/status/route.ts`](/Users/efeon/study-buddy-v2/app/api/v1/subscriptions/[id]/status/route.ts)
 - payments: [`app/api/v1/payments/verify/route.ts`](/Users/efeon/study-buddy-v2/app/api/v1/payments/verify/route.ts), [`app/api/v1/payments/webhook/route.ts`](/Users/efeon/study-buddy-v2/app/api/v1/payments/webhook/route.ts)
-- admin: [`app/api/v1/admin/subjects/create/route.ts`](/Users/efeon/study-buddy-v2/app/api/v1/admin/subjects/create/route.ts), [`app/api/v1/admin/topics/create/route.ts`](/Users/efeon/study-buddy-v2/app/api/v1/admin/topics/create/route.ts), [`app/api/v1/admin/curriculum/upload/route.ts`](/Users/efeon/study-buddy-v2/app/api/v1/admin/curriculum/upload/route.ts), [`app/api/v1/admin/past-questions/upload/route.ts`](/Users/efeon/study-buddy-v2/app/api/v1/admin/past-questions/upload/route.ts), [`app/api/v1/admin/past-questions/batch/route.ts`](/Users/efeon/study-buddy-v2/app/api/v1/admin/past-questions/batch/route.ts), [`app/api/v1/admin/users/query/route.ts`](/Users/efeon/study-buddy-v2/app/api/v1/admin/users/query/route.ts)
+- there are no `/api/v1/admin/*` routes or application administrator accounts
 
 ## 14. Data Layer
 
