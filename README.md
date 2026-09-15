@@ -155,7 +155,7 @@ These items cannot be solved by publishing policies and remain launch work:
 - [x] Build automatic deletion after 36 months of voluntary deactivation, including warning emails at 90, 60, 15, and 1 day before expiry.
 - [x] Configure and production-test Railway's hourly account-lifecycle cron.
 - [x] Verify the dedicated runtime role has CRUD access to `User` and `AccountDeletionRequest` after the lifecycle migration.
-- [ ] Set the Railway runtime URL to a three-connection Prisma pool (`connection_limit=3&pool_timeout=10&connect_timeout=10`); in the web service, set `DIRECT_URL` to that same restricted URL rather than the migration-owner URL.
+- [x] Set the Railway runtime URL to a three-connection Prisma pool (`connection_limit=3&pool_timeout=10&connect_timeout=10`); in the web service, set `DIRECT_URL` to that same restricted URL rather than the migration-owner URL.
 - [ ] Verify protected provider backups expire within the approved 90-day maximum and cannot restore deleted accounts to live use.
 - [ ] Add seven-year transaction expiry, documented legal-hold controls, and deletion evidence; account deletion already preserves the minimal transaction row while removing its user link.
 - [ ] Approve the remaining retention periods and automate cloud-draft expiry and other deletion evidence.
