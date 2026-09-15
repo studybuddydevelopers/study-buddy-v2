@@ -60,6 +60,10 @@ The current beta estimate, recommended free invite-only scope, launch checks, an
 exit criteria are in
 [`BETA_READINESS.md`](/Users/efeon/study-buddy-v2/docs/BETA_READINESS.md).
 
+The quote-ready scope, provider shortlist, rules of engagement, deliverables and
+large-public/paid-launch penetration-test gate are in
+[`INDEPENDENT_SECURITY_REVIEW.md`](/Users/efeon/study-buddy-v2/docs/INDEPENDENT_SECURITY_REVIEW.md).
+
 ## Legal And Compliance Status
 
 The repository contains a practical compliance draft for the current product,
@@ -254,7 +258,8 @@ These items cannot be solved by publishing policies and remain launch work:
   fails on medium/high findings while retaining low/informational observations
   in the downloadable report.
 - Railway deployment topology, ClamAV setup, structured security-log filters,
-  alert thresholds, AI-cost monitoring, and edge-WAF guidance are documented in
+  alert thresholds, AI-cost monitoring, the monthly emailed security-operations
+  report, and edge-WAF guidance are documented in
   [`docs/RAILWAY_SECURITY_OPERATIONS.md`](/Users/efeon/study-buddy-v2/docs/RAILWAY_SECURITY_OPERATIONS.md).
 
 ## Bandwidth And Low-Data Improvements
