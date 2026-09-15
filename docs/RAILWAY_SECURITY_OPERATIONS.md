@@ -315,6 +315,10 @@ and [native monitor limits](https://docs.railway.com/observability).
   Railway staging URL. The OWASP ZAP baseline workflow runs every Monday and can
   also be launched manually with an alternate target. It is a non-destructive
   spider/passive scan, fails the workflow on alerts, and uploads its report.
+- The workflow runs `scripts/validate-zap-target.mjs` before ZAP. It accepts only
+  an HTTPS Railway `*.up.railway.app` origin or
+  `https://staging.studybuddyng.com`, and explicitly refuses the production
+  domain, credentials, non-standard ports, paths, queries, and fragments.
 - Never point the ZAP workflow at production. Seed staging with fake data and
   use separate provider credentials. The baseline scan covers anonymously
   reachable pages; authenticated testing needs a separately reviewed ZAP auth
