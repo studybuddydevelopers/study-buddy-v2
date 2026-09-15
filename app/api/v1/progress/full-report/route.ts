@@ -237,6 +237,7 @@ export async function GET(req: Request) {
             title: true,
             subjectId: true,
             questionCount: true,
+            totalMarks: true,
           },
         },
       },
@@ -250,8 +251,8 @@ export async function GET(req: Request) {
         COALESCE(SUM(COALESCE(m."totalScore", 0)), 0)::double precision AS "totalScore",
         AVG(
           CASE
-            WHEN t."questionCount" > 0
-            THEN (COALESCE(m."totalScore", 0)::double precision / t."questionCount") * 100
+            WHEN COALESCE(t."totalMarks", t."questionCount") > 0
+            THEN (COALESCE(m."totalScore", 0)::double precision / COALESCE(t."totalMarks", t."questionCount")) * 100
             ELSE NULL
           END
         )::double precision AS "averageScorePercent",
@@ -281,8 +282,8 @@ export async function GET(req: Request) {
         COUNT(*)::integer AS "completed",
         COALESCE(SUM(
           CASE
-            WHEN t."questionCount" > 0
-            THEN (COALESCE(m."totalScore", 0)::double precision / t."questionCount") * 100
+            WHEN COALESCE(t."totalMarks", t."questionCount") > 0
+            THEN (COALESCE(m."totalScore", 0)::double precision / COALESCE(t."totalMarks", t."questionCount")) * 100
             ELSE 0
           END
         ), 0)::double precision AS "scorePercentTotal"
@@ -385,7 +386,8 @@ export async function GET(req: Request) {
   const { focusTopics, recommendedTopic } = deriveTopicInsights(topicBreakdown);
 
   const examRows = mockGraded.map((mock) => {
-    const questionCount = mock.template.questionCount;
+    const questionCount =
+      mock.template.totalMarks ?? mock.template.questionCount;
     const score = mock.totalScore ?? 0;
     let durationMinutes: number | null = null;
     if (mock.submittedAt && mock.startedAt) {
