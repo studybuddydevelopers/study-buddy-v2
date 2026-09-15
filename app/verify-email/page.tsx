@@ -9,9 +9,6 @@ export const metadata = createPageMetadata({
   index: false,
 });
 
-export default async function VerifyEmailPage() {
-  // simulate server-side loading
-  await new Promise((r) => setTimeout(r, 1000));
-
+export default function VerifyEmailPage() {
   return <ClientEmailVerify />;
 }
