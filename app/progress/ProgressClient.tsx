@@ -335,7 +335,7 @@ export default function ProgressClient({
 
       <section aria-labelledby="progress-filters-heading">
         <div className="rounded-2xl border border-gray-200 bg-accent-50 p-4 sm:p-6">
-          <div className="flex flex-col justify-between gap-4 lg:flex-row lg:items-end">
+          <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end">
             <div>
               <h2
                 id="progress-filters-heading"
@@ -348,7 +348,10 @@ export default function ProgressClient({
                 also filters mock results. Lifetime coverage stays unchanged.
               </p>
             </div>
-            <div className="flex flex-wrap gap-2" aria-label="Date range">
+            <div
+              className="grid grid-cols-3 gap-1 sm:flex sm:flex-nowrap sm:gap-2"
+              aria-label="Date range"
+            >
               {PROGRESS_RANGE_OPTIONS.map((option) => {
                 const active = option.value === filters.range;
                 return (
@@ -357,7 +360,7 @@ export default function ProgressClient({
                     href={progressHref(filters, { range: option.value })}
                     prefetch={false}
                     aria-current={active ? "page" : undefined}
-                    className={`inline-flex min-h-11 items-center justify-center rounded-xl border px-4 text-sm font-semibold transition focus:outline-none focus:ring-2 focus:ring-primary-300 focus:ring-offset-2 ${
+                    className={`inline-flex min-h-11 whitespace-nowrap items-center justify-center rounded-xl border px-1 text-xs font-semibold transition sm:px-4 sm:text-sm focus:outline-none focus:ring-2 focus:ring-primary-300 focus:ring-offset-2 ${
                       active
                         ? "border-primary-700 bg-primary-700 text-white"
                         : "border-gray-300 bg-white text-gray-700 hover:border-primary-300 hover:text-primary-700"
