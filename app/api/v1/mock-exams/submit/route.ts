@@ -1,8 +1,10 @@
 // app/api/v1/mock-exams/submit/route.ts
 import { NextResponse } from "next/server";
+import { MockExamFormat } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/auth";
 import { parseJsonObjectRequest } from "@/lib/security/request-body";
+import { getWrittenSubmissionError } from "@/lib/mock-exam-written";
 
 export async function POST(req: Request) {
   // -------------------------------------
@@ -44,6 +46,7 @@ export async function POST(req: Request) {
     where: { id: instanceId },
     include: {
       answers: true,
+      template: { select: { format: true } },
     },
   });
 
@@ -101,6 +104,25 @@ export async function POST(req: Request) {
       );
     }
     normalizedAnswers.push({ answerId, userAnswer });
+  }
+
+  if (instance.template.format === MockExamFormat.WRITTEN) {
+    const submittedAnswerById = new Map(
+      normalizedAnswers.map((answer) => [answer.answerId, answer.userAnswer])
+    );
+    const submissionError = getWrittenSubmissionError(
+      instance.answers.map((answer) => ({
+        id: answer.id,
+        section: answer.section,
+        userAnswer:
+          submittedAnswerById.get(answer.id) ?? answer.userAnswer ?? "",
+        maxScore: answer.maxScore,
+      }))
+    );
+
+    if (submissionError) {
+      return NextResponse.json({ error: submissionError }, { status: 400 });
+    }
   }
 
   // -------------------------------------
