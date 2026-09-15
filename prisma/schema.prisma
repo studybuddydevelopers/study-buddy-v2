@@ -727,12 +727,27 @@ model AiMessageCitation {
 //  MOCK EXAMS
 // =========================================================
 
+enum MockExamFormat {
+  OBJECTIVE
+  WRITTEN
+}
+
+enum MockExamSection {
+  OBJECTIVE
+  PART_I
+  PART_II
+}
+
 model MockExamTemplate {
-  id            String  @id @default(uuid())
-  subjectId     String
-  title         String
-  description   String?
-  questionCount Int
+  id                    String         @id @default(uuid())
+  subjectId             String
+  title                 String
+  description           String?
+  questionCount         Int
+  format                MockExamFormat @default(OBJECTIVE)
+  durationMinutes       Int?
+  totalMarks            Int?
+  requiredQuestionCount Int?
 
   subject   Subject            @relation(fields: [subjectId], references: [id], onDelete: Cascade)
   instances MockExamInstance[]
@@ -764,6 +779,9 @@ model MockExamAnswer {
   isCorrect          Boolean?
   aiExplanation      String?
   score              Int?
+  section            MockExamSection @default(OBJECTIVE)
+  displayOrder       Int?
+  maxScore           Int             @default(1)
 
   instance MockExamInstance @relation(fields: [mockExamInstanceId], references: [id], onDelete: Cascade)
   question PastQuestion     @relation(fields: [pastQuestionId], references: [id], onDelete: Cascade)
