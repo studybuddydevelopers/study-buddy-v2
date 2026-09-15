@@ -16,7 +16,7 @@ export async function GET(request: Request) {
   }
 
   const response = NextResponse.redirect(
-    authRedirectUrl("/dashboard?email_confirmed=true", request.url)
+    authRedirectUrl("/verify-email?status=confirmed", request.url)
   );
   response.headers.set("Cache-Control", "no-store");
 
@@ -28,11 +28,10 @@ export async function GET(request: Request) {
       getAll() {
         return incomingCookies;
       },
-      setAll(cookiesToSet) {
-        for (const { name, value, options } of cookiesToSet) {
-          response.cookies.set(name, value, { ...options, path: "/" });
-        }
-      },
+      // verifyOtp returns a session, but email confirmation should finish on a
+      // clear success screen and require an explicit password login. Do not
+      // persist the verification session in this browser.
+      setAll() {},
     },
   });
 
