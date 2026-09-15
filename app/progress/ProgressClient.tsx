@@ -1,7 +1,13 @@
 "use client";
 
+import { useRef, useState } from "react";
 import Link from "next/link";
-import { ArrowRight, CircleHelp } from "lucide-react";
+import {
+  ArrowRight,
+  ChevronLeft,
+  ChevronRight,
+  CircleHelp,
+} from "lucide-react";
 import {
   Area,
   AreaChart,
@@ -99,6 +105,118 @@ interface NextAction {
   detail: string;
   href: string;
   linkLabel: string;
+}
+
+function NextActionsCarousel({ actions }: { actions: NextAction[] }) {
+  const scrollerRef = useRef<HTMLDivElement>(null);
+  const [activeIndex, setActiveIndex] = useState(0);
+
+  function updateActiveAction() {
+    const scroller = scrollerRef.current;
+    if (!scroller) return;
+
+    const cards = Array.from(scroller.children) as HTMLElement[];
+    const nearestIndex = cards.reduce(
+      (nearest, card, index) => {
+        const cardPosition = card.offsetLeft - scroller.offsetLeft;
+        const nearestCard = cards[nearest];
+        const nearestPosition = nearestCard.offsetLeft - scroller.offsetLeft;
+        return Math.abs(cardPosition - scroller.scrollLeft) <
+          Math.abs(nearestPosition - scroller.scrollLeft)
+          ? index
+          : nearest;
+      },
+      0
+    );
+
+    setActiveIndex(nearestIndex);
+  }
+
+  function showAction(index: number) {
+    const scroller = scrollerRef.current;
+    const card = scroller?.children[index] as HTMLElement | undefined;
+    if (!scroller || !card) return;
+
+    const reduceMotion = window.matchMedia(
+      "(prefers-reduced-motion: reduce)"
+    ).matches;
+    scroller.scrollTo({
+      left: card.offsetLeft - scroller.offsetLeft,
+      behavior: reduceMotion ? "auto" : "smooth",
+    });
+    setActiveIndex(index);
+  }
+
+  return (
+    <div>
+      <div
+        ref={scrollerRef}
+        onScroll={updateActiveAction}
+        className="flex snap-x snap-mandatory gap-4 overflow-x-auto overscroll-x-contain [scrollbar-width:none] [&::-webkit-scrollbar]:hidden lg:grid lg:grid-cols-2 lg:overflow-visible"
+        aria-label="Recommended next actions"
+      >
+        {actions.map((action, index) => (
+          <article
+            key={action.id}
+            className="flex w-full shrink-0 snap-start flex-col rounded-2xl border border-gray-200 bg-white p-5 shadow-sm lg:snap-none sm:flex-row sm:items-start sm:gap-5"
+            aria-label={`Recommendation ${index + 1} of ${actions.length}: ${action.title}`}
+          >
+            <div className="flex h-20 w-20 shrink-0 items-center justify-center rounded-2xl bg-primary-50">
+              <StudyBuddyIcon name={action.icon} size={64} />
+            </div>
+            <div className="mt-4 flex min-w-0 flex-1 flex-col sm:mt-0">
+              <p className="text-xs font-bold uppercase tracking-wide text-primary-700">
+                {action.eyebrow}
+              </p>
+              <h3 className="mt-1 text-lg font-bold text-gray-950">
+                {action.title}
+              </h3>
+              <p className="mt-2 text-sm leading-6 text-gray-600">
+                {action.detail}
+              </p>
+              <Link
+                href={action.href}
+                prefetch={false}
+                className="mt-4 inline-flex min-h-11 items-center gap-2 self-start rounded-xl font-semibold text-primary-700 underline-offset-4 hover:underline focus:outline-none focus:ring-2 focus:ring-primary-300 focus:ring-offset-2"
+              >
+                {action.linkLabel}
+                <ArrowRight className="h-4 w-4" aria-hidden="true" />
+              </Link>
+            </div>
+          </article>
+        ))}
+      </div>
+
+      {actions.length > 1 && (
+        <div className="mt-3 flex min-h-11 items-center justify-between gap-3 lg:hidden">
+          <p className="text-sm font-medium text-gray-600" aria-live="polite">
+            {activeIndex + 1} of {actions.length}
+            <span aria-hidden="true"> · Swipe</span>
+          </p>
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={() => showAction(activeIndex - 1)}
+              disabled={activeIndex === 0}
+              className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-gray-300 bg-white text-primary-700 transition hover:border-primary-300 hover:bg-primary-50 focus:outline-none focus:ring-2 focus:ring-primary-300 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-40"
+              aria-label="Show previous recommendation"
+            >
+              <ChevronLeft className="h-5 w-5" aria-hidden="true" />
+            </button>
+            <button
+              type="button"
+              onClick={() => showAction(activeIndex + 1)}
+              disabled={activeIndex === actions.length - 1}
+              className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-gray-300 bg-white text-primary-700 transition hover:border-primary-300 hover:bg-primary-50 focus:outline-none focus:ring-2 focus:ring-primary-300 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-40"
+              aria-label="Show next recommendation"
+            >
+              <ChevronRight className="h-5 w-5" aria-hidden="true" />
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
 }
 
 function TrendChart({ progress }: { progress: ProgressFullReport }) {
@@ -593,37 +711,7 @@ export default function ProgressClient({
             when you adjust the report filters.
           </p>
         </div>
-        <div className="grid gap-4 lg:grid-cols-2">
-          {nextActions.map((action) => (
-            <article
-              key={action.id}
-              className="flex flex-col rounded-2xl border border-gray-200 bg-white p-5 shadow-sm sm:flex-row sm:items-start sm:gap-5"
-            >
-              <div className="flex h-20 w-20 shrink-0 items-center justify-center rounded-2xl bg-primary-50">
-                <StudyBuddyIcon name={action.icon} size={64} />
-              </div>
-              <div className="mt-4 flex min-w-0 flex-1 flex-col sm:mt-0">
-                <p className="text-xs font-bold uppercase tracking-wide text-primary-700">
-                  {action.eyebrow}
-                </p>
-                <h3 className="mt-1 text-lg font-bold text-gray-950">
-                  {action.title}
-                </h3>
-                <p className="mt-2 text-sm leading-6 text-gray-600">
-                  {action.detail}
-                </p>
-                <Link
-                  href={action.href}
-                  prefetch={false}
-                  className="mt-4 inline-flex min-h-11 items-center gap-2 self-start rounded-xl font-semibold text-primary-700 underline-offset-4 hover:underline focus:outline-none focus:ring-2 focus:ring-primary-300 focus:ring-offset-2"
-                >
-                  {action.linkLabel}
-                  <ArrowRight className="h-4 w-4" aria-hidden="true" />
-                </Link>
-              </div>
-            </article>
-          ))}
-        </div>
+        <NextActionsCarousel actions={nextActions} />
       </section>
 
       <section aria-labelledby="trend-heading" className="space-y-4">
