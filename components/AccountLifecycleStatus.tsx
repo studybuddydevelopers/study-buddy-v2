@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Button from "@/components/Button";
 import FormErrorMessage from "@/components/FormErrorMessage";
 import Heading1 from "@/components/Heading1";
+import StudyBuddyIcon from "@/components/StudyBuddyIcon";
 import { accountStatusDestination } from "@/lib/account-status";
 import { readResponseError } from "@/lib/client-response-error";
 import { useAuthState } from "@/components/AuthStateProvider";
@@ -26,8 +27,11 @@ export default function AccountLifecycleStatus({
   const [scheduledFor, setScheduledFor] = useState<string | null>(null);
   const [cancellationAllowed, setCancellationAllowed] = useState(true);
   const [loading, setLoading] = useState(true);
-  const [submitting, setSubmitting] = useState(false);
+  const [submittingAction, setSubmittingAction] = useState<
+    "restore" | "sign-out" | null
+  >(null);
   const [error, setError] = useState("");
+  const submitting = submittingAction !== null;
 
   useEffect(() => {
     let active = true;
@@ -80,7 +84,7 @@ export default function AccountLifecycleStatus({
   }, [mode, router, setIsAuthenticated]);
 
   async function restoreAccess() {
-    setSubmitting(true);
+    setSubmittingAction("restore");
     setError("");
     try {
       const response = await fetch("/api/v1/account/lifecycle", {
@@ -102,12 +106,12 @@ export default function AccountLifecycleStatus({
     } catch {
       setError("The request could not be completed. Try again.");
     } finally {
-      setSubmitting(false);
+      setSubmittingAction(null);
     }
   }
 
   async function signOut() {
-    setSubmitting(true);
+    setSubmittingAction("sign-out");
     try {
       const response = await fetch("/api/v1/logout", { method: "POST" });
       if (!response.ok) {
@@ -120,7 +124,7 @@ export default function AccountLifecycleStatus({
     } catch {
       setError("We couldn't sign you out. Check your connection and try again.");
     } finally {
-      setSubmitting(false);
+      setSubmittingAction(null);
     }
   }
 
@@ -130,6 +134,20 @@ export default function AccountLifecycleStatus({
       timeStyle: "short",
     }).format(new Date(scheduledFor))
     : null;
+
+  if (mode === "deletion-pending") {
+    return (
+      <DeletionPendingView
+        cancellationAllowed={cancellationAllowed}
+        deletionDate={deletionDate}
+        error={error}
+        loading={loading}
+        submittingAction={submittingAction}
+        onCancelDeletion={() => void restoreAccess()}
+        onSignOut={() => void signOut()}
+      />
+    );
+  }
 
   return (
     <main className="mx-auto flex min-h-screen w-full max-w-xl items-center px-6 py-12">
@@ -188,7 +206,7 @@ export default function AccountLifecycleStatus({
           {(mode === "deactivated" || cancellationAllowed) && (
             <Button
               variant={mode === "deactivated" ? "primary" : "outline"}
-              loading={submitting}
+              loading={submittingAction === "restore"}
               disabled={loading || submitting}
               onClick={() => void restoreAccess()}
             >
@@ -199,6 +217,7 @@ export default function AccountLifecycleStatus({
           )}
           <Button
             variant="link"
+            loading={submittingAction === "sign-out"}
             disabled={submitting}
             onClick={() => void signOut()}
           >
@@ -215,6 +234,182 @@ export default function AccountLifecycleStatus({
           </a>
           .
         </p>
+      </section>
+    </main>
+  );
+}
+
+export function DeletionPendingView({
+  cancellationAllowed,
+  deletionDate,
+  error,
+  loading,
+  submittingAction,
+  onCancelDeletion,
+  onSignOut,
+}: {
+  cancellationAllowed: boolean;
+  deletionDate: string | null;
+  error: string;
+  loading: boolean;
+  submittingAction: "restore" | "sign-out" | null;
+  onCancelDeletion: () => void;
+  onSignOut: () => void;
+}) {
+  const windowOpen = loading || cancellationAllowed;
+  const submitting = submittingAction !== null;
+
+  return (
+    <main className="flex min-h-[70svh] min-w-0 items-center bg-[#FAF8FB] py-8 sm:px-6 sm:py-12 lg:py-16">
+      <section
+        aria-labelledby="deletion-pending-title"
+        aria-busy={loading}
+        className="mx-auto w-full min-w-0 max-w-5xl overflow-hidden rounded-3xl border border-gray-200 bg-white shadow-[0_18px_60px_rgba(42,30,77,0.10)]"
+      >
+        <div className="grid min-w-0 grid-cols-1 lg:grid-cols-[0.82fr_1.18fr]">
+          <div className="flex min-w-0 flex-col justify-between bg-primary-800 p-5 text-white sm:p-8 lg:p-10">
+            <div>
+              <span className="inline-flex max-w-full rounded-full border border-white/30 px-3 py-1 text-xs font-bold uppercase tracking-wide text-white">
+                Deletion pending
+              </span>
+
+              <div className="mt-8 flex h-28 w-28 items-center justify-center rounded-3xl bg-white">
+                <StudyBuddyIcon
+                  name="clock"
+                  size={96}
+                  title="Account deletion cancellation window"
+                />
+              </div>
+
+              <p className="mt-8 text-2xl font-bold leading-tight sm:text-3xl">
+                Your account has not been deleted yet.
+              </p>
+              <p className="mt-4 max-w-sm leading-7 text-white/85">
+                Study Buddy access is restricted while the deletion request is
+                pending. You can still keep the account while the cancellation
+                window is open.
+              </p>
+            </div>
+
+            <p className="mt-10 border-t border-white/20 pt-5 text-sm leading-6 text-white/75">
+              Cancelling the request stops permanent deletion. You will be
+              asked to sign in again before returning to Study Buddy.
+            </p>
+          </div>
+
+          <div className="min-w-0 p-5 sm:p-8 lg:p-10">
+            <p className="text-xs font-bold uppercase tracking-[0.14em] text-primary-700">
+              Account and data control
+            </p>
+            <h1
+              id="deletion-pending-title"
+              className="mt-3 text-3xl font-bold leading-tight tracking-tight text-gray-950 sm:text-4xl"
+            >
+              Account deletion is pending
+            </h1>
+
+            <div
+              className={`mt-7 rounded-2xl border p-5 sm:p-6 ${
+                windowOpen
+                  ? "border-amber-300 bg-amber-50 text-amber-950"
+                  : "border-red-200 bg-red-50 text-red-950"
+              }`}
+            >
+              <p className="text-lg font-bold">
+                {loading
+                  ? "Checking your deletion status…"
+                  : cancellationAllowed
+                    ? "Your cancellation window is open"
+                    : "Deletion processing has started"}
+              </p>
+              <p className="mt-2 leading-7">
+                {loading
+                  ? "We are securely retrieving the latest status for your account."
+                  : cancellationAllowed
+                    ? "Permanent deletion has not happened. Cancel before the deadline below to keep your account and study history."
+                    : "The cancellation deadline has passed, so this request can no longer be reversed here."}
+              </p>
+            </div>
+
+            <dl className="mt-5 divide-y divide-gray-200 rounded-2xl border border-gray-200 bg-white px-4 sm:px-5">
+              <div className="py-4 sm:grid sm:grid-cols-[10rem_1fr] sm:gap-4">
+                <dt className="font-semibold text-gray-600">Current status</dt>
+                <dd className="mt-1 font-bold text-gray-950 sm:mt-0">
+                  {loading
+                    ? "Checking…"
+                    : cancellationAllowed
+                      ? "Pending deletion"
+                      : "Deletion in progress"}
+                </dd>
+              </div>
+              <div className="py-4 sm:grid sm:grid-cols-[10rem_1fr] sm:gap-4">
+                <dt className="font-semibold text-gray-600">
+                  Deletion scheduled for
+                </dt>
+                <dd className="mt-1 font-bold text-gray-950 sm:mt-0">
+                  {loading ? "Checking…" : deletionDate ?? "Date unavailable"}
+                </dd>
+              </div>
+              <div className="py-4 sm:grid sm:grid-cols-[10rem_1fr] sm:gap-4">
+                <dt className="font-semibold text-gray-600">Account access</dt>
+                <dd className="mt-1 font-bold text-gray-950 sm:mt-0">
+                  Restricted
+                </dd>
+              </div>
+            </dl>
+
+            {!loading && cancellationAllowed && (
+              <div className="mt-5 rounded-2xl border border-primary-200 bg-primary-50 p-4 text-gray-700">
+                <p className="font-bold text-gray-950">
+                  Want to keep your account?
+                </p>
+                <p className="mt-1 leading-7">
+                  Cancel the deletion request below. Your account data remains
+                  protected, and you can sign in again afterwards.
+                </p>
+              </div>
+            )}
+
+            <div className="mt-5">
+              <FormErrorMessage id="account-lifecycle-error" message={error} />
+            </div>
+
+            <div className="mt-7 flex flex-col gap-3 sm:flex-row sm:items-center">
+              {windowOpen && (
+                <Button
+                  variant="primary"
+                  loading={submittingAction === "restore"}
+                  disabled={loading || submitting}
+                  ariaDescribedBy={error ? "account-lifecycle-error" : undefined}
+                  onClick={onCancelDeletion}
+                  className="min-h-11 w-full px-5 sm:w-auto"
+                >
+                  Cancel deletion request
+                </Button>
+              )}
+              <Button
+                variant="outline"
+                loading={submittingAction === "sign-out"}
+                disabled={submitting}
+                onClick={onSignOut}
+                className="min-h-11 w-full px-5 sm:w-auto"
+              >
+                Sign out
+              </Button>
+            </div>
+
+            <p className="mt-7 text-sm leading-6 text-gray-600">
+              Need help with this request? Email{" "}
+              <a
+                className="font-bold text-primary-800 underline underline-offset-4 [overflow-wrap:anywhere]"
+                href="mailto:privacy@studybuddyng.com"
+              >
+                privacy@studybuddyng.com
+              </a>
+              .
+            </p>
+          </div>
+        </div>
       </section>
     </main>
   );
