@@ -12,6 +12,7 @@
     "start": "next start",
     "lint": "eslint .",
     "test": "vitest run",
+    "test:scripts": "node --test scripts/*.test.mjs",
     "test:watch": "vitest",
     "resources:migrate-past-questions": "tsx scripts/migrate-past-questions-to-resources.ts",
     "resources:rebuild-search-text": "tsx scripts/rebuild-resource-search-text.ts",
@@ -20,8 +21,10 @@
     "resources:evaluate-retrieval": "tsx scripts/evaluate-retrieval.ts",
     "ai:evaluate-grounding": "tsx scripts/evaluate-grounded-chat.ts",
     "cron:account-lifecycle": "node scripts/run-account-lifecycle-cron.mjs",
+    "cron:security-operations-report": "node scripts/run-security-operations-report.mjs",
     "security:verify-database": "tsx scripts/verify-database-security.ts",
-    "security:backfill-auth-email-fingerprints": "tsx scripts/backfill-auth-email-fingerprints.ts"
+    "security:backfill-auth-email-fingerprints": "tsx scripts/backfill-auth-email-fingerprints.ts",
+    "security:record-operations-evidence": "node scripts/record-security-operations-evidence.mjs"
   },
   "dependencies": {
     "@hcaptcha/react-hcaptcha": "^2.0.2",
