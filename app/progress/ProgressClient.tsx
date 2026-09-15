@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowRight, CircleHelp } from "lucide-react";
+import { ArrowRight, CircleHelp, Heading } from "lucide-react";
 import Heading1 from "@/components/Heading1";
 import Heading2 from "@/components/Heading2";
 import Paragraph from "@/components/Paragraph";
@@ -18,6 +18,7 @@ import {
   buildProgressMilestones,
   PROGRESS_RANGE_OPTIONS,
 } from "@/lib/progress/report";
+import Heading3 from "@/components/Heading3";
 
 const PROGRESS_HELP_TEXT =
   "Coverage is the part of the question bank you have tried at least once. Accuracy uses submitted practice answers. Mock performance uses graded mock exams. These measures are kept separate because none of them alone proves mastery.";
@@ -337,19 +338,15 @@ export default function ProgressClient({
         <div className="rounded-2xl border border-gray-200 bg-accent-50 p-4 sm:p-6">
           <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end">
             <div>
-              <h2
+              <Heading3
                 id="progress-filters-heading"
                 className="text-lg font-bold text-gray-950"
               >
                 Choose what to review
-              </h2>
-              <p className="mt-1 text-sm leading-6 text-gray-600">
-                Date and topic filters change activity and accuracy. Subject
-                also filters mock results. Lifetime coverage stays unchanged.
-              </p>
+              </Heading3>
             </div>
             <div
-              className="grid grid-cols-3 gap-1 sm:flex sm:flex-nowrap sm:gap-2"
+              className="grid grid-cols-3 gap-1 mb-2 sm:flex sm:flex-nowrap sm:gap-2"
               aria-label="Date range"
             >
               {PROGRESS_RANGE_OPTIONS.map((option) => {
