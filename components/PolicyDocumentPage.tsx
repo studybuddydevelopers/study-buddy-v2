@@ -33,11 +33,11 @@ export default function PolicyDocumentPage({
   contactEmail = SUPPORT_EMAIL,
 }: Readonly<PolicyDocumentPageProps>) {
   return (
-    <div className="flex-1 w-full">
+    <div className="min-w-0 flex-1 w-full [overflow-wrap:anywhere]">
       <section className="border-b border-gray-200 bg-white">
-        <div className="mx-auto grid max-w-6xl gap-8 px-6 py-14 lg:grid-cols-[1fr_320px] lg:items-end lg:py-16">
-          <div>
-            <div className="mb-5 inline-flex items-center gap-2 rounded-lg border border-primary-200 bg-primary-50 px-3 py-2 text-sm font-semibold text-primary-700">
+        <div className="mx-auto grid min-w-0 max-w-6xl grid-cols-1 gap-6 px-0 py-10 sm:gap-8 sm:px-6 sm:py-14 lg:grid-cols-[1fr_320px] lg:items-end lg:py-16">
+          <div className="min-w-0">
+            <div className="mb-5 inline-flex max-w-full items-center gap-2 rounded-lg border border-primary-200 bg-primary-50 px-3 py-2 text-sm font-semibold text-primary-700">
               <StudyBuddyIcon name={icon} size={22} />
               {eyebrow}
             </div>
@@ -51,7 +51,7 @@ export default function PolicyDocumentPage({
             </Paragraph>
           </div>
 
-          <div className="rounded-lg border border-gray-200 bg-accent-50 p-5">
+          <div className="min-w-0 rounded-lg border border-gray-200 bg-accent-50 p-4 sm:p-5">
             <p className="text-xs font-semibold uppercase text-primary-600">
               Last updated
             </p>
@@ -60,16 +60,16 @@ export default function PolicyDocumentPage({
             </p>
             <a
               href={`mailto:${contactEmail}`}
-              className="mt-4 inline-flex items-center gap-2 text-sm font-semibold text-primary-700 hover:underline"
+              className="mt-4 inline-flex max-w-full items-start gap-2 text-sm font-semibold text-primary-700 hover:underline"
             >
-              <StudyBuddyIcon name="mail" size={22} />
-              {contactEmail}
+              <StudyBuddyIcon name="mail" size={22} className="shrink-0" />
+              <span>{contactEmail}</span>
             </a>
           </div>
         </div>
       </section>
 
-      <div className="mx-auto grid max-w-6xl gap-10 px-6 py-12 lg:grid-cols-[260px_1fr]">
+      <div className="mx-auto grid min-w-0 max-w-6xl grid-cols-1 gap-10 px-0 py-10 sm:px-6 sm:py-12 lg:grid-cols-[260px_1fr]">
         <aside className="hidden lg:block">
           <nav
             aria-label={`${title} sections`}
@@ -98,12 +98,12 @@ export default function PolicyDocumentPage({
             <section
               id={section.id}
               key={section.id}
-              className="scroll-mt-24 border-b border-gray-200 py-8"
+              className="min-w-0 scroll-mt-24 border-b border-gray-200 py-8"
             >
               <Heading2 size="sm" gutter="sm">
                 {index + 1}. {section.title}
               </Heading2>
-              <div className="space-y-4 text-[0.95rem] leading-relaxed text-gray-700 [&_a]:font-medium [&_a]:text-primary-600 [&_a:hover]:underline [&_li]:pl-1 [&_strong]:text-gray-900 [&_ul]:list-disc [&_ul]:space-y-2 [&_ul]:pl-5">
+              <div className="min-w-0 space-y-4 text-[0.95rem] leading-relaxed text-gray-700 [&_a]:font-medium [&_a]:text-primary-600 [&_a:hover]:underline [&_li]:pl-1 [&_strong]:text-gray-900 [&_ul]:list-disc [&_ul]:space-y-2 [&_ul]:pl-5">
                 {section.content}
               </div>
             </section>
