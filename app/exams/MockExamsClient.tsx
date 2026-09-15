@@ -194,7 +194,7 @@ export default function MockExamsClient({
                 Start small or build up gradually. These are revision sessions,
                 not separate WAEC paper formats.
               </Paragraph>
-              <div className="mt-4 grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+              <div className="mt-4 grid gap-4 md:grid-cols-2">
                 {practiceSessions.map((template) => (
                   <TemplateCard
                     key={template.id}
