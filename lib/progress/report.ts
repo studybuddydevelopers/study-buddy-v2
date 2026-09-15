@@ -1,7 +1,7 @@
 export const PROGRESS_RANGE_OPTIONS = [
   { value: "7d", label: "Last 7 days", days: 7, bucketDays: 1 },
-  { value: "30d", label: "Last 30 days", days: 30, bucketDays: 3 },
-  { value: "90d", label: "Last 90 days", days: 90, bucketDays: 7 },
+  { value: "30d", label: "Last 30 days", days: 30, bucketDays: 1 },
+  { value: "90d", label: "Last 90 days", days: 90, bucketDays: 1 },
 ] as const;
 
 export type ProgressRange = (typeof PROGRESS_RANGE_OPTIONS)[number]["value"];
