@@ -48,16 +48,20 @@ readiness sign-off.
   that the verification link displays **Email verified** and requires the user
   to log in explicitly. The production password-reset flow had already been
   exercised through delivery, callback, password update, and restored access.
+- On 15 September 2026, the operator confirmed that the Railway web service uses
+  the restricted runtime database role through the Supabase session pooler, with
+  the approved three-connection Prisma pool and the same restricted URL used for
+  build-time `DIRECT_URL` validation.
 
 ## Work required before the controlled beta
 
 1. **Not started:** Configure actionable monitoring/alerts for health failures, 429 spikes,
    repeated login failures, webhook-signature failures, lifecycle-cron failures,
    email failures, and unusual AI usage or spend.
-2. **Not yet verified:** Verify the Railway runtime database URL/role and connection-pool settings,
-   backup expiry/restoration controls, remaining provider regions, and secret
-   rotation. Supabase's primary project region is confirmed as North EU
-   (Stockholm), Sweden (`eu-north-1`).
+2. **Partially verified:** The Railway runtime database URL/role and
+   connection-pool settings are verified. Still verify backup expiry/restoration
+   controls and remaining provider regions. Supabase's primary project region
+   is confirmed as North EU (Stockholm), Sweden (`eu-north-1`).
 3. **Status to confirm:** Establish the secure privacy-request/breach registers, assign the remaining
    incident roles and provider escalations, and exercise the rollback/incident
    procedure. Nick Efe Oni and Chijindu Oreh are already the mandatory internal
@@ -78,7 +82,10 @@ readiness sign-off.
    display an explicit beta notice, feedback route, known limitations, and
    support contact. Do not display textbooks or describe content as genuine past
    examination questions until the required rights are documented.
-7. **Not started:** Run the staging OWASP ZAP workflow against the release candidate and resolve
+7. **In progress:** The staging OWASP ZAP workflow now validates its target and
+   refuses the production domain or an unapproved host. Create the isolated
+   Railway staging deployment, set its public HTTPS origin as the GitHub
+   `STAGING_URL` repository variable, run the workflow, and resolve
    high-confidence high/critical findings before inviting users.
 8. **Implemented; final production evidence pending:** The password-reset abuse
    alert and user-confirmed temporary-account-lock workflow is deployed; its
