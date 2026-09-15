@@ -82,13 +82,16 @@ readiness sign-off.
    display an explicit beta notice, feedback route, known limitations, and
    support contact. Do not display textbooks or describe content as genuine past
    examination questions until the required rights are documented.
-7. **Final verification pending:** The isolated Railway/Supabase staging
-   environment and GitHub `STAGING_URL` variable are configured. The ZAP
-   workflow refuses production or unapproved targets. The 15 September 2026
-   follow-up scan found no high/critical alerts and confirmed the prior 500,
-   error-disclosure and HSTS findings were resolved. Deploy the narrowed image
-   CSP, rerun the workflow, and retain its passing report; the CI gate fails on
-   medium/high findings while keeping low/informational observations visible.
+7. **Complete for the anonymous staging baseline:** The isolated
+   Railway/Supabase staging environment and GitHub `STAGING_URL` variable are
+   configured, and the workflow refuses production or unapproved targets. The
+   [15 September 2026 final scan](https://github.com/studybuddydevelopers/study-buddy-v2/actions/runs/34990456364)
+   passed with zero medium/high findings. It confirmed the earlier 500,
+   error-disclosure, HSTS and broad image-CSP findings were resolved. The three
+   remaining low cross-origin-isolation observations and informational findings
+   are documented in the Railway security runbook. Authenticated active testing
+   remains a separate future exercise and requires reviewed test credentials and
+   a safe ZAP authentication configuration.
 8. **Implemented; final production evidence pending:** The password-reset abuse
    alert and user-confirmed temporary-account-lock workflow is deployed; its
    migration, runtime grants, fingerprint backfill, rate limit, real alert,
