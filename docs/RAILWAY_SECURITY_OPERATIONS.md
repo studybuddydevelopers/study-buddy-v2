@@ -196,19 +196,22 @@ The project recommends budgeting roughly 4 GB RAM for the scanner because the
 signature database is memory-heavy; check the current image guidance before
 sizing it lower.
 
-## Admin-account support
+## Application roles
 
-Admin authorization already exists. `requireAdmin()` accepts an account only
-when an `AdminUser` row exists for that `User.id`. The former duplicate
-`User.isAdmin` Boolean was removed so the two authorization sources cannot
-drift apart.
+Study Buddy has no application administrator, school or teacher role. The
+unused `AdminUser` table, its authorization bypasses and all
+`/api/v1/admin/*` routes were removed after confirming that the production
+database contained no administrator records. Subscription access is always
+restricted to the owning user.
 
-Admin API routes use this guard. There is deliberately no public admin-promotion
-endpoint, but there is not yet a dedicated bootstrap CLI or admin-management UI.
-Provision the first administrator directly through a restricted database
-session. Use the Supabase Auth user ID that already exists in the `User` table,
-insert its `AdminUser` row with a meaningful operational role, and verify
-`/api/v1/me` reports `isAdmin: true`. Never let a signup payload create this row.
+Migration `20260915170000_remove_unused_admin_authority` removes the empty
+database table and deliberately aborts if it ever finds an administrator row,
+preventing silent privilege-record deletion.
+
+The server-only Supabase service client remains necessary for tightly scoped
+account lifecycle, password-security and guardian operations. Supabase calls
+that use `auth.admin` describe the provider's privileged server API; they do not
+create an application role or grant users administrative access.
 
 ## Security event monitoring
 
