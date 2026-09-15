@@ -5,7 +5,7 @@ interface SecurityCheck {
   tables: number;
   rlsTables: number;
   browserCrudGrants: number;
-  legacyAdminColumns: number;
+  adminAuthorityArtifacts: number;
   aiBudgetTable: boolean;
   passwordResetSecurityRuntimeCrud: boolean;
 }
@@ -40,12 +40,17 @@ async function main() {
           )
       ) AS "browserCrudGrants",
       (
-        SELECT count(*)::int
-        FROM information_schema.columns
-        WHERE table_schema = 'public'
-          AND table_name = 'User'
-          AND column_name = 'isAdmin'
-      ) AS "legacyAdminColumns",
+        (
+          SELECT count(*)::int
+          FROM information_schema.columns
+          WHERE table_schema = 'public'
+            AND table_name = 'User'
+            AND column_name = 'isAdmin'
+        ) + CASE
+          WHEN to_regclass('public."AdminUser"') IS NULL THEN 0
+          ELSE 1
+        END
+      ) AS "adminAuthorityArtifacts",
       to_regclass('public."AiGlobalDailyUsage"') IS NOT NULL AS "aiBudgetTable",
       has_table_privilege(
         current_user,
@@ -62,7 +67,7 @@ async function main() {
     !check ||
     check.tables !== check.rlsTables ||
     check.browserCrudGrants !== 0 ||
-    check.legacyAdminColumns !== 0 ||
+    check.adminAuthorityArtifacts !== 0 ||
     !check.aiBudgetTable ||
     !check.passwordResetSecurityRuntimeCrud
   ) {
