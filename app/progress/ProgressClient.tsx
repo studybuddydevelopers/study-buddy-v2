@@ -2,12 +2,7 @@
 
 import { useRef, useState } from "react";
 import Link from "next/link";
-import {
-  ArrowRight,
-  ChevronLeft,
-  ChevronRight,
-  CircleHelp,
-} from "lucide-react";
+import { ArrowRight, CircleHelp } from "lucide-react";
 import {
   Area,
   AreaChart,
@@ -188,31 +183,33 @@ function NextActionsCarousel({ actions }: { actions: NextAction[] }) {
       </div>
 
       {actions.length > 1 && (
-        <div className="mt-3 flex min-h-11 items-center justify-between gap-3 min-[769px]:hidden">
-          <p className="text-sm font-medium text-gray-600" aria-live="polite">
-            {activeIndex + 1} of {actions.length}
-            <span aria-hidden="true"> · Swipe</span>
-          </p>
-          <div className="flex gap-2">
+        <div
+          className="mt-2 flex min-h-11 items-center justify-center min-[769px]:hidden"
+          role="group"
+          aria-label={`Recommendation ${activeIndex + 1} of ${actions.length}`}
+        >
+          <span className="sr-only" aria-live="polite">
+            Showing recommendation {activeIndex + 1} of {actions.length}
+          </span>
+          {actions.map((action, index) => (
             <button
+              key={action.id}
               type="button"
-              onClick={() => showAction(activeIndex - 1)}
-              disabled={activeIndex === 0}
-              className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-gray-300 bg-white text-primary-700 transition hover:border-primary-300 hover:bg-primary-50 focus:outline-none focus:ring-2 focus:ring-primary-300 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-40"
-              aria-label="Show previous recommendation"
+              onClick={() => showAction(index)}
+              className="group inline-flex h-11 w-11 items-center justify-center rounded-full focus:outline-none focus:ring-2 focus:ring-primary-300 focus:ring-offset-2"
+              aria-label={`Show recommendation ${index + 1}: ${action.title}`}
+              aria-current={activeIndex === index ? "true" : undefined}
             >
-              <ChevronLeft className="h-5 w-5" aria-hidden="true" />
+              <span
+                className={`block rounded-full transition-all ${
+                  activeIndex === index
+                    ? "h-2.5 w-2.5 bg-primary-700"
+                    : "h-2 w-2 bg-gray-300 group-hover:bg-primary-300"
+                }`}
+                aria-hidden="true"
+              />
             </button>
-            <button
-              type="button"
-              onClick={() => showAction(activeIndex + 1)}
-              disabled={activeIndex === actions.length - 1}
-              className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-gray-300 bg-white text-primary-700 transition hover:border-primary-300 hover:bg-primary-50 focus:outline-none focus:ring-2 focus:ring-primary-300 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-40"
-              aria-label="Show next recommendation"
-            >
-              <ChevronRight className="h-5 w-5" aria-hidden="true" />
-            </button>
-          </div>
+          ))}
         </div>
       )}
     </div>
