@@ -342,7 +342,7 @@ export default function ProgressClient({
             <div>
               <Heading3
                 id="progress-filters-heading"
-                className="text-lg font-bold text-gray-950"
+                className="font-bold text-gray-950"
               >
                 Choose what to review
               </Heading3>
