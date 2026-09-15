@@ -19,7 +19,6 @@ vi.mock("@supabase/ssr", () => ({
 vi.mock("@/lib/prisma", () => ({
   prisma: {
     user: { findUnique: mocks.userFindUnique },
-    adminUser: { findUnique: vi.fn() },
   },
 }));
 
