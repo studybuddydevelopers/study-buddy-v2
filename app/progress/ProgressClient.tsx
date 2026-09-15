@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowRight, CircleHelp, Heading } from "lucide-react";
+import { ArrowRight, CircleHelp } from "lucide-react";
 import Heading1 from "@/components/Heading1";
 import Heading2 from "@/components/Heading2";
 import Paragraph from "@/components/Paragraph";
@@ -66,7 +66,7 @@ function StatCard({
   scope: string;
 }) {
   return (
-    <article className="flex min-h-44 flex-col rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
+    <article className="flex min-h-0 flex-col rounded-2xl border border-gray-200 bg-white p-4 shadow-sm sm:min-h-44 sm:p-5">
       <div className="flex items-start justify-between gap-3">
         <p className="text-sm font-semibold text-gray-700">{title}</p>
         <span className="shrink-0 rounded-full bg-primary-50 px-2.5 py-1 text-xs font-semibold text-primary-700">
@@ -308,10 +308,12 @@ export default function ProgressClient({
   });
 
   return (
-    <div className="mx-auto w-full max-w-6xl space-y-12 px-4 py-8 sm:px-6 sm:py-10">
+    <div className="mx-auto w-full min-w-0 max-w-6xl space-y-8 py-6 sm:space-y-12 sm:px-6 sm:py-10">
       <header>
         <div className="flex items-center gap-2">
-          <Heading1 gutter="none">Your progress</Heading1>
+          <Heading1 size="lg" gutter="none">
+            Your progress
+          </Heading1>
           <div className="group/help relative inline-flex">
             <span
               role="img"
@@ -322,7 +324,7 @@ export default function ProgressClient({
             </span>
             <div
               role="tooltip"
-              className="pointer-events-none absolute left-1/2 top-full z-20 mt-2 hidden w-72 -translate-x-1/2 rounded-xl border border-gray-200 bg-white p-3 text-left text-xs font-medium leading-relaxed text-gray-700 shadow-lg group-hover/help:block"
+              className="pointer-events-none absolute right-0 top-full z-20 mt-2 hidden w-60 rounded-xl border border-gray-200 bg-white p-3 text-left text-xs font-medium leading-relaxed text-gray-700 shadow-lg group-hover/help:block sm:left-1/2 sm:right-auto sm:w-72 sm:-translate-x-1/2"
             >
               {PROGRESS_HELP_TEXT}
             </div>
@@ -335,7 +337,7 @@ export default function ProgressClient({
       </header>
 
       <section aria-labelledby="progress-filters-heading">
-        <div className="rounded-2xl border border-gray-200 bg-accent-50 p-4 sm:p-6">
+        <div className="rounded-2xl border border-gray-200 bg-accent-50 p-2 min-[376px]:p-4 sm:p-6">
           <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end">
             <div>
               <Heading3
@@ -346,7 +348,7 @@ export default function ProgressClient({
               </Heading3>
             </div>
             <div
-              className="grid grid-cols-3 gap-1 mb-2 sm:flex sm:flex-nowrap sm:gap-2"
+              className="mb-2 grid min-w-0 grid-cols-3 gap-px sm:flex sm:flex-nowrap sm:gap-2"
               aria-label="Date range"
             >
               {PROGRESS_RANGE_OPTIONS.map((option) => {
@@ -357,7 +359,7 @@ export default function ProgressClient({
                     href={progressHref(filters, { range: option.value })}
                     prefetch={false}
                     aria-current={active ? "page" : undefined}
-                    className={`inline-flex min-h-11 whitespace-nowrap items-center justify-center rounded-xl border px-1 text-xs font-semibold transition sm:px-4 sm:text-sm focus:outline-none focus:ring-2 focus:ring-primary-300 focus:ring-offset-2 ${
+                    className={`inline-flex min-h-11 min-w-0 whitespace-nowrap items-center justify-center rounded-xl border px-0 text-xs font-semibold tracking-[-0.02em] transition focus:outline-none focus:ring-2 focus:ring-primary-300 focus:ring-offset-2 sm:px-4 sm:text-sm sm:tracking-normal ${
                       active
                         ? "border-primary-700 bg-primary-700 text-white"
                         : "border-gray-300 bg-white text-gray-700 hover:border-primary-300 hover:text-primary-700"
@@ -370,14 +372,14 @@ export default function ProgressClient({
             </div>
           </div>
 
-          <form action="/progress" method="get" className="mt-5 grid gap-4 md:grid-cols-[1fr_1fr_auto_auto] md:items-end">
+          <form action="/progress" method="get" className="mt-5 grid min-w-0 gap-4 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto_auto] md:items-end">
             <input type="hidden" name="range" value={filters.range} />
-            <label className="grid gap-1.5 text-sm font-semibold text-gray-800">
+            <label className="grid min-w-0 gap-1.5 text-sm font-semibold text-gray-800">
               Subject
               <select
                 name="subject"
                 defaultValue={filters.subjectId ?? ""}
-                className="min-h-11 rounded-xl border border-gray-300 bg-white px-3 text-base font-normal text-gray-900 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-200"
+                className="min-h-11 w-full min-w-0 max-w-full rounded-xl border border-gray-300 bg-white px-3 text-base font-normal text-gray-900 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-200"
               >
                 <option value="">All subjects</option>
                 {filters.subjects.map((subject) => (
@@ -387,12 +389,12 @@ export default function ProgressClient({
                 ))}
               </select>
             </label>
-            <label className="grid gap-1.5 text-sm font-semibold text-gray-800">
+            <label className="grid min-w-0 gap-1.5 text-sm font-semibold text-gray-800">
               Practice topic
               <select
                 name="topic"
                 defaultValue={filters.topicId ?? ""}
-                className="min-h-11 rounded-xl border border-gray-300 bg-white px-3 text-base font-normal text-gray-900 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-200"
+                className="min-h-11 w-full min-w-0 max-w-full rounded-xl border border-gray-300 bg-white px-3 text-base font-normal text-gray-900 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-200"
               >
                 <option value="">All topics</option>
                 {filters.topics.map((topic) => (
@@ -404,14 +406,14 @@ export default function ProgressClient({
             </label>
             <button
               type="submit"
-              className="inline-flex min-h-11 items-center justify-center rounded-xl bg-primary-700 px-5 text-sm font-semibold text-white shadow-sm transition hover:bg-primary-600 focus:outline-none focus:ring-2 focus:ring-primary-300 focus:ring-offset-2"
+              className="inline-flex min-h-11 w-full min-w-0 items-center justify-center rounded-xl bg-primary-700 px-5 text-sm font-semibold text-white shadow-sm transition hover:bg-primary-600 focus:outline-none focus:ring-2 focus:ring-primary-300 focus:ring-offset-2 md:w-auto"
             >
               Apply filters
             </button>
             <Link
               href={`/progress?range=${filters.range}`}
               prefetch={false}
-              className="inline-flex min-h-11 items-center justify-center rounded-xl border border-gray-300 bg-white px-4 text-sm font-semibold text-gray-700 transition hover:border-primary-300 hover:text-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-300 focus:ring-offset-2"
+              className="inline-flex min-h-11 w-full min-w-0 items-center justify-center rounded-xl border border-gray-300 bg-white px-4 text-sm font-semibold text-gray-700 transition hover:border-primary-300 hover:text-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-300 focus:ring-offset-2 md:w-auto"
             >
               Clear
             </Link>
@@ -423,7 +425,7 @@ export default function ProgressClient({
       </section>
 
       <section aria-labelledby="progress-overview-heading" className="space-y-4">
-        <Heading2 id="progress-overview-heading" gutter="none">
+        <Heading2 id="progress-overview-heading" size="md" gutter="none">
           Honest overview
         </Heading2>
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
@@ -478,7 +480,7 @@ export default function ProgressClient({
 
       <section aria-labelledby="next-actions-heading" className="space-y-4">
         <div>
-          <Heading2 id="next-actions-heading" gutter="none">
+          <Heading2 id="next-actions-heading" size="md" gutter="none">
             Recommended next actions
           </Heading2>
           <p className="mt-2 max-w-3xl text-sm leading-6 text-gray-600">
@@ -523,7 +525,7 @@ export default function ProgressClient({
 
       <section aria-labelledby="trend-heading" className="space-y-4">
         <div>
-          <Heading2 id="trend-heading" gutter="none">
+          <Heading2 id="trend-heading" size="md" gutter="none">
             Performance over time
           </Heading2>
           <p className="mt-2 text-sm leading-6 text-gray-600">
@@ -537,7 +539,7 @@ export default function ProgressClient({
       {goals.length > 0 && (
         <section aria-labelledby="subject-goals-heading" className="space-y-4">
           <div>
-            <Heading2 id="subject-goals-heading" gutter="none">
+            <Heading2 id="subject-goals-heading" size="md" gutter="none">
               Subject goals
             </Heading2>
             <p className="mt-2 max-w-3xl text-sm leading-6 text-gray-600">
@@ -552,7 +554,7 @@ export default function ProgressClient({
                 className="rounded-2xl border-2 border-primary-100 bg-primary-50 p-5 sm:p-6"
               >
                 <div className="flex items-start justify-between gap-4">
-                  <div>
+                  <div className="min-w-0">
                     <p className="text-sm font-semibold text-primary-800">
                       {goal.subjectName}
                     </p>
@@ -564,7 +566,11 @@ export default function ProgressClient({
                       <LocalDateTime value={goal.updatedAt} />
                     </p>
                   </div>
-                  <StudyBuddyIcon name="progress" size={72} />
+                  <StudyBuddyIcon
+                    name="progress"
+                    size={72}
+                    className="shrink-0"
+                  />
                 </div>
                 <div className="mt-5">
                   <ProgressBar
@@ -590,7 +596,9 @@ export default function ProgressClient({
 
       <section className="grid gap-6 lg:grid-cols-2" aria-label="Coverage and accuracy details">
         <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm sm:p-6">
-          <Heading2 gutter="none">Lifetime coverage</Heading2>
+          <Heading2 size="md" gutter="none">
+            Lifetime coverage
+          </Heading2>
           <p className="mt-2 text-sm leading-6 text-gray-600">
             How much of the available WAEC question bank you have tried at
             least once. Filters do not change these figures.
@@ -612,7 +620,9 @@ export default function ProgressClient({
         </div>
 
         <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm sm:p-6">
-          <Heading2 gutter="none">Accuracy by subject</Heading2>
+          <Heading2 size="md" gutter="none">
+            Accuracy by subject
+          </Heading2>
           <p className="mt-2 text-sm leading-6 text-gray-600">
             Submitted practice answers in the current filtered view.
           </p>
@@ -639,7 +649,7 @@ export default function ProgressClient({
       <section aria-labelledby="mock-results-heading" className="space-y-4">
         <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-end">
           <div>
-            <Heading2 id="mock-results-heading" gutter="none">
+            <Heading2 id="mock-results-heading" size="md" gutter="none">
               WAEC mock results
             </Heading2>
             <p className="mt-2 text-sm leading-6 text-gray-600">
@@ -686,7 +696,7 @@ export default function ProgressClient({
                   key={exam.instanceId}
                   className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm"
                 >
-                  <h3 className="font-bold text-gray-950">
+                  <h3 className="font-bold text-gray-950 [overflow-wrap:anywhere]">
                     {exam.templateTitle}
                   </h3>
                   <dl className="mt-4 grid grid-cols-2 gap-4 text-sm">
@@ -805,7 +815,7 @@ export default function ProgressClient({
 
       <section aria-labelledby="milestones-heading" className="space-y-4">
         <div>
-          <Heading2 id="milestones-heading" gutter="none">
+          <Heading2 id="milestones-heading" size="md" gutter="none">
             Small wins
           </Heading2>
           <p className="mt-2 text-sm leading-6 text-gray-600">
