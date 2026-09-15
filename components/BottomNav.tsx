@@ -80,7 +80,7 @@ export default function BottomNav() {
                 className={isActive ? "" : "opacity-55 grayscale-[35%]"}
               />
             ) : null}
-            <span className="text-[11px] leading-none" style={{ color }}>
+            <span className="text-xs leading-none tracking-tight" style={{ color }}>
               {label}
             </span>
           </Link>
