@@ -1,8 +1,9 @@
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import PasswordResetAlertClient, {
   LockedAccountSummary,
+  revealMissingTokenAlert,
 } from "./PasswordResetAlertClient";
 
 describe("PasswordResetAlertClient", () => {
@@ -19,6 +20,20 @@ describe("PasswordResetAlertClient", () => {
     expect(html).toContain('class="mt-5 border-t border-red-200 pt-5 sm:hidden"');
     expect(html).toContain("hidden sm:inline-flex");
     expect(html).not.toContain("<main");
+  });
+
+  it("focuses and scrolls the incomplete-link alert into view", () => {
+    const focus = vi.fn();
+    const scrollIntoView = vi.fn();
+    const alert = { focus, scrollIntoView } as unknown as HTMLDivElement;
+
+    revealMissingTokenAlert(alert, false);
+
+    expect(focus).toHaveBeenCalledWith({ preventScroll: true });
+    expect(scrollIntoView).toHaveBeenCalledWith({
+      behavior: "smooth",
+      block: "center",
+    });
   });
 
   it("shows the protection outcome and recovery status", () => {
