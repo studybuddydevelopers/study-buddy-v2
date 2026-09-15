@@ -125,7 +125,7 @@ function PlanTask({
             {number}. {title}
           </p>
           <span
-            className={`shrink-0 rounded-full px-2 py-1 text-[11px] font-semibold ${
+            className={`shrink-0 rounded-full px-2 py-1 text-xs font-semibold ${
               done
                 ? "bg-green-50 text-green-700"
                 : "bg-[#F7F0FA] text-[#6C3483]"
@@ -163,7 +163,7 @@ function WeeklyChart({ data }: { data: WeeklyActivityDay[] }) {
           const height = day.count === 0 ? 5 : Math.max((day.count / maxCount) * 100, 14);
           return (
             <div key={day.date} className="flex h-full min-w-0 flex-col justify-end gap-2">
-              <span className="text-center text-[11px] font-semibold tabular-nums text-gray-500">
+              <span className="text-center text-xs font-semibold tabular-nums text-gray-500">
                 {day.count || ""}
               </span>
               <div className="flex h-24 items-end rounded-md bg-gray-50 px-1.5">
@@ -175,7 +175,7 @@ function WeeklyChart({ data }: { data: WeeklyActivityDay[] }) {
                   title={`${day.day}: ${day.count} questions, ${day.correct} correct`}
                 />
               </div>
-              <span className="truncate text-center text-[11px] text-gray-500">
+              <span className="truncate text-center text-xs text-gray-500">
                 {day.day}
               </span>
             </div>
