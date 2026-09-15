@@ -215,8 +215,6 @@ model User {
   inactiveWarning1SentAt  DateTime?
   authEmailFingerprint    String?       @unique @db.VarChar(64)
 
-  adminUser AdminUser?
-
   profile                     UserProfile?
   settings                    UserSettings?
   aiChats                     AiChat[]
@@ -845,7 +843,7 @@ model Subscription {
 }
 
 // =========================================================
-//  ADMIN + CONTENT MGMT
+//  CONTENT MGMT
 // =========================================================
 
 model CurriculumFile {
@@ -999,15 +997,6 @@ model PastQuestionSource {
   importedAt  DateTime @default(now())
 
   @@ignore
-}
-
-model AdminUser {
-  id        String   @id @default(uuid())
-  userId    String   @unique
-  role      String
-  createdAt DateTime @default(now())
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 // =========================================================
