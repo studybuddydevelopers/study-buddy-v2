@@ -46,9 +46,10 @@ describe("email confirmation callback", () => {
       type: "email",
     });
     expect(response.headers.get("location")).toBe(
-      "https://studybuddyng.com/dashboard?email_confirmed=true"
+      "https://studybuddyng.com/verify-email?status=confirmed"
     );
     expect(response.headers.get("location")).not.toContain("secret");
+    expect(response.headers.get("set-cookie")).toBeNull();
     expect(response.headers.get("Cache-Control")).toBe("no-store");
   });
 
