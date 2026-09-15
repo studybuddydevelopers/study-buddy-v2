@@ -1,5 +1,6 @@
 // app/api/v1/mock-exams/start/route.ts
 import { NextResponse } from "next/server";
+import { MockExamFormat, MockExamSection } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/auth";
 import { buildMockExamMcqChoices } from "@/lib/mock-exam-multiple-choice";
@@ -48,7 +49,21 @@ export async function POST(req: Request) {
   // 4. FETCH QUESTIONS FOR SUBJECT
   // -------------------------------------
   const allQuestions = await prisma.pastQuestion.findMany({
-    where: { subjectId: template.subjectId },
+    where: {
+      subjectId: template.subjectId,
+      ...(template.format === MockExamFormat.WRITTEN
+        ? { questionNumber: { startsWith: "P2-" } }
+        : {
+            OR: [
+              { questionNumber: null },
+              { questionNumber: { not: { startsWith: "P2-" } } },
+            ],
+          }),
+    },
+    orderBy:
+      template.format === MockExamFormat.WRITTEN
+        ? { questionNumber: "asc" }
+        : undefined,
   });
 
   if (allQuestions.length < template.questionCount) {
@@ -63,8 +78,12 @@ export async function POST(req: Request) {
   // -------------------------------------
   // 5. RANDOMLY SELECT QUESTIONS
   // -------------------------------------
-  const shuffled = allQuestions.sort(() => Math.random() - 0.5);
-  const selected = shuffled.slice(0, template.questionCount);
+  const selected =
+    template.format === MockExamFormat.WRITTEN
+      ? allQuestions.slice(0, template.questionCount)
+      : [...allQuestions]
+          .sort(() => Math.random() - 0.5)
+          .slice(0, template.questionCount);
 
   // -------------------------------------
   // 6. CREATE EXAM INSTANCE
@@ -80,11 +99,24 @@ export async function POST(req: Request) {
   // 7. CREATE ANSWER ROWS FOR EACH QUESTION
   // -------------------------------------
   const answerRows = await prisma.$transaction(
-    selected.map((q) =>
+    selected.map((q, index) =>
       prisma.mockExamAnswer.create({
         data: {
           mockExamInstanceId: instance.id,
           pastQuestionId: q.id,
+          section:
+            template.format === MockExamFormat.WRITTEN
+              ? q.questionNumber?.startsWith("P2-I-")
+                ? MockExamSection.PART_I
+                : MockExamSection.PART_II
+              : MockExamSection.OBJECTIVE,
+          displayOrder: index + 1,
+          maxScore:
+            template.format === MockExamFormat.WRITTEN
+              ? q.questionNumber?.startsWith("P2-I-")
+                ? 8
+                : 12
+              : 1,
         },
       })
     )
@@ -93,7 +125,10 @@ export async function POST(req: Request) {
   // -------------------------------------
   // 8. FORMAT RETURN DATA
   // -------------------------------------
-  const answerPool = allQuestions.map((q) => q.answerText);
+  const answerPool =
+    template.format === MockExamFormat.OBJECTIVE
+      ? allQuestions.map((q) => q.answerText)
+      : [];
 
   const response = {
     instance: {
@@ -112,12 +147,15 @@ export async function POST(req: Request) {
       questionNumber: q.questionNumber,
       difficulty: q.difficulty,
       topicId: q.topicId,
-      choices: buildMockExamMcqChoices({
-        correctAnswer: q.answerText,
-        answerPool,
-        instanceId: instance.id,
-        questionId: q.id,
-      }),
+      choices:
+        template.format === MockExamFormat.OBJECTIVE
+          ? buildMockExamMcqChoices({
+              correctAnswer: q.answerText,
+              answerPool,
+              instanceId: instance.id,
+              questionId: q.id,
+            })
+          : undefined,
     })),
     answers: answerRows.map((a) => ({
       id: a.id,
@@ -125,6 +163,9 @@ export async function POST(req: Request) {
       userAnswer: null,
       isCorrect: null,
       score: null,
+      section: a.section,
+      displayOrder: a.displayOrder,
+      maxScore: a.maxScore,
     })),
   };
 
