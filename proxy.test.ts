@@ -72,6 +72,41 @@ describe("production route controls", () => {
     );
   });
 
+  it("limits production image sources to the configured Supabase project", async () => {
+    vi.stubEnv("NODE_ENV", "production");
+    vi.stubEnv("SUPABASE_URL", "https://staging-project.supabase.co");
+    vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", "https://staging-project.supabase.co");
+
+    const response = await proxy(
+      new NextRequest("https://healthcheck.railway.app/api/health")
+    );
+    const imagePolicy = response.headers
+      .get("Content-Security-Policy")
+      ?.split("; ")
+      .find((directive) => directive.startsWith("img-src "));
+
+    expect(imagePolicy).toBe(
+      "img-src 'self' data: blob: https://staging-project.supabase.co"
+    );
+    expect(imagePolicy?.split(/\s+/)).not.toContain("https:");
+  });
+
+  it("does not add an untrusted configured URL to image sources", async () => {
+    vi.stubEnv("NODE_ENV", "production");
+    vi.stubEnv("SUPABASE_URL", "https://images.attacker.example");
+    vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", "not-a-url");
+
+    const response = await proxy(
+      new NextRequest("https://healthcheck.railway.app/api/health")
+    );
+    const imagePolicy = response.headers
+      .get("Content-Security-Policy")
+      ?.split("; ")
+      .find((directive) => directive.startsWith("img-src "));
+
+    expect(imagePolicy).toBe("img-src 'self' data: blob:");
+  });
+
   it("rejects a cross-origin mutation carrying a Supabase session cookie", async () => {
     vi.stubEnv("NODE_ENV", "production");
     vi.stubEnv("APP_ORIGIN", "https://studybuddy.example");
