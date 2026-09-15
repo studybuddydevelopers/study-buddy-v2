@@ -35,6 +35,14 @@ readiness sign-off.
 - On 13 September 2026, the operator confirmed that the latest navbar/auth-state
   update was deployed and that the production authentication smoke checks were
   completed. Re-run these checks after material authentication changes.
+- On 15 September 2026, migration
+  `20260914090000_add_password_reset_security_lock` was applied, all database
+  security assertions passed, and keyed email fingerprints were backfilled for
+  all seven matching application accounts among eleven Supabase Auth records.
+  A live anonymous reset check returned `200` for the first three requests and
+  `429` for the fourth. The operator confirmed real alert delivery, explicit
+  lock activation, old-password rejection, recovery-email password reset,
+  restored access, and the pending-deletion cancellation flow.
 
 ## Work required before the controlled beta
 
@@ -67,11 +75,13 @@ readiness sign-off.
    examination questions until the required rights are documented.
 7. **Not started:** Run the staging OWASP ZAP workflow against the release candidate and resolve
    high-confidence high/critical findings before inviting users.
-8. **Implemented; production verification pending:** Deploy the password-reset
-   abuse alert and user-confirmed temporary-account-lock workflow, apply its
-   database migration, backfill existing account email fingerprints, and run
-   the disposable-account integration exercise specified in
-   `compliance/NEXT_IMPLEMENTATION_TODOS.md`.
+8. **Implemented; final production evidence pending:** The password-reset abuse
+   alert and user-confirmed temporary-account-lock workflow is deployed; its
+   migration, runtime grants, fingerprint backfill, rate limit, real alert,
+   explicit lock, old-password rejection, recovery, and restored access have
+   been verified. Still record a pre-confirmation login showing that opening the
+   warning page alone changes nothing, a cross-device recovery, privacy-safe
+   production logs, and natural 24-hour provider-lock expiry.
 9. **Automated test fixed; production upload use is conditional:** The
    application has admin-only resource and curriculum upload API routes even
    though it currently has no ordinary-user upload interface. Before using
