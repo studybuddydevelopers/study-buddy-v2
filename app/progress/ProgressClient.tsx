@@ -506,7 +506,7 @@ export default function ProgressClient({
             when you adjust the report filters.
           </p>
         </div>
-        <div className="grid gap-4 md:grid-cols-2">
+        <div className="grid gap-4 lg:grid-cols-2">
           {nextActions.map((action) => (
             <article
               key={action.id}
