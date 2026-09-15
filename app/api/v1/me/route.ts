@@ -18,7 +18,6 @@ export async function GET() {
   const userData = await prisma.user.findUnique({
     where: { id: dbUser.id },
     include: {
-      adminUser: { select: { id: true } },
       profile: true,
       subscriptions: {
         orderBy: { startDate: "desc" },
@@ -42,7 +41,6 @@ export async function GET() {
   return NextResponse.json({
     id: userData.id,
     createdAt: userData.createdAt,
-    isAdmin: Boolean(userData.adminUser),
 
     profile: userData.profile
       ? {
