@@ -320,9 +320,16 @@ and [native monitor limits](https://docs.railway.com/observability).
 ## Automated repository and staging checks
 
 - Dependabot opens grouped weekly npm updates and monthly GitHub Actions updates.
+- GitHub Dependabot security updates, native secret scanning and secret push
+  protection were enabled on 16 September 2026. Review security PRs and alerts
+  promptly; keep major framework/runtime upgrades separate from routine patch
+  groups so they receive migration and compatibility testing.
 - TruffleHog scans each pull request and push to `main`; it also supports a full
-  manual history scan. Any historical credential it finds must be rotated, not
-  merely deleted from the latest commit.
+  manual history scan. New diffs fail on verified or unknown findings. The
+  manual history mode fails on verified findings and still reports reviewed
+  unverified matches; this avoids treating already-rotated historical database
+  patterns as active credentials. Any historical credential it finds must be
+  rotated, not merely deleted from the latest commit.
 - Set the GitHub Actions repository variable `STAGING_URL` to the public HTTPS
   Railway staging URL. The OWASP ZAP baseline workflow runs every Monday and can
   also be launched manually with an alternate target. It is a non-destructive
@@ -352,6 +359,25 @@ and [native monitor limits](https://docs.railway.com/observability).
   no-store/cache observations, and `Sec-Fetch-*` request headers the ZAP client
   did not send. Review them after dependency or routing changes, but they are not
   medium/high release blockers in this baseline.
+
+### Latest dependency and secret review
+
+- On 16 September 2026, Dependabot alerts 11 and 12 identified the same medium
+  Vitest path-traversal/arbitrary-file-read advisory. `vitest` and
+  `@vitest/mocker` were updated from 4.1.10 to 4.1.11, the first patched release;
+  `npm audit` then reported zero known vulnerabilities and the full test, lint
+  and production-build checks passed.
+- GitHub native secret scanning and push protection currently report no open
+  alerts after enablement. The manual TruffleHog full-history review found zero
+  verified secrets and four unverified Postgres-pattern matches associated with
+  `.env.example`; previously exposed database credentials had already been
+  rotated. Push and pull-request scans continue to reject new verified or
+  unknown findings.
+- Do not merge the current grouped production dependency PR wholesale: its
+  Supabase dependency set declares Node 22 while the current project verification
+  environment is Node 20. Split and test those updates during a deliberate Node
+  runtime upgrade. Routine patch/minor and GitHub Actions updates remain on the
+  configured Dependabot schedules.
 
 OpenAI references: [project budget behavior](https://help.openai.com/en/articles/9186755-managing-your-work-in-the-api-platform-with-projects.eps)
 and the [Usage and Costs APIs](https://platform.openai.com/docs/api-reference/usage/audio_transcriptions_object).
