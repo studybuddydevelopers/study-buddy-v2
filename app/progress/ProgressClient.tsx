@@ -1,6 +1,5 @@
 "use client";
 
-import { useState } from "react";
 import Link from "next/link";
 import { ArrowRight, CircleHelp } from "lucide-react";
 import Heading1 from "@/components/Heading1";
@@ -200,8 +199,6 @@ export default function ProgressClient({
 }: {
   progress: ProgressFullReport | null;
 }) {
-  const [showProgressHelp, setShowProgressHelp] = useState(false);
-
   if (!progress) {
     return (
       <div className="mx-auto w-[90vw] max-w-4xl py-10">
@@ -314,18 +311,20 @@ export default function ProgressClient({
       <header>
         <div className="flex items-center gap-2">
           <Heading1 gutter="none">Your progress</Heading1>
-          <div className="group/help relative">
-            <button
-              type="button"
-              aria-expanded={showProgressHelp}
-              aria-controls="progress-help-text"
-              onClick={() => setShowProgressHelp((current) => !current)}
+          <div className="group/help relative inline-flex">
+            <span
+              tabIndex={0}
+              aria-label="How progress is calculated"
+              aria-describedby="progress-help-tooltip"
               className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-gray-300 bg-white text-primary-700 shadow-sm transition hover:border-primary-300 hover:bg-primary-50 focus:outline-none focus:ring-2 focus:ring-primary-300 focus:ring-offset-2"
             >
               <CircleHelp className="h-5 w-5" aria-hidden="true" />
-              <span className="sr-only">Show how progress is calculated</span>
-            </button>
-            <div className="pointer-events-none absolute left-1/2 top-full z-20 mt-2 hidden w-72 -translate-x-1/2 rounded-xl border border-gray-200 bg-white p-3 text-left text-xs font-medium leading-relaxed text-gray-700 shadow-lg group-hover/help:block group-focus-within/help:block">
+            </span>
+            <div
+              id="progress-help-tooltip"
+              role="tooltip"
+              className="pointer-events-none absolute left-1/2 top-full z-20 mt-2 hidden w-72 -translate-x-1/2 rounded-xl border border-gray-200 bg-white p-3 text-left text-xs font-medium leading-relaxed text-gray-700 shadow-lg group-hover/help:block group-focus-within/help:block"
+            >
               {PROGRESS_HELP_TEXT}
             </div>
           </div>
@@ -334,15 +333,6 @@ export default function ProgressClient({
           See what you have covered, how accurately you practise, and how you
           perform in mock conditions—without treating activity as mastery.
         </Paragraph>
-        {showProgressHelp && (
-          <Paragraph
-            id="progress-help-text"
-            variant="superMuted"
-            className="mt-3 max-w-3xl rounded-xl bg-primary-50 p-4"
-          >
-            {PROGRESS_HELP_TEXT}
-          </Paragraph>
-        )}
       </header>
 
       <section aria-labelledby="progress-filters-heading">
