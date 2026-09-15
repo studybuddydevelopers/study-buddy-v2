@@ -26,6 +26,14 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
+      - name: Check out target validator
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+
+      - name: Refuse production or non-staging targets
+        env:
+          ZAP_TARGET_URL: ${{ inputs.target_url || vars.STAGING_URL }}
+        run: node scripts/validate-zap-target.mjs "$ZAP_TARGET_URL"
+
       - name: ZAP passive and spider scan
         uses: zaproxy/action-baseline@6c5a007541891231cd9e0ddec25d4f25c59c9874 # v0.15.0
         with:
