@@ -2,10 +2,11 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import Heading1 from "@/components/Heading1";
-import Heading2 from "@/components/Heading2";
 import Paragraph from "@/components/Paragraph";
 import Button from "@/components/Button";
+import StudyBuddyIcon from "@/components/StudyBuddyIcon";
 import { useRouter } from "next/navigation";
 
 export interface MockExamTemplate {
@@ -102,20 +103,18 @@ function TemplateCard({
 
 export default function MockExamsClient({
   templates,
+  title,
+  description,
 }: {
   templates: MockExamTemplate[];
+  title: string;
+  description: string;
 }) {
   const router = useRouter();
   const [startingTemplateId, setStartingTemplateId] = useState<string | null>(
     null
   );
   const [error, setError] = useState<string | null>(null);
-  const fullMocks = templates
-    .filter(isFullMock)
-    .sort((a, b) => a.title.localeCompare(b.title));
-  const practiceSessions = templates
-    .filter((template) => !isFullMock(template))
-    .sort((a, b) => a.questionCount - b.questionCount);
 
   const handleStart = async (template: MockExamTemplate) => {
     setError(null);
@@ -145,10 +144,21 @@ export default function MockExamsClient({
 
   return (
     <div className="w-[90vw] max-w-5xl mx-auto py-10">
-      <Heading1 gutter="sm">Mock Exams</Heading1>
+      <Link
+        href="/exams"
+        prefetch={false}
+        className="mb-5 inline-flex items-center gap-1.5 text-sm font-semibold text-primary-600 hover:text-primary-700"
+      >
+        <StudyBuddyIcon
+          name="chevron"
+          size={16}
+          className="rotate-180"
+        />
+        All mock exam options
+      </Link>
+      <Heading1 gutter="sm">{title}</Heading1>
       <Paragraph variant="superMuted" className="max-w-3xl">
-        Choose a full WAEC-format mock when you want exam conditions, or a
-        shorter practice session when you want focused revision.
+        {description}
       </Paragraph>
 
       {error && (
@@ -162,50 +172,15 @@ export default function MockExamsClient({
           No mock exam templates available yet.
         </Paragraph>
       ) : (
-        <div className="mt-10 space-y-10">
-          {fullMocks.length > 0 ? (
-            <section aria-labelledby="full-mock-heading">
-              <Heading2 id="full-mock-heading" gutter="sm">
-                Full WAEC mock exams
-              </Heading2>
-              <Paragraph variant="superMuted" className="max-w-3xl">
-                Use these when you are ready to practise the official Paper 1
-                or Paper 2 structure and timing.
-              </Paragraph>
-              <div className="mt-4 grid gap-4 lg:grid-cols-2">
-                {fullMocks.map((template) => (
-                  <TemplateCard
-                    key={template.id}
-                    template={template}
-                    starting={startingTemplateId === template.id}
-                    onStart={handleStart}
-                  />
-                ))}
-              </div>
-            </section>
-          ) : null}
-
-          {practiceSessions.length > 0 ? (
-            <section aria-labelledby="practice-heading">
-              <Heading2 id="practice-heading" gutter="sm">
-                Practice sessions
-              </Heading2>
-              <Paragraph variant="superMuted" className="max-w-3xl">
-                Start small or build up gradually. These are revision sessions,
-                not separate WAEC paper formats.
-              </Paragraph>
-              <div className="mt-4 grid gap-4 lg:grid-cols-2">
-                {practiceSessions.map((template) => (
-                  <TemplateCard
-                    key={template.id}
-                    template={template}
-                    starting={startingTemplateId === template.id}
-                    onStart={handleStart}
-                  />
-                ))}
-              </div>
-            </section>
-          ) : null}
+        <div className="mt-8 grid gap-4 lg:grid-cols-2">
+          {templates.map((template) => (
+            <TemplateCard
+              key={template.id}
+              template={template}
+              starting={startingTemplateId === template.id}
+              onStart={handleStart}
+            />
+          ))}
         </div>
       )}
     </div>
