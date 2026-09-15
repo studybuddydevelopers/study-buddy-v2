@@ -335,6 +335,21 @@ and [native monitor limits](https://docs.railway.com/observability).
   reachable pages; authenticated testing needs a separately reviewed ZAP auth
   configuration.
 
+### Latest ZAP evidence
+
+- The [15 September 2026 staging run](https://github.com/studybuddydevelopers/study-buddy-v2/actions/runs/34990456364)
+  completed successfully with zero medium/high findings. The explicit severity
+  gate passed, and the earlier CSP wildcard finding was no longer present.
+- The remaining low findings concern missing COEP, COOP and CORP headers. These
+  cross-origin-isolation policies are intentionally deferred until their effect
+  on Supabase, Turnstile and hCaptcha resources has been tested; adding COEP
+  without that compatibility work can block required third-party resources.
+- The remaining informational findings cover CSP nonce strings reported as
+  Base64, framework-generated redirects without a content type, expected
+  no-store/cache observations, and `Sec-Fetch-*` request headers the ZAP client
+  did not send. Review them after dependency or routing changes, but they are not
+  medium/high release blockers in this baseline.
+
 OpenAI references: [project budget behavior](https://help.openai.com/en/articles/9186755-managing-your-work-in-the-api-platform-with-projects.eps)
 and the [Usage and Costs APIs](https://platform.openai.com/docs/api-reference/usage/audio_transcriptions_object).
 
