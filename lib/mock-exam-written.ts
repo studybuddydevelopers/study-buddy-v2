@@ -38,7 +38,7 @@ export function getWrittenSubmissionError(
   return null;
 }
 
-export function getScoredWrittenAnswers(answers: WrittenExamAnswer[]) {
+export function getScoredWrittenAnswers<T extends WrittenExamAnswer>(answers: T[]) {
   return answers.filter(
     (answer) => answer.section === "PART_I" ||
       (answer.section === "PART_II" && hasResponse(answer))
