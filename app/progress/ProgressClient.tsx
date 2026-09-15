@@ -152,13 +152,13 @@ function NextActionsCarousel({ actions }: { actions: NextAction[] }) {
       <div
         ref={scrollerRef}
         onScroll={updateActiveAction}
-        className="flex snap-x snap-mandatory gap-4 overflow-x-auto overscroll-x-contain [scrollbar-width:none] [&::-webkit-scrollbar]:hidden lg:grid lg:grid-cols-2 lg:overflow-visible"
+        className="flex snap-x snap-mandatory gap-4 overflow-x-auto overscroll-x-contain [scrollbar-width:none] [&::-webkit-scrollbar]:hidden min-[769px]:grid min-[769px]:grid-cols-1 min-[769px]:snap-none min-[769px]:overflow-visible lg:grid-cols-2"
         aria-label="Recommended next actions"
       >
         {actions.map((action, index) => (
           <article
             key={action.id}
-            className="flex w-full shrink-0 snap-start flex-col rounded-2xl border border-gray-200 bg-white p-5 shadow-sm lg:snap-none sm:flex-row sm:items-start sm:gap-5"
+            className="flex w-full shrink-0 snap-start flex-col rounded-2xl border border-gray-200 bg-white p-5 shadow-sm sm:flex-row sm:items-start sm:gap-5 min-[769px]:snap-none"
             aria-label={`Recommendation ${index + 1} of ${actions.length}: ${action.title}`}
           >
             <div className="flex h-20 w-20 shrink-0 items-center justify-center rounded-2xl bg-primary-50">
@@ -188,7 +188,7 @@ function NextActionsCarousel({ actions }: { actions: NextAction[] }) {
       </div>
 
       {actions.length > 1 && (
-        <div className="mt-3 flex min-h-11 items-center justify-between gap-3 lg:hidden">
+        <div className="mt-3 flex min-h-11 items-center justify-between gap-3 min-[769px]:hidden">
           <p className="text-sm font-medium text-gray-600" aria-live="polite">
             {activeIndex + 1} of {actions.length}
             <span aria-hidden="true"> · Swipe</span>
