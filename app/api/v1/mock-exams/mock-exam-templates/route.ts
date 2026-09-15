@@ -30,6 +30,10 @@ export async function GET() {
         title: t.title,
         description: t.description,
         questionCount: t.questionCount,
+        format: t.format,
+        durationMinutes: t.durationMinutes,
+        totalMarks: t.totalMarks,
+        requiredQuestionCount: t.requiredQuestionCount,
         subject: t.subject,
       }))
     );
