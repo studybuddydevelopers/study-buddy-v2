@@ -348,9 +348,15 @@ export default function ProgressClient({
               </Heading3>
             </div>
             <div
-              className="mb-2 grid min-w-0 grid-cols-3 gap-0 sm:flex sm:flex-nowrap sm:gap-2"
+              className="mb-2 flex min-w-0 items-center justify-center gap-2 sm:justify-start"
               aria-label="Date range"
             >
+              <span
+                aria-hidden="true"
+                className="text-sm font-semibold text-gray-700 sm:hidden"
+              >
+                Last
+              </span>
               {PROGRESS_RANGE_OPTIONS.map((option) => {
                 const active = option.value === filters.range;
                 return (
@@ -358,17 +364,27 @@ export default function ProgressClient({
                     key={option.value}
                     href={progressHref(filters, { range: option.value })}
                     prefetch={false}
+                    aria-label={option.label}
                     aria-current={active ? "page" : undefined}
-                    className={`inline-flex min-h-11 min-w-0 whitespace-nowrap items-center justify-center rounded-xl border px-0 text-xs font-semibold tracking-[-0.04em] transition focus:outline-none focus:ring-2 focus:ring-primary-300 focus:ring-offset-2 sm:px-4 sm:text-sm sm:tracking-normal ${
+                    className={`inline-flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-xl border px-2 text-sm font-semibold transition focus:outline-none focus:ring-2 focus:ring-primary-300 focus:ring-offset-2 sm:min-w-0 sm:whitespace-nowrap sm:px-4 ${
                       active
                         ? "border-primary-700 bg-primary-700 text-white"
                         : "border-gray-300 bg-white text-gray-700 hover:border-primary-300 hover:text-primary-700"
                     }`}
                   >
-                    {option.label}
+                    <span aria-hidden="true" className="sm:hidden">
+                      {option.value.replace("d", "")}
+                    </span>
+                    <span className="hidden sm:inline">{option.label}</span>
                   </Link>
                 );
               })}
+              <span
+                aria-hidden="true"
+                className="text-sm font-semibold text-gray-700 sm:hidden"
+              >
+                days
+              </span>
             </div>
           </div>
 
