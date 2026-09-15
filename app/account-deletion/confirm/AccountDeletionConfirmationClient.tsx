@@ -99,9 +99,9 @@ export default function AccountDeletionConfirmationClient() {
         aria-labelledby="account-deletion-confirmation-title"
         className="mx-auto w-full max-w-5xl overflow-hidden rounded-3xl border border-gray-200 bg-white shadow-[0_18px_60px_rgba(42,30,77,0.10)]"
       >
-        <div className="grid lg:grid-cols-[0.82fr_1.18fr]">
+        <div className="grid grid-cols-1 lg:grid-cols-[0.82fr_1.18fr]">
           <div
-            className={`flex flex-col justify-between p-6 text-white sm:p-8 lg:p-10 ${
+            className={`flex min-w-0 flex-col justify-between p-5 text-white sm:p-8 lg:p-10 ${
               confirmed ? "bg-secondary-500" : "bg-primary-800"
             }`}
           >
@@ -139,7 +139,7 @@ export default function AccountDeletionConfirmationClient() {
             </p>
           </div>
 
-          <div className="p-6 sm:p-8 lg:p-10">
+          <div className="min-w-0 p-5 sm:p-8 lg:p-10">
             <p className="text-xs font-bold uppercase tracking-[0.14em] text-primary-700">
               Account and data control
             </p>
@@ -207,7 +207,7 @@ export default function AccountDeletionConfirmationClient() {
                     email{" "}
                     <a
                       href="mailto:privacy@studybuddyng.com"
-                      className="font-bold text-primary-800 underline underline-offset-4"
+                      className="font-bold text-primary-800 underline underline-offset-4 [overflow-wrap:anywhere]"
                     >
                       privacy@studybuddyng.com
                     </a>
@@ -319,7 +319,7 @@ export function DeletionPendingSummary({
           or email{" "}
           <a
             href="mailto:privacy@studybuddyng.com"
-            className="font-bold text-primary-800 underline underline-offset-4"
+            className="font-bold text-primary-800 underline underline-offset-4 [overflow-wrap:anywhere]"
           >
             privacy@studybuddyng.com
           </a>
