@@ -207,6 +207,79 @@ function OverviewCarousel({ stats }: { stats: OverviewStat[] }) {
   );
 }
 
+function SubjectGoalsCarousel({
+  goals,
+}: {
+  goals: ProgressFullReport["subjects"];
+}) {
+  const { activeIndex, scrollerRef, showItem, updateActiveItem } =
+    useCardCarousel();
+
+  return (
+    <div>
+      <div
+        ref={scrollerRef}
+        onScroll={updateActiveItem}
+        className="flex snap-x snap-mandatory gap-4 overflow-x-auto overscroll-x-contain [scrollbar-width:none] [&::-webkit-scrollbar]:hidden min-[769px]:grid min-[769px]:grid-cols-2 min-[769px]:snap-none min-[769px]:overflow-visible"
+        aria-label="Subject goals"
+      >
+        {goals.map((goal, index) => (
+          <article
+            key={goal.subjectId}
+            className="w-full shrink-0 snap-start rounded-2xl border-2 border-primary-100 bg-primary-50 p-5 sm:p-6 min-[769px]:snap-none"
+            aria-label={`Subject goal ${index + 1} of ${goals.length}: ${goal.subjectName}`}
+          >
+            <div className="flex items-start justify-between gap-4">
+              <div className="min-w-0">
+                <p className="text-sm font-semibold text-primary-800">
+                  {goal.subjectName}
+                </p>
+                <p className="mt-1 text-3xl font-bold text-gray-950 tabular-nums">
+                  {goal.progressPercentage}%
+                </p>
+                <p className="mt-1 text-xs text-gray-600">
+                  Latest saved mock score · updated{" "}
+                  <LocalDateTime value={goal.updatedAt} />
+                </p>
+              </div>
+              <StudyBuddyIcon
+                name="progress"
+                size={72}
+                className="shrink-0"
+              />
+            </div>
+            <div className="mt-5">
+              <ProgressBar
+                label={`${goal.subjectName} score progress`}
+                percentage={goal.progressPercentage}
+                showPercentage={false}
+                color="warning"
+              />
+            </div>
+            <Link
+              href="/exams"
+              prefetch={false}
+              className="mt-5 inline-flex min-h-11 items-center gap-2 rounded-xl bg-primary-700 px-4 text-sm font-semibold text-white transition hover:bg-primary-600 focus:outline-none focus:ring-2 focus:ring-primary-300 focus:ring-offset-2"
+            >
+              Take another mock
+              <ArrowRight className="h-4 w-4" aria-hidden="true" />
+            </Link>
+          </article>
+        ))}
+      </div>
+      <CarouselDots
+        activeIndex={activeIndex}
+        items={goals.map((goal) => ({
+          id: goal.subjectId,
+          label: goal.subjectName,
+        }))}
+        itemName="Subject goal"
+        onSelect={showItem}
+      />
+    </div>
+  );
+}
+
 interface NextAction {
   id: string;
   icon: StudyBuddyIconName;
@@ -794,50 +867,7 @@ export default function ProgressClient({
               mastery. Use the direct action to add a new exam-condition result.
             </p>
           </div>
-          <div className="grid gap-4 md:grid-cols-2">
-            {goals.map((goal) => (
-              <article
-                key={goal.subjectId}
-                className="rounded-2xl border-2 border-primary-100 bg-primary-50 p-5 sm:p-6"
-              >
-                <div className="flex items-start justify-between gap-4">
-                  <div className="min-w-0">
-                    <p className="text-sm font-semibold text-primary-800">
-                      {goal.subjectName}
-                    </p>
-                    <p className="mt-1 text-3xl font-bold text-gray-950 tabular-nums">
-                      {goal.progressPercentage}%
-                    </p>
-                    <p className="mt-1 text-xs text-gray-600">
-                      Latest saved mock score · updated{" "}
-                      <LocalDateTime value={goal.updatedAt} />
-                    </p>
-                  </div>
-                  <StudyBuddyIcon
-                    name="progress"
-                    size={72}
-                    className="shrink-0"
-                  />
-                </div>
-                <div className="mt-5">
-                  <ProgressBar
-                    label={`${goal.subjectName} score progress`}
-                    percentage={goal.progressPercentage}
-                    showPercentage={false}
-                    color="warning"
-                  />
-                </div>
-                <Link
-                  href="/exams"
-                  prefetch={false}
-                  className="mt-5 inline-flex min-h-11 items-center gap-2 rounded-xl bg-primary-700 px-4 text-sm font-semibold text-white transition hover:bg-primary-600 focus:outline-none focus:ring-2 focus:ring-primary-300 focus:ring-offset-2"
-                >
-                  Take another mock
-                  <ArrowRight className="h-4 w-4" aria-hidden="true" />
-                </Link>
-              </article>
-            ))}
-          </div>
+          <SubjectGoalsCarousel goals={goals} />
         </section>
       )}
 
