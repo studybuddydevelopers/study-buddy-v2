@@ -170,6 +170,12 @@ function buildContentSecurityPolicy(nonce: string) {
   const styleSource = isDevelopment
     ? "style-src 'self' 'unsafe-inline' https://*.hcaptcha.com"
     : `style-src 'self' 'nonce-${nonce}' https://*.hcaptcha.com`;
+  const imageSources = [
+    "'self'",
+    "data:",
+    "blob:",
+    ...configuredSupabaseOrigins(isDevelopment),
+  ];
 
   return [
     "default-src 'self'",
@@ -180,7 +186,7 @@ function buildContentSecurityPolicy(nonce: string) {
     // exception scoped to attributes instead of allowing arbitrary <style>
     // blocks. Remove this after those attributes have moved to CSS classes.
     "style-src-attr 'unsafe-inline'",
-    "img-src 'self' data: blob: https:",
+    `img-src ${imageSources.join(" ")}`,
     "font-src 'self' data:",
     "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://challenges.cloudflare.com https://*.hcaptcha.com",
     "frame-src https://challenges.cloudflare.com https://*.hcaptcha.com",
@@ -191,6 +197,37 @@ function buildContentSecurityPolicy(nonce: string) {
     "frame-ancestors 'none'",
     ...(!isDevelopment ? ["upgrade-insecure-requests"] : []),
   ].join("; ");
+}
+
+function configuredSupabaseOrigins(isDevelopment: boolean) {
+  const configuredUrls = [
+    process.env.SUPABASE_URL,
+    process.env.NEXT_PUBLIC_SUPABASE_URL,
+  ];
+  const origins = new Set<string>();
+
+  for (const configuredUrl of configuredUrls) {
+    if (!configuredUrl?.trim()) continue;
+
+    try {
+      const url = new URL(configuredUrl.trim());
+      const isHostedSupabase =
+        url.protocol === "https:" && url.hostname.endsWith(".supabase.co");
+      const isLocalDevelopment =
+        isDevelopment &&
+        ["localhost", "127.0.0.1", "[::1]"].includes(url.hostname) &&
+        ["http:", "https:"].includes(url.protocol);
+
+      if (!url.username && !url.password && (isHostedSupabase || isLocalDevelopment)) {
+        origins.add(url.origin);
+      }
+    } catch {
+      // Ignore malformed values here. The stricter Supabase configuration
+      // validation reports them when an authenticated route is requested.
+    }
+  }
+
+  return [...origins];
 }
 
 function withContentSecurityPolicy(
