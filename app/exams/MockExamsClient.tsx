@@ -14,6 +14,10 @@ export interface MockExamTemplate {
   title: string;
   description?: string | null;
   questionCount: number;
+  format: "OBJECTIVE" | "WRITTEN";
+  durationMinutes?: number | null;
+  totalMarks?: number | null;
+  requiredQuestionCount?: number | null;
   subject?: {
     id: string;
     name: string;
@@ -93,9 +97,22 @@ export default function MockExamsClient({
                 <Paragraph variant="superMuted" gutter="none" clamp={3}>
                   {template.description || "Practice exam generated for you."}
                 </Paragraph>
-                <p className="text-sm text-gray-600">
-                  {template.questionCount} questions
-                </p>
+                <div className="flex flex-wrap gap-x-3 gap-y-1 text-sm text-gray-600">
+                  <span>
+                    {template.format === "WRITTEN" &&
+                    template.requiredQuestionCount
+                      ? `${template.questionCount} provided · answer ${template.requiredQuestionCount}`
+                      : `${template.questionCount} questions`}
+                  </span>
+                  {template.durationMinutes ? (
+                    <span>{template.durationMinutes} minutes</span>
+                  ) : null}
+                  <span>
+                    {template.format === "WRITTEN"
+                      ? "Written paper"
+                      : "Multiple choice"}
+                  </span>
+                </div>
               </div>
 
               <div className="flex items-center justify-between mt-4">
