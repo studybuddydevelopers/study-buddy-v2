@@ -350,6 +350,49 @@ model AiGlobalDailyUsage {
   updatedAt      DateTime @updatedAt
 }
 
+/// Privacy-safe application security events retained for operational review.
+/// Callers must use pseudonyms rather than raw account, email, IP, or token data.
+model SecurityAuditEvent {
+  id          BigInt   @id @default(autoincrement())
+  event       String   @db.VarChar(96)
+  level       String   @db.VarChar(16)
+  details     Json?
+  environment String?  @db.VarChar(64)
+  service     String?  @db.VarChar(96)
+  createdAt   DateTime @default(now())
+
+  @@index([createdAt], map: "SecurityAuditEvent_createdAt_idx")
+  @@index([event, level, createdAt], map: "SecurityAuditEvent_event_level_createdAt_idx")
+}
+
+/// Evidence that requires a controlled human action, such as restoring a
+/// backup into an isolated environment or reviewing provider account access.
+model SecurityOperationsEvidence {
+  evidenceType String   @id @db.VarChar(64)
+  verifiedAt   DateTime
+  reviewedBy   String?  @db.VarChar(160)
+  reference    String?  @db.VarChar(500)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+/// Idempotency and delivery evidence for the monthly security-operations email.
+model SecurityOperationsReportRun {
+  id          String    @id @default(uuid())
+  periodStart DateTime
+  periodEnd   DateTime
+  status      String    @db.VarChar(24)
+  recipients  String[]
+  summary     Json?
+  sentAt      DateTime?
+  failureCode String?   @db.VarChar(64)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@unique([periodStart, periodEnd], map: "SecurityOperationsReportRun_period_key")
+  @@index([status, createdAt], map: "SecurityOperationsReportRun_status_createdAt_idx")
+}
+
 model UserProfile {
   userId            String    @id
   firstName         String
@@ -770,7 +813,7 @@ model MockExamInstance {
 }
 
 model MockExamAnswer {
-  id                 String   @id @default(uuid())
+  id                 String          @id @default(uuid())
   mockExamInstanceId String
   pastQuestionId     String
   userAnswer         String?
