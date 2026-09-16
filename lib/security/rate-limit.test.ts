@@ -3,18 +3,21 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 const prismaMocks = vi.hoisted(() => ({
   queryRaw: vi.fn(),
   deleteMany: vi.fn(),
+  findAiDailyUsage: vi.fn(),
 }));
 
 vi.mock("@/lib/prisma", () => ({
   prisma: {
     $queryRaw: prismaMocks.queryRaw,
     rateLimitBucket: { deleteMany: prismaMocks.deleteMany },
+    aiDailyUsage: { findUnique: prismaMocks.findAiDailyUsage },
   },
 }));
 
 import {
   enforceAiRequestLimits,
   enforceRateLimitRules,
+  getDailyAiCreditBalance,
   getClientIp,
 } from "./rate-limit";
 
@@ -22,6 +25,7 @@ describe("rate limiting", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     prismaMocks.deleteMany.mockResolvedValue({ count: 0 });
+    prismaMocks.findAiDailyUsage.mockResolvedValue(null);
   });
 
   afterEach(() => vi.unstubAllEnvs());
@@ -116,5 +120,15 @@ describe("rate limiting", () => {
       error: "RATE_LIMITED",
       message: "Daily AI quota reached. Try again tomorrow.",
     });
+  });
+
+  it("reports the remaining daily AI credits without consuming one", async () => {
+    vi.stubEnv("AI_DAILY_USER_QUOTA", "12");
+    prismaMocks.findAiDailyUsage.mockResolvedValue({ requestCount: 9 });
+
+    const balance = await getDailyAiCreditBalance("user-1");
+
+    expect(balance).toMatchObject({ limit: 12, used: 9, remaining: 3 });
+    expect(prismaMocks.queryRaw).not.toHaveBeenCalled();
   });
 });
