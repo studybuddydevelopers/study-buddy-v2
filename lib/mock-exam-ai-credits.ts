@@ -1,0 +1,1 @@
+export const WRITTEN_MOCK_AI_CREDIT_COST = 5;
