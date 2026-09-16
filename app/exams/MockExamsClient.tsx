@@ -19,6 +19,11 @@ export interface MockExamTemplate {
   durationMinutes?: number | null;
   totalMarks?: number | null;
   requiredQuestionCount?: number | null;
+  canStart?: boolean;
+  startBlockedReason?: string | null;
+  aiCreditsRequired?: number;
+  aiCreditsRemaining?: number;
+  aiCreditsResetAt?: string;
   subject?: {
     id: string;
     name: string;
@@ -45,6 +50,10 @@ function TemplateCard({
   onStart: (template: MockExamTemplate) => void;
 }) {
   const fullMock = isFullMock(template);
+  const startBlocked = template.canStart === false;
+  const accessNeedsAuthorization = template.startBlockedReason?.includes(
+    "authorised"
+  );
 
   return (
     <div className="flex flex-col justify-between rounded-xl border border-accent-200 bg-white p-5 shadow-sm">
@@ -79,6 +88,19 @@ function TemplateCard({
               : "Multiple choice"}
           </span>
         </div>
+        {template.format === "WRITTEN" ? (
+          <div
+            className={`mt-3 rounded-lg border px-3 py-2 text-sm ${
+              startBlocked
+                ? "border-red-200 bg-red-50 text-red-800"
+                : "border-primary-200 bg-primary-50 text-primary-800"
+            }`}
+          >
+            {startBlocked
+              ? template.startBlockedReason
+              : `${template.aiCreditsRequired ?? 1} AI credit is reserved when you start · ${template.aiCreditsRemaining ?? 0} available today`}
+          </div>
+        ) : null}
       </div>
 
       <div className="mt-5 flex items-center justify-between gap-3">
@@ -91,10 +113,16 @@ function TemplateCard({
           variant="primary"
           size="sm"
           loading={starting}
-          disabled={starting}
+          disabled={starting || startBlocked}
           onClick={() => onStart(template)}
         >
-          {fullMock ? "Start mock" : "Start practice"}
+          {startBlocked
+            ? accessNeedsAuthorization
+              ? "AI access needed"
+              : "No AI credits"
+            : fullMock
+              ? "Start mock"
+              : "Start practice"}
         </Button>
       </div>
     </div>
@@ -117,6 +145,14 @@ export default function MockExamsClient({
   const [error, setError] = useState<string | null>(null);
 
   const handleStart = async (template: MockExamTemplate) => {
+    if (template.canStart === false) {
+      setError(
+        template.startBlockedReason ||
+          "You cannot start this mock exam right now."
+      );
+      return;
+    }
+
     setError(null);
     setStartingTemplateId(template.id);
     try {
@@ -128,7 +164,7 @@ export default function MockExamsClient({
 
       if (!res.ok) {
         const body = await res.json().catch(() => null);
-        setError(body?.error || "Failed to start mock exam.");
+        setError(body?.message || body?.error || "Failed to start mock exam.");
         return;
       }
 
