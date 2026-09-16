@@ -2,11 +2,10 @@
 import { NextResponse } from "next/server";
 import { MockExamFormat } from "@prisma/client";
 import { requireUser } from "@/lib/auth";
+import { WRITTEN_MOCK_AI_CREDIT_COST } from "@/lib/mock-exam-ai-credits";
 import { prisma } from "@/lib/prisma";
 import { logSecurityEvent } from "@/lib/security/audit-log";
 import { getDailyAiCreditBalance } from "@/lib/security/rate-limit";
-
-const WRITTEN_EXAM_AI_CREDIT_COST = 1;
 
 export async function GET() {
   const auth = await requireUser();
@@ -39,13 +38,13 @@ export async function GET() {
         const canStart =
           !requiresAiCredit ||
           (dbUser.aiAccessAuthorized &&
-            aiCredits.remaining >= WRITTEN_EXAM_AI_CREDIT_COST);
+            aiCredits.remaining >= WRITTEN_MOCK_AI_CREDIT_COST);
         const startBlockedReason = !requiresAiCredit
           ? null
           : !dbUser.aiAccessAuthorized
             ? "AI access must be authorised before you can start this written paper."
             : !canStart
-              ? "You do not have enough AI credits to mark this written paper. Your daily credits reset tomorrow."
+              ? `You need ${WRITTEN_MOCK_AI_CREDIT_COST} AI credits to start this written paper. Your daily credits reset tomorrow.`
               : null;
 
         return {
@@ -62,7 +61,7 @@ export async function GET() {
           canStart,
           startBlockedReason,
           aiCreditsRequired: requiresAiCredit
-            ? WRITTEN_EXAM_AI_CREDIT_COST
+            ? WRITTEN_MOCK_AI_CREDIT_COST
             : 0,
           aiCreditsRemaining: aiCredits.remaining,
           aiCreditsResetAt: aiCredits.resetsAt,
