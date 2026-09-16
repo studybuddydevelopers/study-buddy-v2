@@ -109,6 +109,7 @@ export async function GET(req: Request) {
       userAnswer: a.userAnswer,
       isCorrect: a.isCorrect,
       score: a.score,
+      aiExplanation: a.aiExplanation,
       correctAnswer: a.question.answerText,
       markingGuide: a.question.explanationText,
       section: a.section,
