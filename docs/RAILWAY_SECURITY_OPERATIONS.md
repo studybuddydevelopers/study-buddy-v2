@@ -70,13 +70,18 @@ The repository includes a one-shot caller for this job. Create a second Railway
 service from the same repository, set its custom build command to
 `npm ci --ignore-scripts --omit=dev`, and its custom start command to
 `npm run cron:account-lifecycle`. Give that service only `NODE_ENV=production`,
-`APP_ORIGIN=https://studybuddyng.com`, and the same
-`ACCOUNT_DELETION_CRON_SECRET` used by the web service. It does not need a
-domain, database credentials, Supabase credentials, or browser variables. In
-Settings, set Cron Schedule to `0 * * * *` (hourly, in UTC). The caller rejects
-redirects, times out after five minutes, returns a failing process status for
-any non-2xx response, and exits after every invocation so Railway does not skip
-the next run.
+`ACCOUNT_LIFECYCLE_CRON_ORIGIN=http://<web-service>.railway.internal:<port>`,
+and the same `ACCOUNT_DELETION_CRON_SECRET` used by the web service. Copy the
+exact private hostname and listening port from the web service rather than
+guessing them. Keep `APP_ORIGIN` on the web service set to its public HTTPS
+origin for browser and email links. The private cron override accepts plain HTTP
+only for a hostname ending exactly in `.railway.internal`; arbitrary external
+HTTP origins, credentials, paths, queries, and fragments are rejected. The cron
+service does not need a domain, database credentials, Supabase credentials, or
+browser variables. In Settings, set Cron Schedule to `0 * * * *` (hourly, in
+UTC). The caller rejects redirects, times out after five minutes, returns a
+failing process status for any non-2xx response, and exits after every
+invocation so Railway does not skip the next run.
 
 ## Monthly security-operations report
 
