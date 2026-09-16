@@ -98,7 +98,7 @@ function TemplateCard({
           >
             {startBlocked
               ? template.startBlockedReason
-              : `${template.aiCreditsRequired ?? 1} AI credit is reserved when you start · ${template.aiCreditsRemaining ?? 0} available today`}
+              : `${template.aiCreditsRequired ?? 5} AI credits are reserved every time you start · ${template.aiCreditsRemaining ?? 0} available today`}
           </div>
         ) : null}
       </div>
