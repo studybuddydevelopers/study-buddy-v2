@@ -797,13 +797,14 @@ model MockExamTemplate {
 }
 
 model MockExamInstance {
-  id          String    @id @default(uuid())
-  userId      String
-  templateId  String
-  startedAt   DateTime  @default(now())
-  submittedAt DateTime?
-  totalScore  Int?
-  graded      Boolean   @default(false)
+  id                 String    @id @default(uuid())
+  userId             String
+  templateId         String
+  startedAt          DateTime  @default(now())
+  submittedAt        DateTime?
+  totalScore         Int?
+  graded             Boolean   @default(false)
+  aiCreditReservedAt DateTime?
 
   user     User             @relation(fields: [userId], references: [id], onDelete: Cascade)
   template MockExamTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
