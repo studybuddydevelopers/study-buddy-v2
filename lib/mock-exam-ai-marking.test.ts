@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   buildAiMarkingMessages,
   buildAiMarkingOutputSchema,
-  parseAiMarkingSuggestions,
+  parseAiMarkingDecisions,
   validateAiMarkingInputs,
   type WrittenAnswerForAiMarking,
 } from "./mock-exam-ai-marking";
@@ -29,13 +29,13 @@ const answers: WrittenAnswerForAiMarking[] = [
 describe("AI-assisted written-exam marking", () => {
   it("builds a strict schema for exactly the attempted answers", () => {
     const outputSchema = buildAiMarkingOutputSchema(answers.length);
-    const suggestions = (
+    const marks = (
       outputSchema.schema.properties as Record<string, Record<string, unknown>>
-    ).suggestions;
+    ).marks;
 
     expect(outputSchema.strict).toBe(true);
-    expect(suggestions.minItems).toBe(2);
-    expect(suggestions.maxItems).toBe(2);
+    expect(marks.minItems).toBe(2);
+    expect(marks.maxItems).toBe(2);
   });
 
   it("treats learner content as untrusted data in the marking prompt", () => {
@@ -55,19 +55,19 @@ describe("AI-assisted written-exam marking", () => {
     );
   });
 
-  it("accepts complete bounded suggestions and returns them in answer order", () => {
-    const result = parseAiMarkingSuggestions(
+  it("accepts complete bounded marks and returns them in answer order", () => {
+    const result = parseAiMarkingDecisions(
       {
-        suggestions: [
+        marks: [
           {
             answerId: "answer-2",
-            suggestedScore: 2,
+            score: 2,
             rationale: "The correct value is stated.",
             confidence: "HIGH",
           },
           {
             answerId: "answer-1",
-            suggestedScore: 1,
+            score: 1,
             rationale: "The answer is correct but the required method is brief.",
             confidence: "MEDIUM",
           },
@@ -78,16 +78,16 @@ describe("AI-assisted written-exam marking", () => {
 
     expect(result).toEqual({
       ok: true,
-      suggestions: [
+      marks: [
         {
           answerId: "answer-1",
-          suggestedScore: 1,
+          score: 1,
           rationale: "The answer is correct but the required method is brief.",
           confidence: "MEDIUM",
         },
         {
           answerId: "answer-2",
-          suggestedScore: 2,
+          score: 2,
           rationale: "The correct value is stated.",
           confidence: "HIGH",
         },
@@ -96,18 +96,18 @@ describe("AI-assisted written-exam marking", () => {
   });
 
   it("rejects a provider score above that question's maximum", () => {
-    const result = parseAiMarkingSuggestions(
+    const result = parseAiMarkingDecisions(
       {
-        suggestions: [
+        marks: [
           {
             answerId: "answer-1",
-            suggestedScore: 3,
+            score: 3,
             rationale: "Full marks.",
             confidence: "HIGH",
           },
           {
             answerId: "answer-2",
-            suggestedScore: 2,
+            score: 2,
             rationale: "Full marks.",
             confidence: "HIGH",
           },
@@ -119,19 +119,19 @@ describe("AI-assisted written-exam marking", () => {
     expect(result.ok).toBe(false);
   });
 
-  it("rejects duplicate or missing answer suggestions", () => {
-    const result = parseAiMarkingSuggestions(
+  it("rejects duplicate or missing answer marks", () => {
+    const result = parseAiMarkingDecisions(
       {
-        suggestions: [
+        marks: [
           {
             answerId: "answer-1",
-            suggestedScore: 2,
+            score: 2,
             rationale: "Full marks.",
             confidence: "HIGH",
           },
           {
             answerId: "answer-1",
-            suggestedScore: 1,
+            score: 1,
             rationale: "Repeated suggestion.",
             confidence: "LOW",
           },
