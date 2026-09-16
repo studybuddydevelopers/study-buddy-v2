@@ -81,7 +81,10 @@ service does not need a domain, database credentials, Supabase credentials, or
 browser variables. In Settings, set Cron Schedule to `0 * * * *` (hourly, in
 UTC). The caller rejects redirects, times out after five minutes, returns a
 failing process status for any non-2xx response, and exits after every
-invocation so Railway does not skip the next run.
+invocation so Railway does not skip the next run. Transient private-DNS and
+connection failures receive four bounded attempts over eleven seconds. Final
+transport failures log only a safe network cause code such as `ENOTFOUND` or
+`ECONNREFUSED`, never the endpoint URL or cron secret.
 
 ## Monthly security-operations report
 
