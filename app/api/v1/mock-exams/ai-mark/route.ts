@@ -17,7 +17,10 @@ import {
 } from "@/lib/mock-exam-written";
 import { prisma } from "@/lib/prisma";
 import { logSecurityEvent } from "@/lib/security/audit-log";
-import { enforceAiRequestLimits } from "@/lib/security/rate-limit";
+import {
+  enforceAiRequestLimits,
+  enforceAiRequestRateLimits,
+} from "@/lib/security/rate-limit";
 import {
   parseJsonObjectRequest,
   REQUEST_LIMITS,
@@ -124,10 +127,15 @@ export async function POST(request: Request) {
     );
   }
 
-  const aiLimitResponse = await enforceAiRequestLimits({
-    accountId: dbUser.id,
-    requestHeaders: request.headers,
-  });
+  const aiLimitResponse = instance.aiCreditReservedAt
+    ? await enforceAiRequestRateLimits({
+        accountId: dbUser.id,
+        requestHeaders: request.headers,
+      })
+    : await enforceAiRequestLimits({
+        accountId: dbUser.id,
+        requestHeaders: request.headers,
+      });
   if (aiLimitResponse) return aiLimitResponse;
 
   try {
