@@ -5,6 +5,9 @@ import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/auth";
 import { buildMockExamMcqChoices } from "@/lib/mock-exam-multiple-choice";
 import { parseJsonObjectRequest } from "@/lib/security/request-body";
+import { reserveDailyAiCredits } from "@/lib/security/rate-limit";
+
+const WRITTEN_EXAM_AI_CREDIT_COST = 1;
 
 export async function POST(req: Request) {
   // -------------------------------------
@@ -75,6 +78,26 @@ export async function POST(req: Request) {
     );
   }
 
+  if (template.format === MockExamFormat.WRITTEN) {
+    if (!dbUser.aiAccessAuthorized) {
+      return NextResponse.json(
+        {
+          error: "AI_AUTHORIZATION_REQUIRED",
+          message:
+            "AI access must be authorised before starting a written mock exam.",
+        },
+        { status: 403, headers: { "Cache-Control": "no-store" } }
+      );
+    }
+
+    const creditResponse = await reserveDailyAiCredits(
+      dbUser.id,
+      WRITTEN_EXAM_AI_CREDIT_COST,
+      "You need at least 1 AI credit to start this written mock exam. Your daily credits reset tomorrow."
+    );
+    if (creditResponse) return creditResponse;
+  }
+
   // -------------------------------------
   // 5. RANDOMLY SELECT QUESTIONS
   // -------------------------------------
@@ -92,6 +115,8 @@ export async function POST(req: Request) {
     data: {
       userId: dbUser.id,
       templateId,
+      aiCreditReservedAt:
+        template.format === MockExamFormat.WRITTEN ? new Date() : null,
     },
   });
 
