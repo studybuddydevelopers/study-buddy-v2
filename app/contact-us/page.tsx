@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import {
   ArrowRight,
@@ -33,6 +33,7 @@ const SUBJECT_RECIPIENTS: Record<string, string> = {
   "Billing or refund": BILLING_EMAIL,
   "Partnerships & schools": GENERAL_EMAIL,
   "Content feedback": SUPPORT_EMAIL,
+  "Marking review": SUPPORT_EMAIL,
   "Privacy & data": PRIVACY_EMAIL,
   "Security vulnerability": SECURITY_EMAIL,
   Other: GENERAL_EMAIL,
@@ -104,6 +105,26 @@ export default function ContactUsPage() {
     message: false,
   });
   const [emailPrepared, setEmailPrepared] = useState(false);
+
+  useEffect(() => {
+    const timeout = window.setTimeout(() => {
+      const searchParams = new URLSearchParams(window.location.search);
+      const requestedSubject = searchParams.get("subject")?.trim() ?? "";
+      const requestedMessage = searchParams.get("message")?.trim() ?? "";
+      const subject = SUBJECTS.includes(requestedSubject)
+        ? requestedSubject
+        : "";
+
+      if (!subject && !requestedMessage) return;
+      setForm((current) => ({
+        ...current,
+        subject: subject || current.subject,
+        message: requestedMessage.slice(0, 6_000) || current.message,
+      }));
+    }, 0);
+
+    return () => window.clearTimeout(timeout);
+  }, []);
 
   const emailRe = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   const errors: Record<Field, string> = {
