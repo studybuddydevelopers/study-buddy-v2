@@ -4,10 +4,9 @@ import { MockExamFormat, MockExamSection } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/auth";
 import { buildMockExamMcqChoices } from "@/lib/mock-exam-multiple-choice";
+import { WRITTEN_MOCK_AI_CREDIT_COST } from "@/lib/mock-exam-ai-credits";
 import { parseJsonObjectRequest } from "@/lib/security/request-body";
 import { reserveDailyAiCredits } from "@/lib/security/rate-limit";
-
-const WRITTEN_EXAM_AI_CREDIT_COST = 1;
 
 export async function POST(req: Request) {
   // -------------------------------------
@@ -92,8 +91,8 @@ export async function POST(req: Request) {
 
     const creditResponse = await reserveDailyAiCredits(
       dbUser.id,
-      WRITTEN_EXAM_AI_CREDIT_COST,
-      "You need at least 1 AI credit to start this written mock exam. Your daily credits reset tomorrow."
+      WRITTEN_MOCK_AI_CREDIT_COST,
+      `You need at least ${WRITTEN_MOCK_AI_CREDIT_COST} AI credits to start this written mock exam. Your daily credits reset tomorrow.`
     );
     if (creditResponse) return creditResponse;
   }
