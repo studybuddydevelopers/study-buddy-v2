@@ -1,9 +1,18 @@
 // app/api/v1/mock-exams/mock-exam-templates/route.ts
 import { NextResponse } from "next/server";
+import { MockExamFormat } from "@prisma/client";
+import { requireUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { logSecurityEvent } from "@/lib/security/audit-log";
+import { getDailyAiCreditBalance } from "@/lib/security/rate-limit";
+
+const WRITTEN_EXAM_AI_CREDIT_COST = 1;
 
 export async function GET() {
+  const auth = await requireUser();
+  if ("errorResponse" in auth) return auth.errorResponse;
+  const { dbUser } = auth;
+
   try {
     // -------------------------------------
     // 1. FETCH ALL TEMPLATES
@@ -19,23 +28,46 @@ export async function GET() {
         },
       },
     });
+    const aiCredits = await getDailyAiCreditBalance(dbUser.id);
 
     // -------------------------------------
     // 2. FORMAT RESPONSE
     // -------------------------------------
     return NextResponse.json(
-      templates.map((t) => ({
-        id: t.id,
-        subjectId: t.subjectId,
-        title: t.title,
-        description: t.description,
-        questionCount: t.questionCount,
-        format: t.format,
-        durationMinutes: t.durationMinutes,
-        totalMarks: t.totalMarks,
-        requiredQuestionCount: t.requiredQuestionCount,
-        subject: t.subject,
-      }))
+      templates.map((t) => {
+        const requiresAiCredit = t.format === MockExamFormat.WRITTEN;
+        const canStart =
+          !requiresAiCredit ||
+          (dbUser.aiAccessAuthorized &&
+            aiCredits.remaining >= WRITTEN_EXAM_AI_CREDIT_COST);
+        const startBlockedReason = !requiresAiCredit
+          ? null
+          : !dbUser.aiAccessAuthorized
+            ? "AI access must be authorised before you can start this written paper."
+            : !canStart
+              ? "You do not have enough AI credits to mark this written paper. Your daily credits reset tomorrow."
+              : null;
+
+        return {
+          id: t.id,
+          subjectId: t.subjectId,
+          title: t.title,
+          description: t.description,
+          questionCount: t.questionCount,
+          format: t.format,
+          durationMinutes: t.durationMinutes,
+          totalMarks: t.totalMarks,
+          requiredQuestionCount: t.requiredQuestionCount,
+          subject: t.subject,
+          canStart,
+          startBlockedReason,
+          aiCreditsRequired: requiresAiCredit
+            ? WRITTEN_EXAM_AI_CREDIT_COST
+            : 0,
+          aiCreditsRemaining: aiCredits.remaining,
+          aiCreditsResetAt: aiCredits.resetsAt,
+        };
+      })
     );
   } catch {
     logSecurityEvent("mock_exam_templates_load_failed", "error");
