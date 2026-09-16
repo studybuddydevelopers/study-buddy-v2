@@ -128,7 +128,17 @@ export async function enforceAiRequestLimits(input: {
   requestHeaders: Headers;
   units?: number;
 }) {
-  const minuteGuard = await enforceRateLimitRules([
+  const minuteGuard = await enforceAiRequestRateLimits(input);
+  if (minuteGuard) return minuteGuard;
+
+  return reserveDailyAiCredits(input.accountId, input.units ?? 1);
+}
+
+export async function enforceAiRequestRateLimits(input: {
+  accountId: string;
+  requestHeaders: Headers;
+}) {
+  return enforceRateLimitRules([
     {
       scope: "ai:account",
       identifier: input.accountId,
@@ -148,13 +158,34 @@ export async function enforceAiRequestLimits(input: {
       windowMs: MINUTE_MS,
     },
   ]);
-  if (minuteGuard) return minuteGuard;
+}
 
-  return consumeDailyAiQuota(
-    input.accountId,
-    input.units ?? 1,
-    positiveIntegerFromEnv("AI_DAILY_USER_QUOTA", DEFAULT_AI_DAILY_LIMIT)
+export async function reserveDailyAiCredits(
+  accountId: string,
+  units = 1,
+  message = "Daily AI quota reached. Try again tomorrow."
+) {
+  return consumeDailyAiQuota(accountId, units, aiDailyUserQuota(), message);
+}
+
+export async function getDailyAiCreditBalance(accountId: string) {
+  const now = new Date();
+  const usageDate = new Date(
+    Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate())
   );
+  const limit = aiDailyUserQuota();
+  const usage = await prisma.aiDailyUsage.findUnique({
+    where: { userId_usageDate: { userId: accountId, usageDate } },
+    select: { requestCount: true },
+  });
+  const used = Math.max(0, usage?.requestCount ?? 0);
+
+  return {
+    limit,
+    used,
+    remaining: Math.max(0, limit - used),
+    resetsAt: new Date(usageDate.getTime() + 24 * 60 * MINUTE_MS),
+  };
 }
 
 export async function enforceAiAccountLimits(
@@ -174,11 +205,7 @@ export async function enforceAiAccountLimits(
   ]);
   if (minuteGuard) return minuteGuard;
 
-  return consumeDailyAiQuota(
-    accountId,
-    units,
-    positiveIntegerFromEnv("AI_DAILY_USER_QUOTA", DEFAULT_AI_DAILY_LIMIT)
-  );
+  return reserveDailyAiCredits(accountId, units);
 }
 
 async function consumeRateLimit(rule: RateLimitRule): Promise<RateLimitResult> {
@@ -220,7 +247,8 @@ async function consumeRateLimit(rule: RateLimitRule): Promise<RateLimitResult> {
 async function consumeDailyAiQuota(
   userId: string,
   units: number,
-  limit: number
+  limit: number,
+  message: string
 ) {
   const safeUnits = Math.max(1, Math.floor(units));
   const now = new Date();
@@ -239,7 +267,7 @@ async function consumeDailyAiQuota(
         scope: "ai:daily",
         firstRejection: true,
       },
-      "Daily AI quota reached. Try again tomorrow."
+      message
     );
   }
 
@@ -266,11 +294,18 @@ async function consumeDailyAiQuota(
         scope: "ai:daily",
         firstRejection: true,
       },
-      "Daily AI quota reached. Try again tomorrow."
+      message
     );
   }
 
   return null;
+}
+
+function aiDailyUserQuota() {
+  return positiveIntegerFromEnv(
+    "AI_DAILY_USER_QUOTA",
+    DEFAULT_AI_DAILY_LIMIT
+  );
 }
 
 function rateLimitResponse(
