@@ -7,7 +7,7 @@ import { requireAiUser } from "@/lib/auth";
 import {
   buildAiMarkingMessages,
   buildAiMarkingOutputSchema,
-  parseAiMarkingSuggestions,
+  parseAiMarkingDecisions,
   validateAiMarkingInputs,
   type WrittenAnswerForAiMarking,
 } from "@/lib/mock-exam-ai-marking";
@@ -44,7 +44,7 @@ export async function POST(request: Request) {
   const instance = await prisma.mockExamInstance.findUnique({
     where: { id: instanceId },
     include: {
-      template: { select: { format: true } },
+      template: { select: { format: true, totalMarks: true } },
       answers: {
         orderBy: [{ displayOrder: "asc" }, { id: "asc" }],
         include: {
@@ -74,14 +74,14 @@ export async function POST(request: Request) {
   }
   if (!instance.submittedAt) {
     return noStoreJson(
-      { error: "Submit the written paper before requesting marking suggestions" },
+      { error: "Submit the written paper before requesting AI marking" },
       400
     );
   }
   if (instance.graded) {
     return noStoreJson(
-      { error: "This written paper has already been scored" },
-      400
+      { error: "This written paper has already been marked" },
+      409
     );
   }
 
@@ -118,7 +118,7 @@ export async function POST(request: Request) {
     return noStoreJson(
       {
         error:
-          "AI-assisted marking is temporarily unavailable. You can still mark this paper manually.",
+          "AI marking is temporarily unavailable. Try again or contact Study Buddy.",
       },
       503
     );
@@ -137,19 +137,83 @@ export async function POST(request: Request) {
       temperature: 0,
       maxOutputTokens: 2_000,
     });
-    const parsedSuggestions = parseAiMarkingSuggestions(result.value, answers);
+    const parsedMarks = parseAiMarkingDecisions(result.value, answers);
 
-    if (!parsedSuggestions.ok) {
+    if (!parsedMarks.ok) {
       logSecurityEvent("ai_mock_exam_invalid_marking_response", "warn", {
         instanceId,
       });
-      return noStoreJson({ error: parsedSuggestions.error }, 502);
+      return noStoreJson({ error: parsedMarks.error }, 502);
+    }
+
+    const totalScore = parsedMarks.marks.reduce(
+      (sum, mark) => sum + mark.score,
+      0
+    );
+    const totalMarks =
+      instance.template.totalMarks ??
+      answers.reduce((sum, answer) => sum + answer.maxScore, 0);
+    if (totalScore > totalMarks) {
+      logSecurityEvent("ai_mock_exam_invalid_marking_total", "warn", {
+        instanceId,
+      });
+      return noStoreJson(
+        { error: "The AI returned an invalid total. No marks were saved." },
+        502
+      );
+    }
+
+    try {
+      await prisma.$transaction(async (transaction) => {
+        const claim = await transaction.mockExamInstance.updateMany({
+          where: {
+            id: instanceId,
+            userId: dbUser.id,
+            graded: false,
+            submittedAt: { not: null },
+          },
+          data: { graded: true, totalScore },
+        });
+        if (claim.count !== 1) throw new MarkingAlreadyCompletedError();
+
+        for (const mark of parsedMarks.marks) {
+          const source = answers.find(
+            (answer) => answer.answerId === mark.answerId
+          )!;
+          await transaction.mockExamAnswer.update({
+            where: { id: mark.answerId },
+            data: {
+              score: mark.score,
+              isCorrect: mark.score === source.maxScore,
+              aiExplanation: formatAiExplanation(mark),
+            },
+          });
+        }
+      });
+    } catch (error) {
+      if (error instanceof MarkingAlreadyCompletedError) {
+        return noStoreJson(
+          { error: "This written paper has already been marked" },
+          409
+        );
+      }
+      throw error;
     }
 
     return noStoreJson({
-      suggestions: parsedSuggestions.suggestions,
-      message:
-        "AI suggestions are ready. Review and edit every mark before saving your final result.",
+      instanceId,
+      graded: true,
+      totalScore,
+      totalMarks,
+      answers: parsedMarks.marks.map((mark) => ({
+        id: mark.answerId,
+        score: mark.score,
+        isCorrect:
+          mark.score ===
+          answers.find((answer) => answer.answerId === mark.answerId)!.maxScore,
+        aiExplanation: formatAiExplanation(mark),
+      })),
+      message: "Your written paper has been marked by Study Buddy AI.",
     });
   } catch (error) {
     logMarkingFailure(instanceId, error);
@@ -167,7 +231,7 @@ function logMarkingFailure(instanceId: string, error: unknown) {
 
 function providerErrorResponse(error: unknown) {
   const fallbackMessage =
-    "AI-assisted marking is temporarily unavailable. You can still mark this paper manually.";
+    "AI marking is temporarily unavailable. Try again or contact Study Buddy.";
 
   if (error instanceof ChatProviderError) {
     if (error.failureCode === AiGenerationFailureCode.RATE_LIMITED) {
@@ -182,7 +246,7 @@ function providerErrorResponse(error: unknown) {
       return noStoreJson(
         {
           error:
-            "The AI returned incomplete marking suggestions. No marks were changed.",
+            "The AI returned incomplete marks. No marks were saved.",
         },
         502
       );
@@ -191,6 +255,15 @@ function providerErrorResponse(error: unknown) {
 
   return noStoreJson({ error: fallbackMessage }, 503);
 }
+
+function formatAiExplanation(mark: {
+  rationale: string;
+  confidence: string;
+}) {
+  return `${mark.rationale} (${mark.confidence.toLowerCase()} confidence)`;
+}
+
+class MarkingAlreadyCompletedError extends Error {}
 
 function noStoreJson(body: Record<string, unknown>, status = 200) {
   return NextResponse.json(body, {
