@@ -4,6 +4,11 @@ import test from "node:test";
 import { lifecycleEndpoint } from "./run-account-lifecycle-cron.mjs";
 
 const CRON_SECRET = "a".repeat(32);
+const privateOriginWithCredentials = new URL(
+  "http://study-buddy-v2.railway.internal:8080"
+);
+privateOriginWithCredentials.username = "test-user";
+privateOriginWithCredentials.password = "test-password";
 
 test("uses a Railway-private HTTP origin when configured", () => {
   const result = lifecycleEndpoint({
@@ -36,7 +41,7 @@ for (const origin of [
   "https://study-buddy-v2.railway.internal:8080",
   "http://railway.internal:8080",
   "http://study-buddy-v2.railway.internal.example.com:8080",
-  "http://user:password@study-buddy-v2.railway.internal:8080",
+  privateOriginWithCredentials.toString(),
   "http://study-buddy-v2.railway.internal:8080/unexpected-path",
   "http://study-buddy-v2.railway.internal:8080/?unexpected=query",
 ]) {
