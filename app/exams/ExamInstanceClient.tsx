@@ -16,7 +16,9 @@ import Button from "@/components/Button";
 import LowDataImage from "@/components/LowDataImage";
 import LocalDateTime from "@/components/LocalDateTime";
 import { formatLocalTime } from "@/lib/date-format";
-import { SUPPORT_EMAIL } from "@/lib/legal-entity";
+import MarkingReviewPanel, {
+  type LearnerMarkingReview,
+} from "./MarkingReviewPanel";
 
 interface TemplateMeta {
   id: string;
@@ -61,6 +63,7 @@ interface MockExamAnswerRow {
   section: "OBJECTIVE" | "PART_I" | "PART_II";
   displayOrder?: number | null;
   maxScore: number;
+  markingReview: LearnerMarkingReview | null;
 }
 
 interface ExamInstanceData {
@@ -452,6 +455,14 @@ export default function ExamInstanceClient({
           {isWritten
             ? `${answeredCount}/${data.template.requiredQuestionCount ?? 10} answered · Part II ${optionalAnsweredCount}/5`
             : `${answeredCount}/${totalQuestions} answered`}
+          {isWritten && isGraded ? (
+            <Link
+              href="/marking-reviews"
+              className="mt-2 block min-h-11 py-2 font-semibold text-primary-700 hover:underline focus:outline-none focus:ring-2 focus:ring-primary-400 focus:ring-offset-2"
+            >
+              View marking reviews
+            </Link>
+          ) : null}
         </div>
       </div>
 
@@ -500,26 +511,6 @@ export default function ExamInstanceClient({
               data.answers[idx - 1]?.section !== answerRow?.section);
           const sectionQuestionNumber =
             answerRow?.section === "PART_II" ? idx - 4 : idx + 1;
-          const markingReviewHref =
-            isWritten && answerRow && gradeInfo?.score != null
-              ? `/contact-us?subject=${encodeURIComponent(
-                  "Marking review"
-                )}&message=${encodeURIComponent(
-                  [
-                    "I would like this AI marking decision reviewed.",
-                    "",
-                    `Exam reference: ${data.instance.id}`,
-                    `Paper: ${data.template.title}`,
-                    `Question reference: ${answerRow.section === "PART_I" ? "Part I" : "Part II"}, question ${sectionQuestionNumber}`,
-                    `Question: ${q.questionText}`,
-                    `Awarded mark: ${gradeInfo.score} / ${answerRow.maxScore}`,
-                    `AI marking rationale: ${aiExplanation ?? "Not available"}`,
-                    "",
-                    "Why I believe this decision should be reviewed:",
-                  ].join("\n")
-                )}`
-              : null;
-
           return (
             <Fragment key={q.id}>
               {sectionStart ? (
@@ -597,8 +588,7 @@ export default function ExamInstanceClient({
                   value &&
                   answerRow &&
                   isGraded &&
-                  gradeInfo?.score != null &&
-                  markingReviewHref ? (
+                  gradeInfo?.score != null ? (
                     <div className="space-y-2 border-t border-accent-200 pt-3 text-sm text-gray-800">
                       <p className="font-semibold text-primary-700">
                         Awarded {gradeInfo.score} / {answerRow.maxScore}
@@ -611,22 +601,10 @@ export default function ExamInstanceClient({
                           {aiExplanation}
                         </p>
                       ) : null}
-                      <Link
-                        href={markingReviewHref}
-                        className="inline-flex min-h-11 items-center justify-center rounded-lg border-2 border-primary-500 px-4 py-2 font-semibold text-primary-700 transition hover:bg-primary-500 hover:text-white focus:outline-none focus:ring-2 focus:ring-primary-400 focus:ring-offset-2"
-                      >
-                        Report this marking for review
-                      </Link>
-                      <p className="text-gray-600">
-                        Or contact Study Buddy at{" "}
-                        <a
-                          href={`mailto:${SUPPORT_EMAIL}`}
-                          className="font-semibold text-primary-700 hover:underline"
-                        >
-                          {SUPPORT_EMAIL}
-                        </a>
-                        .
-                      </p>
+                      <MarkingReviewPanel
+                        answerId={answerRow.id}
+                        existingReview={answerRow.markingReview}
+                      />
                     </div>
                   ) : null}
                 </div>
