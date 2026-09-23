@@ -15,6 +15,7 @@ import {
   PRIVACY_REQUEST_HANDLERS,
   REGISTERED_OFFICE_ADDRESS,
   SECURITY_EMAIL,
+  SUPPORT_EMAIL,
 } from "@/lib/legal-entity";
 import { createPageMetadata } from "@/lib/site-metadata";
 
@@ -25,7 +26,7 @@ export const metadata = createPageMetadata({
   path: "/privacy-policy",
 });
 
-const LAST_UPDATED = "12 September 2026";
+const LAST_UPDATED = "23 September 2026";
 
 const summaryItems: {
   title: string;
@@ -36,7 +37,7 @@ const summaryItems: {
   {
     title: "We collect learning data",
     description:
-      "Account details, study activity, mock results, saved answers, and AI-chat messages help the product work.",
+      "Account details, study activity, mock results, AI marking records, saved answers, and AI-chat messages help the product work.",
     proposal: "database",
   },
   {
@@ -266,8 +267,9 @@ export default function PrivacyPolicyPage() {
               <ListItem>
                 <strong>Study activity:</strong> questions you attempt, answers
                 and drafts you submit, topics you practise, mock exam scores,
-                flashcard or resource activity, recommendations, progress, and
-                session timing.
+                Paper 2 AI-awarded marks, marking rationales and confidence
+                labels, AI-credit usage, flashcard or resource activity,
+                recommendations, progress, and session timing.
               </ListItem>
               <ListItem>
                 <strong>AI conversations:</strong> messages you send to our AI
@@ -319,12 +321,12 @@ export default function PrivacyPolicyPage() {
               <ListItem>
                 <strong>To provide the service and take requested steps:</strong>{" "}
                 create and secure accounts; provide practice, mock exams,
-                saved drafts, progress tracking, AI support, WhatsApp tutoring,
-                subscriptions, and support. For an adult, we rely on performance
-                of our agreement with you or steps you request before entering
-                it. For a user aged 13–17, we require verified consent from a
-                parent or legal guardian and make the service agreement with the
-                guardian where appropriate.
+                AI-assisted Paper 2 marking, saved drafts, progress tracking,
+                AI support, WhatsApp tutoring, subscriptions, and support. For
+                an adult, we rely on performance of our agreement with you or
+                steps you request before entering it. For a user aged 13–17, we
+                require verified consent from a parent or legal guardian and
+                make the service agreement with the guardian where appropriate.
               </ListItem>
               <ListItem>
                 <strong>For our legitimate interests:</strong> protect accounts,
@@ -409,13 +411,44 @@ export default function PrivacyPolicyPage() {
               incorporated into a trained model.
             </p>
             <p>
-              Study Buddy uses learning activity to produce progress summaries
-              and recommendations. These features are intended to support study;
-              they do not make admission, grading, employment, credit, or other
-              decisions with legal or similarly significant effects. You may ask
-              us to explain or review a personalised result. AI responses can be
-              wrong, so do not rely on them as the only source for an important
-              decision.
+              Study Buddy uses automated AI to mark written Paper 2 practice
+              exams. For each attempted question, the question, your submitted
+              answer, the model answer, marking guide, and maximum available
+              mark are sent to OpenAI. The AI checks the answer against that
+              guide, assigns a whole-number mark between zero and the maximum,
+              and returns a short rationale and confidence label. We save those
+              outputs, the question marks, and the total as part of your Study
+              Buddy mock-exam result and progress history.
+            </p>
+            <p>
+              Paper 2 marking is an automated grading decision inside Study
+              Buddy&apos;s practice service. It is not an official WAEC, school,
+              admission, certification, employment, or credit decision and has
+              no intended legal or similarly significant effect. AI can
+              misunderstand valid working, overlook an alternative method, or
+              award the wrong mark. The mark, rationale, model answer, and
+              marking guide are therefore learning feedback rather than an
+              examiner&apos;s final decision.
+            </p>
+            <p>
+              You may challenge an individual Paper 2 mark by selecting
+              <strong> Report this marking for review</strong> beside the result,
+              or by emailing{" "}
+              <a
+                href={`mailto:${SUPPORT_EMAIL}`}
+                className="font-medium text-primary-600 hover:underline"
+              >
+                {SUPPORT_EMAIL}
+              </a>{" "}
+              with the exam and question reference. A person will consider the
+              submitted answer, marking guide, AI rationale, and the reason for
+              your challenge and may correct a clearly wrong result. Apart from
+              this disclosed Paper 2 practice marking, our progress summaries
+              and recommendations do not make official grading, admission,
+              employment, credit, or other decisions with legal or similarly
+              significant effects. You may also ask us to explain or review a
+              personalised result. Do not rely on AI output as the only source
+              for an important decision.
             </p>
             <p>
               Do not include passwords, payment-card details, health information,
@@ -468,8 +501,11 @@ export default function PrivacyPolicyPage() {
               </ListItem>
               <ListItem>
                 <strong>OpenAI</strong> for AI tutoring chatbot responses and
-                recommendations. Relevant prompts and conversation context are
-                transmitted for processing.{" "}
+                recommendations, and for automated marking of written Paper 2
+                practice answers. Relevant prompts, conversation context, or
+                the question, submitted answer, model answer, marking guide,
+                and maximum mark are transmitted as needed for the requested
+                feature.{" "}
                 <ExternalPolicyLink href="https://openai.com/policies/privacy-policy">
                   OpenAI privacy policy
                 </ExternalPolicyLink>
@@ -752,7 +788,12 @@ export default function PrivacyPolicyPage() {
               </ListItem>
               <ListItem>
                 request human review of a solely automated decision that has a
-                legal or similarly significant effect; and
+                legal or similarly significant effect;
+              </ListItem>
+              <ListItem>
+                challenge an AI-awarded Paper 2 practice mark and request human
+                review through the review link shown with that mark or through{" "}
+                <a href={`mailto:${SUPPORT_EMAIL}`}>{SUPPORT_EMAIL}</a>; and
               </ListItem>
               <ListItem>
                 complain to the Nigeria Data Protection Commission (NDPC).
