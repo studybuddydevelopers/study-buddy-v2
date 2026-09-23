@@ -572,7 +572,12 @@ function MobileMockResults({
         <li key={exam.instanceId} className="p-4">
           <div className="flex items-start justify-between gap-3">
             <h3 className="min-w-0 pt-1 font-bold leading-6 text-gray-950 [overflow-wrap:anywhere]">
-              {exam.templateTitle}
+              <Link
+                href={`/exams/${exam.instanceId}`}
+                className="hover:text-primary-700 hover:underline focus:outline-none focus:ring-2 focus:ring-primary-400 focus:ring-offset-2"
+              >
+                {exam.templateTitle}
+              </Link>
             </h3>
             <span className="shrink-0 rounded-full bg-primary-50 px-3 py-1 text-lg font-bold text-primary-800 tabular-nums">
               {exam.scorePercent == null ? "—" : `${exam.scorePercent}%`}
@@ -1053,7 +1058,12 @@ export default function ProgressClient({
                       className="border-t border-gray-200 bg-white"
                     >
                       <td className="p-4 font-medium text-gray-950">
-                        {exam.templateTitle}
+                        <Link
+                          href={`/exams/${exam.instanceId}`}
+                          className="hover:text-primary-700 hover:underline focus:outline-none focus:ring-2 focus:ring-primary-400 focus:ring-offset-2"
+                        >
+                          {exam.templateTitle}
+                        </Link>
                       </td>
                       <td className="p-4 text-gray-800 tabular-nums">
                         {exam.score} / {exam.questionCount}
