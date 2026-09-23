@@ -4,7 +4,7 @@ API v1 Reference
 Conventions
 -----------
 - All endpoints respond with JSON; errors use `{ "error": string }` and relevant HTTP status.
-- Auth uses Supabase session cookies. `requireUser` blocks unauthenticated requests (401). The application has no administrator role or administration routes.
+- Auth uses Supabase session cookies. `requireUser` blocks unauthenticated requests (401). The application has no general administrator role or administration routes. Marking-review support routes have a narrowly scoped user-ID allowlist.
 - Unsafe API requests carrying a Supabase session cookie require an exact trusted `Origin`; signed webhooks and the secret-authenticated recommendation cron are exempt from cookie CSRF handling.
 - Paths are shown relative to `/api/v1`.
 
@@ -63,6 +63,13 @@ Mock Exams
 - POST `/mock-exams/start` (auth) — Body: `templateId`. Creates a mock exam instance for the user, randomly selects questions from the template’s subject, and returns `{ instance, questions (no answers), answers }`.
 - POST `/mock-exams/submit` (auth) — Body: `instanceId`, `answers: [{ answerId, userAnswer }]`. User must own instance and not have submitted already. Saves answers, sets `submittedAt`, returns `{ instanceId, submittedAt, answers }`.
 - POST `/mock-exams/grade` (auth) — Body: `instanceId`. Requires submitted, ungraded instance owned by user. Grades each answer (exact match to stored answerText), updates totals, returns `{ instanceId, totalScore, graded, answers: [{ id, isCorrect, score }] }`.
+- GET `/mock-exams/marking-reviews` (auth) — Lists up to 50 marking-review cases owned by the learner, including reference, status and decision.
+- POST `/mock-exams/marking-reviews` (auth) — Body: `answerId`, `reason`. Creates one tracked review case per AI-marked written answer and snapshots the exam, question, learner answer, model answer, marking guide, AI rationale and original score.
+
+Marking Review Support
+----------------------
+- GET `/support/marking-reviews` (auth + marking-review support allowlist) — Query: `status=PENDING|RESOLVED|ALL`. Returns the restricted review queue with case evidence and audit events.
+- PATCH `/support/marking-reviews/:id` (auth + marking-review support allowlist) — Body: `decision` (`UPHOLD` or `ADJUST`), `note`, and integer `score` for an adjustment. Resolves a pending case once. An adjustment atomically updates the answer, recalculates the paper total and updates the subject progress record when this is the learner's latest graded paper in that subject.
 
 Progress
 --------
