@@ -399,17 +399,13 @@ export default function TermsOfServicePage() {
               final decision. We show the awarded mark, AI rationale, model
               answer, and marking guide after marking. You may challenge an
               individual mark through <strong>Report this marking for review</strong>
-              beside the result, or email{" "}
-              <a
-                href={`mailto:${SUPPORT_EMAIL}`}
-                className="font-medium text-primary-600 hover:underline"
-              >
-                {SUPPORT_EMAIL}
-              </a>{" "}
-              with the exam and question reference. A person will consider the
-              submitted answer, marking guide, AI rationale, and your reason for
-              the challenge and may correct a clearly wrong result. Requesting
-              that review does not itself consume another five credits.
+              beside the result. This opens a tracked case, automatically
+              attaches the exam and marking evidence, and gives you a reference
+              and status. Study Buddy support may approve the original mark or
+              change it. A change recalculates the paper total and applicable
+              progress, while the case retains the original and revised marks in
+              its audit history. Requesting that review does not itself consume
+              another five credits.
             </p>
             <p>
               AI prompts and relevant context are processed by providers such as
