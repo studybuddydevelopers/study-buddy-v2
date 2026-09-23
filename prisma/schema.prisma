@@ -195,6 +195,23 @@ enum PasswordResetSecurityEventType {
   UNLOCKED
 }
 
+enum MarkingReviewStatus {
+  PENDING
+  UPHELD
+  MARK_ADJUSTED
+}
+
+enum MarkingReviewEventType {
+  SUBMITTED
+  UPHELD
+  MARK_ADJUSTED
+}
+
+enum MarkingReviewActorType {
+  LEARNER
+  SUPPORT
+}
+
 // =========================================================
 //  AUTH & USER PROFILES
 // =========================================================
@@ -234,6 +251,9 @@ model User {
   approvedResources           Resource[]                   @relation("ResourceApprovedBy")
   passwordResetSecurityState  PasswordResetSecurityState?
   passwordResetSecurityEvents PasswordResetSecurityEvent[]
+  markingReviewsSubmitted     MockExamMarkingReview[]      @relation("MarkingReviewSubmittedBy")
+  markingReviewsResolved      MockExamMarkingReview[]      @relation("MarkingReviewResolvedBy")
+  markingReviewEventsActed    MockExamMarkingReviewEvent[] @relation("MarkingReviewEventActor")
 
   @@index([createdAt], map: "User_createdAt_idx")
   @@index([accountStatus, inactiveDeletionAt], map: "User_accountStatus_inactiveDeletionAt_idx")
@@ -806,9 +826,10 @@ model MockExamInstance {
   graded             Boolean   @default(false)
   aiCreditReservedAt DateTime?
 
-  user     User             @relation(fields: [userId], references: [id], onDelete: Cascade)
-  template MockExamTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
-  answers  MockExamAnswer[]
+  user           User                    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  template       MockExamTemplate        @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  answers        MockExamAnswer[]
+  markingReviews MockExamMarkingReview[]
 
   @@index([userId, graded, submittedAt, startedAt], map: "MockExamInstance_userId_graded_submittedAt_startedAt_idx")
 }
@@ -825,10 +846,65 @@ model MockExamAnswer {
   displayOrder       Int?
   maxScore           Int             @default(1)
 
-  instance MockExamInstance @relation(fields: [mockExamInstanceId], references: [id], onDelete: Cascade)
-  question PastQuestion     @relation(fields: [pastQuestionId], references: [id], onDelete: Cascade)
+  instance      MockExamInstance       @relation(fields: [mockExamInstanceId], references: [id], onDelete: Cascade)
+  question      PastQuestion           @relation(fields: [pastQuestionId], references: [id], onDelete: Cascade)
+  markingReview MockExamMarkingReview?
 
   @@index([mockExamInstanceId], map: "MockExamAnswer_mockExamInstanceId_idx")
+}
+
+model MockExamMarkingReview {
+  id                        String              @id @default(uuid())
+  reference                 String              @unique @db.VarChar(32)
+  userId                    String
+  mockExamInstanceId        String
+  mockExamAnswerId          String              @unique
+  status                    MarkingReviewStatus @default(PENDING)
+  learnerReason             String              @db.Text
+  originalScore             Int
+  revisedScore              Int?
+  maxScore                  Int
+  paperTitleSnapshot        String
+  subjectNameSnapshot       String
+  questionReferenceSnapshot String
+  questionTextSnapshot      String              @db.Text
+  learnerAnswerSnapshot     String              @db.Text
+  modelAnswerSnapshot       String              @db.Text
+  markingGuideSnapshot      String              @db.Text
+  aiRationaleSnapshot       String              @db.Text
+  resolvedByUserId          String?
+  resolutionNote            String?             @db.Text
+  submittedAt               DateTime            @default(now())
+  resolvedAt                DateTime?
+  createdAt                 DateTime            @default(now())
+  updatedAt                 DateTime            @updatedAt
+
+  learner  User                         @relation("MarkingReviewSubmittedBy", fields: [userId], references: [id], onDelete: Cascade)
+  resolver User?                        @relation("MarkingReviewResolvedBy", fields: [resolvedByUserId], references: [id], onDelete: SetNull)
+  instance MockExamInstance             @relation(fields: [mockExamInstanceId], references: [id], onDelete: Cascade)
+  answer   MockExamAnswer               @relation(fields: [mockExamAnswerId], references: [id], onDelete: Cascade)
+  events   MockExamMarkingReviewEvent[]
+
+  @@index([userId, submittedAt], map: "MockExamMarkingReview_user_submitted_idx")
+  @@index([status, submittedAt], map: "MockExamMarkingReview_status_submitted_idx")
+  @@index([mockExamInstanceId], map: "MockExamMarkingReview_instance_idx")
+}
+
+model MockExamMarkingReviewEvent {
+  id            String                 @id @default(uuid())
+  reviewId      String
+  eventType     MarkingReviewEventType
+  actorType     MarkingReviewActorType
+  actorUserId   String?
+  previousScore Int?
+  newScore      Int?
+  note          String?                @db.Text
+  createdAt     DateTime               @default(now())
+
+  review MockExamMarkingReview @relation(fields: [reviewId], references: [id], onDelete: Cascade)
+  actor  User?                 @relation("MarkingReviewEventActor", fields: [actorUserId], references: [id], onDelete: SetNull)
+
+  @@index([reviewId, createdAt], map: "MockExamMarkingReviewEvent_review_created_idx")
 }
 
 // =========================================================
