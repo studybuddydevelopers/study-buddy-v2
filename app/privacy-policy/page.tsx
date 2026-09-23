@@ -15,7 +15,6 @@ import {
   PRIVACY_REQUEST_HANDLERS,
   REGISTERED_OFFICE_ADDRESS,
   SECURITY_EMAIL,
-  SUPPORT_EMAIL,
 } from "@/lib/legal-entity";
 import { createPageMetadata } from "@/lib/site-metadata";
 
@@ -268,7 +267,8 @@ export default function PrivacyPolicyPage() {
                 <strong>Study activity:</strong> questions you attempt, answers
                 and drafts you submit, topics you practise, mock exam scores,
                 Paper 2 AI-awarded marks, marking rationales and confidence
-                labels, AI-credit usage, flashcard or resource activity,
+                labels, marking-review reasons, references, decisions and audit
+                events, AI-credit usage, flashcard or resource activity,
                 recommendations, progress, and session timing.
               </ListItem>
               <ListItem>
@@ -432,23 +432,19 @@ export default function PrivacyPolicyPage() {
             </p>
             <p>
               You may challenge an individual Paper 2 mark by selecting
-              <strong> Report this marking for review</strong> beside the result,
-              or by emailing{" "}
-              <a
-                href={`mailto:${SUPPORT_EMAIL}`}
-                className="font-medium text-primary-600 hover:underline"
-              >
-                {SUPPORT_EMAIL}
-              </a>{" "}
-              with the exam and question reference. A person will consider the
-              submitted answer, marking guide, AI rationale, and the reason for
-              your challenge and may correct a clearly wrong result. Apart from
-              this disclosed Paper 2 practice marking, our progress summaries
-              and recommendations do not make official grading, admission,
-              employment, credit, or other decisions with legal or similarly
-              significant effects. You may also ask us to explain or review a
-              personalised result. Do not rely on AI output as the only source
-              for an important decision.
+              <strong> Report this marking for review</strong> beside the result.
+              This creates a tracked case and automatically attaches the exam,
+              question, submitted answer, model answer, marking guide, AI
+              rationale, and score. We give you a reference and status. An
+              authorised support reviewer may uphold or change the mark; a
+              change recalculates the paper total and applicable progress. The
+              original and revised marks remain in the case audit history. Apart
+              from this disclosed Paper 2 practice marking, our progress
+              summaries and recommendations do not make official grading,
+              admission, employment, credit, or other decisions with legal or
+              similarly significant effects. You may also ask us to explain or
+              review a personalised result. Do not rely on AI output as the only
+              source for an important decision.
             </p>
             <p>
               Do not include passwords, payment-card details, health information,
@@ -690,12 +686,13 @@ export default function PrivacyPolicyPage() {
               <ListItem>
                 Your submitted study history—including practice and quiz
                 answers, attempt results, progress records, and mock-exam
-                results—is kept while your account is active and throughout a
-                36-month reversible-deactivation period so it can be restored if
-                you reactivate. It is deleted with the account at the end of
-                that period or through confirmed permanent account deletion,
-                except for limited records that law requires us to keep or that
-                are covered by a documented legal hold.
+                results, marking-review cases, and their audit events—is kept
+                while your account is active and throughout a 36-month
+                reversible-deactivation period so it can be restored if you
+                reactivate. It is deleted with the account at the end of that
+                period or through confirmed permanent account deletion, except
+                for limited records that law requires us to keep or that are
+                covered by a documented legal hold.
               </ListItem>
               <ListItem>
                 Web AI and WhatsApp conversation content is kept while your
@@ -792,8 +789,8 @@ export default function PrivacyPolicyPage() {
               </ListItem>
               <ListItem>
                 challenge an AI-awarded Paper 2 practice mark and request human
-                review through the review link shown with that mark or through{" "}
-                <a href={`mailto:${SUPPORT_EMAIL}`}>{SUPPORT_EMAIL}</a>; and
+                review through the tracked review link shown with that mark and
+                follow the case from the Marking reviews page; and
               </ListItem>
               <ListItem>
                 complain to the Nigeria Data Protection Commission (NDPC).
