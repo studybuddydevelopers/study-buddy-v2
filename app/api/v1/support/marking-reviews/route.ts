@@ -6,7 +6,7 @@ import { prisma } from "@/lib/prisma";
 
 const noStore = { "Cache-Control": "no-store" };
 
-export const supportReviewInclude = {
+const supportReviewInclude = {
   learner: {
     select: {
       profile: {
@@ -28,7 +28,7 @@ export const supportReviewInclude = {
   },
 } satisfies Prisma.MockExamMarkingReviewInclude;
 
-export function supportCase(
+function supportCase(
   review: Prisma.MockExamMarkingReviewGetPayload<{
     include: typeof supportReviewInclude;
   }>
