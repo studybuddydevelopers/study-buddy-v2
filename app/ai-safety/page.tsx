@@ -121,9 +121,10 @@ const sections: PolicyDocumentSection[] = [
         </p>
         <p>
           Students can use <strong>Report this marking for review</strong> beside
-          an awarded mark, or contact <a href={`mailto:${SUPPORT_EMAIL}`}>{SUPPORT_EMAIL}</a>,
-          to ask a person to review it. Include the exam and question reference
-          and explain what appears wrong.
+          an awarded mark and explain what appears wrong. Study Buddy attaches
+          the exam, question, answer, marking guide, AI rationale, and score to a
+          tracked case. The student receives a reference and can follow its
+          status while support either upholds or changes the mark.
         </p>
       </>
     ),
