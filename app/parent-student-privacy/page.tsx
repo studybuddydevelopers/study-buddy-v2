@@ -2,7 +2,7 @@ import Link from "next/link";
 import PolicyDocumentPage, {
   type PolicyDocumentSection,
 } from "@/components/PolicyDocumentPage";
-import { PRIVACY_EMAIL, SUPPORT_EMAIL } from "@/lib/legal-entity";
+import { PRIVACY_EMAIL } from "@/lib/legal-entity";
 import { createPageMetadata } from "@/lib/site-metadata";
 
 const LAST_UPDATED = "23 September 2026";
@@ -42,7 +42,7 @@ const sections: PolicyDocumentSection[] = [
           <li>name, email address, phone number, date of birth, and account details;</li>
           <li>parent or legal guardian contact details and their authorisation decision if the student is aged 13–17;</li>
           <li>grade, exam year, preferred subjects, and profile image;</li>
-          <li>questions, answers, drafts, scores, Paper 2 AI marking reasons and confidence labels, AI-credit use, progress, and study activity;</li>
+          <li>questions, answers, drafts, scores, Paper 2 AI marking reasons and confidence labels, marking-review cases and decisions, AI-credit use, progress, and study activity;</li>
           <li>messages sent to the Study Buddy AI or WhatsApp bot;</li>
           <li>subscription and payment-status records; and</li>
           <li>device, sign-in, security, and abuse-prevention information.</li>
@@ -111,9 +111,10 @@ const sections: PolicyDocumentSection[] = [
           mock result. AI can mark valid work incorrectly. This is a Study Buddy
           practice grade, not an official WAEC or school grade, and it does not
           decide admission or an examination result. The student can select
-          <strong> Report this marking for review</strong> beside a mark, or
-          contact <a href={`mailto:${SUPPORT_EMAIL}`}>{SUPPORT_EMAIL}</a>, to ask
-          a person to review it.
+          <strong> Report this marking for review</strong> beside a mark to open
+          a tracked case. Study Buddy attaches the marking evidence, gives the
+          student a reference and status, and records whether support approves
+          or changes the mark.
         </p>
       </>
     ),
