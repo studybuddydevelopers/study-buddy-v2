@@ -27,7 +27,7 @@ export const metadata = createPageMetadata({
   path: "/terms-of-service",
 });
 
-const LAST_UPDATED = "12 September 2026";
+const LAST_UPDATED = "23 September 2026";
 
 const summaryItems: {
   title: string;
@@ -50,7 +50,7 @@ const summaryItems: {
   {
     title: "AI is study support",
     description:
-      "AI responses can help explain ideas, but they may be incomplete or wrong and should not replace teachers.",
+      "AI can explain ideas and mark Paper 2 practice, but its responses and marks may be wrong and do not replace teachers or official examiners.",
     proposal: "support",
   },
   {
@@ -266,8 +266,9 @@ export default function TermsOfServicePage() {
             <p>
               Study Buddy provides exam preparation tools, practice questions,
               mock exams, progress tracking, settings for low-data use, and AI
-              study support features. Some features may still be experimental or
-              may change as the product improves.
+              study support features, including automated marking of written
+              Paper 2 practice exams. Some features may still be experimental
+              or may change as the product improves.
             </p>
             <p>
               The platform is designed to support learning. It does not
@@ -365,6 +366,50 @@ export default function TermsOfServicePage() {
               advanced are available only when they are visibly enabled in the
               product. AI features do not replace a teacher, examiner, medical
               professional, lawyer, or other qualified adviser.
+            </p>
+            <p>
+              <strong>Paper 2 AI marking.</strong> When you submit a written
+              Paper 2 practice exam, Study Buddy sends each attempted question,
+              your answer, the model answer, marking guide, and maximum mark to
+              an AI provider. The AI checks your work against that guide,
+              awards a whole-number mark for each attempted answer, and returns
+              a rationale and confidence label. Study Buddy saves the question
+              marks and total as your mock-exam result. This is automated
+              practice grading, not an official WAEC or school result, and it
+              does not determine admission, certification, or another legal or
+              similarly significant outcome.
+            </p>
+            <p>
+              <strong>Five-credit charge and repeat attempts.</strong> Starting
+              a written Paper 2 reserves and consumes five of your daily AI
+              credits. The five credits are consumed once the attempt starts,
+              including if you later leave or abandon it. Every newly started
+              attempt—including repeating the same paper—consumes another five
+              credits. If AI marking fails for an attempt that has already
+              started, using the displayed retry option for that same attempt
+              does not consume another five credits, although ordinary rate
+              limits and service-availability controls still apply. Daily AI
+              credits are usage allowances, not money, and reset at 00:00 UTC;
+              consuming them does not by itself create a payment charge.
+            </p>
+            <p>
+              <strong>Limitations and review.</strong> AI marking may
+              misunderstand valid working, miss an alternative method, or
+              award an incorrect mark. You must not treat it as an examiner&apos;s
+              final decision. We show the awarded mark, AI rationale, model
+              answer, and marking guide after marking. You may challenge an
+              individual mark through <strong>Report this marking for review</strong>
+              beside the result, or email{" "}
+              <a
+                href={`mailto:${SUPPORT_EMAIL}`}
+                className="font-medium text-primary-600 hover:underline"
+              >
+                {SUPPORT_EMAIL}
+              </a>{" "}
+              with the exam and question reference. A person will consider the
+              submitted answer, marking guide, AI rationale, and your reason for
+              the challenge and may correct a clearly wrong result. Requesting
+              that review does not itself consume another five credits.
             </p>
             <p>
               AI prompts and relevant context are processed by providers such as
