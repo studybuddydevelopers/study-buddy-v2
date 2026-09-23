@@ -34,6 +34,19 @@ export async function GET(req: Request) {
         orderBy: [{ displayOrder: "asc" }, { id: "asc" }],
         include: {
           question: true,
+          markingReview: {
+            select: {
+              id: true,
+              reference: true,
+              status: true,
+              originalScore: true,
+              revisedScore: true,
+              maxScore: true,
+              resolutionNote: true,
+              submittedAt: true,
+              resolvedAt: true,
+            },
+          },
         },
       },
     },
@@ -115,6 +128,19 @@ export async function GET(req: Request) {
       section: a.section,
       displayOrder: a.displayOrder,
       maxScore: a.maxScore,
+      markingReview: a.markingReview
+        ? {
+            id: a.markingReview.id,
+            reference: a.markingReview.reference,
+            status: a.markingReview.status,
+            originalScore: a.markingReview.originalScore,
+            revisedScore: a.markingReview.revisedScore,
+            maxScore: a.markingReview.maxScore,
+            resolutionNote: a.markingReview.resolutionNote,
+            submittedAt: a.markingReview.submittedAt,
+            resolvedAt: a.markingReview.resolvedAt,
+          }
+        : null,
     })),
   };
 
