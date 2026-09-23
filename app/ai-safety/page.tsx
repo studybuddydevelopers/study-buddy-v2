@@ -5,7 +5,7 @@ import PolicyDocumentPage, {
 import { SUPPORT_EMAIL } from "@/lib/legal-entity";
 import { createPageMetadata } from "@/lib/site-metadata";
 
-const LAST_UPDATED = "10 September 2026";
+const LAST_UPDATED = "23 September 2026";
 
 export const metadata = createPageMetadata({
   title: "AI Safety and Responsible Use",
@@ -22,8 +22,9 @@ const sections: PolicyDocumentSection[] = [
       <>
         <p>
           Study Buddy&apos;s AI is a learning aid for explanations, revision,
-          practice, and study planning. It is not a teacher, examiner, counsellor,
-          medical professional, lawyer, emergency service, or official source of
+          practice, study planning, and automated marking of written Paper 2
+          practice. It is not a teacher, official examiner, counsellor, medical
+          professional, lawyer, emergency service, or official source of
           examination instructions.
         </p>
         <p>
@@ -102,6 +103,27 @@ const sections: PolicyDocumentSection[] = [
           AI-generated work dishonestly, obtain live examination answers, bypass
           school rules, or access leaked or restricted materials. A school&apos;s
           academic-integrity rules continue to apply.
+        </p>
+      </>
+    ),
+  },
+  {
+    id: "paper-2-marking",
+    title: "Paper 2 AI marking",
+    content: (
+      <>
+        <p>
+          Study Buddy AI checks submitted Paper 2 practice answers against a
+          model answer and marking guide, then awards question marks and a total.
+          It can misunderstand correct working, overlook an alternative method,
+          or award the wrong mark. The result is practice feedback and is not an
+          official WAEC or school grade.
+        </p>
+        <p>
+          Students can use <strong>Report this marking for review</strong> beside
+          an awarded mark, or contact <a href={`mailto:${SUPPORT_EMAIL}`}>{SUPPORT_EMAIL}</a>,
+          to ask a person to review it. Include the exam and question reference
+          and explain what appears wrong.
         </p>
       </>
     ),
