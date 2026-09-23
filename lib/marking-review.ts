@@ -9,7 +9,7 @@ export type MarkingReviewDecision = "UPHOLD" | "ADJUST";
 
 export function createMarkingReviewReference(id: string, date = new Date()) {
   const compactDate = date.toISOString().slice(0, 10).replaceAll("-", "");
-  const suffix = id.replaceAll("-", "").slice(0, 8).toUpperCase();
+  const suffix = id.replaceAll("-", "").slice(0, 12).toUpperCase();
   return `SBMR-${compactDate}-${suffix}`;
 }
 
