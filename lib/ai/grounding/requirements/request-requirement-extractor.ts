@@ -914,6 +914,7 @@ function buildBoundedProbabilityCalculationRequirement(
       "FAVOURABLE_OUTCOME_COUNT",
       "TOTAL_OUTCOME_COUNT",
     ],
+    semanticOwner: "BOUNDED_PROBABILITY",
     constraints: [
       "bounded probability",
       "favourable outcomes divided by total outcomes",
