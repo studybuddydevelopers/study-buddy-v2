@@ -38,6 +38,8 @@ export type ProbabilityInputRole =
   | "FAVOURABLE_OUTCOME_COUNT"
   | "TOTAL_OUTCOME_COUNT";
 
+export type SpecializedSemanticOwner = "BOUNDED_PROBABILITY";
+
 export type ComparisonOptionRequirement = {
   id: string;
   label: string;
@@ -67,6 +69,7 @@ export type RequestRequirement = {
   requiredInputs?: string[];
   requiredInputConcepts?: string[];
   requiredProbabilityRoles?: ProbabilityInputRole[];
+  semanticOwner?: SpecializedSemanticOwner;
   comparisonSides?: string[];
   comparisonOptions?: ComparisonOptionRequirement[];
   comparisonMetric?: ComparisonMetric;
