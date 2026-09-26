@@ -228,6 +228,8 @@ function extractConceptDefinitions(
     }
   }
 
+  if (/\b(?:is|are)\s+carried\s+out\s+by\b/i.test(text)) return [];
+
   const directUnitDefinitions = extractDirectUnitDefinitions(sentence, state);
   if (directUnitDefinitions.length > 0) {
     return directUnitDefinitions;
@@ -386,7 +388,10 @@ function extractConceptDefinitions(
   if (!definitionMatch) return [];
   if (isFormulaLike(text) || isSymbolDefinitionSentence(text)) return [];
 
-  const concept = cleanConcept(definitionMatch[1] ?? "");
+  const rawConcept = cleanConcept(definitionMatch[1] ?? "");
+  const concept = /^(?:this|that)\s+(?:term|concept|process|method)$/i.test(rawConcept)
+    ? state.lastSemanticTarget ?? rawConcept
+    : rawConcept;
   const definitionText =
     definitionMatch.length >= 4
       ? `${definitionMatch[2] ?? ""} ${definitionMatch[3] ?? ""}`.trim()
@@ -734,7 +739,7 @@ function extractSymbolDefinitions(
   const symbolStart = String.raw`(?:\b|(?=[λρθαβγπδ]))`;
   const definitionVerb = String.raw`(?:means|represents|denotes|stands for|is)`;
   const nextDefinition = String.raw`(?:,?\s+and\s+|,\s*)${symbolToken}\s+${definitionVerb}\b`;
-  const definitionEnd = String.raw`(?=${nextDefinition}|,?\s+but\b|[.;]|$)`;
+  const definitionEnd = String.raw`(?=${nextDefinition}|,\s*(?=[A-Za-z\u0370-\u03ff]\b)|,?\s+but\b|[.;]|$)`;
   const patterns: Array<{ pattern: RegExp; meaningIndex: number }> = [
     {
       pattern: new RegExp(
@@ -1300,10 +1305,14 @@ function extractMethods(
     text.match(/\b(.+?)\s+method\s*:\s*(.+)$/i),
     text.match(/\b(.+?)\s+can\s+be\s+(?:solved|found|calculated|worked\s+out|balanced|separated|prepared|made|done)\s+by\s+(.+)$/i),
     text.match(/\b(.+?)\s+(?:is|are)\s+(?:found|calculated|worked\s+out)\s+by\s+(.+)$/i),
+    text.match(/\b(.+?)\s+(?:is|are)\s+carried\s+out\s+by\s+(.+)$/i),
     text.match(/\bto\s+(?:find|calculate|work\s+out|compute|determine|make|create|form)\s+(?:the\s+|an?\s+)?(.+?),\s*(.+)$/i),
     text.match(/\b(.+?)\s+can\s+((?:recover|separate|remove|filter|extract|collect|produce|form|make)\b.+)$/i),
     text.match(/\bfor\s+(.+?),\s*(.+?\b(?:subtract|add|divide|multiply|scale|balance|filter|heat|cool|apply|remove|separate|mix|measure|solve)\b.+)$/i),
     text.match(/\b(.+?)\s+(?:is|are)\s+made\s+by\s+(.+)$/i),
+    text.match(/^\s*to\s+(?:perform|carry\s+out|apply|use)\s+(?:it|this(?:\s+method|\s+process)?),?\s+(.+)$/i) && state.lastSemanticTarget
+      ? ["", state.lastSemanticTarget, text.replace(/^\s*to\s+(?:perform|carry\s+out|apply|use)\s+(?:it|this(?:\s+method|\s+process)?),?\s+/i, "")] as unknown as RegExpMatchArray
+      : null,
     text.match(/\b((?:find|calculate|work\s+out)\s+.+?\bfirst\b.+?\bthen\b.+)$/i)
       ? ["", state.lastSemanticTarget ?? "worked example", text] as unknown as RegExpMatchArray
       : null,
@@ -2635,6 +2644,7 @@ function inferFormulaConcept(
     .trim();
   const contextText = compactStrings([prefix, leftContext])
     .join(" ")
+    .replace(/\b(?:is|are)\s+given\s+by\b/gi, " ")
     .replace(/[:;,]\s*$/g, "")
     .trim();
   const normalizedPrefix = normalizeConceptText(contextText);
