@@ -127,11 +127,12 @@ type ResourceChunkRow = {
 
 class SequenceProvider implements ChatModelProvider {
   invocations = 0;
+  inputs: GenerateInput[] = [];
 
   constructor(private readonly results: Array<GenerateResult | Error>) {}
 
   async generate(input: GenerateInput): Promise<GenerateResult> {
-    void input;
+    this.inputs.push(input);
     this.invocations += 1;
     const next = this.results.shift();
     if (next instanceof Error) throw next;
@@ -887,7 +888,7 @@ describe("ChatService Stage 1 lifecycle", () => {
   });
 
   it("creates one user message and an empty pending assistant before successful completion", async () => {
-    const { db, service } = createService();
+    const { db, provider, service } = createService();
     db.seedChat({ id: "chat-1", userId: "user-a" });
 
     const result = await service.sendMessage("user-a", "chat-1", {
@@ -901,6 +902,15 @@ describe("ChatService Stage 1 lifecycle", () => {
     expect(result.userMessage.content).toBe("Explain ratios");
     expect(result.assistantMessage.content).toBe("Generated answer.");
     expect(result.assistantMessage.status).toBe(AiChatMessageStatus.COMPLETED);
+    expect(provider.inputs[0]?.messages[0]?.content).toContain(
+      "prefer a familiar Nigerian context"
+    );
+    expect(provider.inputs[0]?.messages[0]?.content).toContain(
+      "Do not invent current prices, exchange rates, statistics, laws"
+    );
+    expect(provider.inputs[0]?.messages[0]?.content).toContain(
+      "Avoid stereotypes"
+    );
   });
 
   it("duplicate completed requests do not regenerate", async () => {
