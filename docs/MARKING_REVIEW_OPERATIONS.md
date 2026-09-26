@@ -7,15 +7,22 @@ written mock exam and receives a reference in the form
 
 ## Grant support access
 
-Set `MARKING_REVIEW_SUPPORT_USER_IDS` on the web service to a comma-separated
-list of application `User.id` values for authorised support accounts. These are
-the same stable UUIDs used by Supabase Auth. Do not use email addresses and do
-not put this server-only value in a `NEXT_PUBLIC_` variable.
+Verified, active accounts whose email address is on the exact
+`@studybuddyng.com` domain receive support access automatically. The account
+must exist in Supabase Auth, have a confirmed email address, and have an active
+application `User` record. Lookalike domains are not accepted.
+
+`MARKING_REVIEW_SUPPORT_USER_IDS` is an optional exception list for authorised
+staff who do not use the company domain. Set it on the web service to a
+comma-separated list of application `User.id` values. These are the same stable
+UUIDs used by Supabase Auth. Do not use email addresses and do not put this
+server-only value in a `NEXT_PUBLIC_` variable.
 
 Authorised staff use `/support/marking-reviews`. Keep the list to the minimum
 number of staff needed, remove access when a staff member changes role, and
 review it whenever production secrets are rotated. An empty or missing value
-denies access to every account.
+only disables allowlist exceptions; verified `@studybuddyng.com` accounts can
+still access the support queue.
 
 ## Case handling
 
