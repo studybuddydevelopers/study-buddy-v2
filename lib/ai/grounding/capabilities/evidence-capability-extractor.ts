@@ -109,6 +109,13 @@ export function extractEvidenceCapability(chunk: AuthorizedEvidenceChunk): Evide
 
   const state = createCapabilityState(chunk);
   for (const sentence of splitSentences(chunk.content)) {
+    const headingConcept = structuralHeadingConcept(sentence, chunk.content);
+    if (headingConcept) {
+      state.lastSemanticTarget = headingConcept;
+      state.localHeadingConcept = headingConcept;
+      state.lastFormulaContext = undefined;
+      continue;
+    }
     const unsafe = extractUnsafeContent(sentence, state);
     capability.unsafeContent?.push(...unsafe);
     if (unsafe.length > 0 && isUnsafeOnlySentence(sentence.text)) {
@@ -121,6 +128,7 @@ export function extractEvidenceCapability(chunk: AuthorizedEvidenceChunk): Evide
     capability.formulas.push(...formulas);
     capability.symbolDefinitions.push(...symbolDefinitions);
     updateLastFormulaContext(state, formulas);
+    updateLastSemanticTarget(state, formulas);
 
     const definitions = extractConceptDefinitions(sentence, state);
     const numerics = extractNumericValues(sentence, state);
@@ -244,7 +252,13 @@ function extractConceptDefinitions(
     text.match(/^([A-Za-z][A-Za-z -]{2,40})\s*[:\-]\s*(.+)$/) ??
     text.match(/^(.+?)\s+(?:means|refers to)\s+(.+)$/i);
   if (headedDefinition && !isFormulaLike(text) && !isSymbolDefinitionSentence(text)) {
-    const concept = cleanConcept(headedDefinition[1] ?? "");
+    const rawConcept = cleanConcept(headedDefinition[1] ?? "");
+    const concept = /^(?:this|thi|that)\s+(?:term|concept|process|method)$/i.test(rawConcept)
+      ? precedingStructuralHeading(sentence, state.chunk.content) ??
+        state.localHeadingConcept ??
+        state.lastSemanticTarget ??
+        rawConcept
+      : rawConcept;
     const definitionText = cleanMeaning(headedDefinition[2] ?? "");
     if (concept && definitionText) {
       return [
@@ -389,8 +403,11 @@ function extractConceptDefinitions(
   if (isFormulaLike(text) || isSymbolDefinitionSentence(text)) return [];
 
   const rawConcept = cleanConcept(definitionMatch[1] ?? "");
-  const concept = /^(?:this|that)\s+(?:term|concept|process|method)$/i.test(rawConcept)
-    ? state.lastSemanticTarget ?? rawConcept
+  const concept = /^(?:this|thi|that)\s+(?:term|concept|process|method)$/i.test(rawConcept)
+    ? precedingStructuralHeading(sentence, state.chunk.content) ??
+      state.localHeadingConcept ??
+      state.lastSemanticTarget ??
+      rawConcept
     : rawConcept;
   const definitionText =
     definitionMatch.length >= 4
@@ -415,6 +432,23 @@ function extractDirectUnitDefinitions(
   sentence: SentenceSpan,
   state: CapabilityState
 ): CapabilityFact[] {
+  const headingScopedUnit = sentence.text.match(/^units?\s*:\s*(.+)$/i);
+  if (headingScopedUnit && state.lastSemanticTarget && !isFormulaLike(sentence.text)) {
+    const unitText = cleanMeaning(headingScopedUnit[1] ?? "");
+    if (unitText) {
+      return [
+        createConceptDefinition({
+          state,
+          span: sentence,
+          concept: state.lastSemanticTarget,
+          definitionText: `unit ${unitText}`,
+          polarity: "POSITIVE",
+          confidence: "HIGH",
+        }),
+      ];
+    }
+  }
+
   const directUnit =
     sentence.text.match(/^([A-Za-z][A-Za-z -]{1,40}?)\s+units?\s*:\s*(.+)$/i) ??
     sentence.text.match(/\b(?:the\s+)?(?:si\s+|compound\s+)?units?\s+(?:of|for)\s+(.+?)\s+(?:is|are)\s+(.+)$/i);
@@ -477,7 +511,7 @@ function extractFormulas(
     ...extractColonFormulas(sentence, state, localSymbolDefinitions),
   ];
   const formulaPattern =
-    /\b([A-Za-z][A-Za-z ]{1,40}?|[A-Za-z\u0370-\u03ff][A-Za-z0-9_\u0370-\u03ff]*)\s*=\s*([^:.;]+?)(?=\s+for\b|\s*:|,?\s+where\b|[.;]|$)/gi;
+    /\b([A-Za-z][A-Za-z ]{1,40}?|[A-Za-z\u0370-\u03ff][A-Za-z0-9_\u0370-\u03ff]*)\s*=\s*([^:.;]+?)(?=\s+(?:applies?|is\s+valid)\b|\s+for\b|\s*:|,?\s+where\b|[.;]|$)/gi;
   let match: RegExpExecArray | null;
   while ((match = formulaPattern.exec(sentence.text)) !== null) {
     const rawLeft = match[1] ?? "";
@@ -537,7 +571,7 @@ function extractColonFormulas(
 ): FormulaCapability[] {
   const formulas: FormulaCapability[] = [];
   const formulaPattern =
-    /:\s*([A-Za-z][A-Za-z ]{0,40}?|[A-Za-z\u0370-\u03ff][A-Za-z0-9_\u0370-\u03ff]*)\s*=\s*([^.;]+?)(?=,?\s+where\b|[.;]|$)/gi;
+    /:\s*([A-Za-z][A-Za-z ]{0,40}?|[A-Za-z\u0370-\u03ff][A-Za-z0-9_\u0370-\u03ff]*)\s*=\s*([^.;]+?)(?=\s+for\s+(?:a|an|the)\b|,?\s+where\b|[.;]|$)/gi;
   let match: RegExpExecArray | null;
   while ((match = formulaPattern.exec(sentence.text)) !== null) {
     const rawLeft = match[1] ?? "";
@@ -1209,6 +1243,28 @@ function extractExplicitFacts(
     }
   }
 
+  const appliesWhenCondition =
+    text.match(/\b(.+?)\s+(?:applies|is\s+applicable)\s+when\s+(.+)$/i) ??
+    text.match(/\b(?:condition\s*:\s*)?use\s+(.+?)\s+for\s+(.+)$/i);
+  if (appliesWhenCondition) {
+    const scopedConcept =
+      inferProseFormulaConcept(appliesWhenCondition[1] ?? "") ??
+      state.lastSemanticTarget ??
+      cleanConcept(appliesWhenCondition[1] ?? "");
+    if (scopedConcept) {
+      facts.push(
+        createExplicitFact({
+          state,
+          span: sentence,
+          factKey: `${scopedConcept} condition`,
+          factText: text,
+          concept: scopedConcept,
+          polarity: "POSITIVE",
+        })
+      );
+    }
+  }
+
   const imperativeCondition = text.match(
     /\buse\s+(.+?\b(?:height|base|side|value|input)\b.+)$/i
   );
@@ -1526,11 +1582,13 @@ function extractProcessFacts(
   const match =
     sentence.text.match(/\b(.+?)\s+is\s+the\s+process\s+by\s+which\s+(.+)$/i) ??
     sentence.text.match(/\b(.+?)\s+happens?\s+when\s+(.+)$/i) ??
+    sentence.text.match(/\b(.+?)\s+occurs?\s+when\s+(.+)$/i) ??
     sentence.text.match(/\b(.+?)\s+uses\s+(.+?)\s+to\s+(.+)$/i) ??
     sentence.text.match(/\b(.+?)\s+separates\s+(.+)$/i);
   if (!match) {
     if (
       state.lastSemanticTarget &&
+      !/\b(?:means|refers\s+to|is\s+defined\s+as)\b/i.test(sentence.text) &&
       /\b(?:changes?|changing|turns?|turning|moves?|moving|passes?|passing|leaves?|leaving|transfers?|transferring|produces?|producing|forms?|forming|uses?|using|separates?|separating)\b/i.test(
         sentence.text
       )
@@ -1550,7 +1608,13 @@ function extractProcessFacts(
     return [];
   }
 
-  const process = cleanConcept(match[1] ?? "");
+  const rawProcess = cleanConcept(match[1] ?? "");
+  const process = /^(?:it|this|that)(?:\s+process)?$/i.test(rawProcess)
+    ? precedingStructuralHeading(sentence, state.chunk.content) ??
+      state.localHeadingConcept ??
+      state.lastSemanticTarget ??
+      rawProcess
+    : rawProcess;
   if (!process) return [];
 
   return [
@@ -1996,6 +2060,7 @@ type CapabilityState = {
   chunk: AuthorizedEvidenceChunk;
   sequence: number;
   lastSemanticTarget?: string;
+  localHeadingConcept?: string;
   lastFormulaContext?: FormulaSymbolContext;
 };
 
@@ -2077,7 +2142,14 @@ function attachSemanticComponents(capability: EvidenceCapability) {
       definition.semanticComponents = [];
       continue;
     }
-    const facets = definitionFacets(definition.definitionText, definition.evidenceSpan.text);
+    const facets = definitionFacets(definition.definitionText, definition.evidenceSpan.text)
+      .filter(
+        (facet) =>
+          facet !== "PROCESS" ||
+          !/^(?:this|that)\s+(?:term|concept)\s+(?:means|refers\s+to)\b/i.test(
+            definition.evidenceSpan.text
+          )
+      );
     definition.semanticComponents = facets.map((facet) =>
       component({
         kind: facet,
@@ -2549,9 +2621,56 @@ function createExplicitFact(input: {
   };
 }
 
+function structuralHeadingConcept(
+  sentence: SentenceSpan,
+  sourceContent: string
+): string | undefined {
+  const lines = sourceContent.split(/\r?\n/).map((line) => line.trim());
+  const lineIndex = lines.findIndex((line) => line === sentence.text);
+  if (lineIndex < 0 || lineIndex >= lines.length - 1) return undefined;
+  if (!/^[A-Za-z][A-Za-z -]{2,40}$/.test(sentence.text)) return undefined;
+  if (isMostlyVerbPhrase(sentence.text)) return undefined;
+  const concept = cleanConcept(sentence.text)
+    .replace(/\b(?:formula|equation|relation|method|procedure|process|notes?)$/i, "")
+    .trim();
+  return concept || undefined;
+}
+
+function precedingStructuralHeading(
+  sentence: SentenceSpan,
+  sourceContent: string
+): string | undefined {
+  const precedingLines = sourceContent
+    .slice(0, sentence.startOffset)
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean);
+  const candidate = precedingLines.at(-1);
+  if (!candidate || !/^[A-Za-z][A-Za-z -]{2,40}$/.test(candidate)) return undefined;
+  if (isMostlyVerbPhrase(candidate)) return undefined;
+  return cleanConcept(candidate)
+    .replace(/\b(?:formula|equation|relation|method|procedure|process|notes?)$/i, "")
+    .trim() || undefined;
+}
+
+function inferProseFormulaConcept(value: string): string | undefined {
+  const normalized = normalizeConceptText(value);
+  if (/\bp\s*=\s*f\s*\/\s*a\b/.test(normalized)) {
+    return "pressure";
+  }
+  if (
+    /\bforce\b/.test(normalized) &&
+    /\b(?:divid(?:e|ed)\s+by|dividing\s+force\s+by|force\s+over)\b/.test(normalized) &&
+    /\barea\b/.test(normalized)
+  ) {
+    return "pressure";
+  }
+  return undefined;
+}
+
 function splitSentences(content: string): SentenceSpan[] {
   const spans: SentenceSpan[] = [];
-  const pattern = /[^.!?]+[.!?]?/g;
+  const pattern = /[^.!?\n]+[.!?]?/g;
   let match: RegExpExecArray | null;
   while ((match = pattern.exec(content)) !== null) {
     const raw = match[0];
@@ -2648,6 +2767,16 @@ function inferFormulaConcept(
     .replace(/[:;,]\s*$/g, "")
     .trim();
   const normalizedPrefix = normalizeConceptText(contextText);
+
+  if (/^(?:condition\s+)?use\b/i.test(normalizedPrefix) && state.lastSemanticTarget) {
+    return canonicalizeConcept(state.lastSemanticTarget, state.chunk);
+  }
+
+  const proceduralScope = normalizedPrefix.match(/\bfor\s+(.+?),?\s+multiply\b/i);
+  if (proceduralScope) {
+    const concept = cleanFormulaConceptCandidate(proceduralScope[1] ?? "");
+    if (concept) return canonicalizeConcept(concept, state.chunk);
+  }
 
   const ohmsLaw =
     contextText.toLowerCase().match(/\bohm'?s law\b/) ??
@@ -2782,6 +2911,7 @@ function normalizeFormulaSide(side: string): string {
     .replace(/\b(?:formula|relation|equation|is|equals?)\b/gi, "")
     .replace(/\bsquared\b/gi, "^2")
     .replace(/\bcubed\b/gi, "^3")
+    .replace(/\b([A-Z])([A-Z])\b/g, "$1 x $2")
     .replace(/\s+/g, " ")
     .trim();
 }
@@ -2817,6 +2947,11 @@ function isMostlyVerbPhrase(value: string): boolean {
 }
 
 function normalizeFormulaLeft(side: string): string {
+  const compactOutputSymbol = side.trim();
+  const trailingCompactSymbol = compactOutputSymbol.match(/\b([A-Z]{2,5})$/);
+  if (trailingCompactSymbol) {
+    return trailingCompactSymbol[1] ?? compactOutputSymbol;
+  }
   const cleaned = collapseRepeatedFormulaPhrase(normalizeFormulaSide(side));
   const tokens = cleaned.split(/\s+/).filter(Boolean);
   const lastToken = tokens[tokens.length - 1];

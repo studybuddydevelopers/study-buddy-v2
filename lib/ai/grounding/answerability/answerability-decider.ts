@@ -1220,11 +1220,12 @@ function findRelevantConflicts(
       }
       if (
         conflict.conflictType === "FORMULA_CONFLICT" &&
-        ((isFormulaRequirement(requirement) &&
+        (!requirement.formulaContext &&
+          ((isFormulaRequirement(requirement) &&
           targetIds.length === 0 &&
           normalizedSymbols.length === 0) ||
           targetIds.some((target) => formulaConflictScopeMatches(conflict.scopeKey, target)) ||
-          normalizedSymbols.some((symbol) => formulaConflictScopeMatches(conflict.scopeKey, symbol)))
+          normalizedSymbols.some((symbol) => formulaConflictScopeMatches(conflict.scopeKey, symbol))))
       ) {
         return true;
       }
@@ -1256,6 +1257,10 @@ function findRelevantConflicts(
           `${requirement.requestedFact ?? ""} ${requirement.targetConcepts.join(" ")}`
         );
         return (
+          (requirement.kind === "FACT_LOOKUP" &&
+            requirement.requestedFacet === "CONDITION" &&
+            conflict.scopeKey.includes("condition") &&
+            targetIds.some((target) => conflict.scopeKey.includes(target))) ||
           (conflict.scopeKey === "fact:answer" && /\banswer\b/.test(requested)) ||
           (conflict.scopeKey === "fact:identifier" && /\bidentifier|question\b/.test(requested))
         );
@@ -1506,6 +1511,12 @@ function findFormula(
 ): FormulaCapability | undefined {
   const explicitFormulaContext = requirement.formulaContext;
   if (explicitFormulaContext) {
+    if (explicitFormulaContext.startsWith("concept:")) {
+      const conceptId = explicitFormulaContext.slice("concept:".length);
+      return context.formulas.find(
+        (formula) => formula.canonicalConcept?.id === conceptId
+      );
+    }
     return context.formulas.find((formula) =>
       formulaMatchesExplicitContext(formula, explicitFormulaContext)
     );
@@ -2363,9 +2374,47 @@ function findConditionFactSupport(
   const targetIds = canonicalTargetIds(requirement, context.request);
   const requestedHasConcreteCondition =
     /\b(?:height|base|perpendicular|right angle|slanted|valid)\b/.test(requested);
+  const scopedFormula = requirement.formulaContext
+    ? findFormula(requirement, context)
+    : undefined;
+  const conceptualFormulaId = requirement.formulaContext?.startsWith("concept:")
+    ? requirement.formulaContext.slice("concept:".length)
+    : undefined;
+  const hasProseFormulaScope = (candidateText: string) =>
+    conceptualFormulaId === "pressure" &&
+    /\bforce\b/i.test(candidateText) &&
+    /\b(?:divid(?:e|ed)\s+by|dividing\s+force\s+by|force\s+over)\b/i.test(candidateText) &&
+    /\barea\b/i.test(candidateText);
+  if (
+    requirement.formulaContext &&
+    !scopedFormula &&
+    !conceptualFormulaId
+  ) {
+    return [];
+  }
+  const conditionAllowed = (candidateText: string, resourceChunkId?: string) => {
+    if (!scopedFormula && conceptualFormulaId && !hasProseFormulaScope(candidateText)) {
+      return false;
+    }
+    if (
+      scopedFormula &&
+      resourceChunkId &&
+      resourceChunkId !== scopedFormula.resourceChunkId
+    ) {
+      return false;
+    }
+    if (
+      (scopedFormula?.canonicalConcept?.id === "pressure" || conceptualFormulaId === "pressure") &&
+      !/\b(?:perpendicular|right angle|normal force)\b/i.test(candidateText)
+    ) {
+      return false;
+    }
+    return true;
+  };
   const semanticSupports = context.semanticComponents
     .filter((component) => {
       if (component.kind !== "CONDITION" || !component.sourceCapabilityId) return false;
+      if (!conditionAllowed(component.text ?? "", component.resourceChunkId)) return false;
       if (
         targetIds.length > 0 &&
         component.concept &&
@@ -2388,6 +2437,7 @@ function findConditionFactSupport(
     .filter((fact) => {
       if (fact.polarity !== "POSITIVE") return false;
       const combined = `${fact.factKey} ${fact.factText} ${fact.canonicalConcept?.id ?? ""}`;
+      if (!conditionAllowed(combined, fact.resourceChunkId)) return false;
       if (!/\b(?:condition|perpendicular|right angle|valid|slanted)\b/i.test(combined)) {
         return false;
       }

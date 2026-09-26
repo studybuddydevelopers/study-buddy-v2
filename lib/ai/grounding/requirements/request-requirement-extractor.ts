@@ -170,6 +170,9 @@ function buildRequirementDrafts(
   const multiOption = buildMultiOptionRequirement(question);
   if (multiOption) return [withContext(multiOption, normalizedContext)];
 
+  const unitCondition = buildUnitConditionRequirement(question, context);
+  if (unitCondition) return [withContext(unitCondition, normalizedContext)];
+
   const formulaPlusUnits = buildFormulaAndUnitRequirement(question, context);
   if (formulaPlusUnits) return [withContext(formulaPlusUnits, normalizedContext)];
 
@@ -637,22 +640,28 @@ function buildFormulaConditionRequirement(
 
   if (
     !/\b(?:formula|law|equation|relation)\b/i.test(question) &&
-    !/\b(?:valid\s+when|applies?\s+to)\b/i.test(question)
+    !/\b(?:valid\s+when|applies?(?:\s+to)?)\b/i.test(question)
   ) {
     return undefined;
   }
-  if (!/\b(?:conditions?|valid\s+when|applies?\s+to|applicability)\b/i.test(question)) {
+  if (
+    !/\b(?:conditions?|valid\s+when|applicability)\b/i.test(question) &&
+    !/\bwhen\b.{0,80}\bapplies?\b/i.test(question)
+  ) {
     return undefined;
   }
 
   const concept =
     extractFormulaConcept(question) ||
+    firstMatch(question, /\bwhen\s+(?:the\s+)?(.+?)\s+formula\b/i) ||
     firstMatch(question, /\bin\s+(.+?)(?:[?.]|$)/i) ||
     firstMatch(
       question,
       /\bfor\s+(?:the\s+)?(.+?)(?:\s+formula|\s+law|\s+equation|\s+relation|[?.]|$)/i
     );
   if (!concept && !context.contextConcept) return undefined;
+
+  const boundedFormula = extractBoundedSymbolFormula(question);
 
   const conditionMatch =
     question.match(/\b(?:and|with)\s+(?:the\s+)?([A-Za-z][A-Za-z -]*?\bconditions?)\b/i) ??
@@ -671,7 +680,7 @@ function buildFormulaConditionRequirement(
         targetConcepts: compactStrings([concept, context.contextConcept]),
         requestedAction: "STATE_FORMULA",
         requestedFacet: "FORMULA",
-        formulaContext: context.currentFormula ?? context.contextFormula,
+        formulaContext: boundedFormula ?? context.currentFormula ?? context.contextFormula,
       },
       {
         kind: "FACT_LOOKUP",
@@ -685,6 +694,72 @@ function buildFormulaConditionRequirement(
         requestedFacet: "CONDITION",
         constraints: compactStrings([cleanedCondition === "condition" ? undefined : cleanedCondition]),
         requestedAction: "EXPLAIN",
+        formulaContext: boundedFormula ?? context.currentFormula ?? context.contextFormula,
+      },
+    ],
+  };
+}
+
+function buildUnitConditionRequirement(
+  question: string,
+  context: RequirementBuildContext
+): RequirementDraft | undefined {
+  if (!/\b(?:units?|measured\s+in)\b/i.test(question)) return undefined;
+  if (!/\b(?:conditions?|appl(?:y|ies|icability)|when)\b/i.test(question)) {
+    return undefined;
+  }
+
+  const explicitUnitConcept =
+    firstMatch(question, /\bunit\s+of\s+(.+?)\s+and\b/i) ??
+    firstMatch(question, /\bwhat\s+unit\s+is\s+(.+?)\s+measured\s+in\b/i) ??
+    firstMatch(question, /\bgive\s+(.+?)'?s\s+unit\b/i) ??
+    firstMatch(question, /\bstate\s+(?:the\s+)?unit\s+of\s+(.+?)\s+and\b/i);
+  const mentioned = findMentionedCanonicalConcepts(question, {
+    subjectId: context.subjectId,
+    topicId: context.topicId,
+  });
+  const concept = cleanConcept(
+    explicitUnitConcept ??
+      mentioned.find((candidate) =>
+        !["force", "area-of-circle", "area-of-triangle"].includes(candidate.id)
+      )?.label ??
+      context.contextConcept ??
+      ""
+  );
+  if (!concept) return undefined;
+
+  const boundedFormula = question.match(
+    /\b([A-Za-z])\s*=\s*([A-Za-z](?:\s*(?:[/x*+\-])\s*[A-Za-z])+)/i
+  );
+  const formulaExpression = boundedFormula
+    ? `${boundedFormula[1]} = ${boundedFormula[2]}`
+    : extractFormulaContextExpression(question);
+  const formulaContext = formulaExpression ?? `concept:${canonicalizeSemanticConcept({
+    rawConcept: concept,
+    subjectId: context.subjectId,
+    topicId: context.topicId,
+    facet: "FORMULA",
+  })?.baseConcept ?? cleanConcept(concept)}`;
+
+  return {
+    kind: "MULTI_PART",
+    targetConcepts: [concept],
+    requestedAction: "EXPLAIN",
+    childRequirements: [
+      {
+        kind: "FACT_LOOKUP",
+        targetConcepts: [concept],
+        requestedFact: `${concept} unit`,
+        requestedFacet: "UNIT",
+        requestedAction: "STATE_UNIT",
+      },
+      {
+        kind: "FACT_LOOKUP",
+        targetConcepts: [concept],
+        requestedFact: `${concept} formula applicability condition`,
+        requestedFacet: "CONDITION",
+        requestedAction: "EXPLAIN",
+        formulaContext,
       },
     ],
   };
@@ -1103,7 +1178,7 @@ function buildProcedureMethodRequirement(
 
   if (!/\b(?:how\s+do\s+i|how\s+can\s+i|how\s+to|what\s+steps?|which\s+steps?|explain\s+how\s+to|show\s+how\s+to)\b/i.test(question)) {
     const namedMethod = question.match(
-      /\b(?:show|explain|describe|state)\s+(?:the\s+)?method\s+(?:for|of)\s+(.+?)(?:[?.]|$)/i
+      /\b(?:show|explain|describe|state|give)\s+(?:the\s+)?method\s+(?:for|of)\s+(.+?)(?:[?.]|$)/i
     );
     if (!namedMethod) return undefined;
     const target = cleanConcept(namedMethod[1] ?? "");
@@ -1284,11 +1359,25 @@ function buildSymbolDefinitionRequirement(
     (context.dependsOnPreviousTurn ? extractStandaloneSymbolFollowUp(question) : undefined);
   if (!symbol) return undefined;
 
+  const formulaConcept = extractFormulaConcept(question);
+  const scopedConcept = cleanConcept(formulaConcept ?? context.contextConcept ?? "");
+  const conceptualFormulaContext = scopedConcept
+    ? canonicalizeSemanticConcept({
+        rawConcept: scopedConcept,
+        subjectId: context.subjectId,
+        topicId: context.topicId,
+        facet: "FORMULA",
+      })?.baseConcept
+    : undefined;
+
   return {
     kind: "SYMBOL_DEFINITION",
-    targetConcepts: compactStrings([context.contextConcept]),
+    targetConcepts: compactStrings([scopedConcept, context.contextConcept]),
     requiredSymbols: [symbol],
-    formulaContext: context.currentFormula ?? context.contextFormula,
+    formulaContext:
+      context.currentFormula ??
+      context.contextFormula ??
+      (conceptualFormulaContext ? `concept:${conceptualFormulaContext}` : undefined),
   };
 }
 
@@ -1507,6 +1596,7 @@ function buildProcessRequirement(
   const process =
     firstMatch(question, /\b(?:teach|explain|describe)\s+(?:the\s+)?process\s+of\s+(.+?)(?:[?.]|$)/i) ??
     firstMatch(question, /\b(?:teach|explain|describe)\s+(?:the\s+)?(.+?)\s+process(?:[?.]|$)/i) ??
+    firstMatch(question, /\b(?:teach|explain|describe)\s+(?:the\s+)?process\s+(?:involved\s+in|behind|underlying)\s+(.+?)(?:[?.]|$)/i) ??
     firstMatch(question, /\b(?:describe|explain)\s+what\s+happens\s+(?:in|during)\s+(.+?)(?:[?.]|$)/i) ??
     firstMatch(question, /\b(?:teach|explain|describe)\s+how\s+(.+?)\s+(?:takes?\s+place|occurs?)(?:[?.]|$)/i) ??
     firstMatch(question, /\bwhat\s+happens\s+in\s+(.+?)(?:[?.]|$)/i) ??
@@ -1517,13 +1607,16 @@ function buildProcessRequirement(
   if (!process) return undefined;
 
   const cleaned = cleanConcept(process);
-  const processTarget = cleaned.replace(/\b(?:inputs?|outputs?|products?)$/i, "").trim();
+  const resolvedProcess = /^(?:it|this|that)(?:\s+process)?$/i.test(cleaned)
+    ? context.contextProcess ?? context.contextConcept ?? ""
+    : cleaned;
+  const processTarget = resolvedProcess.replace(/\b(?:inputs?|outputs?|products?)$/i, "").trim();
   if (/\b(formula|symbol|mean|represent)\b/i.test(cleaned)) return undefined;
 
   return {
     kind: "PROCESS_EXPLANATION",
-    targetConcepts: compactStrings([processTarget || cleaned, context.contextProcess]),
-    requestedProcess: processTarget || cleaned || context.contextProcess,
+    targetConcepts: compactStrings([processTarget || resolvedProcess, context.contextProcess]),
+    requestedProcess: processTarget || resolvedProcess || context.contextProcess,
   };
 }
 
@@ -2058,6 +2151,12 @@ function isContextualFollowUp(question: string): boolean {
     ) ||
     /\b(?:formula|equation|relation|units?|meaning|definition|purpose|function|process)\b.{0,80}\b(?:of|for)\s+(?:it|that|this)\b/i.test(
       question
+    ) ||
+    /\b(?:describe|explain)\s+how\s+(?:it|this|that)(?:\s+process)?\s+(?:happens?|occurs?|takes?\s+place)\b/i.test(
+      question
+    ) ||
+    /\bwhat\s+happens?\s+(?:during|in)\s+(?:it|this|that)(?:\s+process)?\b/i.test(
+      question
     )
   );
 }
@@ -2078,6 +2177,13 @@ function extractFormulaContextExpression(question: string): string | undefined {
   }
 
   return `${left} = ${right}`;
+}
+
+function extractBoundedSymbolFormula(value: string): string | undefined {
+  const match = value.match(
+    /\b([A-Za-z])\s*=\s*([A-Za-z](?:\s*(?:[/x*+\-])\s*[A-Za-z])+)/i
+  );
+  return match ? `${match[1]} = ${match[2]}` : undefined;
 }
 
 function normalizeFormulaContextLeft(value: string): string {
