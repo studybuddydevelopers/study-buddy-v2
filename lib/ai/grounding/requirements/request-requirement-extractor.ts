@@ -46,6 +46,7 @@ type RequirementDraft = {
   requiredInputs?: string[];
   requiredInputConcepts?: string[];
   requiredProbabilityRoles?: RequestRequirement["requiredProbabilityRoles"];
+  semanticOwner?: RequestRequirement["semanticOwner"];
   comparisonSides?: string[];
   comparisonOptions?: ComparisonOptionRequirement[];
   comparisonMetric?: ComparisonMetric;
@@ -1842,6 +1843,7 @@ function assignRequirementId(
     requiredInputs: optionalUnique(draft.requiredInputs),
     requiredInputConcepts: optionalUnique(draft.requiredInputConcepts),
     requiredProbabilityRoles: draft.requiredProbabilityRoles,
+    semanticOwner: draft.semanticOwner,
     comparisonSides: optionalUnique(draft.comparisonSides),
     comparisonOptions: draft.comparisonOptions?.length
       ? uniqueComparisonOptions(draft.comparisonOptions)
