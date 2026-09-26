@@ -98,6 +98,7 @@ export function decideAnswerability(
   const validatedEvidenceUnits = buildValidatedEvidenceUnits({
     evidenceCapabilities: scopedEvidence,
     supportRefs,
+    requestRequirements: input.requestRequirements,
   });
   const unitIdsByRequirement = new Map<string, string[]>();
   for (const unit of validatedEvidenceUnits) {
@@ -565,12 +566,19 @@ function evaluateCalculationRequirement(
   requirement: RequestRequirement,
   context: MatchContext
 ): RequirementMatch {
-  const boundedProbabilitySupport = findBoundedProbabilityCalculationSupport(
-    requirement,
-    context
-  );
-  if (boundedProbabilitySupport.length > 0) {
-    return buildMatch(requirement.id, "SUPPORTED", boundedProbabilitySupport);
+  if (requirement.semanticOwner === "BOUNDED_PROBABILITY") {
+    const boundedProbabilitySupport = findBoundedProbabilityCalculationSupport(
+      requirement,
+      context
+    );
+    return boundedProbabilitySupport.length > 0
+      ? buildMatch(requirement.id, "SUPPORTED", boundedProbabilitySupport)
+      : buildMatch(
+          requirement.id,
+          "MISSING",
+          [],
+          ["valid bounded probability inputs"]
+        );
   }
 
   const ratioShareSupport = findRatioShareCalculationSupport(requirement, context);
@@ -2906,7 +2914,6 @@ function findBoundedProbabilityCalculationSupport(
     );
   }) ?? findFormula(requirement, context);
 
-  const event = findEventFact(requirement, context);
   const countSupport = findBoundedProbabilityCountSupport(requirement, context);
 
   if (countSupport) {
@@ -2919,42 +2926,7 @@ function findBoundedProbabilityCalculationSupport(
     ]);
   }
 
-  const numericPairSupport = findBoundedProbabilityNumericPairSupport(
-    requirement,
-    context,
-    formula
-  );
-  if (numericPairSupport.length > 0) {
-    return numericPairSupport;
-  }
-
-  if (!event || !hasBoundedProbabilityCountAndTotal(event)) {
-    return [];
-  }
-  return uniqueSupportRefs([
-    ...(formula
-      ? [supportRef(requirement.id, formula.id, ["CALCULATE", "FORMULA"])]
-      : []),
-    supportRef(requirement.id, event.id, ["CALCULATE"]),
-  ]);
-}
-
-function findBoundedProbabilityNumericPairSupport(
-  requirement: RequestRequirement,
-  context: MatchContext,
-  formula: FormulaCapability | undefined
-): CapabilitySupportRef[] {
-  const favourable = context.numerics.find(isFavourableOutcomeNumeric);
-  const total = context.numerics.find(isTotalOutcomeNumeric);
-  if (!favourable || !total || total.value <= 0) return [];
-
-  return uniqueSupportRefs([
-    ...(formula
-      ? [supportRef(requirement.id, formula.id, ["CALCULATE", "FORMULA"])]
-      : []),
-    supportRef(requirement.id, favourable.id, ["CALCULATE"]),
-    supportRef(requirement.id, total.id, ["CALCULATE"]),
-  ]);
+  return [];
 }
 
 function findRatioShareCalculationSupport(
@@ -3018,22 +2990,7 @@ function capabilityIdsForEvidenceCapability(capability: EvidenceCapability): str
 }
 
 function isBoundedProbabilityRequirement(requirement: RequestRequirement): boolean {
-  const targets = uniqueStrings([
-    requirement.baseConcept?.baseConcept ?? "",
-    ...requirement.targetConcepts.map(normalizedText),
-  ].filter(Boolean));
-  return (
-    requirement.kind === "CALCULATION" &&
-    targets.includes("probability") &&
-    (requirement.constraints ?? []).includes("bounded probability")
-  );
-}
-
-function hasBoundedProbabilityCountAndTotal(event: EventCapability): boolean {
-  const text = `${event.outcomeText} ${event.numericValues.join(" ")} ${event.evidenceSpan.text}`;
-  const match = text.match(/\b([-+]?\d+(?:\.\d+)?)\s+out\s+of\s+([-+]?\d+(?:\.\d+)?)\b/i);
-  const total = Number(match?.[2]);
-  return Boolean(match) && Number.isFinite(total) && total > 0;
+  return requirement.semanticOwner === "BOUNDED_PROBABILITY";
 }
 
 function findBoundedProbabilityCountSupport(
