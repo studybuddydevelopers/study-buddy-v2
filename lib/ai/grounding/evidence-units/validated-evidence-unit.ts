@@ -15,6 +15,10 @@ import type {
   SemanticComponent,
   SymbolCapability,
 } from "../capabilities/types";
+import type {
+  RequestRequirement,
+  RequestRequirements,
+} from "../requirements/types";
 
 export type AllowedEvidenceUse =
   | "DEFINE"
@@ -59,6 +63,7 @@ export type CapabilitySupportRef = {
 export type BuildValidatedEvidenceUnitsInput = {
   evidenceCapabilities: EvidenceCapability[];
   supportRefs: CapabilitySupportRef[];
+  requestRequirements?: RequestRequirements;
 };
 
 type EducationalCapability =
@@ -117,11 +122,58 @@ export function buildValidatedEvidenceUnits(
       allowedUses: group.allowedUses,
       semanticComponents: capability.semanticComponents,
       semanticQuantityBindings:
-        semanticQuantityBindingsBySource.get(evidenceSourceKey(capability)) ?? [],
+        projectSemanticQuantityBindings(
+          semanticQuantityBindingsBySource.get(evidenceSourceKey(capability)) ?? [],
+          group.requirementIds,
+          input.requestRequirements
+        ),
     });
   }
 
   return units;
+}
+
+function projectSemanticQuantityBindings(
+  bindings: SemanticQuantityBinding[],
+  requirementIds: string[],
+  request: RequestRequirements | undefined
+): SemanticQuantityBinding[] {
+  if (!request) return bindings;
+  const requirements = flattenRequirements(request.requirements).filter((requirement) =>
+    requirementIds.includes(requirement.id)
+  );
+  const requestedOptions = new Set(
+    requirements
+      .filter((requirement) => requirement.kind === "MULTI_OPTION_COMPARISON")
+      .flatMap((requirement) => requestedOptionIds(requirement))
+  );
+  if (requestedOptions.size === 0) return bindings;
+
+  return bindings.filter((binding) => {
+    if (!binding.optionScope) return true;
+    const aliases = optionAliases(binding.optionScope).map(normalizeQuantityId);
+    return aliases.some((alias) => requestedOptions.has(alias));
+  });
+}
+
+function flattenRequirements(requirements: RequestRequirement[]): RequestRequirement[] {
+  return requirements.flatMap((requirement) => [
+    requirement,
+    ...flattenRequirements(requirement.childRequirements ?? []),
+  ]);
+}
+
+function requestedOptionIds(requirement: RequestRequirement): string[] {
+  return uniqueStrings(
+    (requirement.comparisonOptions?.length
+      ? requirement.comparisonOptions.flatMap((option) => [
+          option.id,
+          option.label,
+          ...option.aliases,
+        ])
+      : requirement.comparisonSides ?? []
+    ).map(normalizeQuantityId)
+  );
 }
 
 export function indexEducationalCapabilities(
