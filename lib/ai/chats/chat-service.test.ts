@@ -653,12 +653,17 @@ function createService(
   db = new InMemoryChatDb(),
   provider = new SequenceProvider([
     { text: "Generated answer.", provider: "fake", model: "fake-chat" },
-  ])
+  ]),
+  options: {
+    groundedChatEnabled?: boolean;
+    groundingService?: GroundedGenerationService;
+    legacyNigerianContextEnabled?: boolean;
+  } = {}
 ) {
   return {
     db,
     provider,
-    service: new ChatService(db as never, provider),
+    service: new ChatService(db as never, provider, options),
   };
 }
 
@@ -902,6 +907,8 @@ describe("ChatService Stage 1 lifecycle", () => {
     expect(result.userMessage.content).toBe("Explain ratios");
     expect(result.assistantMessage.content).toBe("Generated answer.");
     expect(result.assistantMessage.status).toBe(AiChatMessageStatus.COMPLETED);
+    expect(result.assistantMessage.grounding).toBeNull();
+    expect(result.assistantMessage.citations).toEqual([]);
     expect(provider.inputs[0]?.messages[0]?.content).toContain(
       "prefer a familiar Nigerian context"
     );
@@ -910,6 +917,29 @@ describe("ChatService Stage 1 lifecycle", () => {
     );
     expect(provider.inputs[0]?.messages[0]?.content).toContain(
       "Avoid stereotypes"
+    );
+  });
+
+  it("omits Nigerian context rules when the legacy-only option is disabled", async () => {
+    const { db, provider, service } = createService(
+      new InMemoryChatDb(),
+      new SequenceProvider([
+        { text: "Generated answer.", provider: "fake", model: "fake-chat" },
+      ]),
+      { legacyNigerianContextEnabled: false }
+    );
+    db.seedChat({ id: "chat-1", userId: "user-a" });
+
+    await service.sendMessage("user-a", "chat-1", {
+      message: "Explain ratios",
+      clientRequestId: "request-no-nigerian-context",
+    });
+
+    expect(provider.inputs[0]?.messages[0]?.content).not.toContain(
+      "prefer a familiar Nigerian context"
+    );
+    expect(provider.inputs[0]?.messages[0]?.content).toContain(
+      "Stage 1 answers are general AI responses"
     );
   });
 
@@ -1129,6 +1159,7 @@ describe("ChatService Stage 1 lifecycle", () => {
     const searchRepository = new FakeSearchRepository([retrievedChunk()]);
     const service = new ChatService(db as never, provider, {
       groundedChatEnabled: true,
+      legacyNigerianContextEnabled: true,
       groundingService: new GroundedGenerationService({ searchRepository }),
     });
     db.seedChat({ id: "chat-1", userId: "user-a" });
@@ -1140,6 +1171,12 @@ describe("ChatService Stage 1 lifecycle", () => {
 
     expect(searchRepository.calls).toBe(1);
     expect(provider.structuredInvocations).toBe(1);
+    expect(provider.structuredInputs[0]?.messages[0]?.content).not.toContain(
+      "prefer a familiar Nigerian context"
+    );
+    expect(provider.structuredInputs[0]?.messages[0]?.content).not.toContain(
+      "Avoid stereotypes"
+    );
     expect(db.groundingAttempts).toHaveLength(1);
     expect(db.citations).toHaveLength(1);
     expect(result.assistantMessage.content).toContain("[SOURCE_1]");
