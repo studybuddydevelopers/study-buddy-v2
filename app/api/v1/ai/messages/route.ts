@@ -13,7 +13,7 @@ import {
   globalAiBudgetErrorResponse,
   withGlobalAiTokenBudget,
 } from "@/lib/security/ai-budget";
-import { GENERAL_NIGERIAN_CONTEXT_PROMPT_RULES } from "@/lib/ai/prompts/nigerian-context";
+import { getLegacyNigerianContextPromptRules } from "@/lib/ai/prompts/nigerian-context";
 
 export const maxDuration = 30;
 
@@ -70,7 +70,7 @@ Response rules:
 - Adjust difficulty based on subject/topic hints if provided.
 
 Nigerian-context rules:
-${GENERAL_NIGERIAN_CONTEXT_PROMPT_RULES.map((rule) => `- ${rule}`).join("\n")}
+${getLegacyNigerianContextPromptRules().map((rule) => `- ${rule}`).join("\n")}
 
 Formatting rules:
 - Use short paragraphs or bullet points.
