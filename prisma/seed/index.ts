@@ -2,6 +2,8 @@ import { PrismaClient } from "@prisma/client";
 import { subjects } from "./subjects";
 import { topicsBySubject } from "./topics";
 import { questions } from "./questions";
+import { biologyQuestions } from "./questions-biology";
+import { economicsQuestions } from "./questions-economics";
 import { mockTemplates } from "./mockTemplates";
 
 const prisma = new PrismaClient();
@@ -70,8 +72,9 @@ async function main() {
       .map(({ id, title }) => [title, id] as const)
   );
 
-  // 3) WAEC-style questions
-  const resolvedQuestions = questions
+  // 3) WAEC-style questions (Math + Biology + Economics)
+  const allQuestions = [...questions, ...biologyQuestions, ...economicsQuestions];
+  const resolvedQuestions = allQuestions
     .map((q) => {
       const subjectId = subjectMap.get(q.subjectName);
       const topicId = topicMap.get(q.topicTitle);
@@ -86,6 +89,7 @@ async function main() {
         year: q.year ?? null,
         questionNumber: q.questionNumber ?? null,
         difficulty: q.difficulty ?? null,
+        source: q.source ?? "placeholder",
       };
     })
     .filter((q): q is NonNullable<typeof q> => Boolean(q));
@@ -101,6 +105,12 @@ async function main() {
   if (newQuestions.length) {
     await prisma.pastQuestion.createMany({ data: newQuestions });
   }
+
+  // Back-fill any existing questions that pre-date the source column (null → placeholder)
+  await prisma.pastQuestion.updateMany({
+    where: { source: null },
+    data: { source: "placeholder" },
+  });
 
   // 4) Mock exam templates
   const existingTemplateKeys = new Set(
@@ -150,7 +160,7 @@ async function main() {
     )
   );
 
-  console.log("WAEC seed completed");
+  console.log("WAEC seed completed (Mathematics + Biology + Economics)");
 }
 
 main()

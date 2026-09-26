@@ -2,11 +2,15 @@
 
 export const MATERIALS_SUBJECT_ORDER = [
   "WAEC-MATH",
+  "WAEC-BIO",
+  "WAEC-ECON",
   // "WAEC-ENG" — English Language coming soon
 ] as const;
 
 export const MATERIALS_SUBJECT_LABELS: Record<string, string> = {
   "WAEC-MATH": "Mathematics",
+  "WAEC-BIO": "Biology",
+  "WAEC-ECON": "Economics",
   // "WAEC-ENG": "English Language",
 };
 

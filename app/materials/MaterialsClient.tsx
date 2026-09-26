@@ -26,7 +26,7 @@ interface HubCard {
 const FEATURED_CARDS: HubCard[] = [
   {
     title: "Practice Questions by Topic",
-    description: "Practice Mathematics topics from the question bank.",
+    description: "Practice questions by topic from the question bank.",
     href: "/materials/past-questions",
     Icon: ClipboardList,
     proposal: "pastQuestions",
@@ -75,8 +75,7 @@ export default function MaterialsClient({
       <div>
         <Heading1 gutter="sm">Study materials</Heading1>
         <Paragraph variant="superMuted" className="max-w-3xl">
-          Pick a resource type, then choose a subject. Mathematics is available
-          first while more subjects are prepared.
+          Pick a resource type, then choose a subject.
         </Paragraph>
       </div>
 
@@ -94,7 +93,7 @@ export default function MaterialsClient({
             <Heading2 gutter="sm">Ongoing</Heading2>
             <div className="grid gap-4 lg:grid-cols-3">
               <OngoingCard
-                title="Mathematics Practice Questions"
+                title="Practice Questions"
                 href="/materials/past-questions"
                 Icon={ClipboardList}
                 proposal="pastQuestions"
@@ -103,7 +102,7 @@ export default function MaterialsClient({
                 progressPercentage={progressPercentage}
               />
               <OngoingCard
-                title="Mathematics Flashcards"
+                title="Flashcards"
                 href="/materials/flashcards"
                 Icon={MessageCircle}
                 proposal="flashcards"
@@ -112,7 +111,7 @@ export default function MaterialsClient({
                 progressPercentage={0}
               />
               <OngoingCard
-                title="Mathematics Textbooks"
+                title="Textbooks"
                 href="/materials/textbooks"
                 Icon={BookOpen}
                 proposal="textbook"

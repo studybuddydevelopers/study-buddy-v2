@@ -53,5 +53,69 @@ export const mockTemplates = [
     description:
       "A full written mock: answer all five Part I questions and five of the eight Part II questions",
   },
+  // WAEC Biology mocks
+  {
+    subjectName: "WAEC Biology",
+    title: "WAEC Biology – Quick Practice",
+    questionCount: 10,
+    format: "OBJECTIVE" as const,
+    durationMinutes: 18,
+    totalMarks: 10,
+    requiredQuestionCount: 10,
+    description: "A short 10-question practice covering core WAEC Biology topics",
+  },
+  {
+    subjectName: "WAEC Biology",
+    title: "WAEC Biology – Standard Practice",
+    questionCount: 25,
+    format: "OBJECTIVE" as const,
+    durationMinutes: 45,
+    totalMarks: 25,
+    requiredQuestionCount: 25,
+    description: "A 25-question session covering a balanced mix of WAEC Biology topics",
+  },
+  {
+    subjectName: "WAEC Biology",
+    title: "WAEC Biology – Paper 1 Practice",
+    questionCount: 50,
+    format: "OBJECTIVE" as const,
+    durationMinutes: 90,
+    totalMarks: 50,
+    requiredQuestionCount: 50,
+    description: "50-question multiple choice mock based on the WAEC Biology Paper 1 syllabus",
+  },
+
+  // WAEC Economics mocks
+  {
+    subjectName: "WAEC Economics",
+    title: "WAEC Economics – Quick Practice",
+    questionCount: 10,
+    format: "OBJECTIVE" as const,
+    durationMinutes: 18,
+    totalMarks: 10,
+    requiredQuestionCount: 10,
+    description: "A short 10-question practice covering core WAEC Economics topics",
+  },
+  {
+    subjectName: "WAEC Economics",
+    title: "WAEC Economics – Standard Practice",
+    questionCount: 25,
+    format: "OBJECTIVE" as const,
+    durationMinutes: 45,
+    totalMarks: 25,
+    requiredQuestionCount: 25,
+    description: "A 25-question session covering a balanced mix of WAEC Economics topics",
+  },
+  {
+    subjectName: "WAEC Economics",
+    title: "WAEC Economics – Paper 1 Practice",
+    questionCount: 50,
+    format: "OBJECTIVE" as const,
+    durationMinutes: 90,
+    totalMarks: 50,
+    requiredQuestionCount: 50,
+    description: "50-question multiple choice mock based on the WAEC Economics Paper 1 syllabus",
+  },
+
   // WAEC English Language mock — coming soon
 ];

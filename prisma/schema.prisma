@@ -538,6 +538,7 @@ model PastQuestion {
   year             Int?
   questionNumber   String?
   difficulty       Int?
+  source           String? @db.VarChar(64)
 
   subject Subject @relation(fields: [subjectId], references: [id], onDelete: Cascade)
   topic   Topic?  @relation(fields: [topicId], references: [id], onDelete: SetNull)
