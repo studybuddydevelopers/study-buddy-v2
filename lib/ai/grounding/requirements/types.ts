@@ -34,6 +34,10 @@ export type ComparisonMetric = "UNIT_RATE" | "VALUE";
 
 export type ComparisonDirection = "LOWER_IS_BETTER" | "HIGHER_IS_BETTER";
 
+export type ProbabilityInputRole =
+  | "FAVOURABLE_OUTCOME_COUNT"
+  | "TOTAL_OUTCOME_COUNT";
+
 export type ComparisonOptionRequirement = {
   id: string;
   label: string;
@@ -62,6 +66,7 @@ export type RequestRequirement = {
   requiredSymbols?: string[];
   requiredInputs?: string[];
   requiredInputConcepts?: string[];
+  requiredProbabilityRoles?: ProbabilityInputRole[];
   comparisonSides?: string[];
   comparisonOptions?: ComparisonOptionRequirement[];
   comparisonMetric?: ComparisonMetric;
