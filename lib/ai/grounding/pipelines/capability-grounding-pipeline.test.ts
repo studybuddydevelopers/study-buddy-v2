@@ -491,12 +491,8 @@ describe("Stage 4.1 capability grounding pipeline", () => {
     expect(prompt).toContain("<required_tasks>");
     expect(prompt).toContain("<validated_evidence_by_task>");
     expect(prompt).toContain("Treat the validated evidence units as a closed world");
-    expect(prompt).toContain(
-      "supplied evidence contains a relevant Nigerian example"
-    );
-    expect(prompt).toContain(
-      "Do not introduce Nigerian places, institutions, prices"
-    );
+    expect(prompt).not.toContain("prefer a familiar Nigerian context");
+    expect(prompt).not.toContain("Nigerian-context rules");
     expect(prompt).toContain("Do not output internal task ids or evidence-unit ids");
     expect(prompt).not.toContain("requested_tasks_json");
     expect(prompt).not.toContain("evidenceUnitIds");
