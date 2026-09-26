@@ -51,8 +51,8 @@ describe("PV8-2 Iteration 2 specialized role safety", () => {
   });
 
   it("preserves generic event and fact support outside a specialized contract", () => {
-    const decision = decide("What happens when ice is heated?", [
-      "When ice is heated, it melts into liquid water.",
+    const decision = decide("What happens to evaporation when temperature increases?", [
+      "Increasing temperature increases evaporation rate.",
     ]);
 
     expect(decision.classification).toBe("SUPPORTED");
