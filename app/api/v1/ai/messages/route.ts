@@ -13,6 +13,7 @@ import {
   globalAiBudgetErrorResponse,
   withGlobalAiTokenBudget,
 } from "@/lib/security/ai-budget";
+import { GENERAL_NIGERIAN_CONTEXT_PROMPT_RULES } from "@/lib/ai/prompts/nigerian-context";
 
 export const maxDuration = 30;
 
@@ -67,6 +68,9 @@ Response rules:
 - Respond in 2 to 4 short sentences OR 3 to 6 bullet points.
 - If the user asks for "explain", "detail", "why", or "steps", you may be longer.
 - Adjust difficulty based on subject/topic hints if provided.
+
+Nigerian-context rules:
+${GENERAL_NIGERIAN_CONTEXT_PROMPT_RULES.map((rule) => `- ${rule}`).join("\n")}
 
 Formatting rules:
 - Use short paragraphs or bullet points.
