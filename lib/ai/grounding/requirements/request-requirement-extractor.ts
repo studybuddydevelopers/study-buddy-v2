@@ -45,6 +45,7 @@ type RequirementDraft = {
   requiredSymbols?: string[];
   requiredInputs?: string[];
   requiredInputConcepts?: string[];
+  requiredProbabilityRoles?: RequestRequirement["requiredProbabilityRoles"];
   comparisonSides?: string[];
   comparisonOptions?: ComparisonOptionRequirement[];
   comparisonMetric?: ComparisonMetric;
@@ -909,6 +910,10 @@ function buildBoundedProbabilityCalculationRequirement(
     requestedFact: compactStrings(["probability", event]).join(" "),
     requestedEvent: event,
     requiredInputConcepts: ["favourable outcomes", "total outcomes"],
+    requiredProbabilityRoles: [
+      "FAVOURABLE_OUTCOME_COUNT",
+      "TOTAL_OUTCOME_COUNT",
+    ],
     constraints: [
       "bounded probability",
       "favourable outcomes divided by total outcomes",
@@ -1835,6 +1840,7 @@ function assignRequirementId(
     requiredSymbols: optionalUnique(draft.requiredSymbols),
     requiredInputs: optionalUnique(draft.requiredInputs),
     requiredInputConcepts: optionalUnique(draft.requiredInputConcepts),
+    requiredProbabilityRoles: draft.requiredProbabilityRoles,
     comparisonSides: optionalUnique(draft.comparisonSides),
     comparisonOptions: draft.comparisonOptions?.length
       ? uniqueComparisonOptions(draft.comparisonOptions)
