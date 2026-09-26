@@ -3032,9 +3032,26 @@ function probabilityScopesCompatible(
   const favourableScope = normalizedText(favourable.qualifier ?? "");
   const totalScope = normalizedText(total.qualifier ?? "");
   if (favourableScope && totalScope && favourableScope !== totalScope) return false;
-  const requestedEvent = normalizedText(requirement.requestedEvent ?? "");
-  const evidenceScope = favourableScope || totalScope;
+  const requestedEvent = normalizeProbabilityEventScope(
+    requirement.requestedEvent ?? ""
+  );
+  const evidenceScope = normalizeProbabilityEventScope(
+    favourableScope || totalScope
+  );
   return !requestedEvent || !evidenceScope || semanticTextMatches(evidenceScope, requestedEvent);
+}
+
+function normalizeProbabilityEventScope(value: string): string {
+  const normalized = normalizedText(value)
+    .replace(
+      /\s+on\s+(?:(?:a|an|the)\s+)?(?:fair\s+)?(?:six\s+sided\s+)?(?:die|dice|spinner|coin)\b.*$/i,
+      ""
+    )
+    .replace(/\s+from\s+(?:these|the)\s+letters\b.*$/i, "")
+    .trim();
+  return /^(?:roll|rolling)\s+(?:an\s+)?even(?:\s+number)?$/i.test(normalized)
+    ? "even"
+    : normalized;
 }
 
 function isFavourableOutcomeNumeric(numeric: NumericCapability) {
