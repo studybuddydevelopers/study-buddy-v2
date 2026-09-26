@@ -244,6 +244,7 @@ export function normalizeSemanticBaseConcept(
     .replace(/\b(?:in|with|as)\s+(?:short\s+)?(?:bullet\s+points?|bullets?|clear\s+steps?|simple\s+steps?)\b/g, " ")
     .replace(/\b(?:clearly|briefly|neatly|simply)\b/g, " ")
     .replace(/\b(?:explain|teach|define|state|give|tell me|show me|help me understand|work through|walk me through|walk through|go through|what is|what are|what does|why is|why are|how does|how do|how to|show how to|calculate|work out|find|compare|contrast|differentiate|distinguish)\b/g, " ")
+    .replace(/\b(?:general explanation of|what do we mean by|describe|ordinary terms|takes? place|occurs?|carried out)\b/g, " ")
     .replace(/\b(?:formula|process|method|rule|rules|definition|meaning|concept|lesson|card|note|notes)\b/g, " ")
     .replace(/\s+and\s+(?:name|define|identify|explain)\s+(?:the\s+)?(?:variables?|symbols?)$/g, " ")
     .replace(/\s+and\s+what\s+(?:do|does|is|are)\s+.+$/g, " ")
