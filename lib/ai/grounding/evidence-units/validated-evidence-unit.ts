@@ -211,9 +211,55 @@ function evidenceSourceKey(capability: EducationalCapability) {
 function extractSemanticQuantityBindings(
   capability: EducationalCapability
 ): SemanticQuantityBinding[] {
+  if (isNumericCapability(capability)) {
+    const typed = typedNumericBinding(capability);
+    if (typed) return [typed];
+  }
   return extractSemanticQuantityBindingsFromText(capability.evidenceSpan.text, [
     capability.id,
   ]);
+}
+
+function isNumericCapability(
+  capability: EducationalCapability
+): capability is NumericCapability {
+  return "value" in capability && "quantity" in capability;
+}
+
+function typedNumericBinding(
+  numeric: NumericCapability
+): SemanticQuantityBinding | undefined {
+  const role =
+    numeric.semanticRole === "FAVOURABLE_OUTCOME_COUNT"
+      ? "favourableOutcomeCount"
+      : numeric.semanticRole === "TOTAL_OUTCOME_COUNT"
+        ? "totalOutcomeCount"
+        : numeric.semanticRole === "PROBABILITY_REFERENCE_RESULT"
+          ? "probabilityReferenceResult"
+        : numeric.semanticRole === "OPTION_PRICE"
+          ? "priceValue"
+          : numeric.semanticRole === "OPTION_QUANTITY"
+            ? "quantityCount"
+            : undefined;
+  if (!role) return undefined;
+  const label =
+    role === "favourableOutcomeCount"
+      ? "favourable outcomes"
+      : role === "totalOutcomeCount"
+        ? "total outcomes"
+        : role === "probabilityReferenceResult"
+          ? "probability"
+          : `${numeric.qualifier ?? numeric.optionId ?? "option"} ${role === "priceValue" ? "total cost" : "quantity"}`;
+  return {
+    quantityId: normalizeQuantityId(label),
+    label,
+    value: numeric.value,
+    unit: numeric.unit,
+    role,
+    optionScope: numeric.optionId,
+    matchingAliases: numeric.optionId ? optionAliases(numeric.optionId) : probabilityCountAliases(role),
+    sourceCapabilityIds: [numeric.id],
+  };
 }
 
 function extractSemanticQuantityBindingsFromText(
@@ -222,9 +268,7 @@ function extractSemanticQuantityBindingsFromText(
 ) {
   return uniqueQuantityBindings([
     ...extractRatioQuantityBindings(text, sourceCapabilityIds),
-    ...extractBoundedProbabilityQuantityBindings(text, sourceCapabilityIds),
     ...extractDiscountQuantityBindings(text, sourceCapabilityIds),
-    ...extractCostPerQuantityBindings(text, sourceCapabilityIds),
     ...extractNamedQuantityBindings(text, sourceCapabilityIds),
   ]);
 }
