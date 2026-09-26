@@ -1247,6 +1247,7 @@ export class ChatService {
       "Give clear, concise, age-appropriate help.",
       "Write inline mathematics between \\( and \\) and display mathematics between \\[ and \\] so it renders correctly. Use LaTeX commands such as \\cup and \\cap only inside those delimiters. Write currency as USD or with its actual currency symbol, not as maths delimiters.",
       "Use the selected subject or topic only as lightweight context.",
+      ...GENERAL_NIGERIAN_CONTEXT_PROMPT_RULES,
       "Stage 1 answers are general AI responses. Do not claim that answers are based on StudyBuddy resources, retrieved documents, citations, or past-paper evidence.",
       "If the question is unrelated to study support, politely steer the student back to learning.",
       contextParts.length > 0 ? contextParts.join("\n") : null,
