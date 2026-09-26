@@ -2404,9 +2404,9 @@ function deriveUnitRateCalculationMethodsFromEvidenceCapabilities(
   for (const capability of evidenceCapabilities) {
     for (const numeric of capability.numericValues) {
       if (selectedCapabilityIds && !selectedCapabilityIds.has(numeric.id)) continue;
-      const option = normalizeCalculationKey(numeric.optionScope ?? numeric.qualifier ?? "");
+      const option = normalizeCalculationKey(numeric.optionId ?? "");
       if (!option) continue;
-      if (numeric.role === "PRICE") {
+      if (numeric.semanticRole === "OPTION_PRICE") {
         bindings.push({
           quantityId: `${option} total cost`,
           label: `${numeric.qualifier} total cost`,
@@ -2419,7 +2419,7 @@ function deriveUnitRateCalculationMethodsFromEvidenceCapabilities(
           sourceCapabilityIds: [numeric.id],
         });
       }
-      if (numeric.role === "QUANTITY") {
+      if (numeric.semanticRole === "OPTION_QUANTITY") {
         bindings.push({
           quantityId: `${option} bottle count`,
           label: `${numeric.qualifier} bottle count`,
@@ -2444,10 +2444,10 @@ function unitRateInputQuantitiesFromEvidenceCapabilities(
   return evidenceCapabilities.flatMap((capability) =>
     capability.numericValues.flatMap((numeric) => {
       if (selectedCapabilityIds && !selectedCapabilityIds.has(numeric.id)) return [];
-      const option = normalizeCalculationKey(numeric.optionScope ?? numeric.qualifier ?? "");
-      if (!option || !["PRICE", "QUANTITY"].includes(numeric.role ?? "")) return [];
+      const option = normalizeCalculationKey(numeric.optionId ?? "");
+      if (!option || !["OPTION_PRICE", "OPTION_QUANTITY"].includes(numeric.semanticRole ?? "")) return [];
       const optionLabel = numeric.qualifier ?? option;
-      const isPrice = numeric.role === "PRICE";
+      const isPrice = numeric.semanticRole === "OPTION_PRICE";
       return [
         {
           quantity: isPrice
