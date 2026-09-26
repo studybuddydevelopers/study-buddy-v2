@@ -1037,6 +1037,35 @@ function extractNumericValues(
     );
   }
 
+  for (const optionValue of sentence.text.matchAll(
+    /\b((?:pack|option|choice|crate|plan|shop|bundle|ticket)\s+[A-Za-z0-9]+)\s+(price|cost|quantity|count)\s+(?:is|are|=|equals?)\s+([-+]?\d+(?:\.\d+)?)\s*([A-Za-z%/²³₦£$][A-Za-z0-9%/²³₦£$]*)?\b/gi
+  )) {
+    const option = cleanConcept(optionValue[1] ?? "");
+    const valueKind = normalizeConceptText(optionValue[2] ?? "");
+    const value = Number(optionValue[3]);
+    if (!option || !Number.isFinite(value)) continue;
+    const isPrice = valueKind === "price" || valueKind === "cost";
+    const optionScope = optionScopeFromQualifier(option);
+    values.push(
+      createNumericValue({
+        state,
+        span: sliceSentenceSpan(
+          sentence,
+          optionValue.index ?? 0,
+          optionValue[0].length
+        ),
+        quantity: isPrice ? "cost" : "quantity",
+        qualifier: option,
+        optionScope,
+        optionId: optionScope,
+        value,
+        unit: normalizeUnit(optionValue[4]),
+        role: isPrice ? "PRICE" : "QUANTITY",
+        semanticRole: isPrice ? "OPTION_PRICE" : "OPTION_QUANTITY",
+      })
+    );
+  }
+
   for (const match of sentence.text.matchAll(
     /\b([A-Za-z][A-Za-z0-9 ]{0,40}?)\s+(?:costs?|charges?)\s+([-+]?\d+(?:\.\d+)?)(?:\s*(naira|ngn|₦|£|\$|dollars?|pounds?))?\s+for\s+([-+]?\d+(?:\.\d+)?)\s*([A-Za-z][A-Za-z0-9/ ]{0,24})\b/gi
   )) {
