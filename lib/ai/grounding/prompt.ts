@@ -1,5 +1,4 @@
 import type { GenerateMessage } from "@/lib/ai/chat/types";
-import { GROUNDED_NIGERIAN_CONTEXT_PROMPT_RULES } from "@/lib/ai/prompts/nigerian-context";
 import type { LabeledEvidence } from "./evidence";
 import { GROUNDED_PROMPT_VERSION } from "./config";
 
@@ -50,7 +49,6 @@ export function buildGroundedTeachPrompt(input: BuildGroundedPromptInput) {
     "State only facts explicitly supported by the supplied excerpts.",
     "Do not add common textbook knowledge unless it appears in the evidence.",
     "Do not add purposes, mechanisms, examples, consequences, context, or definitions unless the evidence states them.",
-    ...GROUNDED_NIGERIAN_CONTEXT_PROMPT_RULES,
     "Omit helpful details rather than infer them.",
     "When evidence supports only a short definition, give a short definition.",
     "Do not complete an explanation from prior knowledge.",
