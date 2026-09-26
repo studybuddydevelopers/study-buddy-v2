@@ -5,7 +5,11 @@ export const GENERAL_NIGERIAN_CONTEXT_PROMPT_RULES = [
   "Avoid stereotypes, and do not force a Nigerian reference when it would be irrelevant or less clear.",
 ] as const;
 
-export const GROUNDED_NIGERIAN_CONTEXT_PROMPT_RULES = [
-  "When the supplied evidence contains a relevant Nigerian example or context, prefer it over a generic example.",
-  "Do not introduce Nigerian places, institutions, prices, laws, statistics, customs, or examples unless the evidence supporting the answer explicitly contains them.",
-] as const;
+export function isLegacyNigerianContextEnabled(value = process.env.AI_LEGACY_NIGERIAN_CONTEXT_ENABLED) {
+  if (value === undefined || value === "") return true;
+  return value.toLowerCase() === "true" || value === "1" || value.toLowerCase() === "yes";
+}
+
+export function getLegacyNigerianContextPromptRules(enabled = isLegacyNigerianContextEnabled()) {
+  return enabled ? GENERAL_NIGERIAN_CONTEXT_PROMPT_RULES : [];
+}
