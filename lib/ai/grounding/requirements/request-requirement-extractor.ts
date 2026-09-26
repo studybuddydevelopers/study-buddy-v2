@@ -802,10 +802,13 @@ function buildCalculationRequirement(question: string): RequirementDraft | undef
     ) ??
     "";
 
+  const numericInputs = extractNumericInputs(question);
+  if (!target && numericInputs.length === 0) return undefined;
+
   return {
     kind: "CALCULATION",
     targetConcepts: compactStrings([cleanCalculationTarget(target)]),
-    requiredInputs: extractNumericInputs(question),
+    requiredInputs: numericInputs,
     requiredInputConcepts: extractNamedCalculationInputs(question),
   };
 }
@@ -1082,6 +1085,8 @@ function buildProcedureMethodRequirement(
     firstMatch(question, /\bwhat\s+do\s+i\s+do\s+to\s+(?:get|make|create|form)\s+(.+?)(?:[?.]|$)/i) ??
     firstMatch(question, /\bshow\s+me\s+how\s+to\s+(?:get|make|create|form)\s+(.+?)(?:[?.]|$)/i) ??
     firstMatch(question, /\b(?:explain|describe|state|give)\s+(?:the\s+)?steps?\s+(?:for|of|to)\s+(.+?)(?:[?.]|$)/i) ??
+    firstMatch(question, /\b(?:explain|describe|state|give)\s+(?:the\s+)?procedure\s+(?:used\s+)?(?:for|of|to)\s+(.+?)(?:[?.]|$)/i) ??
+    firstMatch(question, /\bhow\s+(?:is|are)\s+(.+?)\s+carried\s+out(?:[?.]|$)/i) ??
     firstMatch(question, /\bwhat\s+method\s+(?:makes?|creates?|forms?)\s+(.+?)(?:[?.]|$)/i);
   if (madeTarget) {
     let target = cleanConcept(madeTarget);
@@ -1503,7 +1508,9 @@ function buildProcessRequirement(
     firstMatch(question, /\b(?:teach|explain|describe)\s+(?:the\s+)?process\s+of\s+(.+?)(?:[?.]|$)/i) ??
     firstMatch(question, /\b(?:teach|explain|describe)\s+(?:the\s+)?(.+?)\s+process(?:[?.]|$)/i) ??
     firstMatch(question, /\b(?:describe|explain)\s+what\s+happens\s+(?:in|during)\s+(.+?)(?:[?.]|$)/i) ??
+    firstMatch(question, /\b(?:teach|explain|describe)\s+how\s+(.+?)\s+(?:takes?\s+place|occurs?)(?:[?.]|$)/i) ??
     firstMatch(question, /\bwhat\s+happens\s+in\s+(.+?)(?:[?.]|$)/i) ??
+    firstMatch(question, /\bwhat\s+happens\s+during\s+(.+?)(?:[?.]|$)/i) ??
     firstMatch(question, /\bhow\s+(?:do|does)\s+(.+?)\s+happen(?:s)?(?:[?.]|$)/i) ??
     firstMatch(question, /\bhow\s+(?:do|does)\s+(.+?)\s+works?(?:[?.]|$)/i);
 
@@ -1580,6 +1587,9 @@ function buildDefinitionRequirement(
     firstMatch(question, /\bdefine\s+(.+?)(?:[?.]|$)/i) ??
     firstMatch(question, /\btell\s+me\s+(?:the\s+)?meaning\s+of\s+(.+?)(?:[?.]|$)/i) ??
     firstMatch(question, /\b(?:state|give)\s+(?:the\s+)?meaning\s+of\s+(.+?)(?:[?.]|$)/i) ??
+    firstMatch(question, /\b(?:give|provide)\s+(?:a\s+)?general\s+explanation\s+of\s+(.+?)(?:[?.]|$)/i) ??
+    firstMatch(question, /\bwhat\s+do\s+we\s+mean\s+by\s+(.+?)(?:[?.]|$)/i) ??
+    firstMatch(question, /\bdescribe\s+(.+?)\s+in\s+(?:ordinary|simple)\s+terms(?:[?.]|$)/i) ??
     firstMatch(question, /\b(?:teach|answer|explain)\s+(?:the\s+)?(.+?)(?:[?.]|$)/i);
 
   if (!concept && !context.contextConcept) return undefined;
