@@ -2313,6 +2313,12 @@ describe("Stage 4 grounding primitives", () => {
     );
     expect(prompt.messages[0].content).toContain("Do not complete an explanation");
     expect(prompt.messages[0].content).toContain("Mitosis produces two genetically identical cells");
+    expect(prompt.messages[0].content).toContain(
+      "supplied evidence contains a relevant Nigerian example"
+    );
+    expect(prompt.messages[0].content).toContain(
+      "Do not introduce Nigerian places, institutions, prices"
+    );
   });
 
   it("uses the segment-based strict provider schema", () => {
