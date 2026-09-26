@@ -1102,20 +1102,13 @@ function buildNumericOptionGroups(numerics: NumericCapability[]) {
   >();
 
   for (const numeric of numerics) {
-    const label = normalizedText(
-      numeric.optionScope ?? numeric.qualifier ?? optionLabelFromQuantity(numeric.quantity)
-    );
+    const label = normalizedText(numeric.optionId ?? "");
     if (!label) continue;
     const existing = groups.get(label) ?? { label, aliases: optionAliases(label) };
-    if (numeric.role === "PRICE" || /price|cost|charge|fee|fare|£|\$|₦|naira|ngn/i.test(numeric.quantity)) {
+    if (numeric.semanticRole === "OPTION_PRICE") {
       existing.price = existing.price ?? numeric;
     }
-    if (
-      numeric.role === "QUANTITY" ||
-      /quantity|items?|count|number|pack|pens?|bottles?|pages?|gb|miles?|kilometres?|kilometers?/i.test(
-        `${numeric.quantity} ${numeric.unit ?? ""}`
-      )
-    ) {
+    if (numeric.semanticRole === "OPTION_QUANTITY") {
       existing.quantity = existing.quantity ?? numeric;
     }
     groups.set(label, existing);
@@ -1161,13 +1154,6 @@ function optionAliases(label: string): string[] {
 
 function comparisonDirectionResolved(requirement: RequestRequirement) {
   return Boolean(requirement.comparisonDirection);
-}
-
-function optionLabelFromQuantity(quantity: string) {
-  const match = normalizedText(quantity).match(
-    /\b((?:option|pack|crate|plan|shop|bundle|ticket)\s+[a-z0-9]+)\b/
-  );
-  return match?.[1] ?? "";
 }
 
 function usesPlaceholderOptions(sides: string[]) {
@@ -2921,7 +2907,7 @@ function findBoundedProbabilityCalculationSupport(
   }) ?? findFormula(requirement, context);
 
   const event = findEventFact(requirement, context);
-  const countSupport = findBoundedProbabilityCountSupport(context);
+  const countSupport = findBoundedProbabilityCountSupport(requirement, context);
 
   if (countSupport) {
     return uniqueSupportRefs([
@@ -3050,7 +3036,10 @@ function hasBoundedProbabilityCountAndTotal(event: EventCapability): boolean {
   return Boolean(match) && Number.isFinite(total) && total > 0;
 }
 
-function findBoundedProbabilityCountSupport(context: MatchContext):
+function findBoundedProbabilityCountSupport(
+  requirement: RequestRequirement,
+  context: MatchContext
+):
   | { favourable: NumericCapability; total: NumericCapability }
   | undefined {
   const favourable = uniqueBy(
@@ -3067,41 +3056,43 @@ function findBoundedProbabilityCountSupport(context: MatchContext):
   const favourableCandidate = favourable[0];
   const total = totals[0];
   if (!favourableCandidate || !total) return undefined;
-  if (!Number.isFinite(total.value) || total.value <= 0) return undefined;
+  if (
+    !Number.isFinite(favourableCandidate.value) ||
+    favourableCandidate.value < 0 ||
+    !Number.isFinite(total.value) ||
+    total.value <= 0 ||
+    favourableCandidate.value > total.value ||
+    !probabilityScopesCompatible(requirement, favourableCandidate, total)
+  ) return undefined;
   return { favourable: favourableCandidate, total };
 }
 
+function probabilityScopesCompatible(
+  requirement: RequestRequirement,
+  favourable: NumericCapability,
+  total: NumericCapability
+) {
+  const favourableScope = normalizedText(favourable.qualifier ?? "");
+  const totalScope = normalizedText(total.qualifier ?? "");
+  if (favourableScope && totalScope && favourableScope !== totalScope) return false;
+  const requestedEvent = normalizedText(requirement.requestedEvent ?? "");
+  const evidenceScope = favourableScope || totalScope;
+  return !requestedEvent || !evidenceScope || semanticTextMatches(evidenceScope, requestedEvent);
+}
+
 function isFavourableOutcomeNumeric(numeric: NumericCapability) {
-  if (numeric.canonicalConcept?.id) {
-    return (
-      numeric.value !== undefined &&
-      Number.isFinite(numeric.value) &&
-      numeric.canonicalConcept.id === "favourable-outcomes"
-    );
-  }
   return (
     numeric.value !== undefined &&
     Number.isFinite(numeric.value) &&
-    /\bfavou?rable\b/.test(
-      normalizedText(`${numeric.quantity} ${numeric.qualifier ?? ""} ${numeric.evidenceSpan.text}`)
-    )
+    numeric.semanticRole === "FAVOURABLE_OUTCOME_COUNT"
   );
 }
 
 function isTotalOutcomeNumeric(numeric: NumericCapability) {
-  if (numeric.canonicalConcept?.id) {
-    return (
-      numeric.value !== undefined &&
-      Number.isFinite(numeric.value) &&
-      numeric.canonicalConcept.id === "total-outcomes"
-    );
-  }
   return (
     numeric.value !== undefined &&
     Number.isFinite(numeric.value) &&
-    /\b(?:total|possible)\b.{0,40}\boutcomes?\b/.test(
-      normalizedText(`${numeric.quantity} ${numeric.qualifier ?? ""} ${numeric.evidenceSpan.text}`)
-    )
+    numeric.semanticRole === "TOTAL_OUTCOME_COUNT"
   );
 }
 
