@@ -930,6 +930,7 @@ function extractNumericValues(
         qualifier: cleanConcept(probabilityFraction[1] ?? ""),
         value: Number(probabilityFraction[2]),
         role: "QUANTITY",
+        semanticRole: "FAVOURABLE_OUTCOME_COUNT",
       }),
       createNumericValue({
         state,
@@ -938,8 +939,33 @@ function extractNumericValues(
         qualifier: cleanConcept(probabilityFraction[1] ?? ""),
         value: Number(probabilityFraction[3]),
         role: "QUANTITY",
+        semanticRole: "TOTAL_OUTCOME_COUNT",
       })
     );
+    const reference = sentence.text.match(
+      /\b(?:simplif(?:ies|y|ied)|equals?|=)\s+(?:to\s+)?([-+]?\d+(?:\.\d+)?)\s*\/\s*([-+]?\d+(?:\.\d+)?)/i
+    );
+    const referenceNumerator = Number(reference?.[1]);
+    const referenceDenominator = Number(reference?.[2]);
+    if (
+      reference &&
+      Number.isFinite(referenceNumerator) &&
+      Number.isFinite(referenceDenominator) &&
+      referenceDenominator !== 0
+    ) {
+      values.push(
+        createNumericValue({
+          state,
+          span: sliceSentenceSpan(sentence, reference.index ?? 0, reference[0].length),
+          quantity: "probability",
+          qualifier: cleanConcept(probabilityFraction[1] ?? ""),
+          value: referenceNumerator / referenceDenominator,
+          unit: `${referenceNumerator}/${referenceDenominator}`,
+          role: "VALUE",
+          semanticRole: "PROBABILITY_REFERENCE_RESULT",
+        })
+      );
+    }
   }
 
   const explicitProbabilityCounts = sentence.text.match(
@@ -953,6 +979,7 @@ function extractNumericValues(
         quantity: "favourable outcomes",
         value: Number(explicitProbabilityCounts[1]),
         role: "QUANTITY",
+        semanticRole: "FAVOURABLE_OUTCOME_COUNT",
       }),
       createNumericValue({
         state,
@@ -960,8 +987,29 @@ function extractNumericValues(
         quantity: "total outcomes",
         value: Number(explicitProbabilityCounts[2]),
         role: "QUANTITY",
+        semanticRole: "TOTAL_OUTCOME_COUNT",
       })
     );
+  }
+
+  if (!/\b(?:not\s+given|not\s+provided|missing|unknown)\b/i.test(sentence.text)) {
+    for (const count of sentence.text.matchAll(
+      /\b(?:the\s+)?(?:number\s+of\s+)?(favou?rable\s+outcomes?|favou?rable\s+outcome\s+count|total\s+outcomes?|total\s+outcome\s+count|possible\s+outcomes?|possible\s+outcome\s+count)\s+(?:is|are|=|equals?)\s+([-+]?\d+(?:\.\d+)?)/gi
+    )) {
+      const favourable = /favou?rable/i.test(count[1] ?? "");
+      values.push(
+        createNumericValue({
+          state,
+          span: sliceSentenceSpan(sentence, count.index ?? 0, count[0].length),
+          quantity: favourable ? "favourable outcomes" : "total outcomes",
+          value: Number(count[2]),
+          role: "QUANTITY",
+          semanticRole: favourable
+            ? "FAVOURABLE_OUTCOME_COUNT"
+            : "TOTAL_OUTCOME_COUNT",
+        })
+      );
+    }
   }
 
   const fairOutcomeCounts = sentence.text.match(
@@ -975,6 +1023,7 @@ function extractNumericValues(
         quantity: "total outcomes",
         value: Number(fairOutcomeCounts[1]),
         role: "QUANTITY",
+        semanticRole: "TOTAL_OUTCOME_COUNT",
       }),
       createNumericValue({
         state,
@@ -983,6 +1032,7 @@ function extractNumericValues(
         qualifier: cleanConcept(fairOutcomeCounts[3] ?? ""),
         value: Number(fairOutcomeCounts[2]),
         role: "QUANTITY",
+        semanticRole: "FAVOURABLE_OUTCOME_COUNT",
       })
     );
   }
@@ -1004,9 +1054,11 @@ function extractNumericValues(
         quantity: "cost",
         qualifier,
         optionScope,
+        optionId: optionScope,
         value: price,
         unit: priceUnit,
         role: "PRICE",
+        semanticRole: "OPTION_PRICE",
       }),
       createNumericValue({
         state,
@@ -1014,9 +1066,11 @@ function extractNumericValues(
         quantity: "quantity",
         qualifier,
         optionScope,
+        optionId: optionScope,
         value: quantity,
         unit: quantityUnit,
         role: "QUANTITY",
+        semanticRole: "OPTION_QUANTITY",
       })
     );
   }
@@ -1124,7 +1178,7 @@ function extractNumericValues(
   return dedupeBy(
     values,
     (value) =>
-      `${normalizeConceptText(value.quantity)}:${value.qualifier ?? ""}:${value.optionScope ?? ""}:${value.role ?? ""}:${value.value}:${value.unit ?? ""}`
+      `${normalizeConceptText(value.quantity)}:${value.qualifier ?? ""}:${value.optionId ?? value.optionScope ?? ""}:${value.role ?? ""}:${value.semanticRole ?? ""}:${value.value}:${value.unit ?? ""}`
   );
 }
 
@@ -2555,7 +2609,9 @@ function createNumericValue(input: {
   unit?: string;
   qualifier?: string;
   optionScope?: string;
+  optionId?: string;
   role?: NumericCapability["role"];
+  semanticRole?: NumericCapability["semanticRole"];
 }): NumericCapability {
   const quantity = canonicalNumericQuantityForFormulaSymbol(input.quantity, input.state);
   return {
@@ -2570,7 +2626,9 @@ function createNumericValue(input: {
     unit: input.unit,
     qualifier: input.qualifier,
     optionScope: input.optionScope ?? optionScopeFromQualifier(input.qualifier),
+    optionId: input.optionId,
     role: input.role,
+    semanticRole: input.semanticRole,
   };
 }
 
