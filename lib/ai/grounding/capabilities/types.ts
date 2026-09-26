@@ -78,7 +78,14 @@ export type NumericCapability = CapabilityBase & {
   unit?: string;
   qualifier?: string;
   optionScope?: string;
+  optionId?: string;
   role?: "PRICE" | "QUANTITY" | "VALUE";
+  semanticRole?:
+    | "FAVOURABLE_OUTCOME_COUNT"
+    | "TOTAL_OUTCOME_COUNT"
+    | "PROBABILITY_REFERENCE_RESULT"
+    | "OPTION_PRICE"
+    | "OPTION_QUANTITY";
 };
 
 export type ExplicitFactCapability = CapabilityBase & {
