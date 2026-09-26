@@ -6,7 +6,6 @@ import type {
 } from "@/lib/ai/chat/types";
 import { supportsStructuredGeneration } from "@/lib/ai/chat/types";
 import { getConfiguredEmbeddingProvider } from "@/lib/ai/embeddings/provider";
-import { GROUNDED_NIGERIAN_CONTEXT_PROMPT_RULES } from "@/lib/ai/prompts/nigerian-context";
 import { PostgresResourceSearchRepository } from "@/lib/resources/retrieval/postgres-resource-search-repository";
 import type {
   RetrievedChunk,
@@ -560,7 +559,6 @@ export function buildCapabilityGroundedTeachPrompt(input: {
     "Use only the validated evidence units assigned to each required task.",
     "Answer every required task listed below.",
     "Do not add related laws, consequences, proportionality statements, examples, explanations, or background knowledge unless they appear explicitly in the validated evidence units supplied for that task.",
-    ...GROUNDED_NIGERIAN_CONTEXT_PROMPT_RULES,
     "Available evidence is not required answer content unless it is assigned to a required task.",
     "Optional evidence details may be omitted when they are not requested.",
     "For worked examples, follow only the validated method and values supplied for that task; do not invent alternate intermediate calculations.",
