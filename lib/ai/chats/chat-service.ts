@@ -18,6 +18,7 @@ import type {
   GenerateResult,
   GenerateUsage,
 } from "@/lib/ai/chat/types";
+import { GENERAL_NIGERIAN_CONTEXT_PROMPT_RULES } from "@/lib/ai/prompts/nigerian-context";
 import { getPaginationMeta } from "@/lib/pagination";
 import { prisma } from "@/lib/prisma";
 import { isGroundedChatEnabled } from "@/lib/ai/grounding/config";
