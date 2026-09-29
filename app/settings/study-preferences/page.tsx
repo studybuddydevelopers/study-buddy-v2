@@ -8,7 +8,18 @@ export const metadata = createPageMetadata({
   index: false,
 });
 
-export default function StudyPreferencesPage() {
-  return <StudyPreferencesClient />;
-}
+export default async function StudyPreferencesPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ from?: string | string[] }>;
+}) {
+  const from = (await searchParams).from;
+  const cameFromProfile = from === "profile";
 
+  return (
+    <StudyPreferencesClient
+      backHref={cameFromProfile ? "/profile" : "/settings"}
+      backLabel={cameFromProfile ? "Back to profile" : "Back to settings"}
+    />
+  );
+}
