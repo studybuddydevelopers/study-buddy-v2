@@ -26,7 +26,7 @@ Auth & Account
 Profile
 -------
 - GET `/profile` (auth) — Fetch current user profile or `null`.
-- PATCH `/profile` (auth) — Partial update/create of profile fields (`firstName`, `middleNames`, `lastNames`, `phoneNumber`, `gradeLevel`, `examYear`, `preferredSubjects`, `avatarUrl`). Returns `{ success: true, profile }`.
+- PATCH `/profile` (auth) — Validated partial update/create of profile fields (`firstName`, `middleNames`, `lastNames`, `phoneNumber`, `gradeLevel`, `examYear`, `preferredSubjects`, `avatarUrl`). Optional fields accept `null` to clear them; preferred-subject IDs must exist. Returns `{ success: true, profile }`.
 
 AI
 --
