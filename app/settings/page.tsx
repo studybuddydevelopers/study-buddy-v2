@@ -4,7 +4,7 @@ import SettingsClient from "./SettingsClient";
 export const metadata = createPageMetadata({
   title: "Settings",
   description:
-    "Open Study Buddy study preferences and account-management settings.",
+    "Manage your Study Buddy profile, study preferences, security, privacy and account controls.",
   index: false,
 });
 
