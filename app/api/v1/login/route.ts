@@ -21,8 +21,12 @@ import {
 } from "@/lib/security/audit-log";
 import { syncAuthAccountStatus } from "@/lib/guardian-authorization";
 import { accountStatusDestination } from "@/lib/account-status";
+import { validateAuthMutationRequest } from "@/lib/security/auth-mutation";
 
 export async function POST(req: Request) {
+  const requestRejection = validateAuthMutationRequest(req);
+  if (requestRejection) return requestRejection;
+
   const parsedBody = await parseJsonRequest(req, REQUEST_LIMITS.publicFormJson);
   if (!parsedBody.ok) return parsedBody.response;
   if (!isRecord(parsedBody.data)) {

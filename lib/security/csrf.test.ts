@@ -84,10 +84,12 @@ describe("cookie-authenticated mutation Origin validation", () => {
     }
   });
 
-  it("does not require Origin when no auth cookie is present", () => {
+  it("leaves no-cookie authentication Origin checks to the route guard", () => {
     vi.stubEnv("NODE_ENV", "production");
     const request = makeRequest("POST", "/api/v1/login");
 
+    // Login/signup enforce validateAuthMutationRequest independently, before
+    // they can create a session. This helper only covers existing cookies.
     expect(validateCookieMutationOrigin(request)).toEqual({ ok: true });
   });
 });

@@ -227,12 +227,31 @@ or ownership). Run `npm run security:verify-database` with the runtime
 connection afterward; a missing grant should be treated as a failed deployment,
 not worked around by restoring the owner credential to the web service.
 
-`APP_ORIGIN` is mandatory for browser mutations carrying a Supabase session
-cookie. Requests with no `Origin`, `Origin: null`, or a different exact origin
+In production, set `APP_ORIGIN` to the browser-facing origin for that environment
+(for example, `https://studybuddyng.com` or `https://staging.studybuddyng.com`),
+not the private Railway service URL. Browser mutations carrying a Supabase session
+cookie, plus login and signup even without a session cookie, require a trusted
+origin. Requests with no `Origin`, `Origin: null`, or a different exact origin
 are rejected with `403 CSRF_VALIDATION_FAILED`. Only add another exact origin to
 `CSRF_TRUSTED_ORIGINS` when an intentional browser frontend needs it. Signed
 Paystack/WhatsApp webhooks and the secret-authenticated recommendation cron are
 excluded because they do not authenticate with browser cookies.
+
+Login and signup additionally require `Content-Type: application/json` (an
+optional charset is allowed); form-encoded, `text/plain`, and missing media types
+return `415 UNSUPPORTED_MEDIA_TYPE`. Both checks run in the route before
+credentials are read, authentication rate-limit counters are consumed, or
+Supabase sign-in/sign-up is called. The existing
+frontend already sends JSON and the browser supplies `Origin`; no new variables
+or database migration are needed. Command-line/integration clients must send
+both headers explicitly. In production an empty origin allowlist fails closed;
+in local development the request's own origin is also allowed.
+
+After deploying to staging, verify a disposable account can sign in and sign up
+normally, and that a cross-site or missing-Origin login POST gets 403 with no
+Supabase session `Set-Cookie`. A trusted-Origin `text/plain` POST must get 415. Do not weaken
+Cloudflare Access or CAPTCHA to run these checks. Local route regressions live
+in `app/api/v1/login/route.test.ts` and `app/api/v1/signup/route.test.ts`.
 
 `TRUSTED_PROXY_PROVIDER=railway` makes the rate limiter use only the first
 address in Railway's `X-Forwarded-For` chain. It intentionally ignores

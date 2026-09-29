@@ -6,6 +6,7 @@ Conventions
 - All endpoints respond with JSON; errors use `{ "error": string }` and relevant HTTP status.
 - Auth uses Supabase session cookies. `requireUser` blocks unauthenticated requests (401). The application has no general administrator role or administration routes. Marking-review support routes have a narrowly scoped user-ID allowlist.
 - Unsafe API requests carrying a Supabase session cookie require an exact trusted `Origin`; signed webhooks and the secret-authenticated recommendation cron are exempt from cookie CSRF handling.
+- Login and signup require a trusted `Origin` even without session cookies, plus `Content-Type: application/json` (optional charset). Invalid/missing origins return `403 CSRF_VALIDATION_FAILED`; other/missing media types return `415 UNSUPPORTED_MEDIA_TYPE` before authentication or session creation. The existing 16 KB body limit still applies.
 - Paths are shown relative to `/api/v1`.
 
 Auth & Account
