@@ -16,7 +16,13 @@ const DEFAULT_SETTINGS: UserSettings = {
   lowDataModeEnabled: false,
 };
 
-export default function StudyPreferencesClient() {
+export default function StudyPreferencesClient({
+  backHref,
+  backLabel,
+}: {
+  backHref: string;
+  backLabel: string;
+}) {
   const [settings, setSettings] = useState<UserSettings>(DEFAULT_SETTINGS);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState<SettingKey | null>(null);
@@ -104,10 +110,10 @@ export default function StudyPreferencesClient() {
     <main className="mx-auto w-[90vw] max-w-3xl space-y-6 py-10">
       <div className="space-y-3">
         <Link
-          href="/settings"
+          href={backHref}
           className="text-sm font-medium text-primary-600 hover:underline"
         >
-          Back to settings
+          {backLabel}
         </Link>
         <div className="flex items-center gap-3">
           <StudyBuddyIcon name="practice" size={52} />
@@ -199,4 +205,3 @@ function SettingToggle({
     </div>
   );
 }
-
