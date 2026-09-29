@@ -2,6 +2,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/auth";
+import { parseProfilePatch } from "@/lib/profile-input";
 import { parseJsonObjectRequest } from "@/lib/security/request-body";
 
 //
@@ -45,40 +46,28 @@ export async function PATCH(req: Request) {
   // -------------------------------------
   const parsedBody = await parseJsonObjectRequest(req);
   if (!parsedBody.ok) return parsedBody.response;
-  const body = parsedBody.data;
+  const parsedProfile = parseProfilePatch(parsedBody.data);
+  if (!parsedProfile.ok) {
+    return NextResponse.json(
+      { error: "INVALID_PROFILE", message: parsedProfile.message },
+      { status: 400 }
+    );
+  }
+  const patch = parsedProfile.data;
 
-  // Allowed fields
-  const {
-    firstName,
-    middleNames,
-    lastNames,
-    phoneNumber,
-    gradeLevel,
-    examYear,
-    preferredSubjects,
-    avatarUrl,
-  } = body;
-
-  const stringFields = {
-    firstName,
-    middleNames,
-    lastNames,
-    phoneNumber,
-    gradeLevel,
-    avatarUrl,
-  };
-  if (
-    Object.values(stringFields).some(
-      (value) => value !== undefined && value !== null && typeof value !== "string"
-    ) ||
-    (examYear !== undefined &&
-      examYear !== null &&
-      (!Number.isInteger(examYear) || typeof examYear !== "number")) ||
-    (preferredSubjects !== undefined &&
-      (!Array.isArray(preferredSubjects) ||
-        preferredSubjects.some((value) => typeof value !== "string")))
-  ) {
-    return NextResponse.json({ error: "Invalid profile fields" }, { status: 400 });
+  if (patch.preferredSubjects?.length) {
+    const validSubjects = await prisma.subject.count({
+      where: { id: { in: patch.preferredSubjects } },
+    });
+    if (validSubjects !== patch.preferredSubjects.length) {
+      return NextResponse.json(
+        {
+          error: "INVALID_PROFILE",
+          message: "Choose subjects that are currently available in Study Buddy.",
+        },
+        { status: 400 }
+      );
+    }
   }
 
   // -------------------------------------
@@ -90,9 +79,7 @@ export async function PATCH(req: Request) {
 
   if (
     !existing &&
-    (typeof firstName !== "string" ||
-      typeof lastNames !== "string" ||
-      typeof phoneNumber !== "string")
+    (!patch.firstName || !patch.lastNames || !patch.phoneNumber)
   ) {
     return NextResponse.json(
       { error: "firstName, lastNames and phoneNumber are required" },
@@ -106,29 +93,19 @@ export async function PATCH(req: Request) {
   const updated = existing
     ? await prisma.userProfile.update({
         where: { userId: dbUser.id },
-        data: {
-          firstName: (firstName as string | undefined) ?? existing.firstName,
-          middleNames: (middleNames as string | null | undefined) ?? existing.middleNames,
-          lastNames: (lastNames as string | undefined) ?? existing.lastNames,
-          phoneNumber: (phoneNumber as string | undefined) ?? existing.phoneNumber,
-          gradeLevel: (gradeLevel as string | null | undefined) ?? existing.gradeLevel,
-          examYear: (examYear as number | null | undefined) ?? existing.examYear,
-          preferredSubjects:
-            (preferredSubjects as string[] | undefined) ?? existing.preferredSubjects,
-          avatarUrl: (avatarUrl as string | null | undefined) ?? existing.avatarUrl,
-        },
+        data: patch,
       })
     : await prisma.userProfile.create({
         data: {
           userId: dbUser.id,
-          firstName: firstName as string,
-          middleNames: middleNames as string | null | undefined,
-          lastNames: lastNames as string,
-          phoneNumber: phoneNumber as string,
-          gradeLevel: gradeLevel as string | null | undefined,
-          examYear: examYear as number | null | undefined,
-          preferredSubjects: (preferredSubjects as string[] | undefined) ?? [],
-          avatarUrl: avatarUrl as string | null | undefined,
+          firstName: patch.firstName!,
+          middleNames: patch.middleNames,
+          lastNames: patch.lastNames!,
+          phoneNumber: patch.phoneNumber!,
+          gradeLevel: patch.gradeLevel,
+          examYear: patch.examYear,
+          preferredSubjects: patch.preferredSubjects ?? [],
+          avatarUrl: patch.avatarUrl,
         },
       });
 
