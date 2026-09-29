@@ -30,6 +30,18 @@ REVOKE CREATE ON SCHEMA public FROM PUBLIC;
 REVOKE ALL PRIVILEGES ON SCHEMA public FROM studybuddy_runtime;
 GRANT USAGE ON SCHEMA public TO studybuddy_runtime;
 
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1
+    FROM pg_namespace
+    WHERE nspname = 'extensions'
+  ) THEN
+    GRANT USAGE ON SCHEMA extensions TO studybuddy_runtime;
+  END IF;
+END
+$$;
+
 REVOKE ALL PRIVILEGES ON ALL TABLES IN SCHEMA public FROM studybuddy_runtime;
 GRANT SELECT, INSERT, UPDATE, DELETE
   ON ALL TABLES IN SCHEMA public
