@@ -1,138 +1,100 @@
 # Beta Readiness
 
-Last updated: 16 September 2026
+Last reviewed: 1 November 2026
+
+This is a public-safe summary, not the live launch register. The restricted
+company register contains current owners, dates, environment identifiers,
+test accounts, evidence links, open findings, thresholds, and go/no-go
+decisions. Those details must not be committed to this public repository.
 
 ## Current position
 
-Study Buddy is technically capable of running as a beta: the application builds,
-the core test suite passes, Railway and the custom domain are active, Cloudflare
-is in front of the site, and the principal authentication, rate-limit, AI-budget,
-security-header, account-lifecycle, and deletion controls are implemented.
+Study Buddy can be deployed as a controlled beta, but a reachable site and a
+successful build are not launch approval. The recommended first release remains
+free and invite-only, with the smallest practical number of users and support
+capacity.
 
-The recommended first release is a **free, invite-only beta for 20–50 users**,
-consistent with the current first-year estimate of approximately 50 registered
-users. Approximately 40 users (80%) are expected to be under 18, so the beta
-must be operated as a predominantly child-facing service.
-Keep paid checkout disabled while the Paystack secret remains a placeholder and
-until automatic-renewal implementation, cancellation, refund, finance, and
-provider-review work is closed.
-Do not enable future school access. Limit administrative upload features to the
-properly configured malware-scanning/CDR environment.
+Keep the following disabled until their separate gates pass:
 
-## Estimate
+- live or automatically renewing payments;
+- AI or WhatsApp access for users under 18 before the children-and-AI assessment
+  and guardian controls are approved;
+- school/teacher access;
+- public upload or ingestion surfaces; and
+- resource-grounded claims or genuine past-question/textbook content without
+  validated evidence and rights.
 
-| Milestone | Estimate | Assumptions |
-| --- | --- | --- |
-| Controlled free beta | 5–10 focused working days | No critical defect in production smoke tests; email, AI, database, and guardian flows work with production settings; co-founders can make outstanding operational decisions promptly |
-| Public beta including paid subscriptions | 3–6 weeks plus external review time | Approved automatic renewal, same-day cancellation and refund rules are implemented, live Paystack setup, monitoring, vendor evidence, and legal/privacy review are completed |
+## Evidence already expected
 
-External provider responses, accountant/legal review, or a critical production
-defect can extend these ranges. The site being reachable is not by itself a beta
-readiness sign-off.
+The private release record should confirm the latest result for:
 
-## Completed production checks
+- build, lint, automated tests, and dependency review;
+- the dedicated least-privilege database runtime identity;
+- production authentication, verification, recovery, logout, and account-state
+  smoke tests;
+- account deletion and scheduled lifecycle work;
+- security headers, origin protection, request limits, and AI budget controls;
+- transactional email delivery and callback origins;
+- anonymous staging security scanning; and
+- the custom domain, TLS, health checks, and deployment rollback path.
 
-- On 13 September 2026, the operator confirmed that the latest navbar/auth-state
-  update was deployed and that the production authentication smoke checks were
-  completed. Re-run these checks after material authentication changes.
-- On 15 September 2026, migration
-  `20260914090000_add_password_reset_security_lock` was applied, all database
-  security assertions passed, and keyed email fingerprints were backfilled for
-  all seven matching application accounts among eleven Supabase Auth records.
-  A live anonymous reset check returned `200` for the first three requests and
-  `429` for the fourth. The operator confirmed real alert delivery, explicit
-  lock activation, old-password rejection, recovery-email password reset,
-  restored access, and the pending-deletion cancellation flow.
-- On 15 September 2026, the app-owned email-confirmation callback and explicit
-  success page were deployed to production. A disposable-account test confirmed
-  that the verification link displays **Email verified** and requires the user
-  to log in explicitly. The production password-reset flow had already been
-  exercised through delivery, callback, password update, and restored access.
-- On 15 September 2026, the operator confirmed that the Railway web service uses
-  the restricted runtime database role through the Supabase session pooler, with
-  the approved three-connection Prisma pool and the same restricted URL used for
-  build-time `DIRECT_URL` validation.
+Public documentation does not record live account counts, exact limits,
+connection-pool values, test identities, run URLs, or detailed test results.
 
-## Work required before the controlled beta
+## Required before inviting beta users
 
-1. **Not started:** Configure actionable monitoring/alerts for health failures, 429 spikes,
-   repeated login failures, webhook-signature failures, lifecycle-cron failures,
-   email failures, and unusual AI usage or spend.
-2. **Partially verified:** The Railway runtime database URL/role and
-   connection-pool settings are verified. Still verify backup expiry/restoration
-   controls and remaining provider regions. Supabase's primary project region
-   is confirmed as North EU (Stockholm), Sweden (`eu-north-1`).
-3. **Status to confirm:** Establish the secure privacy-request/breach registers, assign the remaining
-   incident roles and provider escalations, and exercise the rollback/incident
-   procedure. Nick Efe Oni and Chijindu Oreh are already the mandatory internal
-   breach contacts through `security@studybuddyng.com`, with the privacy mailbox
-   copied.
-4. **Not started:** Implement and test the approved verified-guardian withdrawal operator action:
-   validate a request sent to `privacy@studybuddyng.com`, revoke the child's
-   sessions, restrict the account and AI/WhatsApp activity, notify both parties,
-   and hold the account securely while the guardian selects reauthorisation or
-   permanent deletion.
-5. **Ongoing:** Chijindu Oreh must complete and coordinate the children-and-AI DPIA, obtain
-   qualified privacy review, and secure recorded co-founder approval before any
-   invited user aged 13–17 receives AI or WhatsApp access. Then run the child-
-   focused AI safety test and accessibility smoke test across the sign-up,
-   guardian, chat, settings, and privacy-request paths.
-6. **Ongoing:** Keep contractor material unpublished until Chijindu Oreh obtains the signed
-   rights agreement. Confirm every live learning resource's provenance and
-   display an explicit beta notice, feedback route, known limitations, and
-   support contact. Do not display textbooks or describe content as genuine past
-   examination questions until the required rights are documented.
-7. **Complete for the anonymous staging baseline:** The isolated
-   Railway/Supabase staging environment and GitHub `STAGING_URL` variable are
-   configured, and the workflow refuses production or unapproved targets. The
-   [15 September 2026 final scan](https://github.com/studybuddydevelopers/study-buddy-v2/actions/runs/34990456364)
-   passed with zero medium/high findings. It confirmed the earlier 500,
-   error-disclosure, HSTS and broad image-CSP findings were resolved. The three
-   remaining low cross-origin-isolation observations and informational findings
-   are documented in the Railway security runbook. Authenticated active testing
-   remains a separate future exercise and requires reviewed test credentials and
-   a safe ZAP authentication configuration.
-8. **Implemented; final production evidence pending:** The password-reset abuse
-   alert and user-confirmed temporary-account-lock workflow is deployed; its
-   migration, runtime grants, fingerprint backfill, rate limit, real alert,
-   explicit lock, old-password rejection, recovery, and restored access have
-   been verified. Still record a pre-confirmation login showing that opening the
-   warning page alone changes nothing, a cross-device recovery, privacy-safe
-   production logs, and natural 24-hour provider-lock expiry.
-9. **HTTP exposure removed:** Study Buddy has no administrator role and the
-   unused resource, curriculum, past-question and user-query administration API
-   routes have been removed. Internal ingestion libraries remain dormant. Any
-   future upload/operator surface requires a new authorization design plus
-   harmless-file verification of the private ClamAV and Ghostscript CDR path.
-10. **Ongoing:** Study Buddy meets the DCPMI designation through the education-sector
-   criterion and is likely MDP-OHL. Obtain written confirmation of the tier and
-   six-month trigger date from a qualified Nigerian privacy adviser or licensed
-   DPCO, formally designate a qualified DPO, and complete registration by that
-   deadline without waiting to reach 200 users. Current registration status is
-   **required — not yet filed**.
-11. **Quote-ready, not yet booked:** Complete the independent manual web/API
-   penetration test defined in
-   [`INDEPENDENT_SECURITY_REVIEW.md`](./INDEPENDENT_SECURITY_REVIEW.md) before a
-   large public or paid launch. The staging ZAP baseline does not replace this
-   review. Approve the budget and target date, obtain at least three comparable
-   quotes, sign bounded rules of engagement, fix all critical/high findings and
-   obtain an included retest and closure evidence.
+1. Verify health, error, authentication-abuse, webhook, email, scheduled-job,
+   deletion, and unusual-AI-use alerts in the target environment.
+2. Complete a backup restoration into an isolated environment and record that
+   deleted data cannot silently return to normal live use.
+3. Confirm staging and production are isolated and that private staging access
+   is enforced.
+4. Complete the privacy-request and incident-response operating setup, including
+   secure evidence storage and out-of-band contact resilience.
+5. Complete the children-and-AI assessment and qualified review before any
+   invited user under 18 receives AI or WhatsApp access.
+6. Keep contractor and third-party learning material unpublished until rights
+   and provenance are documented item by item.
+7. Run mobile, desktop, keyboard, low-bandwidth, and account-lifecycle smoke
+   tests against the release candidate.
+8. Verify every company mailbox used for support, privacy, security, and billing
+   has a named daily owner and recovery method.
+9. Record a co-founder go/no-go decision and the accepted residual risks in the
+   restricted launch register.
 
-The approved seven-year transaction lifecycle is the next engineering task and
-is specified in
-[`NEXT_IMPLEMENTATION_TODOS.md`](./compliance/NEXT_IMPLEMENTATION_TODOS.md).
-It is not a blocker for a free beta with payments disabled, but it must be
-complete before paid production use creates records that require automated
-retention enforcement.
+## Required before public or paid launch
+
+- Complete the approved payment, renewal, cancellation, refund, transaction
+  retention, and finance controls.
+- Complete applicable Nigerian privacy registration, DPO, child-protection,
+  transfer, and legal-review work.
+- Commission the bounded independent manual security review described in
+  [Independent Security Review](./INDEPENDENT_SECURITY_REVIEW.md).
+- Close and retest every critical or high-severity finding. Any accepted medium
+  risk needs a named owner, reason, target date, and approval in the restricted
+  risk register.
+- Re-run the production-readiness checks after all material remediation.
 
 ## Beta exit criteria
 
-- No open critical/high defect in authentication, authorisation, payments,
-  privacy deletion, file upload, or AI abuse controls.
-- Production health, logs, alerts, cron jobs, backups, and rollback are verified.
-- Core journeys pass on mobile and desktop with keyboard-only checks.
-- Support, privacy, security, and incident mailboxes have an assigned daily owner.
-- Beta feedback is reviewed on a fixed cadence and releases have a rollback path.
-- Co-founders record a go/no-go decision and accepted residual risks.
-- An independent manual penetration test has been completed against the frozen
-  staging launch candidate; all critical/high findings are closed and retested.
+- No open critical/high defect in authentication, authorisation, privacy
+  deletion, enabled payment/upload flows, or AI abuse controls.
+- Health, logs, alerts, scheduled jobs, backups, restoration, and rollback have
+  current private evidence.
+- Core journeys pass on supported mobile and desktop browsers and with
+  keyboard-only navigation.
+- Support and incident channels have tested ownership and escalation.
+- User feedback and safety reports are reviewed on a fixed cadence.
+- The independent review gate is satisfied before expanding to a large public
+  or paid launch.
+
+## Documentation rule
+
+Update this file when the categories or launch gates change. Update the private
+launch register when a value, owner, result, vulnerability, test account, or
+environment-specific status changes. Never copy private evidence into this
+file.
+
+See [Deployment Guide](./DEPLOYMENT.md),
+[Railway Security Operations](./RAILWAY_SECURITY_OPERATIONS.md), and
+[Security Policy](../SECURITY.md).
