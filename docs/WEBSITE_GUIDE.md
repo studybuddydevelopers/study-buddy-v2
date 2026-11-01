@@ -1,170 +1,206 @@
-# Study Buddy v2 Website Guide
+# Study Buddy frontend guide
 
-This guide maps the current website implementation to the codebase using exact file locations.
+Last checked against the working tree: 1 November 2026.
 
-## 1. Stack
+This is the public contributor map for the website. It describes code in this
+checkout, not a guarantee that every feature is deployed. Notifications are
+implemented locally; staging migration and live verification remain pending.
+Production access, credentials and operational procedures do not belong here.
 
-| Layer | Technology | Main location |
-|--------|------------|---------------|
-| Framework | Next.js 16 App Router | `app/` |
-| UI | React 18 + Tailwind CSS | `app/**/*.tsx`, `components/`, `app/globals.css` |
-| Auth | Supabase SSR cookies | `app/layout.tsx`, `lib/auth.ts`, `lib/getSession.ts`, `lib/supabaseClient.ts` |
-| Database | Prisma + PostgreSQL | `prisma/schema.prisma`, `lib/prisma.ts` |
-| AI | OpenAI API | `app/api/v1/ai/**` |
+## Start here
 
-## 2. App Shell
+- [README](../README.md): overview and local setup.
+- [Codebase breakdown](../CODEBASE_BREAKDOWN.md): responsibility boundaries.
+- [Performance and low-data rules](PERFORMANCE_AND_LOW_DATA_RULEBOOK.md): implementation requirements, not a declaration that every check has passed.
+- [UI review checklist](DMCTN_UI_TASTE_GATE.md): responsive, accessibility and state checks.
+- [AI experience guide](../AI_FEATURES_GUIDE.md): chat, rendering and marking.
+- [Client API reference](../app/api/v1/README.md): integration contracts.
 
-- [`app/layout.tsx`](/Users/efeon/study-buddy-v2/app/layout.tsx): root layout, metadata, global CSS, server-side user lookup
-- [`app/ClientLayoutWrapper.tsx`](/Users/efeon/study-buddy-v2/app/ClientLayoutWrapper.tsx): wraps content with nav, footer, and user context
-- [`app/globals.css`](/Users/efeon/study-buddy-v2/app/globals.css): Tailwind layers and design tokens
+## Stack and shell
 
-## 3. Navigation and Branding
+The frontend uses Next.js 16 App Router, React 18, TypeScript and Tailwind CSS 3.
+Use [package.json](../package.json) and the lockfile for exact dependencies. Read
+the installed Next.js guides under `node_modules/next/dist/docs/` before changing
+framework conventions; do not assume older examples still apply.
 
-- [`components/NavBar.tsx`](/Users/efeon/study-buddy-v2/components/NavBar.tsx): main navigation and auth-aware links
-- [`components/Footer.tsx`](/Users/efeon/study-buddy-v2/components/Footer.tsx): footer links
-- [`components/Logo.tsx`](/Users/efeon/study-buddy-v2/components/Logo.tsx)
-- [`components/LogoIcon.tsx`](/Users/efeon/study-buddy-v2/components/LogoIcon.tsx)
-- [`components/LogoName.tsx`](/Users/efeon/study-buddy-v2/components/LogoName.tsx)
+- [app/layout.tsx](../app/layout.tsx) owns global styles, metadata and initial authentication state.
+- [ClientLayoutWrapper](../app/ClientLayoutWrapper.tsx) composes the header, page-content `<main>`, footer and mobile navigation.
+- [AuthStateProvider](../components/AuthStateProvider.tsx) synchronises the visible shell with login/logout. It is not an authorisation boundary.
+- [NotificationProvider](../components/NotificationProvider.tsx) supplies the unread count.
+- [app/loading.tsx](../app/loading.tsx) uses the SB equalizer loading animation.
 
-## 4. Auth and Session Flow
+Keep metadata in server pages/layouts. Use client components where interaction
+requires them, and pass only the data a screen needs. Dynamic route params and
+search params use the async conventions supported by this Next.js version.
 
-- [`lib/auth.ts`](/Users/efeon/study-buddy-v2/lib/auth.ts): authenticated-user and AI-access guards for route handlers; the app has no administrator role
-- [`lib/getSession.ts`](/Users/efeon/study-buddy-v2/lib/getSession.ts): session helper
-- [`lib/supabaseClient.ts`](/Users/efeon/study-buddy-v2/lib/supabaseClient.ts): browser client
-- [`app/api/v1/signup/route.ts`](/Users/efeon/study-buddy-v2/app/api/v1/signup/route.ts)
-- [`app/api/v1/login/route.ts`](/Users/efeon/study-buddy-v2/app/api/v1/login/route.ts)
-- [`app/api/v1/logout/route.ts`](/Users/efeon/study-buddy-v2/app/api/v1/logout/route.ts)
-- [`app/api/v1/me/route.ts`](/Users/efeon/study-buddy-v2/app/api/v1/me/route.ts)
-- [`app/api/v1/reset-password/route.ts`](/Users/efeon/study-buddy-v2/app/api/v1/reset-password/route.ts)
-- [`app/auth/password-reset/route.ts`](/Users/efeon/study-buddy-v2/app/auth/password-reset/route.ts)
-- [`app/api/v1/account/lifecycle/route.ts`](/Users/efeon/study-buddy-v2/app/api/v1/account/lifecycle/route.ts): deactivate, request/cancel deletion, and reactivate
-- [`app/api/v1/account/deletion/confirm/route.ts`](/Users/efeon/study-buddy-v2/app/api/v1/account/deletion/confirm/route.ts): consumes a one-time email token and begins the deletion window
-- [`app/api/v1/account/deletion/cron/route.ts`](/Users/efeon/study-buddy-v2/app/api/v1/account/deletion/cron/route.ts): inactive-account warning/expiry processing and scheduled permanent purge
-- [`app/account-deactivated/page.tsx`](/Users/efeon/study-buddy-v2/app/account-deactivated/page.tsx) and [`app/account-deletion-pending/page.tsx`](/Users/efeon/study-buddy-v2/app/account-deletion-pending/page.tsx): restricted account state pages
-- [`app/account-deletion/confirm/page.tsx`](/Users/efeon/study-buddy-v2/app/account-deletion/confirm/page.tsx): deliberate final confirmation page reached from the one-time email link
+The shell supplies the main landmark. New page content should use a `div`,
+`section` or `article`, not another `main`. Some existing account/settings views
+still need landmark cleanup; do not claim site-wide conformance from the shell alone.
 
-## 5. Shared UI Building Blocks
+## Navigation and responsive behaviour
 
-- headings: [`components/Heading1.tsx`](/Users/efeon/study-buddy-v2/components/Heading1.tsx) through [`components/Heading6.tsx`](/Users/efeon/study-buddy-v2/components/Heading6.tsx)
-- text: [`components/Paragraph.tsx`](/Users/efeon/study-buddy-v2/components/Paragraph.tsx), [`components/Caption.tsx`](/Users/efeon/study-buddy-v2/components/Caption.tsx), [`components/Small.tsx`](/Users/efeon/study-buddy-v2/components/Small.tsx)
-- forms: [`components/TextField.tsx`](/Users/efeon/study-buddy-v2/components/TextField.tsx), [`components/SelectField.tsx`](/Users/efeon/study-buddy-v2/components/SelectField.tsx), [`components/MultiSelectField.tsx`](/Users/efeon/study-buddy-v2/components/MultiSelectField.tsx)
-- general UI: [`components/Button.tsx`](/Users/efeon/study-buddy-v2/components/Button.tsx), [`components/Card.tsx`](/Users/efeon/study-buddy-v2/components/Card.tsx), [`components/Badge.tsx`](/Users/efeon/study-buddy-v2/components/Badge.tsx), [`components/ProgressBar.tsx`](/Users/efeon/study-buddy-v2/components/ProgressBar.tsx), [`components/Table.tsx`](/Users/efeon/study-buddy-v2/components/Table.tsx)
-- chat UI: [`components/ChatMessage.tsx`](/Users/efeon/study-buddy-v2/components/ChatMessage.tsx), [`components/ChatMessageContainer.tsx`](/Users/efeon/study-buddy-v2/components/ChatMessageContainer.tsx)
+- [NavBar](../components/NavBar.tsx) shows desktop product links at **1110px and wider**.
+- Below 1110px, authenticated learners use the six-tab [BottomNav](../components/BottomNav.tsx): Home, Materials, Exams, Progress, Chat and Profile. Do not restore the legacy mobile menu.
+- The approved profile SVG remains in both navigation variants. Settings is reached through Profile, not an extra bottom-nav tab.
+- [NotificationBell](../components/NotificationBell.tsx) preserves the existing bell and opens the inbox on mobile and desktop. Unknown counts must not be presented as zero.
+- The mobile bar includes the device safe area; the shell reserves footer clearance.
+- [Footer](../components/Footer.tsx) uses two columns up to 768px and wrapping links from 769px.
+- Root horizontal padding drops to **7.5px only at 320px or narrower**. This is not a blanket padding rule for nested cards.
+- Home calls to action stack at 425px and below, becoming horizontal from 426px.
 
-## 6. Public Pages
+Test 320, 375, 425, 426, 634, 768, 769, 852, 1024, 1109, 1110 and 1440 CSS-pixel
+viewports. These are regression checkpoints, not universal breakpoints. Also
+check long text, browser zoom, the on-screen keyboard and safe-area spacing.
 
-- landing: [`app/page.tsx`](/Users/efeon/study-buddy-v2/app/page.tsx), [`app/ClientLanding.tsx`](/Users/efeon/study-buddy-v2/app/ClientLanding.tsx)
-- about: [`app/about-us/page.tsx`](/Users/efeon/study-buddy-v2/app/about-us/page.tsx)
-- contact: [`app/contact-us/page.tsx`](/Users/efeon/study-buddy-v2/app/contact-us/page.tsx)
-- privacy: [`app/privacy-policy/page.tsx`](/Users/efeon/study-buddy-v2/app/privacy-policy/page.tsx)
-- terms: [`app/terms-of-service/page.tsx`](/Users/efeon/study-buddy-v2/app/terms-of-service/page.tsx)
+## Brand and shared UI
 
-## 7. Auth Pages
+The approved small brand mark is **SB**, not the old cube. The home illustration
+is a separate brand illustration, not a navigation logo. Preserve the approved
+profile avatar and bell rather than applying a blanket icon swap.
 
-- login: [`app/login/page.tsx`](/Users/efeon/study-buddy-v2/app/login/page.tsx), [`app/login/LoginClient.tsx`](/Users/efeon/study-buddy-v2/app/login/LoginClient.tsx)
-- sign-up: [`app/sign-up/page.tsx`](/Users/efeon/study-buddy-v2/app/sign-up/page.tsx), [`app/sign-up/SignUpClient.tsx`](/Users/efeon/study-buddy-v2/app/sign-up/SignUpClient.tsx)
-- forgot password: [`app/forgot-password/page.tsx`](/Users/efeon/study-buddy-v2/app/forgot-password/page.tsx), [`app/forgot-password/ForgotPasswordClient.tsx`](/Users/efeon/study-buddy-v2/app/forgot-password/ForgotPasswordClient.tsx)
-- reset password update: [`app/reset-password/update/page.tsx`](/Users/efeon/study-buddy-v2/app/reset-password/update/page.tsx), [`app/reset-password/update/ResetPasswordUpdateClient.tsx`](/Users/efeon/study-buddy-v2/app/reset-password/update/ResetPasswordUpdateClient.tsx)
-- email check: [`app/check-email/page.tsx`](/Users/efeon/study-buddy-v2/app/check-email/page.tsx), [`app/check-email/CheckEmailClient.tsx`](/Users/efeon/study-buddy-v2/app/check-email/CheckEmailClient.tsx)
-- verify email: [`app/verify-email/page.tsx`](/Users/efeon/study-buddy-v2/app/verify-email/page.tsx), [`app/verify-email/ClientEmailVerify.tsx`](/Users/efeon/study-buddy-v2/app/verify-email/ClientEmailVerify.tsx)
-- state pages: [`app/unauthorized/page.tsx`](/Users/efeon/study-buddy-v2/app/unauthorized/page.tsx), [`app/already-logged-in/page.tsx`](/Users/efeon/study-buddy-v2/app/already-logged-in/page.tsx)
+- [LogoName](../components/LogoName.tsx): Study Buddy wordmark in `#6C3483`.
+- [StudyBuddyIcon](../components/StudyBuddyIcon.tsx): contextual illustration-style SVG icons.
+- [SbSequentialFillPreview](../components/SbSequentialFillPreview.tsx): despite its historical filename, named exports supply live SB animations. Equalizer/volume bars serve loading; login/signup use splash motion; reset-link error presentation uses diagonal brushing.
+- [app/favicon.svg](../app/favicon.svg) and [public/logo-icon.svg](../public/logo-icon.svg): SB on rounded white backing.
 
-## 8. Dashboard
+The old Logo/LogoIcon components remain in source but are not the current
+navigation implementation. Temporary icon-audit and logo-preview pages are not
+current product routes; do not recreate them as shipped pages.
 
-- [`app/dashboard/page.tsx`](/Users/efeon/study-buddy-v2/app/dashboard/page.tsx): fetches current user, full progress, and AI recommendations
-- [`app/dashboard/DashboardClient.tsx`](/Users/efeon/study-buddy-v2/app/dashboard/DashboardClient.tsx): renders dashboard content
-- [`app/dashboard/dashboard.types.ts`](/Users/efeon/study-buddy-v2/app/dashboard/dashboard.types.ts): shared response types
+Use the existing palettes, not a new brighter purple:
 
-Settings are organised as a hub with dedicated sections:
+- Brand/icon purple: `#6C3483`; illustration deep purple: `#3B2A56`.
+- Icon lavender: `#E9E6ED`; warm brown: `#895033`; gold: `#F6CE46`.
+- UI `primary-500`: `#6247AA`; UI `primary-700`: `#4A3480`.
+- Background: `#FFFFFF`; foreground: `#171717`.
 
-- [`app/settings/page.tsx`](/Users/efeon/study-buddy-v2/app/settings/page.tsx): settings section cards
-- [`app/settings/study-preferences/page.tsx`](/Users/efeon/study-buddy-v2/app/settings/study-preferences/page.tsx): draft syncing and low-data controls
-- [`app/settings/account/page.tsx`](/Users/efeon/study-buddy-v2/app/settings/account/page.tsx): deactivation and permanent-deletion controls
+Brand colours and the UI primary scale are related but **not identical**.
+[globals.css](../app/globals.css), [tailwind.config.js](../tailwind.config.js) and
+the icon component are the source of truth. Preserve full SVG view boxes and use
+containment when illustrations must not be cropped.
 
-## 9. Study Materials
+The system font stack avoids separate font downloads. At the default 16px root,
+Tailwind `text-xs` is 15px and `text-sm` is 16px. Explicit component sizes can
+differ; this is not a blanket minimum-size or accessibility guarantee. Prefer
+comfortable text, visible focus indicators and 44px interaction targets.
 
-- [`app/materials/page.tsx`](/Users/efeon/study-buddy-v2/app/materials/page.tsx): loads materials overview
-- [`app/materials/MaterialsClient.tsx`](/Users/efeon/study-buddy-v2/app/materials/MaterialsClient.tsx): subject/topic cards and progress
-- [`app/materials/practice/[topicId]/page.tsx`](/Users/efeon/study-buddy-v2/app/materials/practice/[topicId]/page.tsx): topic shell for practice route
-- [`app/materials/practice/[topicId]/TopicPracticeClient.tsx`](/Users/efeon/study-buddy-v2/app/materials/practice/[topicId]/TopicPracticeClient.tsx): question drill flow
-- [`lib/materials-display.ts`](/Users/efeon/study-buddy-v2/lib/materials-display.ts): subject ordering and display labels
+Reuse the existing Button, form, Card, Badge, ProgressBar, heading/text components,
+[FormErrorMessage](../components/FormErrorMessage.tsx),
+[LocalDateTime](../components/LocalDateTime.tsx) and
+[PolicyDocumentPage](../components/PolicyDocumentPage.tsx).
+Icon-only controls need accessible names; decorative images should not repeat adjacent text.
 
-Supporting APIs:
+## Page map and behaviour
 
-- [`app/api/v1/materials/overview/route.ts`](/Users/efeon/study-buddy-v2/app/api/v1/materials/overview/route.ts)
-- [`app/api/v1/past-questions/by-topic/route.ts`](/Users/efeon/study-buddy-v2/app/api/v1/past-questions/by-topic/route.ts)
-- [`app/api/v1/past-questions/attempt/route.ts`](/Users/efeon/study-buddy-v2/app/api/v1/past-questions/attempt/route.ts)
-- [`app/api/v1/past-questions/explanation/route.ts`](/Users/efeon/study-buddy-v2/app/api/v1/past-questions/explanation/route.ts)
+### Public information and account journeys
 
-## 10. Mock Exams
+[The landing page](../app/ClientLanding.tsx) has an illustrated hero and uncropped,
+alternating feature rows. About and Contact introduce the product and support.
+The footer links to Privacy, Terms, Refunds, Student Privacy, AI Safety, Cookies,
+Accessibility and Content Policy. Do not claim official WAEC affiliation,
+guaranteed grades or licensed content solely because a route or illustration exists.
 
-- [`app/exams/page.tsx`](/Users/efeon/study-buddy-v2/app/exams/page.tsx): exam template listing page
-- [`app/exams/MockExamsClient.tsx`](/Users/efeon/study-buddy-v2/app/exams/MockExamsClient.tsx): start-exam flow
-- [`app/exams/[instanceId]/page.tsx`](/Users/efeon/study-buddy-v2/app/exams/[instanceId]/page.tsx): exam instance shell
-- [`app/exams/ExamInstanceClient.tsx`](/Users/efeon/study-buddy-v2/app/exams/ExamInstanceClient.tsx): exam-taking UI
-- [`lib/mock-exam-multiple-choice.ts`](/Users/efeon/study-buddy-v2/lib/mock-exam-multiple-choice.ts): deterministic option generation
+Login/signup use inline errors, not browser `alert()` popups. Account journeys
+include email verification, age/guardian decisions, password reset, security
+alert/recovery, deletion confirmation, deactivation and deletion-pending views.
+Provide distinct checking, incomplete-link, working, success and failure states.
+Never include a real recovery URL or token in screenshots or public examples.
 
-Supporting APIs:
+### Dashboard
 
-- [`app/api/v1/mock-exams/mock-exam-templates/route.ts`](/Users/efeon/study-buddy-v2/app/api/v1/mock-exams/mock-exam-templates/route.ts)
-- [`app/api/v1/mock-exams/start/route.ts`](/Users/efeon/study-buddy-v2/app/api/v1/mock-exams/start/route.ts)
-- [`app/api/v1/mock-exams/instance/route.ts`](/Users/efeon/study-buddy-v2/app/api/v1/mock-exams/instance/route.ts)
-- [`app/api/v1/mock-exams/save-progress/route.ts`](/Users/efeon/study-buddy-v2/app/api/v1/mock-exams/save-progress/route.ts)
-- [`app/api/v1/mock-exams/submit/route.ts`](/Users/efeon/study-buddy-v2/app/api/v1/mock-exams/submit/route.ts)
-- [`app/api/v1/mock-exams/grade/route.ts`](/Users/efeon/study-buddy-v2/app/api/v1/mock-exams/grade/route.ts)
+[DashboardClient](../app/dashboard/DashboardClient.tsx) presents continuation,
+today's tasks, weekly activity and focus topics. Its
+[server page](../app/dashboard/page.tsx) loads current-user data and the dashboard
+summary; it does not generate AI recommendations on every visit. Resume choices
+can incorporate local practice drafts.
 
-## 11. Progress
+### Materials and practice
 
-- [`app/progress/page.tsx`](/Users/efeon/study-buddy-v2/app/progress/page.tsx): fetches full report
-- [`app/progress/ProgressClient.tsx`](/Users/efeon/study-buddy-v2/app/progress/ProgressClient.tsx): renders user performance summary
+[MaterialsClient](../app/materials/MaterialsClient.tsx) provides featured entry
+points and subject/topic navigation. Routes include past questions, flashcards,
+textbooks and topic practice. Route existence does not establish that a content
+catalogue is populated or approved for publication.
+[TopicPracticeClient](../app/materials/practice/[topicId]/TopicPracticeClient.tsx)
+handles practice, feedback and drafts. Preserve pagination and low-data preferences.
 
-Supporting APIs:
+### Mock exams, marking and reviews
 
-- [`app/api/v1/progress/full-report/route.ts`](/Users/efeon/study-buddy-v2/app/api/v1/progress/full-report/route.ts)
-- [`app/api/v1/progress/subject/route.ts`](/Users/efeon/study-buddy-v2/app/api/v1/progress/subject/route.ts)
-- [`app/api/v1/progress/update/route.ts`](/Users/efeon/study-buddy-v2/app/api/v1/progress/update/route.ts)
+[MockExamsHub](../app/exams/MockExamsHub.tsx) groups sessions into Full WAEC Mock
+Exam, Quick Practice, Standard Practice and Exam Readiness Practice. Each opens
+a category page before the selected attempt. Current template choices are
+Mathematics-focused; do not imply equivalent papers exist for every subject.
 
-## 12. Chat and AI
+[ExamInstanceClient](../app/exams/ExamInstanceClient.tsx) handles answers, saving,
+submission and results. Written Paper 2 requires **5 AI credits per new attempt**,
+including a repeat of the same template. Use server-supplied availability/balance;
+the browser must not decide credit accounting or promise successful admission.
 
-- [`app/chat/page.tsx`](/Users/efeon/study-buddy-v2/app/chat/page.tsx)
-- [`app/chat/ChatClient.tsx`](/Users/efeon/study-buddy-v2/app/chat/ChatClient.tsx): saved web-chat UI, including confirmation before permanent chat deletion
-- [`lib/ai/chats/chat-service.ts`](/Users/efeon/study-buddy-v2/lib/ai/chats/chat-service.ts): persistent web-chat lifecycle and ownership-scoped hard deletion
-- [`lib/whatsapp-flow.ts`](/Users/efeon/study-buddy-v2/lib/whatsapp-flow.ts): WhatsApp tutoring flow; only bounded recent context is sent for generation
-- [`lib/whatsapp-retention.ts`](/Users/efeon/study-buddy-v2/lib/whatsapp-retention.ts): exact two-step WhatsApp chat-deletion commands and recent-context bounds
-- [`lib/whatsapp-thread.ts`](/Users/efeon/study-buddy-v2/lib/whatsapp-thread.ts): WhatsApp thread creation and cascading hard deletion
+[MarkingReviewPanel](../app/exams/MarkingReviewPanel.tsx) reports a specific answer
+without asking the learner to re-enter the question. `/marking-reviews` lists
+cases; `/marking-reviews/[id]` shows the question, submitted answer, original/current
+marks and support decision, with an exact-answer link into the paper. These are
+practice marks, not official examination grades.
 
-Supporting APIs:
+### Progress
 
-- [`app/api/v1/ai/messages/route.ts`](/Users/efeon/study-buddy-v2/app/api/v1/ai/messages/route.ts)
-- [`app/api/v1/ai/questions/create/route.ts`](/Users/efeon/study-buddy-v2/app/api/v1/ai/questions/create/route.ts)
-- [`app/api/v1/ai/questions/list/route.ts`](/Users/efeon/study-buddy-v2/app/api/v1/ai/questions/list/route.ts)
-- [`app/api/v1/ai/questions/[id]/reply/route.ts`](/Users/efeon/study-buddy-v2/app/api/v1/ai/questions/[id]/reply/route.ts)
-- [`app/api/v1/ai/recommendations/route.ts`](/Users/efeon/study-buddy-v2/app/api/v1/ai/recommendations/route.ts)
-- [`app/api/v1/ai/recommendations/cron/route.ts`](/Users/efeon/study-buddy-v2/app/api/v1/ai/recommendations/cron/route.ts)
+[ProgressClient](../app/progress/ProgressClient.tsx) separates coverage, practice
+accuracy and mock performance. An attempt is not mastery. Multiple next actions
+can be shown, with evidence requirements for weak-topic recommendations.
 
-Saved AI and WhatsApp conversations remain available while the account is active.
-They are removed when the user deletes the conversation, permanently deletes the
-account, or reaches the approved 36-month deactivated-account expiry. Web chat
-deletion is permanent in the live database. WhatsApp users must send `DELETE MY
-CHAT` and then, within 15 minutes, the exact confirmation command shown by the
-bot. Deletion-control messages are excluded from model context.
+- Range controls use **Last [7] [30] [90] days** with calendar-style links.
+- Subject/topic filters and mock-history pagination are preserved in the URL.
+- Trend data has one point per day, not multi-day bars. The responsive chart
+  shows activity and has a data alternative; daily grouping uses UTC.
+- Honest overview, Recommended next actions and Subject goals use swipeable
+  cards **below 769px**, with centred keyboard-reachable dot controls and no arrows.
+  Wider screens use grids.
+- Mock results use a compact mobile list below 769px and a table above it.
+- No-data, insufficient-evidence and request-failure states are distinct.
 
-## 13. Other Backend Domains
+### Profile and settings
 
-- profile: [`app/api/v1/profile/route.ts`](/Users/efeon/study-buddy-v2/app/api/v1/profile/route.ts)
-- subscriptions: [`app/api/v1/subscriptions/list/route.ts`](/Users/efeon/study-buddy-v2/app/api/v1/subscriptions/list/route.ts), [`app/api/v1/subscriptions/[id]/status/route.ts`](/Users/efeon/study-buddy-v2/app/api/v1/subscriptions/[id]/status/route.ts)
-- payments: [`app/api/v1/payments/verify/route.ts`](/Users/efeon/study-buddy-v2/app/api/v1/payments/verify/route.ts), [`app/api/v1/payments/webhook/route.ts`](/Users/efeon/study-buddy-v2/app/api/v1/payments/webhook/route.ts)
-- there are no `/api/v1/admin/*` routes or application administrator accounts
+[Profile](../app/profile/page.tsx) shows study/account details, plan/credits and
+a centred mobile avatar with fitted white backing. Edit profile is a primary
+action; All settings is separate from Quick actions.
 
-## 14. Data Layer
+`/settings` links to profile details, study preferences and account management.
+Profile-origin links use `from=profile` so child screens say **Back to profile**;
+otherwise they return to Settings. There is no additional Password and security
+card in the current settings hub.
 
-- Prisma schema: [`prisma/schema.prisma`](/Users/efeon/study-buddy-v2/prisma/schema.prisma)
-- migrations: [`prisma/migrations`](/Users/efeon/study-buddy-v2/prisma/migrations)
-- seed orchestrator: [`prisma/seed/index.ts`](/Users/efeon/study-buddy-v2/prisma/seed/index.ts)
-- seed content: [`prisma/seed/subjects.ts`](/Users/efeon/study-buddy-v2/prisma/seed/subjects.ts), [`prisma/seed/topics.ts`](/Users/efeon/study-buddy-v2/prisma/seed/topics.ts), [`prisma/seed/questions.ts`](/Users/efeon/study-buddy-v2/prisma/seed/questions.ts), [`prisma/seed/mockTemplates.ts`](/Users/efeon/study-buddy-v2/prisma/seed/mockTemplates.ts)
+### Chat
 
-## 15. Operational Notes
+[ChatClient](../app/chat/ChatClient.tsx) is a saved-chat experience with thread
+selection, title editing, history, generation status, retry and deletion
+confirmation. It is not the legacy stateless quick-chat endpoint. Save/delete
+use familiar white pencil/bin icons.
 
-- dynamic route pages such as materials practice and exam instances use App Router route params
-- app routes and API handlers assume Supabase cookies for auth
-- route-level API behavior is documented in [`app/api/v1/README.md`](/Users/efeon/study-buddy-v2/app/api/v1/README.md)
+[ChatMarkdown](../components/ChatMarkdown.tsx) uses Streamdown, KaTeX and syntax
+highlighting, with [math normalisation](../lib/markdown-math.ts). Keep formulas,
+code and tables readable on small screens. Handling incomplete Markdown does
+not imply token-streamed transport: the current renderer uses static mode and
+the client waits for message responses. See the [AI guide](../AI_FEATURES_GUIDE.md).
+
+### Notifications
+
+The locally implemented [inbox](../app/notifications/NotificationsClient.tsx)
+has pagination, refresh, read/unread actions and bulk read marking. Opening a
+decision marks its notification read after mounting, not during link prefetch.
+Save failures are retryable. Decisions include both upheld and adjusted marks;
+copy must describe decreases honestly too.
+
+The bell refreshes on visible-page entry/focus and periodically while visible.
+This is in-app notification delivery, not browser push or email. Preserve its
+**pending staging verification** status in release notes.
+
+## Metadata, accessibility and verification
+
+Use [createPageMetadata](../lib/site-metadata.ts) for titles/descriptions and
+matching social metadata. A page or its route-specific layout owns this metadata.
+Public pages are listed in the sitemap; account/product pages use non-indexing
+metadata. Robots directives are indexing hints, **not access control**.
+
+Check focus order, headings/landmarks, labels, contrast, zoom, reduced motion
+and error announcements. Do not claim WCAG or Apple-guideline conformance without
+an appropriately scoped review. The [UI checklist](DMCTN_UI_TASTE_GATE.md) separates
+automated checks from browser evidence and records frontend follow-up work.
