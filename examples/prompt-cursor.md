@@ -1,14 +1,16 @@
 # Frontend task prompt template
 
 Use this with the [Study Buddy UI checklist](../docs/DMCTN_UI_TASTE_GATE.md).
+Follow the [frontend change process](../docs/FRONTEND_CHANGE_PROCESS.md).
 Replace the bracketed task text; never insert real credentials or learner data.
 
 ```text
 Task: [Describe the requested UI or documentation change.]
 Scope: [Name the routes/components and any explicit exclusions.]
 
-Read AGENTS.md, docs/WEBSITE_GUIDE.md and the installed Next.js guide relevant
-to this change. Inspect the existing implementation before editing.
+Read AGENTS.md, docs/FRONTEND_CHANGE_PROCESS.md, docs/WEBSITE_GUIDE.md and the
+installed Next.js guide relevant to this change. Inspect the implementation
+before editing.
 
 1. State the current behaviour, requested change and verifiable success criteria.
 2. Preserve the approved SB branding, contextual icons, profile avatar, bell,
@@ -25,6 +27,9 @@ to this change. Inspect the existing implementation before editing.
    browser results. Do not invent screenshots or claim checks that did not run.
 8. Summarise changed files, outcomes and remaining non-sensitive work in the
    response. Create an evidence document only if requested, using synthetic data.
+9. Update relevant documentation and docs/FRONTEND_BUG_AND_FIX_HISTORY.md for
+   fixes. Hand off for user-owned commits and authorised staging-first
+   integration; report whether browser/staging acceptance is still pending.
 ```
 
 Generic design-skill suggestions do not override Study Buddy's approved design
