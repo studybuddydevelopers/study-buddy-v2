@@ -1,130 +1,99 @@
-# AI Features Guide
+# AI experience guide
 
-This document lists the current AI features in Study Buddy v2 and where their implementation lives.
+Last checked against the working tree: 1 November 2026.
 
-## AI Features In Scope
+This guide covers the learner-facing experience and frontend integration, not
+production credentials, privileged access configuration or adversarial test
+payloads. Source availability is not proof of production activation.
 
-The app currently uses OpenAI for three product behaviors:
+## Saved study chat
 
-- quick AI chat
-- persistent AI question threads
-- personalized study recommendations
+The main `/chat` page uses [ChatClient](app/chat/ChatClient.tsx) and the persistent
+`/api/v1/ai/chats` family. Learners can:
 
-All AI route handlers live under [`app/api/v1/ai`](/Users/efeon/study-buddy-v2/app/api/v1/ai).
+- Create/select saved chats with supported subject/topic context.
+- Rename a chat using its title-save control.
+- Reopen conversations after refresh and load paginated history.
+- See pending, completed and failed generation states.
+- Retry a failed reply without creating a second copy of their question.
+- Permanently delete a chat after explicit confirmation.
 
-## Model Usage
+White pencil/bin icons remain on save/delete actions. Conversation and chat-list
+panels have their own scroll areas. Auto-scroll logic already exists; test
+changes against long histories and learners reading older messages rather than
+describing it as an entirely missing feature.
 
-Current routes call `gpt-4o-mini`.
+Reusable presentation lives in [ChatMessage](components/ChatMessage.tsx),
+[ChatMessageContainer](components/ChatMessageContainer.tsx) and
+[chatFailureCopy](components/chatFailureCopy.ts). Display safe user-facing copy,
+not raw provider/server errors.
 
-OpenAI is used in:
+## Markdown and maths
 
-- [`app/api/v1/ai/messages/route.ts`](/Users/efeon/study-buddy-v2/app/api/v1/ai/messages/route.ts)
-- [`app/api/v1/ai/questions/create/route.ts`](/Users/efeon/study-buddy-v2/app/api/v1/ai/questions/create/route.ts)
-- [`app/api/v1/ai/questions/[id]/reply/route.ts`](/Users/efeon/study-buddy-v2/app/api/v1/ai/questions/[id]/reply/route.ts)
-- [`app/api/v1/ai/recommendations/route.ts`](/Users/efeon/study-buddy-v2/app/api/v1/ai/recommendations/route.ts)
-- [`app/api/v1/ai/recommendations/cron/route.ts`](/Users/efeon/study-buddy-v2/app/api/v1/ai/recommendations/cron/route.ts)
+[ChatMarkdown](components/ChatMarkdown.tsx) uses Streamdown, KaTeX,
+GitHub-flavoured Markdown support and syntax highlighting.
+[Math normalisation](lib/markdown-math.ts) prepares common model formatting.
 
-## 1. Quick Chat
+- Test inline/display maths, `\cup`, `\cap`, fractions, escaped delimiters, mixed prose, lists, tables and code fences.
+- Keep wide formulas, tables and code scrollable within their containers.
+- Keep KaTeX's assistive-technology layer available without displaying a second visible copy.
+- External image references render as text placeholders, not automatic downloads.
+- Code blocks provide copying; external links identify that they open a new tab.
+- Do not replace this pipeline with direct insertion of model-generated HTML.
 
-Frontend:
+Handling incomplete Markdown does not establish live token streaming. The
+current renderer uses static mode and chat sends receive completed response
+payloads. Malformed output still needs regression coverage; no renderer
+guarantees that arbitrary broken maths can be repaired.
 
-- [`app/chat/page.tsx`](/Users/efeon/study-buddy-v2/app/chat/page.tsx)
-- [`app/chat/ChatClient.tsx`](/Users/efeon/study-buddy-v2/app/chat/ChatClient.tsx)
-- [`components/ChatMessage.tsx`](/Users/efeon/study-buddy-v2/components/ChatMessage.tsx)
-- [`components/ChatMessageContainer.tsx`](/Users/efeon/study-buddy-v2/components/ChatMessageContainer.tsx)
+## General versus source-backed answers
 
-Backend:
+The default described experience is persistent general study chat, not a
+guarantee of grounding in approved resources. Conditional citation support
+exists for the source-backed pipeline, but release requires the separate AI
+acceptance process. Do not advertise citations, official WAEC answers,
+guaranteed accuracy or tutor modes solely because the UI supports a future
+response shape.
 
-- [`app/api/v1/ai/messages/route.ts`](/Users/efeon/study-buddy-v2/app/api/v1/ai/messages/route.ts)
+Model/provider selection is a server concern. Do not hard-code a production
+model name into frontend copy or expose provider credentials in browser props,
+public environment variables, logs or screenshots.
 
-Behavior:
+## Written mock-exam marking
 
-- requires an authenticated user
-- accepts `message` plus optional `subjectId` and `topicId`
-- sends a concise tutoring-style prompt to OpenAI
-- returns `userMessage`, `aiResponse`, and `meta`
-- does not save chat history to the database
+[ExamInstanceClient](app/exams/ExamInstanceClient.tsx) presents written marking,
+explanations and results. Paper 2 requires **5 AI credits per new attempt**;
+repeating a template starts another chargeable attempt. Use server-supplied
+eligibility/balance and display insufficient-credit and retry states clearly.
 
-## 2. AI Question Threads
+[MarkingReviewPanel](app/exams/MarkingReviewPanel.tsx) creates a case for the
+specific answer the learner disputes. Review list/detail pages show the
+reference, status, original/current scores and support decision. The locally
+implemented notification centre reports resolved reviews; staging migration
+and live checks are still pending.
 
-This is the persistent AI conversation feature.
+AI marks are practice feedback, not official grades. Reporting a mark does not
+replace marking-quality evaluation or communicating uncertainty.
 
-Backend files:
+## Recommendations and legacy interfaces
 
-- create thread: [`app/api/v1/ai/questions/create/route.ts`](/Users/efeon/study-buddy-v2/app/api/v1/ai/questions/create/route.ts)
-- list threads: [`app/api/v1/ai/questions/list/route.ts`](/Users/efeon/study-buddy-v2/app/api/v1/ai/questions/list/route.ts)
-- reply in thread: [`app/api/v1/ai/questions/[id]/reply/route.ts`](/Users/efeon/study-buddy-v2/app/api/v1/ai/questions/[id]/reply/route.ts)
+Persisted AI recommendations and legacy AiQuestion threads remain in the
+backend. The legacy `/api/v1/ai/messages` endpoint is stateless; that description
+must not be applied to today's saved-chat screen.
 
-Database models:
+The dashboard uses its study-activity summary and topic recommendations.
+Progress derives next actions from recorded learning evidence. Do not label
+every dashboard/progress suggestion as a newly generated AI response.
 
-- `AiQuestion`
-- `AiQuestionMessage`
+## Frontend verification
 
-Defined in [`prisma/schema.prisma`](/Users/efeon/study-buddy-v2/prisma/schema.prisma).
+Use synthetic study content for empty/long history, failed sends, retries,
+lost connectivity, rename/delete confirmation, formula overflow and keyboard
+focus. Check chat, exam and review screens at 320px and desktop widths.
+Pending/read states must be understandable without animation or colour alone.
 
-Behavior:
-
-- a new thread stores the original question in `AiQuestion`
-- both user and AI messages are stored in `AiQuestionMessage`
-- reply calls reload earlier messages from the database and pass the thread context back to OpenAI
-- thread ownership is enforced before a reply is accepted
-
-## 3. AI Recommendations
-
-Backend files:
-
-- on-demand recommendations: [`app/api/v1/ai/recommendations/route.ts`](/Users/efeon/study-buddy-v2/app/api/v1/ai/recommendations/route.ts)
-- scheduled generation: [`app/api/v1/ai/recommendations/cron/route.ts`](/Users/efeon/study-buddy-v2/app/api/v1/ai/recommendations/cron/route.ts)
-
-Database model:
-
-- `Recommendation`
-
-Behavior:
-
-- `GET /ai/recommendations` returns recent recommendations or generates up to the daily cap if fewer are available
-- recommendation generation uses subject-level `ProgressTrack` data as the main personalization input
-- generated recommendations are stored in the database
-- `POST /ai/recommendations` can generate a recommendation for optional `subjectId`, `topicId`, and `context`
-- the cron route generates recommendations in bulk for users and is protected by a secret
-
-Current constraints:
-
-- freshness window is approximately 23 hours
-- daily cap is 2 recommendations per user
-
-## AI Data Dependencies
-
-These AI features depend on:
-
-- auth state from [`lib/auth.ts`](/Users/efeon/study-buddy-v2/lib/auth.ts)
-- Prisma access via [`lib/prisma.ts`](/Users/efeon/study-buddy-v2/lib/prisma.ts)
-- progress data from `ProgressTrack`
-- optional subject/topic context from `Subject` and `Topic`
-
-## Environment Variables
-
-Required:
-
-- `OPENAI_API_KEY`
-
-Optional but used for scheduled recommendation generation:
-
-- `RECOMMENDATIONS_CRON_SECRET`
-
-Other runtime dependencies such as Supabase and database credentials are still required because all AI routes sit inside the main authenticated app.
-
-## Practical Notes
-
-- quick chat is stateless
-- thread-based AI is stateful
-- recommendations are persisted and reused
-- AI explanations are constrained more by prompt design than by a dedicated tutoring model layer
-
-## Likely Next Improvements
-
-- richer learner context instead of mostly subject-level progress
-- topic-level personalization for recommendations
-- explicit evaluation and prompt versioning
-- recommendation logging and quality metrics
-- unified chat/thread UX instead of separate AI entry points
+Relevant tests include [ChatMarkdown](components/ChatMarkdown.test.ts),
+[math normalisation](lib/markdown-math.test.ts),
+[chat failure copy](components/chatFailureCopy.test.ts) and notification/review
+tests beside their implementations. Follow the
+[website guide](docs/WEBSITE_GUIDE.md) and [UI checklist](docs/DMCTN_UI_TASTE_GATE.md).
