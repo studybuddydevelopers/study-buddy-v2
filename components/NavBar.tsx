@@ -11,6 +11,7 @@ import StudyBuddyIcon, {
   type StudyBuddyIconName,
 } from "./StudyBuddyIcon";
 import { useAuthState } from "./AuthStateProvider";
+import NotificationBell from "./NotificationBell";
 
 interface NavLink {
   label: string;
@@ -48,7 +49,6 @@ export default function NavBar({
   const pathname = usePathname();
   const router = useRouter();
   const { setIsAuthenticated } = useAuthState();
-  const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [loadingLogin, setLoadingLogin] = useState(false);
   const [loadingSignup, setLoadingSignup] = useState(false);
   const [loadingLogOut, setLoadingLogOut] = useState(false);
@@ -89,7 +89,7 @@ export default function NavBar({
   };
 
   return (
-    <header className="flex items-center justify-between bg-background shadow px-6 py-3">
+    <header className="flex items-center justify-between gap-2 bg-background shadow px-3 py-3 sm:px-6">
       <Link href={isAuthenticated ? "/dashboard" : "/"} prefetch={false}>
         <div className="flex items-center gap-2">
           <SbEqualizerLoadingPattern size={28} showMessage={false} />
@@ -131,7 +131,8 @@ export default function NavBar({
         ))}
       </nav>
 
-      <div className="flex items-center space-x-4">
+      <div className="flex shrink-0 items-center gap-3">
+        {isAuthenticated && showNotifications && <NotificationBell />}
         <div className="hidden min-[1110px]:flex items-center space-x-3">
           {!isAuthenticated && (
             <>
@@ -159,29 +160,6 @@ export default function NavBar({
 
           {isAuthenticated && (
             <>
-              {showNotifications && (
-                <div className="relative">
-                  <button
-                    className="text-xl cursor-pointer p-2 rounded-full hover:bg-accent-200 transition"
-                    onClick={() => setNotificationsOpen((open) => !open)}
-                    aria-haspopup="dialog"
-                    aria-expanded={notificationsOpen}
-                    aria-label="Notifications"
-                  >
-                    🔔
-                  </button>
-
-                  {notificationsOpen && (
-                    <div
-                      className="absolute right-0 top-full z-50 mt-2 w-64 rounded-lg border border-yellow-400 bg-gray-50 px-4 py-3 text-sm text-gray-700 shadow-lg"
-                      role="dialog"
-                    >
-                      Not functional right now! <br/> New feature coming soon!
-                    </div>
-                  )}
-                </div>
-              )}
-
               <Button
                 variant="outline"
                 size="sm"
