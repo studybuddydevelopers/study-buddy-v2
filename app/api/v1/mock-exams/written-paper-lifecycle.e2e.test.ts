@@ -21,6 +21,7 @@ const dbMocks = vi.hoisted(() => ({
   reviewUpdateMany: vi.fn(),
   progressUpsert: vi.fn(),
   eventCreate: vi.fn(),
+  notificationCreate: vi.fn(),
 }));
 
 const providerMocks = vi.hoisted(() => ({
@@ -210,6 +211,7 @@ const state = {
   answers: [] as TestAnswer[],
   reviews: [] as TestReview[],
   reviewEvents: [] as TestReviewEvent[],
+  notifications: [] as { userId: string; reviewId: string }[],
   progress: new Map<string, number>(),
 };
 
@@ -222,6 +224,7 @@ function resetState() {
   state.answers.length = 0;
   state.reviews.length = 0;
   state.reviewEvents.length = 0;
+  state.notifications.length = 0;
   state.progress.clear();
 }
 
@@ -469,6 +472,11 @@ function configureInMemoryDatabase() {
     return event;
   });
 
+  dbMocks.notificationCreate.mockImplementation(async ({ data }) => {
+    state.notifications.push(data);
+    return data;
+  });
+
   const transactionClient = {
     mockExamInstance: {
       update: dbMocks.instanceUpdate,
@@ -485,6 +493,7 @@ function configureInMemoryDatabase() {
     },
     progressTrack: { upsert: dbMocks.progressUpsert },
     mockExamMarkingReviewEvent: { create: dbMocks.eventCreate },
+    notification: { create: dbMocks.notificationCreate },
   };
 
   dbMocks.transaction.mockImplementation(async (operation) => {
@@ -731,6 +740,7 @@ describe("written mock-exam lifecycle", () => {
       originalScore: 7,
       revisedScore: 8,
     });
+    expect(state.notifications).toEqual([{ userId: "learner-1", reviewId: storedReview.id }]);
     expect(state.reviewEvents).toMatchObject([
       {
         eventType: "SUBMITTED",
