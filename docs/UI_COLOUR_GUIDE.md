@@ -93,7 +93,7 @@ through a utility such as `bg-primary-500`, `text-primary-700`, or directly with
 | --- | --- | --- | --- |
 | `primary-50` | `#F8F9FA` | Cool off-white | Subtle card, selection and callout backing; keeps large areas light. |
 | `primary-100` | `#E2CFEA` | Pale lilac | Ghost-button hover, callout/selected borders and pale highlights. |
-| `primary-200` | `#C4A0D6` | Soft lavender | Selected-response borders, soft fills and rings; also inline-code border. |
+| `primary-200` | `#C4A0D6` | Soft lavender | Selected-response borders, soft fills and rings; also the chat blockquote border. |
 | `primary-300` | `#A06CD5` | Medium lavender | Focus/hover rings and selected-option borders. |
 | `primary-400` | `#8B5BC7` | Bright muted purple | Shared primary-button hover and input/button focus treatment. |
 | `primary-500` | `#6247AA` | UI primary purple | Default primary Button, outline-button border, navigation emphasis and learner chat bubble. |
@@ -265,7 +265,7 @@ whole website.
 | `#57296A` — dark brand plum | [DashboardClient.tsx](../app/dashboard/DashboardClient.tsx) | Hover state for solid brand-plum dashboard actions. |
 | `#C7A6D5` — muted lilac | [ProfileDetailsClient.tsx](../app/settings/profile/ProfileDetailsClient.tsx); [page.tsx](../app/profile/page.tsx) | Hover/focus borders on profile, settings and dashboard controls. |
 | `#E4D6EA` — pale lilac border | [SettingsClient.tsx](../app/settings/SettingsClient.tsx); [ProfileDetailsClient.tsx](../app/settings/profile/ProfileDetailsClient.tsx) | Borders around pale settings headers and profile-edit surfaces. |
-| `#E9D8F0` — soft lilac | [page.tsx](../app/profile/page.tsx); [ProfileDetailsClient.tsx](../app/settings/profile/ProfileDetailsClient.tsx) | Supporting text/borders within the profile treatment. |
+| `#E9D8F0` — soft lilac | [page.tsx](../app/profile/page.tsx); [ProfileDetailsClient.tsx](../app/settings/profile/ProfileDetailsClient.tsx) | Supporting profile-header text and profile-edit focus rings. |
 | `#F1E8F5` — light plum text | [DashboardClient.tsx](../app/dashboard/DashboardClient.tsx) | Supporting text on deep-purple continuation panels. |
 | `#D7BFE2` — medium pale lilac | [DashboardClient.tsx](../app/dashboard/DashboardClient.tsx) | Border for the lower pale-plum dashboard callout. |
 | `#FCFCFC` — paper white | [StudyBuddyIcon.tsx](../components/StudyBuddyIcon.tsx); [DashboardClient.tsx](../app/dashboard/DashboardClient.tsx) | Icon paper/book details and a nearly white dashboard card surface. |
@@ -471,7 +471,7 @@ in source. Their palette references are not evidence of current navigation use.
    Retain text/icons as well as colour to communicate status.
 6. **Keep this guide current.** Update it when tokens, hard-coded page colours,
    SVG fills or imported highlighting styles change. Follow the
-   [frontend change process](FRONTEND_CHANGE_PROCESS.md); document the result
+   [frontend review checklist](DMCTN_UI_TASTE_GATE.md); document the result
    without changing unrelated artwork, dependencies or live configuration.
 
 This was a documentation-only inventory. No UI colours were changed.
