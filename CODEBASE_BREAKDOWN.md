@@ -1,182 +1,97 @@
-# Study Buddy v2 Codebase Breakdown
+# Study Buddy codebase breakdown
 
-This document is a high-level map of the codebase: what the app does, how it is structured, and where the main responsibilities live.
+Last checked against the working tree: 1 November 2026.
 
-## What the Application Does
+This public contributor map describes source responsibilities, not production
+infrastructure or access-provisioning procedures. See the
+[website guide](docs/WEBSITE_GUIDE.md) for the detailed frontend walkthrough.
 
-Study Buddy v2 is an exam-preparation platform for secondary-school learners. The current product centers on:
+## Product scope
 
-- account creation and login
-- student profile capture
-- subject/topic practice
-- mock exams with scoring
-- progress and performance reporting
-- AI chat and recommendation features
-- subscription and payment handling
-- internal admin/content workflows
+Study Buddy supports account/profile management, subject/topic practice,
+mock exams, separate coverage/accuracy/performance reporting and saved AI chat.
+Written-answer marking has question-specific support reviews. The notification
+centre is implemented in this working tree but awaits staging migration/live
+checks. Payment integrations exist; their presence does not establish that a
+complete paid-subscription journey is enabled.
 
-## Tech Stack
+There are no general administrator, school or teacher account screens in the
+current product. Specialist support workflows are separate from learner views.
+Internal content-processing code is not a public upload dashboard.
 
-- framework: Next.js 16 App Router
-- language: TypeScript
-- UI: React 18 + Tailwind CSS
-- database: PostgreSQL via Prisma
-- auth: Supabase SSR auth with cookies
-- AI: OpenAI
-
-## Top-Level Structure
+## Structure
 
 ```text
-app/          Pages, layouts, route handlers
-components/   Reusable UI building blocks
-lib/          Shared helpers and clients
-prisma/       Schema, migrations, seeds
-docs/         Supplemental project documentation
+app/          App Router pages, layouts and server route handlers
+components/   Shared UI and client providers
+lib/          Domain logic, display helpers and server integrations
+public/       Approved local illustrations, logos and static assets
+prisma/       Data schema and migrations
+docs/         Contributor guides and project records
 ```
 
-## Main Architectural Pattern
+Next.js 16, React 18, TypeScript and Tailwind CSS 3 provide the frontend.
+Prisma/PostgreSQL store application data; Supabase supplies authentication.
+Check [package.json](package.json) and the lockfile for installed versions.
 
-- most user-facing pages are App Router pages under `app/`
-- server-side route handlers live under `app/api/v1/`
-- Prisma is the application data layer
-- Supabase manages auth identity; Prisma stores app-specific user data
-- feature areas are split by domain: materials, exams, progress, chat, accounts, and admin
+## Rendering boundaries
 
-## Frontend Areas
+- [app/layout.tsx](app/layout.tsx) owns global styles and root metadata.
+- [ClientLayoutWrapper](app/ClientLayoutWrapper.tsx) composes navigation, the page-content landmark, footer and client contexts.
+- Server pages load initial data where appropriate; client components handle interaction and browser state.
+- API handlers live under [app/api/v1](app/api/v1). UI visibility never replaces server-side access checks.
+- Shared metadata is defined in [lib/site-metadata.ts](lib/site-metadata.ts).
+- Brand tokens live in [app/globals.css](app/globals.css) and [tailwind.config.js](tailwind.config.js); contextual icons live in [StudyBuddyIcon](components/StudyBuddyIcon.tsx).
 
-### Public pages
+Avoid nesting another `main` below the shared page-content landmark. Some
+existing account/settings views still require that cleanup.
 
-- landing page: [`app/page.tsx`](/Users/efeon/study-buddy-v2/app/page.tsx)
-- about/contact/legal pages under [`app/`](/Users/efeon/study-buddy-v2/app)
+## Frontend areas
 
-### Auth pages
+- [Landing](app/ClientLanding.tsx), About, Contact and footer-linked policy pages: public information.
+- Login, sign-up, verification, age/guardian and recovery screens: account journeys with loading/error/success states.
+- [Dashboard](app/dashboard): resume study, today's plan, weekly activity and focus topics.
+- [Materials](app/materials): subject/topic browsing, practice and content-category entry points.
+- [Exams](app/exams): category hub, templates, written/objective attempts and results.
+- [Progress](app/progress): time/subject/topic filters, daily trends, next actions, goals and paginated mock history.
+- [Chat](app/chat): persistent conversations, rendering and retry/delete interactions.
+- [Profile](app/profile) and [Settings](app/settings): learner details, preferences and account management.
+- [Marking reviews](app/marking-reviews): case status and question-specific decisions.
+- [Notifications](app/notifications): review updates and read controls; not yet live-verified.
 
-- login: [`app/login`](/Users/efeon/study-buddy-v2/app/login)
-- sign-up: [`app/sign-up`](/Users/efeon/study-buddy-v2/app/sign-up)
-- forgot/reset password flows
-- email verification and access-state pages
+The shell switches product navigation at 1110px. Progress carousels switch to
+grids at 769px. These are different decisions, not one universal mobile
+breakpoint. Temporary design/audit routes are not current product features.
 
-### Authenticated product pages
+## Shared frontend helpers
 
-- dashboard: [`app/dashboard`](/Users/efeon/study-buddy-v2/app/dashboard)
-- materials: [`app/materials`](/Users/efeon/study-buddy-v2/app/materials)
-- exams: [`app/exams`](/Users/efeon/study-buddy-v2/app/exams)
-- progress: [`app/progress`](/Users/efeon/study-buddy-v2/app/progress)
-- chat: [`app/chat`](/Users/efeon/study-buddy-v2/app/chat)
+- [Image](components/Image.tsx) and [optimized-image](lib/optimized-image.ts): responsive image delivery.
+- [LowDataImage](components/LowDataImage.tsx): learner-triggered image loading when Low Data Mode is enabled.
+- [ChatMarkdown](components/ChatMarkdown.tsx) and [markdown-math](lib/markdown-math.ts): Markdown, code and maths.
+- [FormErrorMessage](components/FormErrorMessage.tsx) and [client-response-error](lib/client-response-error.ts): inline errors.
+- [LocalDateTime](components/LocalDateTime.tsx): timestamp presentation.
+- [Progress helpers](lib/progress/report.ts) and [dashboard types](app/dashboard/dashboard.types.ts): reporting semantics and UI types.
+- [materials-display](lib/materials-display.ts): subject labels/order.
 
-## Backend Areas
+## Server and data responsibilities
 
-All current APIs are implemented under [`app/api/v1`](/Users/efeon/study-buddy-v2/app/api/v1).
+Domain services handle authentication, account lifecycle, practice records,
+exam marking/reviews, saved chat and payment integrations. The frontend consumes
+bounded, learner-appropriate responses; it does not own access decisions,
+credit accounting or authoritative grades.
 
-### Auth and account
+The [Prisma schema](prisma/schema.prisma) is the model reference. Major groups
+include accounts/settings, content/activity, exams/reviews, chat, notifications
+and commercial records. Do not infer a released screen or populated catalogue
+solely from a model's existence.
 
-- signup, login, logout, reset password, current user
-- reversible deactivation and permanent-deletion request/cancellation
-- secret-authenticated, retryable account purge
+Use the [client API reference](app/api/v1/README.md) for contracts. Production
+credentials, staff access and operational evidence belong in private channels.
 
-### Profile
+## Verification
 
-- read and update current user profile
-
-### Materials and past questions
-
-- materials overview
-- questions by topic
-- answer attempt submission
-- question explanations
-
-### Mock exams
-
-- list templates
-- start exam
-- fetch exam instance
-- save progress
-- submit
-- grade
-
-### Progress
-
-- full report
-- per-subject progress upsert
-- bulk progress updates
-
-### AI
-
-- quick chat messages
-- question thread creation
-- thread replies
-- thread listing
-- recommendations
-- recommendation cron
-
-### Admin, subscriptions, payments
-
-- content/admin upload flows
-- subscription lookup
-- payment verification and webhook handling
-
-## Shared Libraries
-
-- Prisma client: [`lib/prisma.ts`](/Users/efeon/study-buddy-v2/lib/prisma.ts)
-- auth guards: [`lib/auth.ts`](/Users/efeon/study-buddy-v2/lib/auth.ts)
-- account lifecycle: [`lib/account-lifecycle.ts`](/Users/efeon/study-buddy-v2/lib/account-lifecycle.ts)
-- session helper: [`lib/getSession.ts`](/Users/efeon/study-buddy-v2/lib/getSession.ts)
-- browser Supabase client: [`lib/supabaseClient.ts`](/Users/efeon/study-buddy-v2/lib/supabaseClient.ts)
-- study materials display mapping: [`lib/materials-display.ts`](/Users/efeon/study-buddy-v2/lib/materials-display.ts)
-- mock-exam choice generation: [`lib/mock-exam-multiple-choice.ts`](/Users/efeon/study-buddy-v2/lib/mock-exam-multiple-choice.ts)
-
-## Database Model Overview
-
-The schema lives in [`prisma/schema.prisma`](/Users/efeon/study-buddy-v2/prisma/schema.prisma).
-
-### User and access
-
-- `User`
-- `UserProfile`
-- `AccountDeletionRequest`
-
-### Learning content
-
-- `Subject`
-- `Topic`
-- `PastQuestion`
-- `CurriculumFile`
-
-### Learning activity
-
-- `PastQuestionAttempt`
-- `MockExamTemplate`
-- `MockExamInstance`
-- `MockExamAnswer`
-- `ProgressTrack`
-
-### AI
-
-- `AiQuestion`
-- `AiQuestionMessage`
-- `Recommendation`
-
-### Commercial
-
-- `Subscription`
-- `Transaction`
-
-## Seed Data
-
-Seed orchestration is in [`prisma/seed/index.ts`](/Users/efeon/study-buddy-v2/prisma/seed/index.ts).
-
-Supporting seed files:
-
-- [`prisma/seed/subjects.ts`](/Users/efeon/study-buddy-v2/prisma/seed/subjects.ts)
-- [`prisma/seed/topics.ts`](/Users/efeon/study-buddy-v2/prisma/seed/topics.ts)
-- [`prisma/seed/questions.ts`](/Users/efeon/study-buddy-v2/prisma/seed/questions.ts)
-- [`prisma/seed/mockTemplates.ts`](/Users/efeon/study-buddy-v2/prisma/seed/mockTemplates.ts)
-
-## Where To Start
-
-If you are new to the repo:
-
-1. read [`README.md`](/Users/efeon/study-buddy-v2/README.md)
-2. read [`docs/WEBSITE_GUIDE.md`](/Users/efeon/study-buddy-v2/docs/WEBSITE_GUIDE.md)
-3. inspect [`prisma/schema.prisma`](/Users/efeon/study-buddy-v2/prisma/schema.prisma)
-4. inspect [`app/api/v1/README.md`](/Users/efeon/study-buddy-v2/app/api/v1/README.md)
+Start with the [README](README.md), [website guide](docs/WEBSITE_GUIDE.md),
+[low-data rules](docs/PERFORMANCE_AND_LOW_DATA_RULEBOOK.md) and
+[UI checklist](docs/DMCTN_UI_TASTE_GATE.md). Update feature claims when behaviour
+changes; use synthetic records in examples/screenshots. Tests/builds do not
+replace browser checks, accessibility review or deployment verification.
