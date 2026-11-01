@@ -35,7 +35,7 @@ AI
 - POST `/ai/chats` (auth) — Body: `title?`, `subjectId?`, `topicId?`. Validates subject/topic rules and creates a persistent general chat. Returns `{ chat }`.
 - GET `/ai/chats` (auth) — Query: `page?=1`, `pageSize?=20` (max 50). Lists active chats for the current user ordered by `updatedAt DESC, id DESC`.
 - GET `/ai/chats/:chatId` (auth) — Returns one chat owned by the current user; deleted chats return 404.
-- PATCH `/ai/chats/:chatId` (auth) — Body: `title?`, `subjectId?`, `topicId?`. Renames or reclassifies a chat. A topic requires a subject and must belong to that subject. If the subject changes without a valid replacement topic, the existing topic is cleared.
+- PATCH `/ai/chats/:chatId` (auth) — Body: `title?`, `subjectId?`, `topicId?`. An empty chat may be reclassified; a topic requires its subject. After the first user message, classification changes return 409, but renaming remains allowed.
 - DELETE `/ai/chats/:chatId` (auth) — Permanently deletes the owned chat and its cascading messages, generation requests, grounding attempts, and citations after the client confirmation screen.
 - GET `/ai/chats/:chatId/messages` (auth) — Query: `page?=1`, `pageSize?=50` (max 100). Lists messages ordered by `createdAt ASC, id ASC`.
 - POST `/ai/chats/:chatId/messages` (auth) — Body: `message` (1–4000 chars), `clientRequestId` (req). Creates/persists one user message, one empty pending assistant message, and one generation request. Duplicate completed/pending requests return existing state. Duplicate failed requests return failed state with `retryRequired`; use retry endpoint.
@@ -46,9 +46,9 @@ AI
 - GET `/ai/questions/list` (auth) — Query: `page?=1`, `pageSize?=20` (max 50). Returns `{ threads: [{ id, questionText, createdAt, subjectId, topicId, lastMessage }], pagination }` for the requesting user.
 - POST `/ai/questions/:id/reply` (auth) — Body: `message` (req). User must own thread. Saves user message, generates/saves AI reply, returns `{ userMessage, aiMessage }`.
 
-Stage 1 chat note: `/ai/chats/*` provides persistence, ownership checks, idempotency, retry-safe lifecycle tracking, and a provider-neutral chat adapter. It is not resource-grounded and does not provide citations or StudyBuddy resource retrieval.
+General-chat note: `/ai/chats/*` provides persistence, ownership checks, idempotency, retry-safe lifecycle tracking, and a provider-neutral chat adapter. With grounded chat disabled, answers are not based on approved Study Buddy resources and must not be described as verified or citation-backed.
 
-Stage 4 grounded chat note: grounded TEACH generation is implemented behind `AI_GROUNDED_CHAT_ENABLED=false` by default. When disabled, Stage 1 general chat behaviour is preserved. When enabled, substantive educational messages retrieve approved active StudyBuddy evidence, validate segment-based structured output and server-controlled citations, persist `AiGroundingAttempt`/`AiMessageCitation` rows, and expose only safe bounded citation previews. Unsupported generated segments fail closed with `UNSUPPORTED_GENERATED_CLAIM` after one constrained regeneration. HINT, SOLVE, MARK, public web search, and unrestricted fallback are not implemented.
+Grounded-chat note: the Stage 4 TEACH path and citation preview route exist but are **not approved for enablement**. Keep `AI_GROUNDED_CHAT_ENABLED=false`. Stage 4.1's capability pipeline is evaluation-only and is not wired into ordinary chat. HINT, SOLVE, MARK, public web search, and unrestricted fallback are not implemented.
 
 Past Questions
 --------------
@@ -108,10 +108,10 @@ Resource Retrieval (Stage 3)
 
 Grounded Chat (Stage 4)
 -----------------------
-- Stage 4 integrates retrieval into persistent `/chat` only when `AI_GROUNDED_CHAT_ENABLED=true`.
+- Stage 4 code can integrate retrieval into persistent `/chat` only when `AI_GROUNDED_CHAT_ENABLED=true`; this is not an approved deployment setting.
 - New persistence: `AiGroundingAttempt` and `AiMessageCitation`.
 - New user-facing API: `GET /ai/chats/:chatId/citations/:citationId`.
-- Feature flag remains disabled. The consumed v1.2 holdout failed. The consumed v1.3 `holdout_v2` passed automated gates but lacked retained answer text for mandatory manual review. The v1.3 `manual_quality` run retained answers and failed manual review. The v1.5 `manual_quality` run passed manual review. `holdout_v3` is consumed by a preserved acceptance-harness failure and must not be reused as an unbiased acceptance split. Fresh `holdout_v4` is prepared with split hash `7158403b7a60d6e6037a4ead7eae751d80e57b446d9b72ea27ef21df9f9cf5cf`, but it has not been executed.
+- Feature flag remains disabled. Historical holdouts through v8 are consumed, and the latest failed. The Stage 4.1 capability path remains under separate evaluation; it is not a deployed chat mode. Do not rerun consumed holdouts or infer readiness from disclosed-suite results.
 
 Notes
 -----
