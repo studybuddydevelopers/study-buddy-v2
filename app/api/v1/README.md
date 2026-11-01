@@ -1,33 +1,56 @@
 API v1 Reference
 ================
 
+Frontend contracts checked against source on 1 November 2026. This is not a
+deployment record or a guarantee that every feature is enabled. See the
+[website guide](../../../docs/WEBSITE_GUIDE.md) for page behaviour and the
+[security policy](../../../SECURITY.md) for safe reporting. Examples must use
+synthetic data; do not publish session cookies, recovery links or live identifiers.
+
 Conventions
 -----------
-- All endpoints respond with JSON; errors use `{ "error": string }` and relevant HTTP status.
-- Auth uses Supabase session cookies. `requireUser` blocks unauthenticated requests (401). The application has no general administrator role or administration routes. Marking-review support routes have a narrowly scoped user-ID allowlist.
-- Unsafe API requests carrying a Supabase session cookie require an exact trusted `Origin`; signed webhooks and the secret-authenticated recommendation cron are exempt from cookie CSRF handling.
-- Login and signup require a trusted `Origin` even without session cookies, plus `Content-Type: application/json` (optional charset). Invalid/missing origins return `403 CSRF_VALIDATION_FAILED`; other/missing media types return `415 UNSUPPORTED_MEDIA_TYPE` before authentication or session creation. The existing 16 KB body limit still applies.
+- App endpoints generally respond with JSON; errors use `{ "error": string }` and relevant HTTP status, sometimes with additional display fields. Handle non-JSON network failures too.
+- Authenticated routes use the current Supabase session and server-side account checks. Handle sign-in, verification and restricted-account states; a visible button is not permission to perform an action.
+- Browser mutations must follow the application's same-origin and JSON request requirements. Reuse existing clients rather than bypassing validation.
+- Marking-review support is restricted to authorised staff; there is no general administrator dashboard.
 - Paths are shown relative to `/api/v1`.
 
 Auth & Account
 --------------
-- POST `/signup` — Create a Supabase auth user. Body: `firstName`, `middleNames?`, `lastNames`, `email`, `phoneNumber`, `password`. Sets session cookies, returns `{ success: true }` or `{ error }`.
+- POST `/signup` — Submit the account form: names, email, phone, password, date of birth, terms acceptance, and guardian/CAPTCHA fields when required. On success, follow the response's `X-Study-Buddy-Next` destination for verification or guardian authorisation; do not assume unrestricted access immediately after signup.
 - POST `/login` — Sign in with `identifier` (email or phone) and `password`. Sets Supabase cookies, returns `{ success: true }` or `{ error }`.
 - POST `/logout` — Clears Supabase session cookies. Body unused. Returns `{ ok: true }`.
 - GET `/account/lifecycle` (auth, including restricted accounts) — Returns the current account status and any scheduled permanent-deletion date.
 - POST `/account/lifecycle` (auth, including restricted accounts) — Body action is `DEACTIVATE`, `REQUEST_DELETION`, `REACTIVATE`, or `CANCEL_DELETION`. `REQUEST_DELETION` requires the current password and exact `confirmation: "DELETE"`, then sends a 24-hour one-time email link without restricting the account. Deactivation, reactivation, and cancellation clear the browser session.
 - POST `/account/deletion/confirm` — Public token exchange used by the email-confirmation page. A valid unused token immediately locks the account, starts the 15-day cancellation window, schedules the retryable purge, clears any browser session, and sends the final pending-deletion notice.
-- POST `/account/deletion/cron` (server-to-server) — Requires `x-cron-secret` matching `ACCOUNT_DELETION_CRON_SECRET`; sends the 90/60/15/1-day inactive-account notices, queues accounts whose 36-month inactive period expired, and purges due application and Supabase Auth accounts in retry-safe bounded batches.
-- POST `/reset-password` — Body: `email`. Triggers Supabase reset flow redirecting to `/auth/password-reset`. Uses configurable account, shared-IP, and global fixed-window limits; the account rule runs first so targeted abuse does not exhaust a school's shared-IP allowance. The first account-scoped rejection schedules a privacy-safe abuse warning for a matching verified account without changing the public 429 response. Returns `{ ok: true }` or `{ error }`.
-- POST `/account/security/password-reset-lock` — Body: one-time `token` from the abuse-warning URL fragment. An explicit same-origin POST replaces the old password, revokes sessions through Supabase Auth, and applies a 24-hour provider ban. A GET or email preview cannot lock the account.
-- POST `/account/security/password-reset-recovery` — Body: one-time `token` from the post-lock recovery URL fragment. Explicitly lifts the provider ban and sends Supabase password-reset instructions while the application restriction remains until a new password is set.
-- POST `/account/security/password-reset-recovery/complete` (recovery session) — Clears the application security restriction only after the server verifies a post-lock Supabase sign-in/recovery event.
+- Scheduled account lifecycle processing is server-to-server, not a frontend action. Keep its credentials and operating procedure out of client code and public examples.
+- POST `/reset-password` — Body: `email`. Requests password-reset instructions. Keep the acknowledgement neutral, show inline errors, and respect retry guidance without implying whether an account exists.
+- POST `/account/security/password-reset-lock` — Exchanges the security-alert link token after explicit learner confirmation. Display incomplete-link, working, success and failure states; opening a page must not perform the action.
+- POST `/account/security/password-reset-recovery` — Exchanges the recovery link token after explicit confirmation and requests the next recovery step. Never log or display the token in diagnostic UI.
+- POST `/account/security/password-reset-recovery/complete` (recovery session) — Completes recovery when server-side checks pass; do not infer completion solely from a client-side success screen.
 - GET `/me` (auth) — Returns user basics, profile, and latest subscription `{ id, createdAt, profile, subscription }`; 404 if no DB user record.
 
 Profile
 -------
 - GET `/profile` (auth) — Fetch current user profile or `null`.
 - PATCH `/profile` (auth) — Validated partial update/create of profile fields (`firstName`, `middleNames`, `lastNames`, `phoneNumber`, `gradeLevel`, `examYear`, `preferredSubjects`, `avatarUrl`). Optional fields accept `null` to clear them; preferred-subject IDs must exist. Returns `{ success: true, profile }`.
+
+Settings and summaries
+----------------------
+- GET `/settings` (auth) — Returns `{ settings }` with `cloudPracticeDraftsEnabled`, `lowDataModeEnabled` and `updatedAt`.
+- PATCH `/settings` (auth) — Partial update of the two boolean preferences. Returns `{ success: true, settings }`. Keep local preference state in sync through the existing provider.
+- GET `/dashboard/stats` (auth) — Supplies dashboard activity, continuation and topic-insight summaries. This is not an AI-generation request.
+- GET `/materials/overview` (auth) — Supplies subject/topic availability and learner activity for the materials screen. Empty results must render a useful empty state.
+
+Notifications
+-------------
+- GET `/notifications` (auth) — Query: `limit?=20` (maximum 50), `cursor?`. Returns `{ notifications, unreadCount, nextCursor, asOf }`. Pass `nextCursor` back unchanged to load older items; stop when it is `null`.
+- GET `/notifications?countOnly=true` (auth) — Returns `{ unreadCount }` for the bell. A failed request is an unknown count, not evidence of zero unread items.
+- PATCH `/notifications` (auth) — Body `{ id, read }` marks one item read/unread. Body `{ all: true, before }` marks items read up to the list response's `asOf` timestamp; use that value for `before` so later arrivals remain unread.
+- Current notifications concern marking-review decisions. Follow the returned destination to the exact learner review case. This is an in-app inbox, not browser push or an email-preference system.
+
+Notification source and automated checks exist; this documentation update did
+not verify the required migration or live staging behaviour.
 
 AI
 --
@@ -60,23 +83,26 @@ Past Questions
 
 Mock Exams
 ----------
-- GET `/mock-exams/mock-exam-templates` — Lists available templates with subject info.
-- POST `/mock-exams/start` (auth) — Body: `templateId`. Creates a mock exam instance for the user, randomly selects questions from the template’s subject, and returns `{ instance, questions (no answers), answers }`.
+- GET `/mock-exams/mock-exam-templates` (auth) — Lists templates with subject, format, duration, marks and question counts. Use `canStart`, `startBlockedReason`, `aiCreditsRequired`, `aiCreditsRemaining` and `aiCreditsResetAt` to explain eligibility; the server rechecks on start.
+- POST `/mock-exams/start` (auth) — Body: `templateId`. Creates an instance and returns `{ instance, questions, answers }` without revealing model answers during the attempt. A written paper reserves 5 AI credits; a new attempt at the same template costs another 5. Show insufficient-credit feedback before navigation.
+- GET `/mock-exams/instance` (auth) — Query: `instanceId`. Loads the learner's paper, answer state and available result/review information.
+- POST `/mock-exams/save-progress` (auth) — Body: `instanceId`, `answers: [{ answerId, userAnswer }]`. Saves unfinished work; it does not submit the paper.
 - POST `/mock-exams/submit` (auth) — Body: `instanceId`, `answers: [{ answerId, userAnswer }]`. User must own instance and not have submitted already. Saves answers, sets `submittedAt`, returns `{ instanceId, submittedAt, answers }`.
-- POST `/mock-exams/grade` (auth) — Body: `instanceId`. Requires submitted, ungraded instance owned by user. Grades each answer (exact match to stored answerText), updates totals, returns `{ instanceId, totalScore, graded, answers: [{ id, isCorrect, score }] }`.
+- POST `/mock-exams/grade` (auth) — Body: `instanceId`. Scores a submitted objective paper against stored answers; written papers use AI marking instead.
+- POST `/mock-exams/ai-mark` (auth with AI access) — Body: `instanceId`. Marks a submitted written paper and returns its result. Failed marking is retryable on the same reserved instance without charging another 5 credits. Do not create a replacement attempt to retry a marking failure.
 - GET `/mock-exams/marking-reviews` (auth) — Lists up to 50 marking-review cases owned by the learner, including reference, status and decision.
 - POST `/mock-exams/marking-reviews` (auth) — Body: `answerId`, `reason`. Creates one tracked review case per AI-marked written answer and snapshots the exam, question, learner answer, model answer, marking guide, AI rationale and original score.
 
 Marking Review Support
 ----------------------
-- GET `/support/marking-reviews` (auth + marking-review support allowlist) — Query: `status=PENDING|RESOLVED|ALL`. Returns the restricted review queue with case evidence and audit events.
-- PATCH `/support/marking-reviews/:id` (auth + marking-review support allowlist) — Body: `decision` (`UPHOLD` or `ADJUST`), `note`, and integer `score` for an adjustment. Resolves a pending case once. An adjustment atomically updates the answer, recalculates the paper total and updates the subject progress record when this is the learner's latest graded paper in that subject.
+- GET `/support/marking-reviews` (authorised support) — Query: `status=PENDING|RESOLVED|ALL`. Returns the restricted review queue with case evidence and audit events.
+- PATCH `/support/marking-reviews/:id` (authorised support) — Body: `decision` (`UPHOLD` or `ADJUST`), `note`, and integer `score` for an adjustment. Resolves a pending case once. An adjustment updates the answer, recalculates the paper total and updates the subject progress record when this is the learner's latest graded paper in that subject. The decision and learner notification are recorded atomically.
 
 Progress
 --------
 - POST `/progress/subject` (auth) — Body: `subjectId`, `progressPercentage` (number). Upserts a single progress track, returns `{ success: true, progress }`.
 - POST `/progress/update` (auth) — Body: `{ updates: [{ subjectId, progressPercentage }] }`. Validates all subjectIds, bulk updates/creates tracks, returns `{ success: true, updated: [{ subjectId, progressPercentage, updatedAt }] }`.
-- GET `/progress/full-report` (auth) — Query: `page?=1`, `pageSize?=10` (max 25) for mock-exam history. Returns subject progress list, past-question accuracy totals/per-subject, graded mock-exam stats, paginated mock-exam rows, and AI question usage count.
+- GET `/progress/full-report` (auth) — Query: `range=7d|30d|90d` (default `30d`), `subject?`, `topic?`, plus `page?=1`, `pageSize?=10` (max 25) for mock-exam history. Returns report filters, subject/topic insights, daily trend data, practice accuracy, graded mock results and AI activity. Keep coverage, accuracy and mock performance distinct; daily points are not multi-day buckets or proof of mastery.
 
 Subscriptions
 -------------
