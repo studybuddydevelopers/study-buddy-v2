@@ -1,13 +1,19 @@
 # Independent Security Review
 
-Last updated: 16 September 2026
+Last updated: 1 November 2026
+
+This is a public-safe procurement brief. The exact staging asset, test accounts,
+source addresses, dates, contacts, evidence-transfer method, current findings,
+and remediation status belong only in the signed private rules of engagement
+and the company's restricted evidence store.
 
 ## Status and launch gate
 
 This document is the quote and engagement brief for an independent manual
 penetration test of Study Buddy. It does not authorise testing by itself.
 
-- Owner: Nick Efe Oni, with Chijindu Oreh as the second company contact.
+- Owner: the designated company security lead, with a separately designated
+  backup contact recorded privately.
 - Contracting entity: Study Buddy Global Projects Limited.
 - Status: quote-ready; provider, price, test dates and named testers are not yet
   selected.
@@ -22,21 +28,17 @@ substitute for this independent, authenticated, business-logic review.
 
 ## Provider selection
 
-Request comparable fixed-price quotes from at least three providers. Confirm the
-firm's accreditation and the assigned testers' qualifications immediately before
-signing; a directory listing is not a guarantee about a particular tester.
+Request comparable fixed-price quotes from at least three providers. Use the
+current [CREST-accredited provider directory](https://marketplace.crest.org/) or
+an equivalently qualified provider, and confirm the firm's accreditation and
+the assigned testers' qualifications immediately before signing. A directory
+listing is not a guarantee about a particular tester.
 
-Current candidates from the CREST accredited-provider directory:
-
-1. [WorkNest Cyber (including Pentest People and Bulletproof)](https://marketplace.crest.org/supplier/worknest-cyber-comprising-bulletproof-cyber-target-defence-and-pentest-people/) — CREST penetration-testing provider whose profile describes consultant-led PTaaS and web-application testing. Ask for a fixed-scope startup web/API test, not an ongoing platform contract.
-2. [Claranet Cyber Security](https://marketplace.crest.org/supplier/claranet-cyber-security/) — CREST penetration-testing provider with web/application and continuous-testing capability. Ask for a small, bounded manual engagement.
-3. [NCC Group](https://marketplace.crest.org/supplier/ncc-group/) — CREST penetration-testing provider suitable as the higher-assurance comparison quote.
-
-If none fits the budget or schedule, select another current
-[CREST-accredited provider](https://marketplace.crest.org/) that can demonstrate
-manual web, API and business-logic testing. A cheaper non-CREST firm may only be
-considered after checking tester qualifications, references, professional
-indemnity insurance, secure evidence handling and an equivalent methodology.
+A non-CREST firm should be considered only after checking tester
+qualifications, references, professional indemnity insurance, secure evidence
+handling, independence, conflicts, and an equivalent methodology. Record the
+shortlist and quotes privately; provider availability and credentials can
+change and should not be frozen into this repository.
 
 Compare quotes on total price, days of manual testing, named tester experience,
 test coverage, reporting quality, one included retest, scheduling, insurance,
@@ -47,9 +49,9 @@ the lowest price alone.
 
 ### Environment
 
-- Test the isolated Railway staging deployment, currently identified as
-  `study-buddy-v2-staging.up.railway.app`, with its separate staging Supabase
-  project and test-only provider credentials.
+- Test only the exact isolated staging asset named in the signed private rules
+  of engagement. It must use separate staging data and test-only provider
+  credentials.
 - Use synthetic accounts and data only. Provide adult and age-13-to-17 guardian
   test journeys, including separate attacker/victim accounts.
 - Production is excluded except for passive confirmation of public TLS, DNS and
@@ -106,8 +108,9 @@ supplemented by manual business-logic testing.
 
 ## Rules of engagement required before testing
 
-The signed statement of work must name the exact hosts, dates, time zone, source
-IPs, techniques, test accounts and provider personnel. It must also include:
+The signed private statement of work must name the exact hosts, dates, time
+zone, source IPs, techniques, test accounts and provider personnel. None of
+those live values should be committed here. It must also include:
 
 - written authorisation from a company director or otherwise authorised company
   signatory;
@@ -190,7 +193,6 @@ Subject: Quote request — independent web/API penetration test for Study Buddy
 - [ ] Confirm staging has no production data or live payment/email side effects.
 - [ ] Back up staging and practise rollback before the window.
 - [ ] Configure temporary staging-only source-IP allowlisting if necessary.
-- [ ] Assign Nick Efe Oni and Chijindu Oreh as primary/backup test contacts.
+- [ ] Assign and privately record primary/backup test contacts.
 - [ ] Triage findings, remediate, run regression tests and obtain the retest.
 - [ ] Record the co-founders' final go/no-go decision and accepted residual risks.
-

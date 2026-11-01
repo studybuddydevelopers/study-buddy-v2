@@ -2,6 +2,16 @@
 
 This document defines the mandatory performance, bandwidth, and user-experience rules for any LLM modifying this React and Next.js codebase.
 
+Project-specific guidance checked: 1 November 2026. These are implementation
+requirements and review criteria, not a claim that every existing screen meets
+them. The [website guide](WEBSITE_GUIDE.md) describes current behaviour; the
+[UI checklist](DMCTN_UI_TASTE_GATE.md) records what to verify. Read the installed
+Next.js documentation before changing framework APIs.
+
+Examples below are patterns, not a promise that their sample routes/models
+exist. Use synthetic test data, keep personal data and operational configuration
+out of public reports, and follow the [security policy](../SECURITY.md).
+
 The goal is to make the application:
 
 - Fast on slow or unstable internet connections
@@ -107,11 +117,11 @@ export default async function DashboardPage() {
   const notes = await getNotes();
 
   return (
-    <main>
+    <section aria-label="Notes">
       <h1>Your notes</h1>
       <SearchBox />
       <NoteList notes={notes} />
-    </main>
+    </section>
   );
 }
 ```
@@ -125,6 +135,9 @@ export default function SearchBox() {
 ```
 
 Only the interactive component should become a Client Component.
+
+Study Buddy's shell already supplies the page-content main landmark. Do not
+copy standalone Next.js examples that introduce a second `main` into a page.
 
 ### The LLM must use `"use client"` only when a component needs:
 
@@ -288,15 +301,16 @@ Keep unrelated features in separate routes or independently loaded modules.
 
 Do not create one enormous dashboard bundle containing every feature in the application.
 
-Where suitable, split features into routes such as:
+The existing product uses separate routes, including:
 
 ```text
 /dashboard
-/notes
-/flashcards
-/quizzes
+/materials
+/materials/flashcards
+/exams
 /progress
 /settings
+/notifications
 ```
 
 ---
@@ -314,7 +328,7 @@ import { Suspense } from "react";
 
 export default function DashboardPage() {
   return (
-    <main>
+    <div>
       <DashboardHeader />
 
       <Suspense fallback={<NotesSkeleton />}>
@@ -324,7 +338,7 @@ export default function DashboardPage() {
       <Suspense fallback={<RecommendationsSkeleton />}>
         <Recommendations />
       </Suspense>
-    </main>
+    </div>
   );
 }
 ```
@@ -370,19 +384,24 @@ Content visible immediately after navigation should load before:
 
 ## 5. Image Rules
 
-## 5.1 Use `next/image`
+## 5.1 Use the existing shared image component
 
-Use Next.js `Image` for application images whenever compatible.
+Use [components/Image.tsx](../components/Image.tsx) for application images.
+It currently wraps a native image element with lazy loading, async decoding and
+responsive sources through [optimized-image](../lib/optimized-image.ts).
+It is not a wrapper around `next/image`; do not pass unsupported `fill` or
+`priority` props to it. Introducing a different image pipeline is a separate,
+measured change, not a prerequisite for normal UI work.
 
 Example:
 
 ```tsx
-import Image from "next/image";
+import Image from "@/components/Image";
 
 export default function ProfileImage() {
   return (
     <Image
-      src="/profile.jpg"
+      src="/images/profile-avatar.svg"
       alt="User profile"
       width={400}
       height={400}
@@ -394,16 +413,25 @@ export default function ProfileImage() {
 
 The LLM must provide:
 
-- Accurate `width` and `height`, or a safe `fill` container
+- Accurate `width` and `height` and a stable container
 - Useful `alt` text
 - A correct `sizes` value for responsive layouts
 - Appropriate loading priority
+
+Use `object-contain` when the whole SVG illustration must remain visible; the
+wrapper's default crop behaviour is not suitable for every brand asset. SVGs
+and unsupported sources fall back to their original URL. Do not claim that the
+wrapper resizes or recompresses every asset. `LowDataImage` supplies the explicit
+Load image action for practice/exam media in Low Data Mode.
 
 ---
 
 ## 5.2 Do not mark every image as priority
 
 Only above-the-fold, important images should receive priority loading.
+
+For the shared wrapper, use `loading="eager"` and `fetchPriority="high"` only
+where justified by measurement. Its default is lazy loading.
 
 Do not prioritise:
 
@@ -628,7 +656,7 @@ useEffect(() => {
   if (query.trim()) {
     search().catch((error) => {
       if (error.name !== "AbortError") {
-        console.error(error);
+        setError("Search could not be loaded. Please try again.");
       }
     });
   }
@@ -820,18 +848,14 @@ Do not rely on users refreshing repeatedly to see updated information.
 
 ## 10. Font Rules
 
-Use `next/font` where appropriate.
+Study Buddy currently uses the system font stacks in `app/globals.css`; preserve
+that download-free baseline. Do not introduce a web font as incidental UI
+cleanup. If a separately approved design needs one, consult the installed
+`next/font` documentation and measure the additional loading/layout cost.
 
-Example:
-
-```tsx
-import { Inter } from "next/font/google";
-
-const inter = Inter({
-  subsets: ["latin"],
-  display: "swap",
-});
-```
+At the current 16px root, the Tailwind overrides make `text-xs` 15px and
+`text-sm` 16px. Check explicit custom sizes separately; these tokens alone do
+not establish that all text is accessible.
 
 The LLM must:
 
@@ -850,6 +874,10 @@ Do not load multiple decorative fonts without a strong design requirement.
 ## 11. Third-Party Script Rules
 
 Third-party JavaScript must be treated as expensive and potentially unreliable.
+
+The categories below are examples of costs, not permission to add tracking.
+Do not introduce analytics, session replay, advertising or new data collection
+without a separately approved product/privacy change.
 
 Examples include:
 
@@ -891,7 +919,15 @@ Do not place third-party scripts directly in the critical rendering path without
 
 ## 12. Low-Data Mode Rules
 
-The application should support a user-controlled reduced-data mode where practical.
+The app already exposes Low Data Mode and cloud-practice-draft preferences under
+Settings → Study preferences. Topic practice saves locally first; cloud sync
+depends on its opt-in and Low Data Mode being off. Practice/exam question images
+use an explicit Load image action when Low Data Mode is enabled.
+
+These controls do not make the whole site offline-capable and do not guarantee
+that all imagery or background requests stop. Full offline caching remains
+future work. The notification count refresh is visibility-aware; it is not
+currently described as a separate Low Data Mode setting.
 
 A reduced-data mode may:
 
@@ -949,6 +985,9 @@ The LLM must avoid aggressive prefetching for:
 - Large dynamic route lists
 
 Prefetching should be selective, not automatic by assumption.
+
+Existing heavy learner links use `prefetch={false}`. Opening a notification's
+decision may mark it read only after the page mounts, never on link prefetch.
 
 ---
 
@@ -1074,7 +1113,10 @@ Before considering a feature complete, the LLM should validate the following whe
 
 ```bash
 npm run lint
+npx tsc --noEmit
+npm test
 npm run build
+git diff --check
 ```
 
 Inspect:
@@ -1213,12 +1255,12 @@ The preferred architecture is:
 Next.js App Router
 ├── Server Components by default
 ├── Narrow Client Component boundaries
-├── Server Actions for suitable mutations
+├── Existing route-handler contracts for current UI mutations
 ├── Prisma queries selecting only required fields
 ├── Cursor pagination for large collections
 ├── Suspense boundaries around slow sections
-├── next/image for application images
-├── next/font with minimal weights and subsets
+├── Shared Image / LowDataImage components
+├── Existing system font stacks
 ├── Dynamic imports for heavy optional features
 ├── Safe caching for public or correctly keyed data
 ├── User-controlled reduced-data mode

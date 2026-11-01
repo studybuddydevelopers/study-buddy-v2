@@ -1,521 +1,206 @@
-# Railway Security and Monitoring Runbook
+# Railway Security Operations
 
-This runbook is specific to a Railway deployment of Study Buddy. It was checked
-against the linked vendor documentation on 2026-09-16.
+Last reviewed: 1 November 2026
 
-## Production topology
+This document is a public-safe operating standard for Study Buddy on Railway.
+It is not the live production runbook. Exact service names, internal addresses,
+environment values, schedules, thresholds, account lists, evidence, and open
+findings belong in the company's restricted operations system.
 
-- Expose only the Next.js web service publicly.
-- Keep PostgreSQL, workers, and the ClamAV service private. Railway assigns each
-  service a `<service-name>.railway.internal` hostname inside the environment.
-- Add a custom HTTPS domain to the web service. Set `APP_ORIGIN` to that exact
-  origin, including the `https://` scheme and no path.
-- In the web service settings, set the Healthcheck Path to `/api/health`. This
-  endpoint checks process liveness without depending on Supabase Auth. Railway
-  uses deployment health checks to gate traffic switching; configure separate
-  uptime monitoring for continuous availability alerts.
-- Do not add a public domain or TCP proxy to ClamAV. Its TCP protocol is not
-  authenticated or encrypted and is suitable here only over Railway's private
-  network.
-- Seal production secrets in Railway after validating them, and use separate
-  test credentials for preview environments.
+## Security boundary
 
-Railway references: [production lockdown](https://docs.railway.com/guides/lock-down-production-project),
-[private networking and domains](https://docs.railway.com/networking/domains/working-with-domains),
-and [deployment health checks](https://docs.railway.com/deployments/healthchecks).
+- Expose only the Next.js web service through the intended HTTPS domain.
+- Keep databases, malware scanners, scheduled jobs, and reporting services on
+  private networking with no public domain or TCP proxy.
+- Place staging behind an identity-aware access control and use synthetic data.
+- Use separate Railway environments and separate provider/database credentials
+  for staging and production.
+- Treat Railway project membership, environment variables, deployment access,
+  and recovery methods as privileged access protected by MFA.
+- Do not copy a production variable set into a preview deployment.
 
-## Required web-service variables
+The service health endpoint should prove process readiness without exposing
+configuration, dependency details, database contents, or secrets. Continuous
+availability monitoring is separate from deployment health checks.
 
-Copy the normal application variables from `.env.example`, then set these
-deployment-specific values:
+## Service separation
 
-```dotenv
-NODE_ENV=production
-APP_ORIGIN=https://app.example.com
-CSRF_TRUSTED_ORIGINS=
-TRUSTED_PROXY_PROVIDER=railway
-AI_GLOBAL_BUDGET_ENABLED=true
-AI_GLOBAL_DAILY_TOKEN_BUDGET=1000000
-SECURITY_AUDIT_DB_ENABLED=true
-ACCOUNT_DELETION_CRON_SECRET=replace-with-at-least-32-random-bytes
-MALWARE_SCAN_REQUIRED=true
-CLAMAV_HOST=clamav.railway.internal
-CLAMAV_PORT=3310
-CLAMAV_TIMEOUT_MS=20000
-PDF_CDR_REQUIRED=true
-PDF_CDR_COMMAND=gs
-PDF_CDR_TIMEOUT_MS=20000
-PDF_CDR_MAX_OUTPUT_BYTES=31457280
-RESEND_API_KEY=replace-me
-TRANSACTIONAL_EMAIL_FROM="Study Buddy Privacy <no-reply@updates.studybuddyng.com>"
-TRANSACTIONAL_EMAIL_REPLY_TO=privacy@studybuddyng.com
-GUARDIAN_AUTHORIZATION_TTL_HOURS=72
-ACCOUNT_DELETION_CONFIRMATION_TTL_HOURS=24
-```
+Use distinct services with least-privilege configuration:
 
-Create a Railway cron service/job that sends `POST
-/api/v1/account/deletion/cron` to the web service at least hourly with
-`x-cron-secret: <ACCOUNT_DELETION_CRON_SECRET>`. Use a distinct secret of at
-least 32 random bytes,
-never put it in a browser variable, and alert on non-2xx responses. An hourly
-schedule processes accounts after their full 15-day cancellation window while
-keeping the 30-day maximum comfortably satisfied. The same hourly job sends
-inactive-account expiry notices at 90, 60, 15, and 1 day and queues deletion at
-the approved 36-month deadline. After
-the lifecycle migration, verify the dedicated runtime role has CRUD on
-`AccountDeletionRequest`; do not replace the restricted runtime URL with the
-migration-owner URL as a workaround.
-
-The repository includes a one-shot caller for this job. Create a second Railway
-service from the same repository, set its custom build command to
-`npm ci --ignore-scripts --omit=dev`, and its custom start command to
-`npm run cron:account-lifecycle`. Give that service only `NODE_ENV=production`,
-`ACCOUNT_LIFECYCLE_CRON_ORIGIN=http://<web-service>.railway.internal:<port>`,
-and the same `ACCOUNT_DELETION_CRON_SECRET` used by the web service. Copy the
-exact private hostname and listening port from the web service rather than
-guessing them. Keep `APP_ORIGIN` on the web service set to its public HTTPS
-origin for browser and email links. The private cron override accepts plain HTTP
-only for a hostname ending exactly in `.railway.internal`; arbitrary external
-HTTP origins, credentials, paths, queries, and fragments are rejected. The cron
-service does not need a domain, database credentials, Supabase credentials, or
-browser variables. In Settings, set Cron Schedule to `0 * * * *` (hourly, in
-UTC). The caller rejects redirects, times out after five minutes, returns a
-failing process status for any non-2xx response, and exits after every
-invocation so Railway does not skip the next run. Transient private-DNS and
-connection failures receive four bounded attempts over eleven seconds. Final
-transport failures log only a safe network cause code such as `ENOTFOUND` or
-`ECONNREFUSED`, never the endpoint URL or cron secret.
-
-## Monthly security-operations report
-
-Create a third Railway service from the same repository for the monthly report.
-It is an internal cron job: do not give it a public domain. Set its custom build
-command to `npm ci` so the Prisma postinstall generation runs, its custom start
-command to `npm run cron:security-operations-report`, and its Cron Schedule to
-`15 8 1 * *` (08:15 UTC on the first day of every month). It reports on the
-previous complete UTC calendar month and uses the month as an idempotency key,
-so rerunning a successfully delivered period does not send a duplicate email.
-
-Give this cron service only the restricted runtime `DATABASE_URL` and matching
-restricted `DIRECT_URL` (use `connection_limit=1` for this short-lived job),
-plus:
-
-```dotenv
-NODE_ENV=production
-RESEND_API_KEY=replace-me
-TRANSACTIONAL_EMAIL_FROM="Study Buddy Security <no-reply@updates.studybuddyng.com>"
-SECURITY_REPORT_RECIPIENTS=security@studybuddyng.com
-SECURITY_REPORT_LOGIN_FAILURE_THRESHOLD=25
-SECURITY_REPORT_RATE_LIMIT_THRESHOLD=50
-OPENAI_ADMIN_KEY=replace-with-an-organization-admin-key
-OPENAI_ORGANIZATION_ID=
-OPENAI_COST_PROJECT_ID=
-AI_MONTHLY_COST_ALERT_USD=
-```
-
-`SECURITY_REPORT_RECIPIENTS` accepts up to ten comma-separated company
-addresses. Keep the default report at `security@studybuddyng.com`; add
-`privacy@studybuddyng.com` only if both mailboxes should receive every monthly
-report. Store `OPENAI_ADMIN_KEY` only on this isolated reporting service, not on
-the web service and never in a `NEXT_PUBLIC_*` variable. Without it, the report
-still includes database-recorded token use but marks provider cost verification
-as requiring attention. `OPENAI_COST_PROJECT_ID` limits the cost calculation to
-the Study Buddy OpenAI project; without it, the report states that the amount is
-organization-wide. Set `AI_MONTHLY_COST_ALERT_USD` to an approved positive USD
-amount; the report also flags a month of at least USD 1 that is twice the prior
-month.
-
-Enable Railway failure notifications for this cron service. The process closes
-its Prisma connection and exits non-zero if database collection/storage or
-Resend delivery fails. An unavailable OpenAI cost request instead produces an
-`ACTION NEEDED` email. A missing monthly email must be treated as a monitoring
-failure rather than as evidence that nothing happened.
-
-The email contains aggregate counts only: persisted security warnings/errors,
-login failures, rate-limit rejections, invalid webhook signatures, CSRF
-failures, AI tokens and provider cost, completed/failed/overdue deletion work,
-and evidence freshness. It deliberately excludes raw email addresses, IP
-addresses, tokens, log details, and private evidence links. Full investigation
-stays in the restricted database and provider dashboards.
-
-The cron can verify that evidence exists, but it must not pretend to perform a
-safe backup restoration or decide who should retain provider access. During
-each calendar month, an operator must perform both controlled checks and record
-their completion from a trusted one-off Railway shell/job:
-
-```bash
-npm run security:record-operations-evidence -- BACKUP_RESTORE_TEST 2026-09-20T10:00:00Z "Nick Efe Oni" "private evidence reference"
-npm run security:record-operations-evidence -- PROVIDER_ACCESS_REVIEW 2026-09-20T11:00:00Z "Nick Efe Oni and Chijindu Oreh" "private evidence reference"
-```
-
-For `BACKUP_RESTORE_TEST`, restore into an isolated non-production environment,
-verify integrity and recovery steps, verify deleted data cannot be returned to
-normal live processing, then destroy the test copy. For
-`PROVIDER_ACCESS_REVIEW`, review named users, service accounts, API keys and
-recovery methods across Railway, Supabase, Cloudflare, GitHub, OpenAI, Resend,
-Microsoft 365/GoDaddy, Paystack, Meta/WhatsApp and CAPTCHA providers; remove
-stale access and confirm MFA. Store screenshots and detailed evidence in the
-restricted company evidence store, not the repository or the email report. If
-either record is absent from the report month, the email is marked
-`ACTION NEEDED`.
-
-Apply migration `20260916013000_add_security_operations_reporting` before
-deploying this feature. Confirm the runtime role receives CRUD on
-`SecurityAuditEvent`, `SecurityOperationsEvidence`, and
-`SecurityOperationsReportRun`, plus sequence use for
-`SecurityAuditEvent_id_seq`. Run `npm run security:verify-database` afterward.
-The web service writes audit rows on a best-effort basis while retaining its
-immediate structured Railway log; an audit-table outage never turns a user
-request into an application failure.
-
-Use different PostgreSQL credentials for `DATABASE_URL` and `DIRECT_URL` in the
-trusted migration environment. `DATABASE_URL` is the pooled runtime connection
-used by the generated Prisma client; the migration environment's `DIRECT_URL`
-is the owner connection used by Prisma Migrate. In the Railway web service,
-both variables use the restricted runtime URL solely so Prisma's build-time
-schema validation succeeds. Never put the real owner credential in that web
-service. The deployment checklist records that the broad `postgres` runtime
-credential has been replaced. Re-check the effective role attributes and grants
-after each database-role or connection-string change; do not rely only on the
-username.
-
-This app performs authorization in its server routes rather than passing each
-Supabase user's identity into PostgreSQL. A practical runtime role therefore
-needs access to all application rows (commonly `BYPASSRLS`) but should have only
-`USAGE` on the `public` schema, CRUD on the required tables, and sequence usage.
-It must not own the schema/tables or have superuser, database/role creation,
-replication, or DDL rights. Have the migration owner grant matching default
-privileges for future tables/sequences. Put the restricted pooled credential in
-the Railway web service and keep the owner credential in a separately controlled
-migration job where possible. Test this against staging before switching
-production because a missed table or sequence grant will fail closed.
-
-For a new isolated environment, apply all Prisma migrations with the owner
-connection first, then run `scripts/provision-runtime-role.sql` through `psql`
-with the runtime password supplied as the `runtime_password` variable. The
-script is repeatable: it creates or updates `studybuddy_runtime`, denies schema
-creation and ownership, grants only application table/sequence access, and sets
-matching default privileges for future owner-created objects. Run
-`npm run security:verify-database` through the resulting runtime URL before the
-web service is deployed.
-
-For Railway's persistent Next.js container, use Supabase's Supavisor **Session
-pooler** URI on port `5432` for `DATABASE_URL`, with the username changed to the
-dedicated runtime role. For the current single-replica deployment, append
-`connection_limit=3&pool_timeout=10&connect_timeout=10` (using `&` instead of
-`?` if the URL already has query parameters). Use `connection_limit=1` for
-trusted local tooling if it must share the production database. The
-`studybuddy_runtime` PostgreSQL role is capped at 20 connections, leaving
-headroom under the current 60-connection database maximum for Supabase services,
-rolling deployments, migrations, and recovery access. Recalculate these values
-before adding replicas; do not let the sum of replica pools approach the role or
-database limit. Do not append `pgbouncer=true` in session mode. Transaction mode
-on port `6543` is available for serverless/short-lived runtimes, but requires
-`pgbouncer=true`.
-Prisma 5 validates `DIRECT_URL` during `prisma generate`, although the generated
-web client does not use it for normal queries. In the Railway web service, set
-`DIRECT_URL` to the **same restricted pooler URL as `DATABASE_URL`** so the
-build succeeds without exposing the owner credential. Store the real owner URL
-only in the separately controlled migration job/CI secret or trusted local
-administrative environment.
-
-The age/guardian release adds `GuardianAuthorization` and
-`GuardianAuthorizationEvent`. Apply its migration using the migration-owner job
-before deploying the web code. Confirm the dedicated runtime role receives CRUD
-on both new tables through the owner&apos;s default privileges (and still has no DDL
-or ownership). Run `npm run security:verify-database` with the runtime
-connection afterward; a missing grant should be treated as a failed deployment,
-not worked around by restoring the owner credential to the web service.
-
-In production, set `APP_ORIGIN` to the browser-facing origin for that environment
-(for example, `https://studybuddyng.com` or `https://staging.studybuddyng.com`),
-not the private Railway service URL. Browser mutations carrying a Supabase session
-cookie, plus login and signup even without a session cookie, require a trusted
-origin. Requests with no `Origin`, `Origin: null`, or a different exact origin
-are rejected with `403 CSRF_VALIDATION_FAILED`. Only add another exact origin to
-`CSRF_TRUSTED_ORIGINS` when an intentional browser frontend needs it. Signed
-Paystack/WhatsApp webhooks and the secret-authenticated recommendation cron are
-excluded because they do not authenticate with browser cookies.
-
-Login and signup additionally require `Content-Type: application/json` (an
-optional charset is allowed); form-encoded, `text/plain`, and missing media types
-return `415 UNSUPPORTED_MEDIA_TYPE`. Both checks run in the route before
-credentials are read, authentication rate-limit counters are consumed, or
-Supabase sign-in/sign-up is called. The existing
-frontend already sends JSON and the browser supplies `Origin`; no new variables
-or database migration are needed. Command-line/integration clients must send
-both headers explicitly. In production an empty origin allowlist fails closed;
-in local development the request's own origin is also allowed.
-
-After deploying to staging, verify a disposable account can sign in and sign up
-normally, and that a cross-site or missing-Origin login POST gets 403 with no
-Supabase session `Set-Cookie`. A trusted-Origin `text/plain` POST must get 415. Do not weaken
-Cloudflare Access or CAPTCHA to run these checks. Local route regressions live
-in `app/api/v1/login/route.test.ts` and `app/api/v1/signup/route.test.ts`.
-
-`TRUSTED_PROXY_PROVIDER=railway` makes the rate limiter use only the first
-address in Railway's `X-Forwarded-For` chain. It intentionally ignores
-`X-Real-IP`, Cloudflare, and Vercel headers in this topology so a client cannot
-choose whichever forwarding header is most convenient to spoof.
-
-Password-reset throttling is configured separately from the general
-authenticated-request limits. The production defaults are three requests per
-account, 300 per source IP, and 1,000 globally in a one-hour fixed window. The
-account rule runs first, so repeated requests against one account do not use up
-the aggregate allowance for a school or household sharing a public IP. Configure
-these with `PASSWORD_RESET_RATE_LIMIT_ACCOUNT_MAX`,
-`PASSWORD_RESET_RATE_LIMIT_IP_MAX`,
-`PASSWORD_RESET_RATE_LIMIT_GLOBAL_MAX`, and
-`PASSWORD_RESET_RATE_LIMIT_WINDOW_MS`. Turnstile remains the interactive abuse
-control when Supabase Auth CAPTCHA is enabled; temporarily disabling it for an
-integration test does not require removing these server-side limits.
-
-## Private ClamAV service
-
-1. Add a separate Railway service using an official ClamAV image such as
-   `clamav/clamav:stable`. After testing, pin a supported feature release or
-   image digest so a new feature version cannot arrive unexpectedly.
-2. Add a volume mounted at `/var/lib/clamav` so virus definitions survive
-   redeploys and FreshClam can update them incrementally.
-3. Name the service `clamav`, leave Public Networking empty, and make port `3310`
-   available only on the project private network.
-4. Ensure `clamd.conf` has `StreamMaxLength` above the app's largest accepted
-   file; use at least `30M` for the current 25 MB resource limit.
-5. Allow the signature database to finish downloading before testing an upload.
-   Treat `MALWARE_SCANNER_UNAVAILABLE` as a production incident.
-
-The app sends each bounded upload with clamd's `INSTREAM` protocol before any
-Supabase Storage write. Production scanning fails closed. PDF, PNG, JPEG, and
-DOCX container magic bytes are checked first; PDFs and images also require their
-expected end markers and matching declared type/extension. DOCX extraction has
-strict ZIP-entry, encrypted/layout, advertised-size, and decompressed-output
-limits. Plain text and Markdown have no reliable magic bytes, but are still
-malware-scanned.
-
-PDFs are reconstructed through Ghostscript with `-dSAFER`, bounded execution
-time and output size, and no shell. The original is scanned, the reconstructed
-PDF is checked for active actions/embedded content, and the exact reconstructed
-bytes are scanned again before storage. `railpack.json` installs Ghostscript in
-the Railway runtime image. CDR lowers risk but is not a proof that a document is
-harmless, so keep ClamAV and least-privilege storage as separate layers.
-
-ClamAV's official documentation describes the
-[Docker images](https://docs.clamav.net/manual/Installing/Docker.html) and
-[`INSTREAM` framing](https://docs.clamav.net/manual/Usage/ClamdProtocol.html).
-The project recommends budgeting roughly 4 GB RAM for the scanner because the
-signature database is memory-heavy; check the current image guidance before
-sizing it lower.
-
-## Application roles
-
-Study Buddy has no application administrator, school or teacher role. The
-unused `AdminUser` table, its authorization bypasses and all
-`/api/v1/admin/*` routes were removed after confirming that the production
-database contained no administrator records. Subscription access is always
-restricted to the owning user.
-
-Migration `20260915170000_remove_unused_admin_authority` removes the empty
-database table and deliberately aborts if it ever finds an administrator row,
-preventing silent privilege-record deletion.
-
-The server-only Supabase service client remains necessary for tightly scoped
-account lifecycle, password-security and guardian operations. Supabase calls
-that use `auth.admin` describe the provider's privileged server API; they do not
-create an application role or grant users administrative access.
-
-## Security event monitoring
-
-Password-reset abuse protection additionally emits
-`password_reset_abuse_alert_sent`, `password_reset_abuse_alert_failed`,
-`password_reset_security_lock_applied`,
-`password_reset_security_lock_failed`,
-`password_reset_security_recovery_started`, and
-`password_reset_security_recovery_completed`. Alert on failures and investigate
-unexpected lock volume without putting raw email addresses or tokens in alerts.
-
-### Password-reset security deployment
-
-1. Apply migration `20260914090000_add_password_reset_security_lock` with the
-   migration-owner database URL. Confirm the restricted Railway runtime role
-   received CRUD rights on the two new tables through the configured future-
-   table default privileges; do not grant browser roles access.
-2. Keep the existing `RATE_LIMIT_HASH_SECRET` stable. Add the four optional
-   password-reset settings from `.env.example`, or rely on their approved
-   defaults: one alert per 24 hours, a 30-minute review link, and a 24-hour
-   provider lock.
-3. Once after the migration, run
-   `npm run security:backfill-auth-email-fingerprints` in a trusted Railway job
-   with the production database and Supabase server-admin variables. The output
-   contains counts only. New sign-ups and successful email logins maintain the
-   fingerprint automatically.
-4. Re-run the backfill immediately after any intentional rotation of
-   `RATE_LIMIT_HASH_SECRET`; until then existing fingerprints were produced by
-   the previous key and cannot match new password-reset requests.
-5. Exercise the complete flow with a disposable verified account. Confirm the
-   fourth account request in the one-hour window receives the same public 429,
-   one warning email arrives, merely opening it changes nothing, explicit
-   confirmation revokes sessions and rejects the old password, and the newest
-   recovery email permits a new password.
-
-The app emits single-line structured JSON events to stdout. Railway parses their
-attributes automatically. Useful Log Explorer filters are:
-
-```text
-@httpStatus:429
-@securityEvent:rate_limit_exceeded
-@securityEvent:login_failed
-@securityEvent:webhook_signature_failed
-@securityEvent:csrf_validation_failed
-@securityEvent:malware_detected
-@securityEvent:malware_scanner_unavailable
-@securityEvent:pdf_content_disarm_failed
-@securityEvent:ai_global_daily_budget_exhausted
-@securityEvent:account_deletion_failed
-@securityEvent:account_deletion_cron_failed
-@securityEvent:account_deletion_confirmation_email_failed
-@securityEvent:account_deletion_pending_email_failed
-@securityEvent:inactive_account_warning_failed
-@securityEvent:inactive_account_deletion_scheduled
-```
-
-Login account and source-IP identifiers are HMAC-based pseudonyms, so repeated
-failures can be grouped without putting emails, phone numbers, or raw IPs in
-application logs. Webhook signatures and uploaded filenames are never logged.
-
-Start with these thresholds and tune them against normal traffic:
-
-| Signal | Warning | Critical/action |
+| Service purpose | Public network | Minimum authority |
 | --- | --- | --- |
-| HTTP 429 | 25 in 5 minutes or 3x baseline | 100 in 5 minutes; inspect paths/IPs and enable edge protection if needed |
-| Login failures | 5 for one account/IP pseudonym in 10 minutes | 20 in 10 minutes; investigate credential stuffing and consider temporarily tightening limits |
-| Webhook signature failures | 3 per provider in 5 minutes | Sustained failures or a jump after secret rotation; verify provider secret/configuration |
-| Malware detected | Any event | Block is automatic; inspect the admin account and source workflow |
-| Scanner unavailable | Any event | Page immediately because production uploads are unavailable by design |
-| PDF CDR failure/unavailable | Any event | Inspect the file or runtime installation; do not bypass the production fail-closed setting |
-| Global AI budget exhausted | Any event | Provider calls stop automatically; inspect usage and deliberately raise the limit only if justified |
-| Account deletion failure | Any event or non-2xx cron response | Page engineering/privacy; restore the scheduler or provider connection and verify the retry completes before the 30-day deadline |
+| Web application | Intended HTTPS domain only | Restricted runtime database access and required provider credentials |
+| Database migration | None | Temporary migration authority; removed after the run |
+| Account lifecycle | None | Job authentication only; no browser credentials |
+| Security reporting | None | Restricted reporting database access and email delivery; provider-cost access only when approved |
+| Malware scanning | None | Scanner runtime and signature storage only |
 
-Railway provides searchable HTTP and structured logs, but its native threshold
-monitors cover CPU, RAM, disk, and network egress rather than application log
-counts. For alert delivery on the filters above, use a vendor SDK or OpenTelemetry
-backend with log/metric alerts (for example Datadog, New Relic, Grafana Cloud, or
-another tool already used by the team). Railway documents both approaches in
-[third-party observability](https://docs.railway.com/guides/third-party-observability).
-See also Railway's [log query syntax](https://docs.railway.com/observability/logs)
-and [native monitor limits](https://docs.railway.com/observability).
+Do not put migration-owner credentials, provider administration keys, or broad
+database authority in the web service. A missing grant is a failed deployment,
+not a reason to increase the runtime role's privileges.
 
-## Unusual AI spending
+## Environment configuration
 
-- Put production AI traffic in its own OpenAI project/API key.
-- Configure project budget notifications at 50%, 75%, 90%, and 100%. Treat these
-  as notifications rather than relying on them as the application's hard cap.
-- Run a small scheduled monitoring job against OpenAI's Costs API, grouped by
-  project, and alert when daily cost crosses an absolute amount or exceeds about
-  twice the trailing seven-day median. Keep the required OpenAI admin key in the
-  monitoring system, not in browser code.
-- Compare provider cost to the app's `AiChatMessage.inputTokens` and
-  `outputTokens` totals. The database totals help identify accounts and models,
-  but provider Costs remain the billing source of truth and include work outside
-  persistent chat.
-- `AI_DAILY_USER_QUOTA` remains a hard per-account request quota. In addition,
-  `AI_GLOBAL_DAILY_TOKEN_BUDGET` is an app-enforced, distributed hard stop across
-  all accounts and replicas. Calls atomically reserve a conservative token upper
-  bound before contacting the provider and settle against reported usage. It
-  resets at 00:00 UTC and fails closed if its database guard is unavailable.
-- Tokens are a stable enforcement unit, not an exact currency amount. Translate
-  the chosen token ceiling from your most expensive enabled model, leave a cost
-  margin, and keep provider-side cost alerts because model pricing and traffic
-  outside this app are not represented by the token table.
+Use `.env.example` only as a list of supported settings. Production values are
+created and reviewed privately. In particular:
 
-## Automated repository and staging checks
+- browser-exposed variables contain only public identifiers;
+- the canonical application origin is the exact browser-facing HTTPS origin;
+- additional trusted origins are empty unless a reviewed frontend requires
+  them;
+- webhook, cron, rate-limit hashing, and provider secrets are independent;
+- runtime and migration database identities are separate;
+- rate limits, AI budgets, alert thresholds, and report recipients are tuned
+  privately for the environment; and
+- secret values are never printed in build logs, command output, screenshots,
+  tickets, or reports.
 
-- Dependabot opens grouped weekly npm updates and monthly GitHub Actions updates.
-- GitHub Dependabot security updates, native secret scanning and secret push
-  protection were enabled on 16 September 2026. Review security PRs and alerts
-  promptly; keep major framework/runtime upgrades separate from routine patch
-  groups so they receive migration and compatibility testing.
-- TruffleHog scans each pull request and push to `main`; it also supports a full
-  manual history scan. New diffs fail on verified or unknown findings. The
-  manual history mode fails on verified findings and still reports reviewed
-  unverified matches; this avoids treating already-rotated historical database
-  patterns as active credentials. Any historical credential it finds must be
-  rotated, not merely deleted from the latest commit.
-- Set the GitHub Actions repository variable `STAGING_URL` to the public HTTPS
-  Railway staging URL. The OWASP ZAP baseline workflow runs every Monday and can
-  also be launched manually with an alternate target. It is a non-destructive
-  spider/passive scan and uploads its report. `scripts/check-zap-report.mjs`
-  fails CI on medium/high alerts; low/informational observations remain in the
-  report for review without making the workflow red.
-- The workflow runs `scripts/validate-zap-target.mjs` before ZAP. It accepts only
-  an HTTPS Railway `*.up.railway.app` origin or
-  `https://staging.studybuddyng.com`, and explicitly refuses the production
-  domain, credentials, non-standard ports, paths, queries, and fragments.
-- Never point the ZAP workflow at production. Seed staging with fake data and
-  use separate provider credentials. The baseline scan covers anonymously
-  reachable pages; authenticated testing needs a separately reviewed ZAP auth
-  configuration.
+Seal production variables after validation where the platform supports it.
+Rotate exposed values and review access/logs; simply editing documentation or
+the latest commit does not invalidate a leaked credential.
 
-### Latest ZAP evidence
+## Database runtime authority
 
-- The [15 September 2026 staging run](https://github.com/studybuddydevelopers/study-buddy-v2/actions/runs/34990456364)
-  completed successfully with zero medium/high findings. The explicit severity
-  gate passed, and the earlier CSP wildcard finding was no longer present.
-- The remaining low findings concern missing COEP, COOP and CORP headers. These
-  cross-origin-isolation policies are intentionally deferred until their effect
-  on Supabase, Turnstile and hCaptcha resources has been tested; adding COEP
-  without that compatibility work can block required third-party resources.
-- The remaining informational findings cover CSP nonce strings reported as
-  Base64, framework-generated redirects without a content type, expected
-  no-store/cache observations, and `Sec-Fetch-*` request headers the ZAP client
-  did not send. Review them after dependency or routing changes, but they are not
-  medium/high release blockers in this baseline.
+The web service uses a dedicated PostgreSQL runtime identity. It may access the
+application data required by server routes, but it must not own schemas or
+tables and must not have superuser, database/role creation, replication, or DDL
+authority. Migration authority is isolated from normal runtime.
 
-### Latest dependency and secret review
+After every migration or role change:
 
-- On 16 September 2026, Dependabot alerts 11 and 12 identified the same medium
-  Vitest path-traversal/arbitrary-file-read advisory. `vitest` and
-  `@vitest/mocker` were updated from 4.1.10 to 4.1.11, the first patched release;
-  `npm audit` then reported zero known vulnerabilities and the full test, lint
-  and production-build checks passed.
-- The same review applied the compatible routine updates for Next.js and
-  `eslint-config-next` 16.3.5, `tsx` 4.23.13, and the latest Node 20 type
-  definitions. All 1,056 tests, lint, the production build, and a fresh
-  `npm audit` passed after the update.
-- GitHub native secret scanning and push protection currently report no open
-  alerts after enablement. The manual TruffleHog full-history review found zero
-  verified secrets and four unverified Postgres-pattern matches associated with
-  `.env.example`; previously exposed database credentials had already been
-  rotated. Push and pull-request scans continue to reject new verified or
-  unknown findings.
-- Do not merge the current grouped production dependency PR wholesale: its
-  Supabase dependency set declares Node 22 while the current project verification
-  environment is Node 20. Split and test those updates during a deliberate Node
-  runtime upgrade. Routine patch/minor and GitHub Actions updates remain on the
-  configured Dependabot schedules.
+1. verify the effective identity and privileges without exposing connection
+   strings;
+2. run the database security verification command against the runtime identity;
+3. exercise a read and write path in staging; and
+4. retain the result in the restricted deployment evidence record.
 
-OpenAI references: [project budget behavior](https://help.openai.com/en/articles/9186755-managing-your-work-in-the-api-platform-with-projects.eps)
-and the [Usage and Costs APIs](https://platform.openai.com/docs/api-reference/usage/audio_transcriptions_object).
+Connection-pool sizes are calculated privately from replica count, job count,
+provider limits, and deployment overlap. Do not publish the live calculation or
+raise the pool merely to hide connection leaks.
 
-## Railway edge protection
+## Authentication and request protection
 
-Railway is a suitable deployment target for this app. It now provides an edge
-WAF, Edge Rules, and an on-demand Under Attack Mode; Cloudflare is optional, not
-a prerequisite.
+The application enforces server-side authentication and ownership checks.
+Cookie-authenticated mutations require trusted-origin validation, and sensitive
+routes use bounded input sizes, timeouts, and distributed limits. Webhooks use
+provider signatures rather than browser sessions. Scheduled routes use separate
+job authentication.
 
-- Configure Railway Edge Rules for obvious abusive traffic and protect admin or
-  auth browser flows where a challenge is acceptable.
-- Keep explicit allow rules for Paystack and WhatsApp webhook paths above any
-  broad browser challenge. A challenge can break legitimate non-browser webhook
-  delivery.
-- Test Under Attack Mode before launch, but enable it during an active bot/DDoS
-  incident rather than leaving it on permanently. Railway notes that API-only
-  domains are blocked while this browser check is active.
-- Retain the app's database-backed IP/account limits. Edge controls reduce load;
-  application limits enforce account-aware policy across replicas.
-- Cloudflare can still be placed in front of the Railway custom domain if its
-  particular bot-management or WAF controls are needed later. Follow Railway's
-  documented Cloudflare SSL mode and domain-verification requirements.
+Proxy-derived client addresses are trusted only from the configured hosting
+topology. Do not accept whichever forwarding header a client supplies. CAPTCHA
+or edge challenges supplement application controls; they do not replace
+account-aware limits or authorisation.
 
-Railway references: [Edge Rules](https://docs.railway.com/networking/edge-rules),
-[WAF lockdown guidance](https://docs.railway.com/guides/lock-down-production-project),
-and [custom domains](https://docs.railway.com/networking/domains/working-with-domains).
+Production thresholds and bypass-resistant tuning are private. Test shared-IP
+scenarios, unknown accounts, enumeration resistance, retries, and lock recovery
+in staging without documenting the live limits or test identities here.
+
+## Account lifecycle jobs
+
+Run lifecycle work from an isolated scheduled service over private networking.
+The job has no public domain and receives only its authentication material and
+target configuration. It must use bounded batches, idempotent transitions,
+timeouts, retries, privacy-safe logs, and a failing exit status when work cannot
+be completed.
+
+Alert on missed or failed runs. Verify outcomes in the database and email
+provider rather than relying only on a successful process exit. The private
+runbook records the schedule, retry policy, last test, and recovery procedure.
+
+## Security operations reporting
+
+The monthly report service is isolated from the web runtime. It aggregates
+security and operational signals without including raw email addresses, IP
+addresses, tokens, user content, database rows, or private evidence links.
+
+The report should cover, at minimum:
+
+- authentication and rate-limit anomalies;
+- webhook and origin-validation failures;
+- malware and document-processing failures;
+- unusual AI use or provider cost;
+- account-lifecycle failures and overdue work;
+- dependency and secret-scanning status;
+- backup-restoration evidence freshness; and
+- provider-access review evidence freshness.
+
+Exact alert thresholds and recipients are private. A missing report is a
+monitoring failure, not proof that the month was uneventful. Backup restoration
+and provider-access review require controlled human verification; a cron job
+must not claim to have performed them automatically.
+
+## File-processing security
+
+The malware scanner is reachable only from authorised private services and has
+no public endpoint. Production upload handling fails closed if a required scan
+or reconstruction step is unavailable.
+
+The application combines bounded request handling, declared-type and signature
+validation, archive/decompression limits, malware scanning, document
+reconstruction where applicable, post-reconstruction inspection, and a second
+scan before storage. No single layer proves a file is harmless.
+
+Scanner image versions, memory sizing, accepted limits, private addresses, and
+known test fixtures are recorded privately. Use harmless standard antivirus
+test files and synthetic documents in staging; never place live malware or
+customer data in the repository.
+
+## Monitoring and incident response
+
+Application logs use structured, privacy-safe events. They must not contain raw
+credentials, reset/deletion links, full client addresses, webhook signatures,
+uploaded filenames, user conversations, or payment details.
+
+Alert categories include availability, authentication abuse, repeated request
+rejection, signature failures, scanner/CDR failure, AI-budget exhaustion,
+scheduled-job failure, and deletion failure. The restricted monitoring record
+contains the exact queries, thresholds, destinations, escalation roster, and
+test evidence.
+
+During an incident, preserve evidence, revoke or rotate affected access, and
+follow the [personal-data breach response plan](./compliance/PERSONAL_DATA_BREACH_RESPONSE_PLAN.md)
+when personal data may be involved. Do not paste raw logs or findings into a
+public issue.
+
+## Repository and staging checks
+
+- Dependabot proposes dependency updates; review and test them rather than
+  merging groups blindly.
+- Secret scanning runs on proposed and committed changes. A historical secret
+  must be revoked or rotated even if it is later removed from Git.
+- The OWASP ZAP baseline targets only the approved non-production environment
+  and performs the bounded passive/baseline scan configured in the workflow.
+- Authenticated or active penetration testing requires separate written rules
+  of engagement and synthetic accounts.
+- Security reports and scan artifacts are retained in restricted evidence
+  storage. Public documentation records only non-sensitive completion status.
+
+## Railway edge controls
+
+Railway edge protections or an upstream proxy can reduce abusive traffic, but
+they must be tested against authentication, CAPTCHA, email callbacks, and
+signed webhook delivery. Do not publish live rules or globally disable
+protection for a test. Any temporary allow rule is limited to staging, the
+approved source, and the approved time window, then removed and verified.
+
+## Release evidence
+
+For every material production release, privately retain:
+
+- commit and deployment identifiers;
+- migration and runtime-role verification;
+- security/test/scan results;
+- smoke-test outcomes;
+- scheduled-job and monitoring checks;
+- rollback owner and known-good artifact; and
+- any accepted residual risk with owner and review date.
+
+Do not commit that evidence, live configuration, or unresolved vulnerability
+details to this public repository.
+
+See [Deployment Guide](./DEPLOYMENT.md),
+[Deployment and Security Change Process](./DEPLOYMENT_SECURITY_CHANGE_PROCESS.md),
+[Deployment and Security Fix History](./DEPLOYMENT_SECURITY_FIX_HISTORY.md),
+[Security Policy](../SECURITY.md),
+[Independent Security Review](./INDEPENDENT_SECURITY_REVIEW.md), and
+[Beta Readiness](./BETA_READINESS.md).

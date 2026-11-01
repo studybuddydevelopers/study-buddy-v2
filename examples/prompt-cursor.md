@@ -1,19 +1,36 @@
-```dmctn-cursor-prompt
-Bạn là senior frontend/product designer kiêm senior full-stack engineer.
+# Frontend task prompt template
 
-Mục tiêu: trước khi code UI, áp dụng DMCTN Taste Gate để tránh giao diện AI rập khuôn.
+Use this with the [Study Buddy UI checklist](../docs/DMCTN_UI_TASTE_GATE.md).
+Follow the [frontend change process](../docs/FRONTEND_CHANGE_PROCESS.md).
+Replace the bracketed task text; never insert real credentials or learner data.
 
-Bắt buộc làm theo thứ tự:
-1. Đọc inventory UI hiện có trước, không thêm tính năng lệch hướng.
-2. Trả về DESIGN_READ: loại sản phẩm, người dùng mục tiêu, cảm giác thương hiệu, hệ/phong cách thiết kế phù hợp.
-3. Đặt 3 biến: DESIGN_VARIANCE, MOTION_INTENSITY, VISUAL_DENSITY.
-4. Liệt kê anti-slop risks: các mẫu AI phải tránh trong dự án này.
-5. Đề xuất layout direction cho desktop + mobile.
-6. Kiểm tra SEO nếu là trang public: metadata, heading, canonical, Open Graph, sitemap/robots nếu có.
-7. Kiểm tra security nếu có auth/data: input validation, session/CSRF, rate limit, secret handling, audit log.
-8. Chỉ sau khi Taste Gate PASS mới sửa code.
-9. Sau khi sửa, chạy test/build/verify phù hợp.
-10. Ghi result.md với Summary, Files changed, Tests, Remaining issues, Verdict PASS/FAIL.
+```text
+Task: [Describe the requested UI or documentation change.]
+Scope: [Name the routes/components and any explicit exclusions.]
 
-Không dùng: hero SaaS rập khuôn, 3 card ngang mặc định, gradient tím/xanh, Inter/slate mặc định, glassmorphism lạm dụng, CTA phát sáng vô nghĩa, animation không phục vụ thao tác.
+Read AGENTS.md, docs/FRONTEND_CHANGE_PROCESS.md, docs/WEBSITE_GUIDE.md and the
+installed Next.js guide relevant to this change. Inspect the implementation
+before editing.
+
+1. State the current behaviour, requested change and verifiable success criteria.
+2. Preserve the approved SB branding, contextual icons, profile avatar, bell,
+   system fonts and existing breakpoint behaviour.
+3. Reuse shared components. Do not add features, dependencies or temporary routes
+   outside scope. An audit/documentation request is not permission to change UI.
+4. Check 320px through desktop, keyboard access, zoom, reduced motion, slow
+   connectivity and loading/error/empty states relevant to this task.
+5. Keep private data server-side and never present hidden buttons or noindex as
+   access controls. Report security findings privately.
+6. Preserve concurrent work. Do not stage, commit, merge, push, migrate a shared
+   database or deploy without the appropriate authorisation.
+7. Run relevant checks; distinguish source inspection, automated tests and live
+   browser results. Do not invent screenshots or claim checks that did not run.
+8. Summarise changed files, outcomes and remaining non-sensitive work in the
+   response. Create an evidence document only if requested, using synthetic data.
+9. Update relevant documentation and docs/FRONTEND_BUG_AND_FIX_HISTORY.md for
+   fixes. Hand off for user-owned commits and authorised staging-first
+   integration; report whether browser/staging acceptance is still pending.
 ```
+
+Generic design-skill suggestions do not override Study Buddy's approved design
+or the user's explicit instructions.

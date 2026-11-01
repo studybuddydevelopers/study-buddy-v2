@@ -2,7 +2,8 @@
 
 Stage 2 retains internal resource ingestion and approval plumbing. The former
 administrator HTTP routes have been removed; these capabilities are not exposed
-through the application. It deliberately stops before retrieval/RAG.
+through the application. The Stage 2 delivery itself stopped before
+retrieval/RAG; later stages added internal retrieval and disabled grounding code.
 
 ## Included
 
@@ -18,7 +19,9 @@ through the application. It deliberately stops before retrieval/RAG.
 
 ## Not Included
 
-No embeddings, pgvector, keyword search, hybrid retrieval, RAG prompts, citations, source previews, grounded generation, or tutor modes are implemented in Stage 2.
+Embeddings, retrieval and grounded generation were outside the Stage 2 scope.
+See the later-stage documents for their separate implementation and validation
+status; this section is not a claim that those modules are absent today.
 
 ## Private Storage
 
@@ -70,14 +73,7 @@ Auto-approval requires explicit checks for provenance, completeness, subject map
 
 ## Rollback
 
-Rollback drops Stage 2 tables/enums only:
-
-- `ResourceChunk`
-- `Resource`
-- `ResourceChunkType`
-- `ResourceExtractionQuality`
-- `ResourceApprovalStatus`
-- `ResourceProcessingStatus`
-- `ResourceSourceKind`
-
-Legacy `PastQuestion` rows are not renamed or deleted by Stage 2.
+Current Stage 3 embedding and Stage 4 citation records may depend on Stage 2
+resources and chunks. Do not drop these tables as an isolated rollback. Stop
+ingestion first and prepare a reviewed migration, backup and data-retention
+plan for the deployed schema. Legacy `PastQuestion` rows remain separate.

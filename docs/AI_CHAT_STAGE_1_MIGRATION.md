@@ -1,6 +1,17 @@
 # AI Chat Stage 1 Migration
 
-Stage 1 adds persistent general AI chat. It does not add resource ingestion, retrieval, embeddings, citations, or grounded RAG behaviour.
+Stage 1 added persistent general AI chat. Its general-chat path is not
+resource-grounded. Later stages added separate resource and feature-gated
+grounding code, but grounded chat remains disabled.
+
+## Current frontend
+
+The [AI experience guide](../AI_FEATURES_GUIDE.md) documents the current saved
+chat, retry, rename/delete, Markdown and maths behaviour. The shared renderer
+uses Streamdown in static mode; its name does not mean replies are delivered
+token by token. The legacy stateless chat page is separate from saved chat.
+Use synthetic conversations for public examples and keep deployment and
+provider details in the appropriate private release record.
 
 ## Migration
 
@@ -51,25 +62,20 @@ destructive-action confirmation before calling this route.
 
 ## Rollback
 
-Rollback removes only Stage 1 chat data and enums:
+The original Stage 1 tables now have downstream Stage 4 relationships and
+contain live chat history. Do **not** use the original table-drop sequence on a
+current database. Disable the affected feature first, preserve necessary data,
+and design a reviewed rollback migration against the deployed schema. Legacy
+`AiQuestion` and `AiQuestionMessage` remain separate.
 
-```sql
-DROP TABLE IF EXISTS "AiGenerationRequest";
-DROP TABLE IF EXISTS "AiChatMessage";
-DROP TABLE IF EXISTS "AiChat";
-DROP TYPE IF EXISTS "AiGenerationFailureCode";
-DROP TYPE IF EXISTS "AiGenerationRequestStatus";
-DROP TYPE IF EXISTS "AiChatMessageStatus";
-DROP TYPE IF EXISTS "AiChatRole";
-```
-
-This does not affect legacy `AiQuestion`/`AiQuestionMessage` data.
-
-## Future Stage 2 Prerequisites
+## Historical Stage 2 Prerequisites
 
 - Admin approval policy for reusable resources.
 - Resource provenance/completeness checks before any migration from `PastQuestion`.
 - Separate ingestion worker or admin command for parsing/chunking.
 - No auto-approval of existing past questions unless explicit checks pass.
+
+Stage 2 internal ingestion code was subsequently added. Its former
+administrator HTTP routes are not exposed by the current app.
 
 Cursor pagination remains a future improvement. Stage 1 uses bounded offset pagination with stable secondary ID ordering.
