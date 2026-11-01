@@ -14,6 +14,11 @@ behaviour, branding and breakpoints; the [codebase map](CODEBASE_BREAKDOWN.md)
 for responsibilities; the [AI experience guide](AI_FEATURES_GUIDE.md) for saved
 chat/rendering; and the [UI checklist](docs/DMCTN_UI_TASTE_GATE.md) for verification.
 
+The [frontend bug and fix history](docs/FRONTEND_BUG_AND_FIX_HISTORY.md) records
+recovered UI regressions, accepted corrections, evidence and unresolved reports.
+Follow the [frontend change process](docs/FRONTEND_CHANGE_PROCESS.md) for scoped
+implementation, verification, documentation and staging-first handoff.
+
 These describe code, not deployment or accessibility certification.
 Notifications still await staging migration and live checks. Temporary icon
 audits/design-preview routes are not product features; the approved icon rollout
@@ -148,14 +153,14 @@ operational/security logging is approved.
 
 | Page | Current status | Why it must be updated later |
 | --- | --- | --- |
-| [`/privacy-policy`](/Users/efeon/study-buddy-v2/app/privacy-policy/page.tsx) | Identifies the registered controller, verified privacy mailbox, current Railway/Cloudflare hosting and Supabase Stockholm primary region; covers current data flows and approved age, access, AI-improvement, retention, international-transfer and email-first privacy-rights policies | Add remaining retention periods and verified provider/Supabase processing locations after the provider assessments |
-| [`/terms-of-service`](/Users/efeon/study-buddy-v2/app/terms-of-service/page.tsx) | Identifies the contracting legal entity and covers minors, AI, user content, payments, consumer rights, Nigerian law, and the current absence of textbooks or genuine past-question claims | Add the final commercial terms; legal review is required before paid/school launch |
-| [`/refund-policy`](/Users/efeon/study-buddy-v2/app/refund-policy/page.tsx) | Future paid subscriptions automatically renew after clear disclosure; same-day cancellation automatically refunds prorated unused time; other refunds are limited to duplicate payment, paid service not provided, Study Buddy discontinuation, or Nigerian-law requirements | Implement and test renewal, cancellation, refund and confirmation-email controls and confirm processing targets before accepting payment |
-| [`/parent-student-privacy`](/Users/efeon/study-buddy-v2/app/parent-student-privacy/page.tsx) | Implemented as an age-appropriate summary of the live 13+ rule, guardian email decision flow, and disabled future conversation-improvement choice | Re-review the future opt-in with students, parents and a qualified Nigerian privacy adviser before activation or after any material workflow change |
-| [`/ai-safety`](/Users/efeon/study-buddy-v2/app/ai-safety/page.tsx) | Implemented with limitations, privacy, academic-integrity, prohibited-use, narrow staff-review authority, future AI-improvement safeguards, and reporting rules | Update after child-safety evaluation, reporting UI, staff-access tooling, escalation owners and any new AI model/use case are implemented |
-| [`/cookie-policy`](/Users/efeon/study-buddy-v2/app/cookie-policy/page.tsx) | Accurate for essential auth, local drafts and CAPTCHA; states that advertising/behavioural cookies are not currently used | Update and implement consent controls before adding non-essential analytics, advertising pixels, session replay or similar tracking |
-| [`/accessibility`](/Users/efeon/study-buddy-v2/app/accessibility/page.tsx) | Implemented without making an unsupported conformance claim | Add tested WCAG version, scope, methods, failures and remediation dates after an independent accessibility audit |
-| [`/content-policy`](/Users/efeon/study-buddy-v2/app/content-policy/page.tsx) | Covers permitted use, rights complaints, the current absence of displayed textbooks/genuine past questions, and the absence of a current WAEC relationship | Update only after each future resource has recorded provenance/licensing or an executed WAEC agreement changes the current position |
+| [`/privacy-policy`](app/privacy-policy/page.tsx) | Identifies the registered controller, verified privacy mailbox, current Railway/Cloudflare hosting and Supabase Stockholm primary region; covers current data flows and approved age, access, AI-improvement, retention, international-transfer and email-first privacy-rights policies | Add remaining retention periods and verified provider/Supabase processing locations after the provider assessments |
+| [`/terms-of-service`](app/terms-of-service/page.tsx) | Identifies the contracting legal entity and covers minors, AI, user content, payments, consumer rights, Nigerian law, and the current absence of textbooks or genuine past-question claims | Add the final commercial terms; legal review is required before paid/school launch |
+| [`/refund-policy`](app/refund-policy/page.tsx) | Future paid subscriptions automatically renew after clear disclosure; same-day cancellation automatically refunds prorated unused time; other refunds are limited to duplicate payment, paid service not provided, Study Buddy discontinuation, or Nigerian-law requirements | Implement and test renewal, cancellation, refund and confirmation-email controls and confirm processing targets before accepting payment |
+| [`/parent-student-privacy`](app/parent-student-privacy/page.tsx) | Implemented as an age-appropriate summary of the live 13+ rule, guardian email decision flow, and disabled future conversation-improvement choice | Re-review the future opt-in with students, parents and a qualified Nigerian privacy adviser before activation or after any material workflow change |
+| [`/ai-safety`](app/ai-safety/page.tsx) | Implemented with limitations, privacy, academic-integrity, prohibited-use, narrow staff-review authority, future AI-improvement safeguards, and reporting rules | Update after child-safety evaluation, reporting UI, staff-access tooling, escalation owners and any new AI model/use case are implemented |
+| [`/cookie-policy`](app/cookie-policy/page.tsx) | Accurate for essential auth, local drafts and CAPTCHA; states that advertising/behavioural cookies are not currently used | Update and implement consent controls before adding non-essential analytics, advertising pixels, session replay or similar tracking |
+| [`/accessibility`](app/accessibility/page.tsx) | Implemented without making an unsupported conformance claim | Add tested WCAG version, scope, methods, failures and remediation dates after an independent accessibility audit |
+| [`/content-policy`](app/content-policy/page.tsx) | Covers permitted use, rights complaints, the current absence of displayed textbooks/genuine past questions, and the absence of a current WAEC relationship | Update only after each future resource has recorded provenance/licensing or an executed WAEC agreement changes the current position |
 
 All pages are linked from the responsive footer. The Privacy Policy and Terms
 also link directly to the detailed notices relevant to their sections.
@@ -217,20 +222,20 @@ current defensive posture.
 
 ## Bandwidth And Low-Data Improvements
 
-Implemented/expected low-bandwidth behavior:
+Current implementation and rules for future work (not proof of measured data savings):
 
 - Low Data Mode lives in Settings and should reduce mobile-data usage across study flows.
 - `UserSettings` stores low-data mode and cloud draft sync preferences per user. Existing users were backfilled with default settings in migration `20260726090000_add_query_performance_indexes`.
 - Practice answers are saved locally first. Cloud draft sync only runs when the user enables it and Low Data Mode is off.
 - Practice and mock-exam question images should be suppressed by default in Low Data Mode and replaced with a small `Load image` button so users only download heavy media when they choose to.
-- Shared image rendering should use [`components/Image.tsx`](/Users/efeon/study-buddy-v2/components/Image.tsx) instead of raw `<img>` elements. It uses the custom loader in [`lib/optimized-image.ts`](/Users/efeon/study-buddy-v2/lib/optimized-image.ts), lazy loading, async decoding, responsive `srcSet`s, and bounded quality settings.
+- Shared image rendering should use [`components/Image.tsx`](components/Image.tsx) instead of raw `<img>` elements. It uses the custom loader in [`lib/optimized-image.ts`](lib/optimized-image.ts), lazy loading, async decoding, responsive `srcSet`s, and bounded quality settings.
 - Supabase public storage image URLs are rewritten from `/storage/v1/object/public/...` to `/storage/v1/render/image/public/...` with width, quality, and resize parameters so browsers can choose smaller images for smaller screens.
 - Non-transformable images, such as SVGs or unknown external hosts, fall back to their original URL but still go through the shared lazy/async image component.
 - Heavy navigation links such as practice routes, mock exam routes, and progress pages should use `prefetch={false}` so Next.js does not silently download route payloads in the background.
 - Topic practice should load questions in small pages instead of pulling the full topic bank at once. The user should be able to load more questions deliberately.
 - Cloud draft fetching should request drafts only for loaded question IDs, not every draft in a topic.
 - User-facing history lists, such as progress mock-exam history, should be paginated with bounded `pageSize` limits.
-- Admin and account list endpoints should enforce bounded pagination so a large school, user, AI thread, or subscription table cannot produce huge JSON responses.
+- User-facing chat, subscription, review and notification lists should use bounded pagination. This rule does not imply that a school or general administrator interface exists.
 - Dashboard and progress summary APIs should use database aggregates (`count`, `groupBy`, or raw aggregate SQL) instead of fetching full attempt/mock rows into application memory.
 - Dashboard weekly activity uses a lightweight CSS-rendered bar chart instead of shipping a heavier charting dependency for that widget.
 
@@ -239,7 +244,7 @@ Future low-data work:
 - Add an offline/light cache for the current topic's loaded questions and user answers.
 - Add compressed image variants or thumbnails for question images, ideally WebP/AVIF where supported.
 - Replace remaining external avatar/image requests with local assets or initials-based placeholders.
-- Keep using [`docs/PERFORMANCE_AND_LOW_DATA_RULEBOOK.md`](/Users/efeon/study-buddy-v2/docs/PERFORMANCE_AND_LOW_DATA_RULEBOOK.md) as the rulebook for future changes.
+- Keep using [`docs/PERFORMANCE_AND_LOW_DATA_RULEBOOK.md`](docs/PERFORMANCE_AND_LOW_DATA_RULEBOOK.md) as the rulebook for future changes.
 
 ## Payment Notes
 
@@ -328,7 +333,7 @@ age/guardian, account-security and deletion-state screens.
 
 ## API Surface
 
-All app APIs live under [`app/api/v1`](/Users/efeon/study-buddy-v2/app/api/v1).
+All app APIs live under [`app/api/v1`](app/api/v1).
 
 Main domains:
 
@@ -342,11 +347,11 @@ Main domains:
 - payments
 - admin content
 
-See [`app/api/v1/README.md`](/Users/efeon/study-buddy-v2/app/api/v1/README.md) for the route-level reference.
+See [`app/api/v1/README.md`](app/api/v1/README.md) for the route-level reference.
 
 ## Database
 
-The schema is defined in [`prisma/schema.prisma`](/Users/efeon/study-buddy-v2/prisma/schema.prisma).
+The schema is defined in [`prisma/schema.prisma`](prisma/schema.prisma).
 
 Key models:
 
@@ -374,11 +379,11 @@ Implemented persistent general chat:
 - Pending assistant placeholders are stored with empty `content` and `status = PENDING`.
 - Failed generations store only safe failure codes and can be retried without duplicating the user message.
 - New chat routes are thin and delegate lifecycle, transactions, retries, and provider calls to `ChatService`.
-- OpenAI-specific code lives in [`lib/ai/chat/openai-provider.ts`](/Users/efeon/study-buddy-v2/lib/ai/chat/openai-provider.ts); tests use `FakeChatModelProvider`.
+- OpenAI-specific code lives in [`lib/ai/chat/openai-provider.ts`](lib/ai/chat/openai-provider.ts); tests use `FakeChatModelProvider`.
 
 Stage 1 general chat is not resource-grounded. Later stages added internal resource and grounding code, but that code is not enabled for ordinary chat.
 
-Migration and rollback notes: [`docs/AI_CHAT_STAGE_1_MIGRATION.md`](/Users/efeon/study-buddy-v2/docs/AI_CHAT_STAGE_1_MIGRATION.md).
+Migration and rollback notes: [`docs/AI_CHAT_STAGE_1_MIGRATION.md`](docs/AI_CHAT_STAGE_1_MIGRATION.md).
 
 ## Resource Ingestion Stage 2
 
@@ -416,7 +421,7 @@ Implemented retrieval infrastructure:
 - Keyword retrieval works for approved processed active chunks even when embeddings are incomplete.
 - Vector retrieval requires the active configuration, completed embedding rows, and matching current chunk content hashes.
 - Hybrid retrieval uses Reciprocal Rank Fusion, deterministic tie-breaking, subject/topic filters, and exact duplicate suppression with alternate provenance retained.
-- OpenAI-specific embedding code lives in [`lib/ai/embeddings/openai-provider.ts`](/Users/efeon/study-buddy-v2/lib/ai/embeddings/openai-provider.ts); tests use `FakeEmbeddingProvider`.
+- OpenAI-specific embedding code lives in [`lib/ai/embeddings/openai-provider.ts`](lib/ai/embeddings/openai-provider.ts); tests use `FakeEmbeddingProvider`.
 
 Stage 3 itself was retrieval-only. Later Stage 4 code can connect retrieval to `/chat` behind a disabled feature flag; normal chat does not use it.
 
@@ -429,7 +434,7 @@ npm run resources:search -- --mode=keyword --query="WAEC Mathematics question 5"
 npm run resources:evaluate-retrieval -- --mode=hybrid --with-vector --split=development
 ```
 
-Details, activation rules, evaluation notes, and rollback: [`docs/RESOURCE_RETRIEVAL_STAGE_3.md`](/Users/efeon/study-buddy-v2/docs/RESOURCE_RETRIEVAL_STAGE_3.md).
+Details, activation rules, evaluation notes, and rollback: [`docs/RESOURCE_RETRIEVAL_STAGE_3.md`](docs/RESOURCE_RETRIEVAL_STAGE_3.md).
 
 ## Grounded Chat Stage 4
 
@@ -449,11 +454,11 @@ Stage 4 still does not add HINT, SOLVE, MARK, public web search, external browsi
 
 Current status: **DO_NOT_ENABLE**. Earlier synthetic holdouts, including v8, are consumed and cannot be reused as fresh acceptance evidence. Stage 4.1's capability pipeline is under separate evaluation; it is not wired into ordinary `/chat` requests. The database-backed evaluation campaign remains incomplete. Passing disclosed tests or a schema inspection does not authorize enablement.
 
-Keep `AI_GROUNDED_CHAT_ENABLED=false` and `AI_GROUNDING_PIPELINE=legacy` in deployed environments. Do not describe general-chat answers as citation-backed or based on approved Study Buddy resources. Grounded launch requires a separately approved evaluation, human answer review, security review, and deployment decision. See [`docs/GROUNDED_CHAT_STAGE_4.md`](/Users/efeon/study-buddy-v2/docs/GROUNDED_CHAT_STAGE_4.md) for the architecture and current gate; do not run consumed holdout splits again.
+Keep `AI_GROUNDED_CHAT_ENABLED=false` and `AI_GROUNDING_PIPELINE=legacy` in deployed environments. Do not describe general-chat answers as citation-backed or based on approved Study Buddy resources. Grounded launch requires a separately approved evaluation, human answer review, security review, and deployment decision. See [`docs/GROUNDED_CHAT_STAGE_4.md`](docs/GROUNDED_CHAT_STAGE_4.md) for the architecture and current gate; do not run consumed holdout splits again.
 
 ## Database And Query Optimizations
 
-Applied DB optimization migration: [`20260726090000_add_query_performance_indexes`](/Users/efeon/study-buddy-v2/prisma/migrations/20260726090000_add_query_performance_indexes/migration.sql). It was deployed to the configured Supabase database on July 27, 2026.
+Applied DB optimization migration: [`20260726090000_add_query_performance_indexes`](prisma/migrations/20260726090000_add_query_performance_indexes/migration.sql). It was deployed to the configured Supabase database on July 27, 2026.
 
 Implemented DB/query optimizations:
 
@@ -472,12 +477,12 @@ Observed DB cleanup candidates, not automatically deleted:
 
 ## Code Quality And CI Reliability Optimizations
 
-- Removed explicit `any` lint debt from API routes and WhatsApp parsing. Shared helpers live in [`lib/type-utils.ts`](/Users/efeon/study-buddy-v2/lib/type-utils.ts).
+- Removed explicit `any` lint debt from API routes and WhatsApp parsing. Shared helpers live in [`lib/type-utils.ts`](lib/type-utils.ts).
 - API request bodies now parse through `unknown` plus small type guards before field access.
 - Caught errors now use a shared `getErrorMessage` helper instead of `err: any`.
 - Supabase admin upload cookie callbacks now use typed cookie options from `@supabase/ssr`.
 - Internal client navigation warnings were fixed by using `useRouter().push()` instead of `window.location.href` for app routes.
-- App request interception uses the Next.js 16 [`proxy.ts`](/Users/efeon/study-buddy-v2/proxy.ts) convention.
+- App request interception uses the Next.js 16 [`proxy.ts`](proxy.ts) convention.
 - `npm run lint`, `npx tsc --noEmit --pretty false`, `git diff --check`, and `npm run build` were verified after the cleanup.
 
 ## Frontend Accessibility, Metadata, And Form Feedback
@@ -489,7 +494,7 @@ Observed DB cleanup candidates, not automatically deleted:
 - [app/robots.ts](app/robots.ts) contains crawler directives, while [app/sitemap.ts](app/sitemap.ts) lists public pages. Neither is an access-control mechanism.
 - `APP_ORIGIN` supplies the production metadata base, canonical URLs, sitemap URLs, and robots host. Canonical and sitemap URLs are deliberately omitted when that trusted origin is not configured.
 - Login and sign-up failures render inside accessible `role="alert"` regions instead of disruptive browser `alert()` dialogs. CAPTCHA, rate-limit, API, and connection failures use the same inline treatment.
-- [`components/FormErrorMessage.tsx`](/Users/efeon/study-buddy-v2/components/FormErrorMessage.tsx) provides the shared visual and assistive-technology treatment, and [`lib/client-response-error.ts`](/Users/efeon/study-buddy-v2/lib/client-response-error.ts) safely prefers human-readable API messages over machine error codes.
+- [`components/FormErrorMessage.tsx`](components/FormErrorMessage.tsx) provides the shared visual and assistive-technology treatment, and [`lib/client-response-error.ts`](lib/client-response-error.ts) safely prefers human-readable API messages over machine error codes.
 
 ## Local Setup
 
@@ -584,9 +589,15 @@ README, screenshot, or commit.
 - [`docs/BETA_READINESS.md`](./docs/BETA_READINESS.md): public-safe beta gates
 - [`CODEBASE_BREAKDOWN.md`](./CODEBASE_BREAKDOWN.md): broad codebase map
 - [`docs/WEBSITE_GUIDE.md`](./docs/WEBSITE_GUIDE.md): path-by-path app walkthrough
+- [`docs/FRONTEND_CHANGE_PROCESS.md`](./docs/FRONTEND_CHANGE_PROCESS.md): process for frontend changes, regression checks, documentation and staging-first handoff
+- [`docs/FRONTEND_BUG_AND_FIX_HISTORY.md`](./docs/FRONTEND_BUG_AND_FIX_HISTORY.md): frontend bugs, UX corrections, evidence and unresolved reports
+- [`docs/DMCTN_UI_TASTE_GATE.md`](./docs/DMCTN_UI_TASTE_GATE.md): Study Buddy responsive, accessibility and UI-state checklist
+- [`docs/QUY_TRINH_CURSOR.md`](./docs/QUY_TRINH_CURSOR.md): scoped frontend contributor workflow and prompt template
 - [`docs/PERFORMANCE_AND_LOW_DATA_RULEBOOK.md`](./docs/PERFORMANCE_AND_LOW_DATA_RULEBOOK.md): mandatory performance, bandwidth, low-data, and resilience rules for future LLM/code changes
 - [`docs/AI_CHAT_STAGE_1_MIGRATION.md`](./docs/AI_CHAT_STAGE_1_MIGRATION.md): persistent chat migration, lifecycle, retry, and rollback notes
+- [`docs/AI_BUG_AND_FIX_HISTORY.md`](./docs/AI_BUG_AND_FIX_HISTORY.md): public-safe AI issue history, fixes and open validation gaps
+- [`docs/AI_CHANGE_PROCESS.md`](./docs/AI_CHANGE_PROCESS.md): required process for changing AI behavior, providers, resources, evaluation or release claims
 - [`docs/RESOURCE_INGESTION_STAGE_2.md`](./docs/RESOURCE_INGESTION_STAGE_2.md): resource ingestion, extraction, approval, and migration notes
 - [`docs/RESOURCE_RETRIEVAL_STAGE_3.md`](./docs/RESOURCE_RETRIEVAL_STAGE_3.md): retrieval, embeddings, evaluation, activation, and rollback notes
-- [`AI_FEATURES_GUIDE.md`](./AI_FEATURES_GUIDE.md): AI-specific implementation notes
+- [`AI_FEATURES_GUIDE.md`](./AI_FEATURES_GUIDE.md): learner-facing chat, maths rendering, marking and review behaviour
 - [`app/api/v1/README.md`](./app/api/v1/README.md): API contracts
