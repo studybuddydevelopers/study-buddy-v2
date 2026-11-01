@@ -6,6 +6,8 @@ This adapts the repository's UI taste-gate workflow to Study Buddy. It is a
 review checklist, not a blanket accessibility/security certification. Use the
 [website guide](WEBSITE_GUIDE.md) for implemented behaviour and the
 [low-data rulebook](PERFORMANCE_AND_LOW_DATA_RULEBOOK.md) for engineering rules.
+Use this checklist within the [frontend change process](FRONTEND_CHANGE_PROCESS.md),
+which defines scope, Git ownership, documentation and release handoff.
 
 ## 1. Establish scope
 
@@ -74,6 +76,8 @@ slow connectivity, failure states and reduced motion. Keep results tied to a
 revision and viewport; do not re-use an old test count as current evidence.
 For documentation-only edits, verify links/claims and report that no fresh
 browser acceptance test was performed.
+Record corrected bugs or UX regressions in the
+[frontend history](FRONTEND_BUG_AND_FIX_HISTORY.md), with verification status.
 
 ## 6. Record evidence safely
 
