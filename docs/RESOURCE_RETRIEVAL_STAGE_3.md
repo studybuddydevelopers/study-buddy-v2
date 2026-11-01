@@ -1,8 +1,8 @@
 # Resource Retrieval Stage 3
 
-Stage 3 adds retrieval infrastructure only. It does not connect retrieval to
-`/chat`, does not generate grounded answers, does not add citations, and does
-not add tutor modes.
+Stage 3 added retrieval infrastructure only. Later Stage 4 code can connect
+it to `/chat` behind a disabled feature flag. Normal general chat does not
+use approved resources or provide verified citations.
 
 ## Scope
 
@@ -29,7 +29,7 @@ Migrations:
 The second migration preserves migration history and rebuilds existing
 `searchText` values using selected metadata keys only.
 
-Not implemented in Stage 3:
+Outside the historical Stage 3 scope:
 
 - chat integration
 - grounded prompts
@@ -166,19 +166,9 @@ matching.
 
 ## Rollback
 
-Rollback order:
-
-1. Stop embedding/evaluation scripts.
-2. Deactivate or retire the Stage 3 embedding configuration if needed.
-3. Drop `ResourceChunkEmbedding`.
-4. Drop `ResourceEmbeddingConfiguration`.
-5. Drop the `ResourceChunk_searchVector_idx` index.
-6. Drop `ResourceChunk.searchVector`.
-7. Drop `ResourceChunk.searchText`.
-8. Drop the Stage 3 enums.
-
-Do not automatically drop the `vector` extension. Supabase extensions may be
-shared by other future objects, and extension removal is a database-wide action.
-
-Stage 1 chats, Stage 2 resources/chunks, and legacy past questions are retained
-by this rollback path.
+Stage 4 grounding attempts and citations now reference Stage 3 data. The
+original Stage 3 table-drop sequence is **not** an executable rollback for
+today's schema. Stop embedding/evaluation jobs, preserve existing data, and
+prepare a reviewed migration and dependency plan. Do not automatically remove
+the shared `vector` extension. Stage 1 chats, Stage 2 resources/chunks, and
+legacy past questions must be considered separately.
