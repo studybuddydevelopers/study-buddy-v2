@@ -4,6 +4,7 @@ import { Suspense } from "react";
 import dynamic from "next/dynamic";
 import Navbar from "@/components/NavBar";
 import Footer from "@/components/Footer";
+import NotificationProvider from "@/components/NotificationProvider";
 import AuthStateProvider, {
   useUser,
 } from "@/components/AuthStateProvider";
@@ -36,7 +37,7 @@ function ClientLayoutChrome({ children }: { children: React.ReactNode }) {
   const isAuthenticated = useUser();
 
   return (
-    <>
+    <NotificationProvider enabled={isAuthenticated}>
       <Navbar
         isAuthenticated={isAuthenticated}
         signInLink="/login"
@@ -65,6 +66,6 @@ function ClientLayoutChrome({ children }: { children: React.ReactNode }) {
           <BottomNav />
         </div>
       )}
-    </>
+    </NotificationProvider>
   );
 }
