@@ -525,7 +525,7 @@ export default function ExamInstanceClient({
                   </p>
                 </div>
               ) : null}
-              <div className="border border-accent-200 rounded-xl p-4 space-y-3 bg-white shadow-sm">
+              <div id={answerRow ? `answer-${answerRow.id}` : undefined} className="scroll-mt-6 border border-accent-200 rounded-xl p-4 space-y-3 bg-white shadow-sm">
               <div className="flex items-start justify-between gap-2">
                 <div className="text-sm font-semibold text-primary-600">
                   Question {sectionQuestionNumber}
