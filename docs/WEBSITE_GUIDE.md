@@ -11,8 +11,10 @@ Production access, credentials and operational procedures do not belong here.
 
 - [README](../README.md): overview and local setup.
 - [Codebase breakdown](../CODEBASE_BREAKDOWN.md): responsibility boundaries.
+- [Frontend change process](FRONTEND_CHANGE_PROCESS.md): scope, implementation, verification, documentation and staging-first handoff.
 - [Performance and low-data rules](PERFORMANCE_AND_LOW_DATA_RULEBOOK.md): implementation requirements, not a declaration that every check has passed.
 - [UI review checklist](DMCTN_UI_TASTE_GATE.md): responsive, accessibility and state checks.
+- [Frontend bug and fix history](FRONTEND_BUG_AND_FIX_HISTORY.md): recovered reports, corrections, regression evidence and unresolved items.
 - [AI experience guide](../AI_FEATURES_GUIDE.md): chat, rendering and marking.
 - [Client API reference](../app/api/v1/README.md): integration contracts.
 
