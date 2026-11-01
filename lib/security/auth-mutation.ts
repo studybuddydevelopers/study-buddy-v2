@@ -3,9 +3,10 @@ import { logSecurityEvent } from "./audit-log";
 import { validatePublicMutationOrigin } from "./csrf";
 
 /**
- * Login and signup can establish a session before a browser has any cookies.
- * Validate their Origin and JSON media type before reading credentials or
- * invoking rate limits/authentication. Cookie-only CSRF checks are not enough.
+ * Public authentication endpoints can establish a session or trigger account
+ * email before a browser has any cookies. Validate their Origin and JSON media
+ * type before reading credentials or invoking rate limits/authentication.
+ * Cookie-only CSRF checks are not enough.
  */
 export function validateAuthMutationRequest(request: Request): NextResponse | null {
   const origin = validatePublicMutationOrigin(request);

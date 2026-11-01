@@ -50,6 +50,40 @@ describe("rate limiting", () => {
     expect(getClientIp(headers)).toBe("203.0.113.8");
   });
 
+  it("trusts only Cloudflare's connecting-IP header behind Cloudflare", () => {
+    vi.stubEnv("TRUSTED_PROXY_PROVIDER", "cloudflare");
+    const headers = new Headers({
+      "cf-connecting-ip": "198.51.100.9",
+      "x-forwarded-for": "203.0.113.8, 10.0.0.2",
+      "x-real-ip": "198.51.100.10",
+    });
+
+    expect(getClientIp(headers)).toBe("198.51.100.9");
+  });
+
+  it("ignores all forwarding headers in direct production mode", () => {
+    vi.stubEnv("NODE_ENV", "production");
+    vi.stubEnv("TRUSTED_PROXY_PROVIDER", "direct");
+    const headers = new Headers({
+      "cf-connecting-ip": "198.51.100.9",
+      "x-forwarded-for": "203.0.113.8, 10.0.0.2",
+      "x-real-ip": "198.51.100.10",
+    });
+
+    expect(getClientIp(headers)).toBe("unknown");
+  });
+
+  it("infers Railway's trusted forwarding header in a Railway service", () => {
+    vi.stubEnv("TRUSTED_PROXY_PROVIDER", "");
+    vi.stubEnv("RAILWAY_ENVIRONMENT_ID", "staging-environment");
+    const headers = new Headers({
+      "cf-connecting-ip": "198.51.100.9",
+      "x-forwarded-for": "203.0.113.8, 10.0.0.2",
+    });
+
+    expect(getClientIp(headers)).toBe("203.0.113.8");
+  });
+
   it("rejects malformed forwarded identifiers and normalizes bracketed IPv6", () => {
     vi.stubEnv("TRUSTED_PROXY_PROVIDER", "railway");
 
@@ -130,5 +164,26 @@ describe("rate limiting", () => {
 
     expect(balance).toMatchObject({ limit: 12, used: 9, remaining: 3 });
     expect(prismaMocks.queryRaw).not.toHaveBeenCalled();
+  });
+
+  it("rejects an AI request larger than the entire daily quota", async () => {
+    vi.stubEnv("AI_DAILY_USER_QUOTA", "5");
+    prismaMocks.queryRaw
+      .mockResolvedValueOnce([{ count: 1 }])
+      .mockResolvedValueOnce([{ count: 1 }]);
+
+    const response = await enforceAiRequestLimits({
+      accountId: "user-1",
+      requestHeaders: new Headers({ "x-forwarded-for": "203.0.113.9" }),
+      units: 6,
+    });
+
+    expect(response?.status).toBe(429);
+    expect(response?.headers.get("Cache-Control")).toBe("no-store");
+    expect(prismaMocks.queryRaw).toHaveBeenCalledTimes(2);
+    await expect(response?.json()).resolves.toMatchObject({
+      error: "RATE_LIMITED",
+      message: "Daily AI quota reached. Try again tomorrow.",
+    });
   });
 });

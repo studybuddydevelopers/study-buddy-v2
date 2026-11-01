@@ -32,6 +32,9 @@ import { POST } from "./route";
 describe("password-reset request abuse alert", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.stubEnv("NODE_ENV", "production");
+    vi.stubEnv("APP_ORIGIN", "https://studybuddyng.com");
+    vi.stubEnv("CSRF_TRUSTED_ORIGINS", "");
     mocks.getClientIp.mockReturnValue("203.0.113.9");
     mocks.after.mockImplementation((callback: () => unknown) => callback());
     mocks.processPasswordResetLimitAlert.mockResolvedValue({ outcome: "sent" });
@@ -39,6 +42,39 @@ describe("password-reset request abuse alert", () => {
 
   afterEach(() => {
     vi.unstubAllEnvs();
+  });
+
+  it("rejects a cross-site reset request before reading its body or consuming rate limits", async () => {
+    const request = makeRequest("victim@example.com", {
+      origin: "https://attacker.invalid",
+      contentType: "text/plain",
+    });
+
+    const response = await POST(request);
+
+    expect(response.status).toBe(403);
+    await expect(response.json()).resolves.toMatchObject({
+      error: "CSRF_VALIDATION_FAILED",
+    });
+    expect(response.headers.get("Cache-Control")).toBe("no-store");
+    expect(request.bodyUsed).toBe(false);
+    expect(mocks.enforceRateLimitRules).not.toHaveBeenCalled();
+    expect(mocks.processPasswordResetLimitAlert).not.toHaveBeenCalled();
+  });
+
+  it("rejects a non-JSON reset request from the trusted origin", async () => {
+    const request = makeRequest("victim@example.com", {
+      contentType: "application/x-www-form-urlencoded",
+    });
+
+    const response = await POST(request);
+
+    expect(response.status).toBe(415);
+    await expect(response.json()).resolves.toMatchObject({
+      error: "UNSUPPORTED_MEDIA_TYPE",
+    });
+    expect(request.bodyUsed).toBe(false);
+    expect(mocks.enforceRateLimitRules).not.toHaveBeenCalled();
   });
 
   it("uses school-safe account, IP, and global reset limits by default", async () => {
@@ -157,10 +193,16 @@ describe("password-reset request abuse alert", () => {
   });
 });
 
-function makeRequest(email: string) {
+function makeRequest(
+  email: string,
+  options: { origin?: string; contentType?: string } = {}
+) {
   return new Request("https://studybuddyng.com/api/v1/reset-password", {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: {
+      "Content-Type": options.contentType ?? "application/json",
+      Origin: options.origin ?? "https://studybuddyng.com",
+    },
     body: JSON.stringify({ email }),
   });
 }
