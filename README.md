@@ -18,6 +18,8 @@ The [frontend bug and fix history](docs/FRONTEND_BUG_AND_FIX_HISTORY.md) records
 recovered UI regressions, accepted corrections, evidence and unresolved reports.
 Follow the [frontend change process](docs/FRONTEND_CHANGE_PROCESS.md) for scoped
 implementation, verification, documentation and staging-first handoff.
+The [UI colour guide](docs/UI_COLOUR_GUIDE.md) lists colour names, hex values,
+predominant locations and purposes, including theme tokens and SVG palettes.
 
 These describe code, not deployment or accessibility certification.
 Notifications still await staging migration and live checks. Temporary icon
@@ -589,6 +591,7 @@ README, screenshot, or commit.
 - [`docs/BETA_READINESS.md`](./docs/BETA_READINESS.md): public-safe beta gates
 - [`CODEBASE_BREAKDOWN.md`](./CODEBASE_BREAKDOWN.md): broad codebase map
 - [`docs/WEBSITE_GUIDE.md`](./docs/WEBSITE_GUIDE.md): path-by-path app walkthrough
+- [`docs/UI_COLOUR_GUIDE.md`](./docs/UI_COLOUR_GUIDE.md): complete source-backed colour inventory, predominant uses and purposes
 - [`docs/FRONTEND_CHANGE_PROCESS.md`](./docs/FRONTEND_CHANGE_PROCESS.md): process for frontend changes, regression checks, documentation and staging-first handoff
 - [`docs/FRONTEND_BUG_AND_FIX_HISTORY.md`](./docs/FRONTEND_BUG_AND_FIX_HISTORY.md): frontend bugs, UX corrections, evidence and unresolved reports
 - [`docs/DMCTN_UI_TASTE_GATE.md`](./docs/DMCTN_UI_TASTE_GATE.md): Study Buddy responsive, accessibility and UI-state checklist
