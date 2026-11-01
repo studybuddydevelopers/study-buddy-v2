@@ -1,5 +1,9 @@
 # Marking-review operations
 
+This public document describes behaviour, not the live operator roster. Store
+authorised user identifiers, access-review evidence, and account-recovery
+details in the restricted operations system.
+
 Study Buddy stores disputed AI marks as tracked cases instead of preparing an
 email. A learner creates a case from the relevant question in a completed
 written mock exam and receives a reference in the form
@@ -7,22 +11,19 @@ written mock exam and receives a reference in the form
 
 ## Grant support access
 
-Verified, active accounts whose email address is on the exact
-`@studybuddyng.com` domain receive support access automatically. The account
-must exist in Supabase Auth, have a confirmed email address, and have an active
-application `User` record. Lookalike domains are not accepted.
+Support access is restricted server-side to verified, active company identities
+and any explicitly approved user-ID exceptions. Lookalike domains and ordinary
+learner accounts are not accepted.
 
-`MARKING_REVIEW_SUPPORT_USER_IDS` is an optional exception list for authorised
-staff who do not use the company domain. Set it on the web service to a
-comma-separated list of application `User.id` values. These are the same stable
-UUIDs used by Supabase Auth. Do not use email addresses and do not put this
-server-only value in a `NEXT_PUBLIC_` variable.
+The optional exception list is server-only configuration. Never use email
+addresses as the stored identifiers, never expose the value through a
+`NEXT_PUBLIC_*` variable, and never commit the live list. Keep access to the
+minimum number of staff, remove it immediately when duties change, and review
+the effective roster on a fixed cadence.
 
-Authorised staff use `/support/marking-reviews`. Keep the list to the minimum
-number of staff needed, remove access when a staff member changes role, and
-review it whenever production secrets are rotated. An empty or missing value
-only disables allowlist exceptions; verified `@studybuddyng.com` accounts can
-still access the support queue.
+The support queue URL and exact access mechanism are implementation details in
+the application. Operators should enter through the normal authenticated UI;
+do not distribute direct links or document test/operator identities publicly.
 
 ## Case handling
 
