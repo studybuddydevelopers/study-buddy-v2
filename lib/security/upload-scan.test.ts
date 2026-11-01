@@ -83,11 +83,34 @@ describe("upload security", () => {
     ).toThrowError(expect.objectContaining({ code: "CONTENT_DISARM_FAILED" }));
   });
 
+  it("rejects hex-escaped active PDF names", () => {
+    expect(() =>
+      assertPdfHasNoActiveContent(
+        Buffer.from("%PDF-1.7\n1 0 obj << /#4a#53 2 0 R >>\n%%EOF")
+      )
+    ).toThrowError(expect.objectContaining({ code: "CONTENT_DISARM_FAILED" }));
+  });
+
   it("requires a bounded DOCX document.xml ZIP entry", () => {
     expect(() => validateDocxContainer(docxEntry(1024))).not.toThrow();
     expect(() => validateDocxContainer(docxEntry(9 * 1024 * 1024))).toThrowError(
       expect.objectContaining({ code: "INVALID_FILE_SIGNATURE" })
     );
+  });
+
+  it.each([0x1, 0x8])(
+    "rejects a DOCX entry with unsupported ZIP flag %#x",
+    (flags) => {
+      expect(() => validateDocxContainer(docxEntry(1024, flags))).toThrowError(
+        expect.objectContaining({ code: "INVALID_FILE_SIGNATURE" })
+      );
+    }
+  );
+
+  it("rejects a ZIP container without the DOCX document entry", () => {
+    expect(() =>
+      validateDocxContainer(zipEntry("word/styles.xml", 1024))
+    ).toThrowError(expect.objectContaining({ code: "INVALID_FILE_SIGNATURE" }));
   });
 
   it("classifies clamd responses without exposing malware names", () => {
@@ -128,6 +151,24 @@ describe("upload security", () => {
     );
   });
 
+  it("fails closed when clamd returns an invalid or oversized reply", async () => {
+    vi.stubEnv("CLAMAV_HOST", "clamav.railway.internal");
+
+    netMock.createConnection.mockReturnValueOnce(
+      new FakeClamAvSocket("stream: UNKNOWN ERROR\0")
+    );
+    await expect(scanBufferWithClamAv(Buffer.from("file"))).rejects.toEqual(
+      expect.objectContaining({ code: "MALWARE_SCANNER_UNAVAILABLE" })
+    );
+
+    netMock.createConnection.mockReturnValueOnce(
+      new FakeClamAvSocket("x".repeat(16 * 1024 + 1))
+    );
+    await expect(scanBufferWithClamAv(Buffer.from("file"))).rejects.toEqual(
+      expect.objectContaining({ code: "MALWARE_SCANNER_UNAVAILABLE" })
+    );
+  });
+
   it("fails closed in production when clamd is not configured", async () => {
     vi.stubEnv("NODE_ENV", "production");
     vi.stubEnv("CLAMAV_HOST", "");
@@ -154,12 +195,16 @@ function file(name: string, mimeType: string, contents: string) {
   return { name, mimeType, buffer: Buffer.from(contents) };
 }
 
-function docxEntry(declaredUncompressedSize: number) {
-  const name = Buffer.from("word/document.xml");
+function docxEntry(declaredUncompressedSize: number, flags = 0) {
+  return zipEntry("word/document.xml", declaredUncompressedSize, flags);
+}
+
+function zipEntry(nameValue: string, declaredUncompressedSize: number, flags = 0) {
+  const name = Buffer.from(nameValue);
   const data = Buffer.from("x");
   const header = Buffer.alloc(30);
   header.writeUInt32LE(0x04034b50, 0);
-  header.writeUInt16LE(0, 6);
+  header.writeUInt16LE(flags, 6);
   header.writeUInt16LE(0, 8);
   header.writeUInt32LE(data.byteLength, 18);
   header.writeUInt32LE(declaredUncompressedSize, 22);
