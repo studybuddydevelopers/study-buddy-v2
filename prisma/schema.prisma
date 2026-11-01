@@ -254,6 +254,7 @@ model User {
   markingReviewsSubmitted     MockExamMarkingReview[]      @relation("MarkingReviewSubmittedBy")
   markingReviewsResolved      MockExamMarkingReview[]      @relation("MarkingReviewResolvedBy")
   markingReviewEventsActed    MockExamMarkingReviewEvent[] @relation("MarkingReviewEventActor")
+  notifications              Notification[]
 
   @@index([createdAt], map: "User_createdAt_idx")
   @@index([accountStatus, inactiveDeletionAt], map: "User_accountStatus_inactiveDeletionAt_idx")
@@ -885,6 +886,7 @@ model MockExamMarkingReview {
   instance MockExamInstance             @relation(fields: [mockExamInstanceId], references: [id], onDelete: Cascade)
   answer   MockExamAnswer               @relation(fields: [mockExamAnswerId], references: [id], onDelete: Cascade)
   events   MockExamMarkingReviewEvent[]
+  notification Notification?
 
   @@index([userId, submittedAt], map: "MockExamMarkingReview_user_submitted_idx")
   @@index([status, submittedAt], map: "MockExamMarkingReview_status_submitted_idx")
@@ -906,6 +908,21 @@ model MockExamMarkingReviewEvent {
   actor  User?                 @relation("MarkingReviewEventActor", fields: [actorUserId], references: [id], onDelete: SetNull)
 
   @@index([reviewId, createdAt], map: "MockExamMarkingReviewEvent_review_created_idx")
+}
+
+/// In-app review decisions only; the content remains in the linked review.
+model Notification {
+  id        String   @id @default(uuid())
+  userId    String
+  reviewId  String   @unique
+  createdAt DateTime @default(now())
+  readAt    DateTime?
+
+  user   User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  review MockExamMarkingReview @relation(fields: [reviewId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt, id])
+  @@index([userId, readAt])
 }
 
 // =========================================================
