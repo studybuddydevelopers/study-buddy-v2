@@ -5,6 +5,10 @@ Last checked against the working tree: 1 November 2026.
 This guide covers the learner-facing experience and frontend integration, not
 production credentials, privileged access configuration or adversarial test
 payloads. Source availability is not proof of production activation.
+For past defects and their current status, see the
+[AI bug and fix history](docs/AI_BUG_AND_FIX_HISTORY.md).
+Follow the [AI change process](docs/AI_CHANGE_PROCESS.md) for any change to
+models, prompts, chat behavior, learning resources, evaluation, or AI claims.
 
 ## Saved study chat
 
