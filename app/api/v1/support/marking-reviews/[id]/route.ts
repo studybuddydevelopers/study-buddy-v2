@@ -163,6 +163,12 @@ export async function PATCH(
         },
       });
 
+      // Commit the decision, score changes, audit event and learner alert together.
+      // The unique reviewId and PENDING claim prevent duplicate notifications.
+      await transaction.notification.create({
+        data: { userId: review.userId, reviewId: review.id },
+      });
+
       return {
         reference: review.reference,
         status: adjusted ? ("MARK_ADJUSTED" as const) : ("UPHELD" as const),
