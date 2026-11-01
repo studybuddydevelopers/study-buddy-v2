@@ -578,6 +578,7 @@ README, screenshot, or commit.
 
 - [`SECURITY.md`](./SECURITY.md): vulnerability reporting and public-repository safety
 - [`docs/DEPLOYMENT.md`](./docs/DEPLOYMENT.md): public-safe deployment process and release gates
+- [`docs/DEPLOYMENT_SECURITY_CHANGE_PROCESS.md`](./docs/DEPLOYMENT_SECURITY_CHANGE_PROCESS.md): required process for changing deployment, security, infrastructure, providers, configuration, and recovery controls
 - [`docs/DEPLOYMENT_SECURITY_FIX_HISTORY.md`](./docs/DEPLOYMENT_SECURITY_FIX_HISTORY.md): public-safe record of deployment/security bugs, fixes, verification and open follow-up
 - [`docs/RAILWAY_SECURITY_OPERATIONS.md`](./docs/RAILWAY_SECURITY_OPERATIONS.md): public-safe Railway operating standard
 - [`docs/BETA_READINESS.md`](./docs/BETA_READINESS.md): public-safe beta gates
