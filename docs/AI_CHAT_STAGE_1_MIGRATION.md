@@ -4,6 +4,15 @@ Stage 1 added persistent general AI chat. Its general-chat path is not
 resource-grounded. Later stages added separate resource and feature-gated
 grounding code, but grounded chat remains disabled.
 
+## Current frontend
+
+The [AI experience guide](../AI_FEATURES_GUIDE.md) documents the current saved
+chat, retry, rename/delete, Markdown and maths behaviour. The shared renderer
+uses Streamdown in static mode; its name does not mean replies are delivered
+token by token. The legacy stateless chat page is separate from saved chat.
+Use synthetic conversations for public examples and keep deployment and
+provider details in the appropriate private release record.
+
 ## Migration
 
 Migration folder:
