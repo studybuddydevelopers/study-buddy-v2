@@ -16,6 +16,8 @@ const protectedPaths = [
   "/chat",
   "/profile",
   "/settings",
+  "/notifications",
+  "/marking-reviews",
   "/account",
   "/account-deactivated",
   "/account-deletion-pending",
