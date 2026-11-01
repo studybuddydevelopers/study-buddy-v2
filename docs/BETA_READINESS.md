@@ -41,6 +41,20 @@ The private release record should confirm the latest result for:
 Public documentation does not record live account counts, exact limits,
 connection-pool values, test identities, run URLs, or detailed test results.
 
+## Frontend acceptance
+
+Use the [website guide](WEBSITE_GUIDE.md) for current routes and behaviour and
+the [UI review checklist](DMCTN_UI_TASTE_GATE.md) for release checks, including
+320px layouts, keyboard/focus behaviour, loading/empty/error states, metadata
+and low-data preferences. Remaining nested main landmarks in account/settings
+views need follow-up; do not claim site-wide accessibility conformance.
+
+Automated component/route tests are not live browser evidence. Notifications
+have source and automated coverage, but their migration and live staging
+behaviour were not verified in the 1 November 2026 frontend documentation
+update. Record release acceptance privately rather than inferring it from
+these documents or a passing build.
+
 ## Required before inviting beta users
 
 1. Verify health, error, authentication-abuse, webhook, email, scheduled-job,
