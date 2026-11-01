@@ -1,143 +1,62 @@
 ---
-description: DMCTN Taste Gate R2 — Design Director flow trước khi code UI
+description: Study Buddy frontend review — scoped, mobile-first, public-safe
 alwaysApply: false
 ---
 
-# DMCTN Taste Gate R2
+# Study Buddy frontend review
 
-Áp dụng khi task liên quan **UI / frontend / web / app / dashboard / landing / devtool / docs site / agent workspace**.
+Use this optional rule for Study Buddy frontend work. Read `AGENTS.md`,
+`docs/FRONTEND_CHANGE_PROCESS.md`, the relevant installed Next.js documentation,
+`docs/WEBSITE_GUIDE.md` and
+`docs/DMCTN_UI_TASTE_GATE.md` before proposing implementation changes.
+The user's scope and approved product decisions take precedence over generic
+design presets.
 
-**Không code ngay.** Trả đủ block dưới đây trước khi sửa file.
+## Before editing
 
----
+- Inspect the actual route, shared components and current worktree.
+- State the learner's task, requested outcome and checkable acceptance criteria.
+- An explanation, audit or documentation request is not permission to redesign.
+- Preserve concurrent work and existing branch ownership; do not stage, commit,
+  merge, push, migrate shared data or deploy without appropriate authorisation.
+- Keep the plan proportionate. Do not require a long design ceremony for a
+  small, well-specified fix.
 
-## 1. DESIGN READ
+## Preserve the approved UI
 
-```text
-DESIGN_READ:
-- Product type: (SaaS / devtool / admin dashboard / docs / agent UI / app shell / marketing / redesign)
-- Target user: (dev / PM / ops / end user — cụ thể)
-- User intent: (họ muốn làm gì trên màn hình này?)
-- Primary action: (1 hành động chính phải nổi bật)
-- Content hierarchy: (thứ tự ưu tiên nội dung)
-- Technical constraints: (stack, DS có sẵn, a11y, perf, không đổi route/API)
-```
+- Keep the SB branding, existing purple/neutral palettes and system fonts.
+- Preserve the approved profile avatar, notification bell and contextual icons.
+- Do not restart the completed icon rollout or restore temporary design routes.
+- Reuse existing components; do not introduce an unrelated design system,
+  glass effects, decorative fonts or dependencies as incidental changes.
+- Keep illustrations uncropped where they communicate the card's content.
 
-Một dòng tóm tắt bắt buộc:
+## Responsive and interaction checks
 
-> Đọc brief này là: `<product type>` cho `<user>`, intent `<intent>`, nghiêng về `<style/system>`.
+- Start at 320px, then check tablet and desktop, long content and browser zoom.
+- Product navigation changes at 1110px; progress carousels change at 769px.
+  Do not replace these with a generic shared mobile breakpoint.
+- Preserve bottom-navigation clearance and device safe-area spacing.
+- Check loading, empty, validation-error, retry, success and unavailable states.
+- Check keyboard focus, field labels, icon-only names, reduced motion, readable
+  text and touch targets. Do not infer accessibility conformance from tokens.
+- Keep wide formulas, code and tables scrollable within their containers.
+- The shared shell owns the page-content main landmark; do not nest another.
 
----
+## Verification and handoff
 
-## 2. TASTE DIRECTION
+Use the detailed UI checklist for relevant tests and browser checks. Separate
+source inspection, automated results and live verification; a passing build is
+not a browser or deployment test. Report what was not tested.
+Update the relevant guides and `docs/FRONTEND_BUG_AND_FIX_HISTORY.md` for fixes.
+Follow the agreed feature-branch-to-staging workflow when authorised; Git
+staging and commits remain user-owned unless delegated. Production approval
+is separate from staging acceptance.
 
-```text
-TASTE_DIRECTION:
-- Developer preset: (chọn 1 từ skills/taste-skill — Developer Preset Pack)
-- Visual density: (1-10)
-- Motion level: (1-10)
-- Color direction: (neutral / brand-tinted / high-contrast dev / monochrome)
-- Typography direction: (sans editorial / geometric / mono-accent — không mặc định Inter)
-- Component direction: (flat / bordered / elevated minimal — không glass toàn trang)
-DIALS:
-- DESIGN_VARIANCE: (1-10)
-- MOTION_INTENSITY: (1-10)
-- VISUAL_DENSITY: (1-10)
-```
+Use synthetic learners and study content. Do not read environment secrets for
+ordinary UI documentation, publish real recovery links, copy personal account
+screens into evidence, or disclose sensitive operational findings. Follow
+`SECURITY.md` for private reporting.
 
----
-
-## 3. UI PLAN
-
-```text
-UI_PLAN:
-- Layout structure: (grid, sidebar+main, split, bento — lý do)
-- Component list: (navbar, hero, cards, table, form, …)
-- Responsive plan: (mobile-first; breakpoints 360 / 768 / 1280)
-- Accessibility plan: (focus, contrast, headings, labels, reduced-motion)
-- State plan: (loading / empty / error / success cho từng vùng chính)
-- Edge cases: (no data, long text, overflow, keyboard-only)
-```
-
----
-
-## 4. PRE-FLIGHT CHECK LITE
-
-Trả lời **YES/NO** từng mục:
-
-```text
-PRE_FLIGHT_LITE:
-1. Brief understood? YES/NO
-2. Page type identified? YES/NO
-3. Main user action clear? YES/NO
-4. Visual direction selected? YES/NO
-5. Anti-slop risks identified? YES/NO
-6. Responsive plan ready? YES/NO
-7. Accessibility risks checked? YES/NO
-8. Component states considered? YES/NO
-9. Copy tone selected? YES/NO
-10. Verdict: PASS_TO_CODE / NEEDS_MORE_BRIEF
-```
-
-Chỉ `PASS_TO_CODE` mới được sửa UI.
-
----
-
-## 5. ANTI-SLOP CHECK
-
-FAIL nếu dự định dùng (không có lý do rõ):
-
-- gradient tím/cyan AI mặc định
-- glassmorphism vô nghĩa
-- 3 feature card ngang rập khuôn
-- CTA glow vô lý
-- generic SaaS hero (centered headline + 2 CTA + floating mockup)
-- emoji/icon lộn xộn
-- animation loop vô nghĩa
-- stock copy chung chung (“revolutionary”, “seamless”, “elevate”)
-- Inter + slate + rounded card mặc định khi không cần
-
-```text
-ANTI_SLOP_RISKS: (liệt kê rủi ro + cách tránh)
-```
-
----
-
-## 6. SELF REVIEW (trước khi chốt design / trước PR)
-
-```text
-SELF_REVIEW:
-- Brief alignment: PASS/FAIL
-- Visual hierarchy: PASS/FAIL
-- Originality: PASS/FAIL
-- Accessibility: PASS/FAIL
-- Mobile: PASS/FAIL
-- Component quality: PASS/FAIL
-- Verdict: PASS_TO_CODE / NEEDS_POLISH / NEEDS_REDESIGN
-```
-
-Sau khi code xong: dùng `skills/ui-review-skill/SKILL.md` cho **Design QA Score** nếu cần.
-
----
-
-## Design system (gợi ý nhanh)
-
-Nếu brief khớp hệ chính thức — **dùng package đúng**, không tự bịa CSS:
-
-- Enterprise / Microsoft → Fluent UI
-- Material-flavored → Material 3
-- Shopify admin → Polaris
-- GitHub/devtool → Primer
-- Trust/public → GOV.UK / USWDS
-- Indie SaaS → Tailwind + component sở hữu (shadcn nếu cần — customize, không default)
-
-**Một hệ thống mỗi project.**
-
----
-
-## Nguyên tắc DMCTN
-
-- Local-only mindset; không đọc secret/token
-- Mobile-first; dashboard không màu mè quá mức
-- Mọi thay đổi có tiêu chí PASS/FAIL
-- Tham chiếu: `skills/taste-skill/SKILL.md`, `skills/component-taste/SKILL.md`
+Summarise outcomes and remaining work in the response. Do not create public
+evidence files, screenshots or temporary routes unless requested.
