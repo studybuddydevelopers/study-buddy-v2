@@ -1,11 +1,17 @@
 # Personal Data Breach Response Plan
 
-Status: approved working procedure — secure register setup, external contact,
-mailbox resilience, and exercise evidence pending
+Status: public-safe approved working procedure; operational readiness and
+exercise evidence are tracked in the restricted incident register
 
-Owner: Nick Efe Oni (primary incident commander); Chijindu Oreh (backup)
+Owner: the designated incident commander and deputy recorded in the restricted
+incident roster
 
-Last reviewed: 12 September 2026
+Last reviewed: 1 November 2026
+
+This is a public-safe response framework. Personal contact details, out-of-band
+channels, provider escalation paths, account identifiers, current incidents,
+evidence locations, and response weaknesses must be maintained privately and
+must not be committed here.
 
 ## Purpose
 
@@ -28,32 +34,25 @@ Keep an offline copy of this table and the private contact details needed to use
 each secure channel. Personal phone numbers and credentials must not be committed
 to this repository.
 
-| Role | Primary contact | Backup contact | Secure channel |
-| --- | --- | --- | --- |
-| Incident commander | Nick Efe Oni | Chijindu Oreh | `security@studybuddyng.com`, followed by the founders' private Signal message or call |
-| Engineering/security lead | Nick Efe Oni | Chijindu Oreh | Restricted incident channel and provider dashboards |
-| Joint privacy leads and mandatory breach contacts | Nick Efe Oni and Chijindu Oreh | Each other | `security@studybuddyng.com`; copy `privacy@studybuddyng.com` |
-| Company notification decision | Nick Efe Oni and Chijindu Oreh jointly | Acting incident commander when the other is unavailable and a deadline cannot wait | Restricted decision record |
-| Communications/support lead | Chijindu Oreh | Nick Efe Oni | Approved notice templates and company mailboxes |
-| External privacy adviser/DPCO | To be engaged | Proceed without waiting when urgent containment or the 72-hour deadline requires action | Record in the private contact roster when appointed |
-| Cyber-insurance contact | Not confirmed | Not confirmed | Not confirmed |
-| Supabase escalation | Pending | Pending | Provider portal |
-| Railway escalation | Pending | Pending | Provider portal |
-| Cloudflare escalation | Pending | Pending | Provider portal |
-| OpenAI escalation | Pending | Pending | Provider portal |
-| Meta/WhatsApp escalation | Pending | Pending | Provider portal |
-| Paystack escalation | Pending | Pending | Provider portal |
+| Role | Public intake | Private record required |
+| --- | --- | --- |
+| Incident commander and deputy | `security@studybuddyng.com` | Named people, direct contact and out-of-band fallback |
+| Engineering/security lead | `security@studybuddyng.com` | Restricted incident channel and provider access |
+| Privacy lead/DPO | `privacy@studybuddyng.com` | Named decision-makers and qualified adviser contact |
+| Communications/support lead | Company mailboxes | Named owner, approved templates and alternate channel |
+| Provider escalation | Company security intake | Current provider contacts, contract references and escalation paths |
+| Insurance and external advisers | Company security intake | Policy/contact details and engagement terms |
 
 Privacy contact: `privacy@studybuddyng.com`
-Joint privacy leads: Nick Efe Oni and Chijindu Oreh
 Security contact: `security@studybuddyng.com`
-Mandatory internal breach contacts: Nick Efe Oni and Chijindu Oreh; send to
-`security@studybuddyng.com` and copy `privacy@studybuddyng.com`
+Mandatory internal breach roles: the incident commander, deputy and privacy
+lead recorded in the restricted roster; send to `security@studybuddyng.com` and
+copy `privacy@studybuddyng.com`
 NDPC breach portal: [services.ndpc.gov.ng/breach](https://services.ndpc.gov.ng/breach/)
 
 The incident commander directs the response and owns the timeline; this does not
-remove the joint privacy leads' responsibilities. Chijindu Oreh automatically
-becomes incident commander when Nick Efe Oni is unavailable, is affected by a
+remove the privacy lead's responsibilities. The designated deputy automatically
+becomes incident commander when the primary is unavailable, is affected by a
 conflict, or delegates the role. The acting commander may contain the incident
 immediately and may make a time-critical regulator notification after recording
 the available facts when waiting for the other founder or an external adviser
@@ -66,18 +65,16 @@ with the available information and follow up in phases.
 Anyone who suspects a breach must immediately:
 
 1. preserve evidence and note the UTC discovery time;
-2. notify both Nick Efe Oni and Chijindu Oreh immediately by sending the report
-   to `security@studybuddyng.com` and copying `privacy@studybuddyng.com`;
+2. notify the designated incident roles immediately by sending the report to
+   `security@studybuddyng.com` and copying `privacy@studybuddyng.com`;
 3. avoid deleting logs, contacting an attacker, or making public claims;
 4. use a secure channel rather than the affected system where possible; and
 5. record only necessary incident details, not copies of exposed personal data.
 
-The founder who first sees the report must alert the other through a private
-Signal message or call using only the incident identifier and an instruction to
-join the restricted response channel. Do not forward raw personal data into
-personal email or ordinary chat. Until both founders have separate secured
-company identities with mailbox access, Nick Efe Oni monitors the company
-security mailbox and the Signal alert is the backup route.
+The first authorised responder who sees the report must alert the deputy through
+the private out-of-band route recorded in the restricted roster, using only the
+incident identifier and an instruction to join the restricted response channel.
+Do not forward raw personal data into personal email or ordinary chat.
 
 The 72-hour assessment clock is measured from organisational awareness, not from
 the end of the investigation. Record the awareness decision and its basis.
@@ -184,12 +181,11 @@ Do not disclose details that create a new security risk.
 
 Keep the register in a restricted folder in the company's Microsoft 365
 OneDrive, not this repository. Require MFA, disable public/anonymous links, give
-access only to Nick Efe Oni, Chijindu Oreh through a named identity, and an
-appointed privacy adviser when necessary, and review access quarterly. Until
-Chijindu has a separate company identity, named guest access with MFA may be
-used as a temporary measure; do not share the folder through an unrestricted
-link. Keep an encrypted offline recovery copy of the minimal register so that a
-Microsoft 365 incident does not make the response record unavailable.
+access only to the designated incident/privacy roles through named identities
+and an appointed adviser when necessary, and review access quarterly. Do not
+share the folder through an unrestricted link. Keep an encrypted offline
+recovery copy of the minimal register so that a provider incident does not make
+the response record unavailable.
 
 This permanent setup is in the later implementation queue. Until it is ready,
 the acting incident commander must create an encrypted, access-restricted local
