@@ -97,10 +97,11 @@ export default function MarkingReviewsClient({
                 </p>
               ) : null}
               <Link
-                href={review.examHref}
+                href={`/marking-reviews/${review.id}`}
+                prefetch={false}
                 className="mt-3 inline-flex min-h-11 items-center font-semibold text-primary-700 hover:underline focus:outline-none focus:ring-2 focus:ring-primary-400 focus:ring-offset-2"
               >
-                Open the marked exam
+                View this review and question
               </Link>
             </li>
           ))}
