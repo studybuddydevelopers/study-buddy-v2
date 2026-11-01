@@ -10,6 +10,7 @@ const mocks = vi.hoisted(() => ({
   instanceFindFirst: vi.fn(),
   progressUpsert: vi.fn(),
   eventCreate: vi.fn(),
+  notificationCreate: vi.fn(),
   transaction: vi.fn(),
 }));
 
@@ -38,6 +39,7 @@ vi.mock("@/lib/prisma", () => {
     },
     progressTrack: { upsert: mocks.progressUpsert },
     mockExamMarkingReviewEvent: { create: mocks.eventCreate },
+    notification: { create: mocks.notificationCreate },
   };
   return {
     prisma: {
@@ -90,6 +92,7 @@ describe("support marking-review decisions", () => {
     });
     mocks.reviewFindUnique.mockResolvedValue(pendingReview);
     mocks.reviewUpdateMany.mockResolvedValue({ count: 1 });
+    mocks.notificationCreate.mockResolvedValue({ id: "notification-1" });
     mocks.answerAggregate.mockResolvedValue({ _sum: { score: 74 } });
     mocks.instanceFindFirst.mockResolvedValue({ id: "exam-1" });
     mocks.transaction.mockImplementation((callback) =>
@@ -108,6 +111,7 @@ describe("support marking-review decisions", () => {
         },
         progressTrack: { upsert: mocks.progressUpsert },
         mockExamMarkingReviewEvent: { create: mocks.eventCreate },
+        notification: { create: mocks.notificationCreate },
       })
     );
   });
@@ -139,6 +143,9 @@ describe("support marking-review decisions", () => {
     expect(mocks.answerUpdate).toHaveBeenCalledWith({
       where: { id: "answer-1" },
       data: { score: 7, isCorrect: false },
+    });
+    expect(mocks.notificationCreate).toHaveBeenCalledExactlyOnceWith({
+      data: { userId: "learner-1", reviewId: "review-1" },
     });
     expect(mocks.instanceUpdate).toHaveBeenCalledWith({
       where: { id: "exam-1" },
@@ -200,5 +207,23 @@ describe("support marking-review decisions", () => {
         newScore: 5,
       }),
     });
+    expect(mocks.notificationCreate).toHaveBeenCalledExactlyOnceWith({
+      data: { userId: "learner-1", reviewId: "review-1" },
+    });
+  });
+
+  it("does not notify when a concurrent decision already claimed the review", async () => {
+    mocks.reviewUpdateMany.mockResolvedValue({ count: 0 });
+    const { PATCH } = await import("./route");
+    const response = await PATCH(resolutionRequest({ decision: "UPHOLD", note: "The existing mark is correct." }), { params: Promise.resolve({ id: "review-1" }) });
+    expect(response?.status).toBe(409);
+    expect(mocks.notificationCreate).not.toHaveBeenCalled();
+    expect(mocks.eventCreate).not.toHaveBeenCalled();
+  });
+
+  it("rejects the transaction if saving the notification fails", async () => {
+    mocks.notificationCreate.mockRejectedValueOnce(new Error("Notification write failed"));
+    const { PATCH } = await import("./route");
+    await expect(PATCH(resolutionRequest({ decision: "UPHOLD", note: "The existing mark is correct." }), { params: Promise.resolve({ id: "review-1" }) })).rejects.toThrow("Notification write failed");
   });
 });
