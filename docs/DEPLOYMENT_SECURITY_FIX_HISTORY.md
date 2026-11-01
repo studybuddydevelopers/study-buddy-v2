@@ -80,6 +80,6 @@ For every future deployment/security issue:
 Do not include credentials, private hostnames, exact defensive thresholds,
 operator identities, personal data, incident evidence, or unresolved exploit
 details. See [Security Policy](../SECURITY.md),
-[Deployment Guide](./DEPLOYMENT.md), and
+[Deployment Guide](./DEPLOYMENT.md),
 [Deployment and Security Change Process](./DEPLOYMENT_SECURITY_CHANGE_PROCESS.md), and
 [Railway Security Operations](./RAILWAY_SECURITY_OPERATIONS.md).
