@@ -28,6 +28,27 @@ describe("cookie-authenticated mutation Origin validation", () => {
     expect(validateCookieMutationOrigin(request)).toEqual({ ok: true });
   });
 
+  it("recognizes chunked Supabase session cookies", () => {
+    vi.stubEnv("NODE_ENV", "production");
+    vi.stubEnv("APP_ORIGIN", "https://studybuddy.example");
+    const request = makeRequest("POST", "/api/v1/logout", {
+      cookie: "sb-project-ref-auth-token.0=first-chunk",
+      origin: "https://studybuddy.example",
+    });
+
+    expect(validateCookieMutationOrigin(request)).toEqual({ ok: true });
+  });
+
+  it("does not mistake a Supabase PKCE verifier for a session cookie", () => {
+    vi.stubEnv("NODE_ENV", "production");
+    vi.stubEnv("APP_ORIGIN", "https://studybuddy.example");
+    const request = makeRequest("POST", "/api/v1/login", {
+      cookie: "sb-project-ref-auth-token-code-verifier=pkce-value",
+    });
+
+    expect(validateCookieMutationOrigin(request)).toEqual({ ok: true });
+  });
+
   it("uses the explicit production allowlist", () => {
     vi.stubEnv("NODE_ENV", "production");
     vi.stubEnv("APP_ORIGIN", "https://app.studybuddy.example");
@@ -49,6 +70,23 @@ describe("cookie-authenticated mutation Origin validation", () => {
     const request = makeRequest("POST", "/api/v1/ai/messages", {
       cookie: authCookie,
       origin: "https://attacker.example",
+    });
+
+    expect(validateCookieMutationOrigin(request)).toEqual({
+      ok: false,
+      reason: "UNTRUSTED_ORIGIN",
+    });
+  });
+
+  it.each([
+    "https://studybuddy.example.attacker.test",
+    "http://studybuddy.example",
+  ])("rejects origin lookalike %s", (origin) => {
+    vi.stubEnv("NODE_ENV", "production");
+    vi.stubEnv("APP_ORIGIN", "https://studybuddy.example");
+    const request = makeRequest("POST", "/api/v1/ai/messages", {
+      cookie: authCookie,
+      origin,
     });
 
     expect(validateCookieMutationOrigin(request)).toEqual({
@@ -82,6 +120,21 @@ describe("cookie-authenticated mutation Origin validation", () => {
       const request = makeRequest("POST", pathname, { cookie: authCookie });
       expect(validateCookieMutationOrigin(request)).toEqual({ ok: true });
     }
+  });
+
+  it("does not exempt a path nested beneath a signed webhook", () => {
+    vi.stubEnv("NODE_ENV", "production");
+    vi.stubEnv("APP_ORIGIN", "https://studybuddy.example");
+    const request = makeRequest(
+      "POST",
+      "/api/v1/payments/webhook/unexpected",
+      { cookie: authCookie }
+    );
+
+    expect(validateCookieMutationOrigin(request)).toEqual({
+      ok: false,
+      reason: "MISSING_ORIGIN",
+    });
   });
 
   it("leaves no-cookie authentication Origin checks to the route guard", () => {

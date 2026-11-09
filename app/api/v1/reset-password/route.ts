@@ -18,6 +18,7 @@ import {
 } from "@/lib/security/audit-log";
 import { authRedirectUrl } from "@/lib/supabase/auth-redirect";
 import { processPasswordResetLimitAlert } from "@/lib/password-reset-security";
+import { validateAuthMutationRequest } from "@/lib/security/auth-mutation";
 
 const HOUR_MS = 60 * 60_000;
 const DEFAULT_PASSWORD_RESET_ACCOUNT_LIMIT = 3;
@@ -25,6 +26,9 @@ const DEFAULT_PASSWORD_RESET_IP_LIMIT = 300;
 const DEFAULT_PASSWORD_RESET_GLOBAL_LIMIT = 1_000;
 
 export async function POST(req: Request) {
+  const requestRejection = validateAuthMutationRequest(req);
+  if (requestRejection) return requestRejection;
+
   const parsedBody = await parseJsonRequest(req, REQUEST_LIMITS.publicFormJson);
   if (!parsedBody.ok) return parsedBody.response;
   if (!isRecord(parsedBody.data)) {
