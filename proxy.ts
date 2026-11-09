@@ -252,6 +252,6 @@ function requestBodyIsTooLarge(req: NextRequest) {
 
 export const config = {
   matcher: [
-    "/((?!_next/static|_next/image|favicon.ico|icons|logo-icon.svg).*)",
+    "/((?!_next/static(?:/|$)|_next/image(?:/|$)|favicon\\.ico$|icons(?:/|$)|logo-icon\\.svg$).*)",
   ],
 };

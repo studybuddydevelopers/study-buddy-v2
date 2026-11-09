@@ -23,6 +23,8 @@ describe("production route controls", () => {
 
   it.each([
     "/api/v1/whatsapp/webhook",
+    "/api/v1/whatsapp/webhook/",
+    "/api/v1/whatsapp/webhook/nested",
   ])("returns 404 for %s in production", async (pathname) => {
     vi.stubEnv("NODE_ENV", "production");
 
@@ -38,6 +40,21 @@ describe("production route controls", () => {
     expect(csp).toMatch(/style-src 'self' 'nonce-[^']+'/);
     expect(csp?.match(/style-src [^;]*/)?.[0]).not.toContain("'unsafe-inline'");
     expect(csp).toContain("style-src-attr 'unsafe-inline'");
+  });
+
+  it("does not hide a lookalike route behind the production 404 control", async () => {
+    vi.stubEnv("NODE_ENV", "production");
+    vi.stubEnv("SUPABASE_URL", "https://project.supabase.co");
+    vi.stubEnv("SUPABASE_PUBLISHABLE_KEY", "public-key");
+
+    const response = await proxy(
+      new NextRequest(
+        "https://studybuddy.example/api/v1/whatsapp/webhook-attacker"
+      )
+    );
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get("x-middleware-next")).toBe("1");
   });
 
   it("rejects declared oversized API requests before authentication", async () => {
