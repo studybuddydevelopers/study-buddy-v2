@@ -509,7 +509,12 @@ Repeatable Chromium/WebKit accessibility and keyboard checks plus Chromium touch
 tests are available through `npm run test:browser` on
 `test/site-accessibility-browser`. See the [browser-test setup and scope](docs/FRONTEND_CHANGE_PROCESS.md#repeatable-isolated-browser-regressions).
 They use real UI components with synthetic data, not live accounts or the Next
-server. Screen-reader, actual zoom and staging acceptance remain separate.
+server. The [12 November verification follow-up](docs/FRONTEND_BUG_AND_FIX_HISTORY.md#native-browser-zoom-and-user-voiceover-follow-up--12-november-2026)
+records actual 200% Chrome zoom checks on 25 local fixture pages and the user's
+manual confirmation that VoiceOver worked on the pages they checked. VoiceOver
+speech was not independently verified by the agent. Physical-device checks,
+mathematical diagram alternatives and acceptance on the exact staging candidate
+remain outstanding; these local results are not site-wide certification.
 
 - [`components/FormErrorMessage.tsx`](components/FormErrorMessage.tsx) provides the shared visual and assistive-technology treatment, and [`lib/client-response-error.ts`](lib/client-response-error.ts) safely prefers human-readable API messages over machine error codes.
 
