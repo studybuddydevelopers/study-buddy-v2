@@ -1,6 +1,7 @@
 # Study Buddy codebase breakdown
 
 Last checked against the working tree: 1 November 2026.
+Accessibility ownership and test references updated: 12 November 2026.
 
 This public contributor map describes source responsibilities, not production
 infrastructure or access-provisioning procedures. See the
@@ -43,8 +44,9 @@ Check [package.json](package.json) and the lockfile for installed versions.
 - Shared metadata is defined in [lib/site-metadata.ts](lib/site-metadata.ts).
 - Brand tokens live in [app/globals.css](app/globals.css) and [tailwind.config.js](tailwind.config.js); contextual icons live in [StudyBuddyIcon](components/StudyBuddyIcon.tsx).
 
-Avoid nesting another `main` below the shared page-content landmark. Some
-existing account/settings views still require that cleanup.
+Avoid nesting another `main` below the shared page-content landmark. The shell
+owns the skip-link target; account/settings duplicates are removed and a source
+regression test checks main-landmark ownership.
 
 ## Frontend areas
 
@@ -65,6 +67,9 @@ breakpoint. Temporary design/audit routes are not current product features.
 
 ## Shared frontend helpers
 
+- [Button](components/Button.tsx): native actions or a single button-styled link through `href`, never nested interactive controls.
+- [TextField](components/TextField.tsx), [SelectField](components/SelectField.tsx) and [MultiSelectField](components/MultiSelectField.tsx): labelled inputs, associated errors and native keyboard interaction.
+- [Global CSS](app/globals.css): shared visible-focus treatment, skip-link presentation and mobile focus-scroll clearance.
 - [Image](components/Image.tsx) and [optimized-image](lib/optimized-image.ts): responsive image delivery.
 - [LowDataImage](components/LowDataImage.tsx): learner-triggered image loading when Low Data Mode is enabled.
 - [ChatMarkdown](components/ChatMarkdown.tsx) and [markdown-math](lib/markdown-math.ts): Markdown, code and maths.
@@ -95,3 +100,11 @@ Start with the [README](README.md), [website guide](docs/WEBSITE_GUIDE.md),
 [UI checklist](docs/DMCTN_UI_TASTE_GATE.md). Update feature claims when behaviour
 changes; use synthetic records in examples/screenshots. Tests/builds do not
 replace browser checks, accessibility review or deployment verification.
+
+[Accessibility.test.tsx](components/Accessibility.test.tsx) guards main-landmark
+ownership, skip-link wiring, field semantics, keyboard-capable choices/cards,
+reduced-motion text, settings-switch names, dialog wiring and entry-page headings
+through source inspection/static rendering and handler checks. It is not a
+screen-reader or browser automation suite. [Button tests](components/Button.test.tsx)
+also cover link rendering and disabled navigation. Browser evidence and remaining
+acceptance work are recorded in the [frontend history](docs/FRONTEND_BUG_AND_FIX_HISTORY.md#verification-for-the-accessibility-cleanup).
