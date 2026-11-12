@@ -4,6 +4,17 @@ import { describe, expect, it } from "vitest";
 import Button from "./Button";
 
 describe("Button", () => {
+  it("renders navigation as one link, without a nested button", () => {
+    const html = renderToStaticMarkup(createElement(Button, { href: "/materials" }, "Browse materials"));
+    expect(html).toContain('href="/materials"');
+    expect(html).not.toContain("<button");
+  });
+
+  it("does not navigate when a link-styled action is disabled", () => {
+    const html = renderToStaticMarkup(createElement(Button, { href: "/materials", disabled: true }, "Browse materials"));
+    expect(html).not.toContain("href=");
+    expect(html).toContain('disabled=""');
+  });
   it("keeps an aria-disabled explanatory action operable", () => {
     const html = renderToStaticMarkup(
       createElement(
