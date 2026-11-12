@@ -1,6 +1,7 @@
 # Frontend bug and fix history
 
-Last reviewed: 1 November 2026.
+Historical inventory reviewed: 1 November 2026. Accessibility corrections and
+verification updated: 12 November 2026.
 
 This register collects recoverable frontend bug reports, regressions and UX
 corrections from the project conversation, reachable Git history and current
@@ -34,7 +35,7 @@ not invent one from a similar-looking commit.
 
 | ID | Reported problem | Correction and evidence | Status |
 | --- | --- | --- | --- |
-| FE-001 | The root main landmark included site chrome, while child pages added another main. | The shell now scopes main to page content; chat, contact and policy duplicates were removed (`a5439ca`, `18cf3c3`, `283bbdd`, `5f4faea`, `88ab907`). See [ClientLayoutWrapper](../app/ClientLayoutWrapper.tsx). Profile and several settings/account views still contain nested main landmarks. | Partial; remaining cleanup open |
+| FE-001 | The root main landmark included site chrome, while child pages added another main. | Earlier shell corrections (`a5439ca`, `18cf3c3`, `283bbdd`, `5f4faea`, `88ab907`) were completed on 12 November by removing the remaining account/settings/profile duplicates. [ClientLayoutWrapper](../app/ClientLayoutWrapper.tsx) owns the focusable main and skip link; [regression tests](../components/Accessibility.test.tsx) check ownership across app/components. | Corrected in source; release acceptance separate |
 | FE-002 | Core pages shared generic browser titles or lacked individual descriptions. | Shared metadata policy and page/route-layout metadata were added and refined (`9cdb106`, `cf4a39f`, `131a885`). [Coverage](../app/metadata-coverage.test.ts) and [crawler tests](../app/metadata-routes.test.ts) check adoption and public-route rules, not editorial quality or access control. | Corrected in source |
 | FE-003 | Login and signup errors used disruptive browser alerts. | Inline form feedback replaced alerts (`3eecd1c`, `4ac62fe`, `5580d83`). [FormErrorMessage](../components/FormErrorMessage.tsx) and [auth feedback tests](../app/auth-form-feedback.test.ts) cover the shared treatment. | Corrected in source |
 | FE-004 | Login/logout and account-state changes could leave navigation showing the previous authentication state. | Shared live authentication state, explicit updates and route refreshes were introduced (`9c5c157`, `a8954bb`, `6dd7360`, `4bde397`, `bb69391`). [Navbar tests](../app/navbar-auth-state.test.ts) cover the source integration. | Corrected in source |
@@ -87,7 +88,7 @@ claims or sensitive evidence.
 | --- | --- | --- | --- |
 | FE-030 | Progress wording could imply that attempting a question established mastery. | Terminology and the report presentation were revised (`78344a9`, `e4e4ab3`). [ProgressClient](../app/progress/ProgressClient.tsx) separates coverage, accuracy and mock performance, with evidence-gated next actions and prominent subject goals. | UX/accuracy correction implemented |
 | FE-031 | Progress had limited date/filter context, and the 7/30/90-day buttons wrapped or crowded each other around intermediate widths such as 634px. | Reporting filters and responsive controls were introduced/refined (`a22779e`, `4c8b180`, `e0301b0`, `fbf3357`, `e85f176`). Current controls read Last, calendar-style 7/30/90 links, then days. [Report tests](../lib/progress/report.test.ts) cover the supported ranges. | Corrected in source; viewport acceptance still needed |
-| FE-032 | The help explanation opened on click when hover-only presentation was requested. | Click/focus-open behaviour was removed (`1f32dcb`, `1a9048c`). The [current progress help](../app/progress/ProgressClient.tsx) uses hover presentation and an accessible label; this requested interaction is not a blanket accessibility-conformance claim. | UX change implemented |
+| FE-032 | The help explanation opened on click when hover-only presentation was requested. | Click/focus-open behaviour was removed (`1f32dcb`, `1a9048c`). The 12 November cleanup retains no click-toggle state while adding keyboard-focus display and Escape dismissal to [progress help](../app/progress/ProgressClient.tsx); see FE-067. | UX change implemented; keyboard equivalent added |
 | FE-033 | Trend bars represented multi-day groups even though the learner expected one day per point; empty copy mentioned active time groups. | Daily grouping and wording were corrected (`a636fd8`, `f868bb2`). [Report tests](../lib/progress/report.test.ts) assert 7, 30 and 90 daily points with missing days represented. | Corrected in source |
 | FE-034 | Too many daily bars became unreadable on narrow screens and long ranges. | A responsive activity chart replaced the dense bar presentation (`6b8fd7d`), with separate mock indicators and a data alternative in [ProgressClient](../app/progress/ProgressClient.tsx). It retains daily data rather than silently returning to multi-day buckets. | Corrected in source; chart browser check needed |
 | FE-035 | Recommended actions were cramped around 768px; later swipe navigation extended beyond the requested width and included unwanted arrows. | Swipe is limited to below 769px (`7270740`), centred dots replaced arrows (`7d14243`), and overview/subject goals adopted the same small-screen treatment (`fbc8193`, `c8ccfd1`). Wider screens return to grids; the next-action grid remains one column until its larger breakpoint. | UX change implemented |
@@ -141,7 +142,65 @@ be attached to this public register.
 | FE-059 | Progress reported that stats could not load even after refresh/sign-in, and mock exams could not start. | The user report is retained. No single confirmed cause or end-to-end corrective result was recovered that can safely be assigned to this specific incident. Earlier route, error-handling or schema-related work must not be treated as proof that this report was resolved. | Unverified; requires controlled authenticated reproduction if it recurs |
 | FE-060 | An earlier client-side framework/global-error exception was reported. | The [deployment/security history](DEPLOYMENT_SECURITY_FIX_HISTORY.md#open-or-not-independently-verified) also retains this as unverified. No reliable reproduction and corresponding accepted correction were found here. Capture non-sensitive route/browser/build context; keep raw diagnostics private. | Unverified; no speculative fix recorded |
 
-## Verification recorded for this documentation update
+## Accessibility cleanup — 12 November 2026
+
+Handoff status: **implemented locally; staging acceptance pending** on
+`feature/site-accessibility-cleanup`. No staging, commits, merge, push or
+deployment were performed for this cleanup. Git staging/commits remain with
+the user, followed by an authorised staging-first integration.
+
+| ID | Verified problem | Correction | Status |
+| --- | --- | --- | --- |
+| FE-061 | Multi-select opening was mouse-only; choice-card inputs were removed from keyboard order; clickable Cards lacked keyboard activation; settings switches were unnamed. | Native disclosure button, Escape/focus return, tab-through checkboxes, visually hidden native choice inputs, Enter/Space activation for clickable Cards and named/described switches. | Implemented; shared-control regression coverage |
+| FE-062 | Field errors and required indicators were not programmatically connected to inputs; contact/answer fields had missing labels. | Shared field IDs, required/invalid/described-by state, alert messages and contextual answer labels. | Implemented; regression coverage |
+| FE-063 | Keyboard focus was inconsistently visible, and there was no skip link. | Two-tone global focus treatment, focus rings on custom controls, main-content skip target and scroll clearance for mobile navigation. | Implemented |
+| FE-064 | Chat deletion claimed modal semantics without containing focus or restoring it; reduced-motion users still got smooth chat scrolling. | Native modal dialog, Escape protection during saving, focus return, named composer/transcript and reduced-motion-aware scrolling. | Implemented; synthetic keyboard verification |
+| FE-065 | Fade-in paragraphs remained transparent with reduced motion; some shared feedback and inactive bottom-navigation labels had insufficient text contrast. | Opacity applies only when animation is enabled; feedback uses darker existing shades, yellow badges use dark text and inactive mobile labels use gray-500. | Implemented; regression coverage |
+| FE-066 | Account-entry pages lacked a primary heading; Home/About skipped heading levels; linked Buttons created nested interactive controls. | Semantic heading levels preserve visual typography. Button navigation renders one anchor through `href`. | Implemented; regression coverage |
+| FE-067 | Progress help was hover-only, its daily-data alternative was screen-reader-only and the overview scroller could not receive keyboard focus. | Focus and Escape support without click toggling; an expandable daily-data view and uniquely named, focusable carousel regions are available to all users. Dashboard bars and table headers have names/scope; the cookie table has a caption and focusable scroll region. | Implemented |
+| FE-068 | Practice diagrams used empty alternative text despite being question content. | Diagram identification and contextual low-data load labels added. | Partial: equivalent mathematical descriptions still need author-reviewed content |
+
+This cleanup preserves the approved brand artwork, profile/bell icons, responsive
+breakpoints and account/API rules. It does not certify WCAG conformance or deploy
+anything. Live account, CAPTCHA, assistive-technology and content-alternative
+acceptance remain separate from source and synthetic browser checks.
+
+### Verification for the accessibility cleanup
+
+The following results were recorded during implementation on 12 November, not
+rerun for the subsequent documentation-only update. Regression coverage lives
+in [Accessibility.test.tsx](../components/Accessibility.test.tsx) and
+[Button.test.tsx](../components/Button.test.tsx); the former uses source/static
+markup and handler checks, not a committed end-to-end browser harness.
+
+- **1,306 tests passed across 113 files**, including the new shared accessibility
+  safeguards. TypeScript, production build and `git diff --check` passed. Lint
+  passed with two existing unused-function warnings in an unrelated AI module.
+- Chromium/axe checks passed on 21 public page states at **320px and 1440px**:
+  home, About, Contact, eight policy/information pages, five account-entry pages,
+  account-unavailable, guardian authorization, deletion confirmation and the two
+  password-reset security views. No violations were reported for the selected
+  WCAG A/AA and best-practice rules; each had one main landmark, one primary
+  heading and no page-level horizontal overflow in these checks.
+- Isolated renders of the actual shared controls, chat, study preferences and
+  progress components passed the same automated checks at **320px, 768px and
+  1440px**, using synthetic data and mocked navigation/API responses.
+- Browser keyboard checks verified skip-link focus, multi-select selection and
+  Escape return, checkbox/radio operation, chat-dialog focus containment and
+  return, progress-help dismissal, daily-data disclosure and carousel dots.
+  Reduced-motion paragraph visibility was also checked.
+
+Browser checks used Chromium 157 and axe rules tagged `wcag2a`, `wcag2aa`,
+`wcag21aa`, `wcag22aa` and `best-practice`. Public pages ran from a local
+production build; protected-component checks used a separate temporary fixture.
+The fixture was not added as a product route or a permanent regression suite.
+
+These checks did not exercise real account mutations, CAPTCHA, live AI responses,
+all authenticated/error states, physical-device zoom or VoiceOver/NVDA. Diagram
+identification still needs equivalent, author-reviewed mathematical descriptions.
+Automated scans and synthetic fixtures are not a WCAG conformance certification.
+
+## Verification recorded for the 1 November documentation update
 
 On 1 November 2026, **76 tests passed across 20 targeted test files** in the
 working tree. These cover metadata/crawler rules, navbar authentication state,
@@ -158,7 +217,8 @@ No application fixes were implemented while writing this history.
 
 ## Remaining acceptance work
 
-- Finish FE-001's remaining nested-landmark cleanup.
+- Keep FE-001's main-landmark regression guard passing; verify authenticated
+  journeys with assistive technology in the intended release environment.
 - Check the current SB loader in a browser for FE-021, including reduced motion;
   do not revive the retired handwriting preview to resolve this entry.
 - Retain FE-059 and FE-060 as unverified until there is a controlled reproduction
