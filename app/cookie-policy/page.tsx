@@ -31,13 +31,14 @@ const sections: PolicyDocumentSection[] = [
     id: "current-use",
     title: "What Study Buddy currently uses",
     content: (
-      <div className="overflow-x-auto">
+      <div role="region" aria-label="Cookies and storage technologies" tabIndex={0} className="overflow-x-auto">
         <table className="w-full min-w-[620px] border-collapse text-left text-sm">
+          <caption className="sr-only">Cookies and storage technologies used by Study Buddy</caption>
           <thead>
             <tr className="border-b border-gray-300 text-gray-900">
-              <th className="px-3 py-3">Technology</th>
-              <th className="px-3 py-3">Purpose</th>
-              <th className="px-3 py-3">Where it remains</th>
+              <th scope="col" className="px-3 py-3">Technology</th>
+              <th scope="col" className="px-3 py-3">Purpose</th>
+              <th scope="col" className="px-3 py-3">Where it remains</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-200">
