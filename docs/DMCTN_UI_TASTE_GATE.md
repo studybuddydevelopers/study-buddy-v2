@@ -96,7 +96,13 @@ Record corrected bugs or UX regressions in the
 
 ### Manual assistive-technology and zoom acceptance
 
-Status for the browser-test handoff: **not performed; release acceptance pending**.
+Status as of 12 November: **local actual-200% zoom checks passed; VoiceOver
+user-verified for the pages checked; release acceptance pending**. See the
+[verification follow-up](FRONTEND_BUG_AND_FIX_HISTORY.md#native-browser-zoom-and-user-voiceover-follow-up--12-november-2026)
+for the exact local scope. The user's VoiceOver confirmation did not specify
+routes, versions or individual scenarios, and the agent did not independently
+verify spoken output. This does not mark every checklist item below complete.
+
 Use an approved synthetic account on the exact staging candidate. Record the
 revision, OS/browser, assistive-technology version, outcome and any defects in
 restricted release evidence. Do not mark these complete from DOM assertions.
@@ -135,7 +141,7 @@ part of ordinary visual verification. Use approved test environments and account
 ## Current frontend follow-up
 
 - The single-main landmark, skip link, labelled fields and keyboard controls have regression coverage; retain those checks for future changes.
-- See the [12 November verification record](FRONTEND_BUG_AND_FIX_HISTORY.md#verification-for-the-accessibility-cleanup) for completed public-page and synthetic-component browser checks. Authenticated release journeys, VoiceOver/NVDA, CAPTCHA, zoom and physical-device safe areas still need acceptance; zero automated violations is not certification.
+- See the [12 November verification follow-up](FRONTEND_BUG_AND_FIX_HISTORY.md#native-browser-zoom-and-user-voiceover-follow-up--12-november-2026) for local actual-200% zoom results and user-reported VoiceOver verification. Exact staging-candidate journeys, route announcements, CAPTCHA, increased text size and physical-device keyboard/safe areas still need acceptance; NVDA was not tested. Neither zero automated violations nor the limited manual confirmation establishes site-wide certification.
 - Meaningful question diagrams now have identification text, but equivalent descriptions of their mathematical content still require content-author review. A generic diagram label is not a full alternative.
 - Component-specific text sizes, contrast, focus behaviour and touch targets need browser-level verification; the shared tokens are not a site-wide guarantee.
 - Notifications are implemented but staging migration and authenticated live checks remain pending.
