@@ -48,6 +48,33 @@ function pct(rate: number): number {
   return Math.round(Math.max(0, Math.min(1, rate)) * 100);
 }
 
+function ProgressHelp() {
+  const [dismissed, setDismissed] = useState(false);
+  return (
+    <div className="group/help relative inline-flex" onMouseEnter={() => setDismissed(false)}>
+      <button
+        type="button"
+        aria-label="About progress measures"
+        aria-describedby="progress-help"
+        onFocus={() => setDismissed(false)}
+        onKeyDown={(event) => {
+          if (event.key === "Escape") setDismissed(true);
+        }}
+        className="inline-flex h-11 w-11 items-center justify-center rounded-full text-primary-700"
+      >
+        <CircleHelp className="h-5 w-5" aria-hidden="true" />
+      </button>
+      <div
+        id="progress-help"
+        role="tooltip"
+        className={`absolute right-0 top-full z-20 hidden w-60 rounded-xl border border-gray-200 bg-white p-3 text-left text-xs font-medium leading-relaxed text-gray-700 shadow-lg sm:left-1/2 sm:right-auto sm:w-72 sm:-translate-x-1/2 ${dismissed ? "" : "group-hover/help:block group-focus-within/help:block"}`}
+      >
+        {PROGRESS_HELP_TEXT}
+      </div>
+    </div>
+  );
+}
+
 function progressHref(
   filters: ProgressFullReport["filters"],
   updates: {
@@ -192,6 +219,8 @@ function OverviewCarousel({ stats }: { stats: OverviewStat[] }) {
         onScroll={updateActiveItem}
         className="flex snap-x snap-mandatory gap-4 overflow-x-auto overscroll-x-contain [scrollbar-width:none] [&::-webkit-scrollbar]:hidden min-[769px]:grid min-[769px]:grid-cols-2 min-[769px]:snap-none min-[769px]:overflow-visible xl:grid-cols-4"
         aria-label="Honest overview statistics"
+        role="region"
+        tabIndex={0}
       >
         {stats.map((stat) => (
           <StatCard key={stat.id} {...stat} />
@@ -221,7 +250,9 @@ function SubjectGoalsCarousel({
         ref={scrollerRef}
         onScroll={updateActiveItem}
         className="flex snap-x snap-mandatory gap-4 overflow-x-auto overscroll-x-contain [scrollbar-width:none] [&::-webkit-scrollbar]:hidden min-[769px]:grid min-[769px]:grid-cols-2 min-[769px]:snap-none min-[769px]:overflow-visible"
-        aria-label="Subject goals"
+        aria-label="Subject goal cards"
+        role="region"
+        tabIndex={0}
       >
         {goals.map((goal, index) => (
           <article
@@ -300,7 +331,9 @@ function NextActionsCarousel({ actions }: { actions: NextAction[] }) {
         ref={scrollerRef}
         onScroll={updateActiveItem}
         className="flex snap-x snap-mandatory gap-4 overflow-x-auto overscroll-x-contain [scrollbar-width:none] [&::-webkit-scrollbar]:hidden min-[769px]:grid min-[769px]:grid-cols-1 min-[769px]:snap-none min-[769px]:overflow-visible lg:grid-cols-2"
-        aria-label="Recommended next actions"
+        aria-label="Recommended next action cards"
+        role="region"
+        tabIndex={0}
       >
         {actions.map((action, index) => (
           <article
@@ -493,7 +526,7 @@ function TrendChart({ progress }: { progress: ProgressFullReport }) {
             </ResponsiveContainer>
           </div>
           <p className="mt-3 text-xs leading-5 text-gray-500">
-            The purple trend shows daily question volume. Gold markers show days
+            The purple trend shows daily question volume. Navy markers show days
             when you completed a mock. Tap or hover for daily details.
           </p>
         </>
@@ -509,10 +542,9 @@ function TrendChart({ progress }: { progress: ProgressFullReport }) {
         </div>
       )}
 
-      <div className="sr-only">
-        <p>
-          Daily practice activity for {progress.filters.rangeLabel.toLowerCase()}
-        </p>
+      <details className="mt-4 rounded-lg border border-gray-200 p-3 text-sm text-gray-700">
+        <summary className="cursor-pointer font-semibold">View daily activity data</summary>
+        <div role="region" aria-label="Daily activity data" tabIndex={0} className="mt-3 max-h-72 overflow-auto">
         <ul>
           {chartData.map((point) => (
             <li key={point.startDate}>
@@ -523,7 +555,8 @@ function TrendChart({ progress }: { progress: ProgressFullReport }) {
             </li>
           ))}
         </ul>
-      </div>
+        </div>
+      </details>
     </div>
   );
 }
@@ -774,21 +807,7 @@ export default function ProgressClient({
           <Heading1 size="lg" gutter="none">
             Your progress
           </Heading1>
-          <div className="group/help relative inline-flex">
-            <span
-              role="img"
-              aria-label={PROGRESS_HELP_TEXT}
-              className="inline-flex h-5 w-5 items-center justify-center rounded-full border border-gray-300 bg-white text-primary-700 shadow-sm transition group-hover/help:border-primary-300 group-hover/help:bg-primary-50"
-            >
-              <CircleHelp className="h-5 w-5" aria-hidden="true" />
-            </span>
-            <div
-              role="tooltip"
-              className="pointer-events-none absolute right-0 top-full z-20 mt-2 hidden w-60 rounded-xl border border-gray-200 bg-white p-3 text-left text-xs font-medium leading-relaxed text-gray-700 shadow-lg group-hover/help:block sm:left-1/2 sm:right-auto sm:w-72 sm:-translate-x-1/2"
-            >
-              {PROGRESS_HELP_TEXT}
-            </div>
-          </div>
+          <ProgressHelp />
         </div>
         <Paragraph variant="muted" className="mt-3">
           See what you have covered, how accurately you practise, and how you
@@ -801,6 +820,7 @@ export default function ProgressClient({
           <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end">
             <div>
               <Heading3
+                as="h2"
                 id="progress-filters-heading"
                 className="font-bold text-gray-950"
               >
@@ -808,6 +828,7 @@ export default function ProgressClient({
               </Heading3>
             </div>
             <div
+              role="group"
               className="mb-2 flex min-w-0 items-center justify-center gap-2 sm:justify-start"
               aria-label="Date range"
             >
@@ -1043,12 +1064,13 @@ export default function ProgressClient({
 
             <div className="hidden overflow-hidden rounded-2xl border border-gray-200 min-[769px]:block">
               <table className="w-full text-left text-sm">
+                <caption className="sr-only">WAEC mock exam results</caption>
                 <thead className="bg-accent-50 text-gray-700">
                   <tr>
-                    <th className="p-4 font-semibold">Exam</th>
-                    <th className="p-4 font-semibold">Score</th>
-                    <th className="p-4 font-semibold">Time</th>
-                    <th className="p-4 font-semibold">Submitted</th>
+                    <th scope="col" className="p-4 font-semibold">Exam</th>
+                    <th scope="col" className="p-4 font-semibold">Score</th>
+                    <th scope="col" className="p-4 font-semibold">Time</th>
+                    <th scope="col" className="p-4 font-semibold">Submitted</th>
                   </tr>
                 </thead>
                 <tbody>
