@@ -505,6 +505,12 @@ work. Implementation is local on `feature/site-accessibility-cleanup`; staging
 and production acceptance are not recorded as complete. Keep the
 [shared-control regression tests](components/Accessibility.test.tsx) and
 [Button tests](components/Button.test.tsx) passing when changing these controls.
+Repeatable Chromium/WebKit accessibility and keyboard checks plus Chromium touch
+tests are available through `npm run test:browser` on
+`test/site-accessibility-browser`. See the [browser-test setup and scope](docs/FRONTEND_CHANGE_PROCESS.md#repeatable-isolated-browser-regressions).
+They use real UI components with synthetic data, not live accounts or the Next
+server. Screen-reader, actual zoom and staging acceptance remain separate.
+
 - [`components/FormErrorMessage.tsx`](components/FormErrorMessage.tsx) provides the shared visual and assistive-technology treatment, and [`lib/client-response-error.ts`](lib/client-response-error.ts) safely prefers human-readable API messages over machine error codes.
 
 ## Local Setup
