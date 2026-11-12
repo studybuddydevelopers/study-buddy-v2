@@ -49,14 +49,20 @@ the [UI review checklist](DMCTN_UI_TASTE_GATE.md) for release checks, including
 320px layouts, keyboard/focus behaviour, loading/empty/error states, metadata
 and low-data preferences. The November accessibility cleanup removes the
 remaining nested main landmarks and improves shared controls; assistive-technology
-and authenticated release checks remain outstanding. Do not claim site-wide
-conformance from these changes alone.
+and authenticated checks on the exact release candidate remain outstanding.
+Do not claim site-wide conformance from these changes alone.
 
-The [frontend change record](FRONTEND_BUG_AND_FIX_HISTORY.md#verification-for-the-accessibility-cleanup)
-separates completed local public-page/synthetic-component browser checks from
-outstanding staging acceptance. Confirm authenticated journeys, screen-reader
-output, CAPTCHA, zoom and content alternatives against the release candidate;
-do not infer those results from automated accessibility scans.
+The [12 November verification follow-up](FRONTEND_BUG_AND_FIX_HISTORY.md#native-browser-zoom-and-user-voiceover-follow-up--12-november-2026)
+records actual 200% Chrome zoom checks on 25 local fixture pages and the user's
+manual confirmation that VoiceOver worked on the pages they checked. The user
+did not specify the routes, versions or scenarios, and the agent did not
+independently verify spoken output. These results supplement the earlier local
+browser suite; they do not establish deployed acceptance.
+
+Confirm authenticated journeys, real Next route announcements, screen-reader
+output, CAPTCHA, zoom/increased text size, physical-device keyboard/safe areas
+and content alternatives against the release candidate. Keep that staging
+acceptance separate from local checks and user-reported verification.
 
 Automated component/route tests are not live browser evidence. Notifications
 have source and automated coverage, but their migration and live staging
