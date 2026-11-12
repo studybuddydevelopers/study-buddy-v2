@@ -688,26 +688,22 @@ export default function TermsOfServicePage() {
           </TermsSection>
 
           <div className="flex flex-col gap-3 py-8 sm:flex-row">
-            <Link href="/contact-us">
-              <Button
-                variant="primary"
-                size="lg"
-                className="w-full sm:w-auto"
-                icon={<StudyBuddyIcon name="support" size={22} />}
-              >
-                Contact us
-              </Button>
-            </Link>
-            <Link href="/sign-up">
-              <Button
-                variant="outline"
-                size="lg"
-                className="w-full sm:w-auto"
-                icon={<ArrowRight className="h-5 w-5" aria-hidden="true" />}
-              >
-                Create an account
-              </Button>
-            </Link>
+            <Button href="/contact-us"
+              variant="primary"
+              size="lg"
+              className="w-full sm:w-auto"
+              icon={<StudyBuddyIcon name="support" size={22} />}
+            >
+              Contact us
+            </Button>
+            <Button href="/sign-up"
+              variant="outline"
+              size="lg"
+              className="w-full sm:w-auto"
+              icon={<ArrowRight className="h-5 w-5" aria-hidden="true" />}
+            >
+              Create an account
+            </Button>
           </div>
         </div>
       </div>

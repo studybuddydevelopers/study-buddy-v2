@@ -2,6 +2,9 @@
 
 Last checked against the working tree: 1 November 2026.
 
+Shared feedback/focus mappings and the chart-copy note updated on 12 November
+2026 during the accessibility cleanup; this is not a fresh full-asset inventory.
+
 This is an inventory of the current colours, not a proposal to recolour the
 site. Names such as “brand plum” are descriptive labels for this guide, not
 official CSS colour names. Hex values and source references are authoritative.
@@ -56,7 +59,7 @@ No browser-wide computed-style or contrast certification was performed.
 - The large home SVGs also contain `#513D96`, `#4F387D`, `#683E99` and other purples. Their embedded artwork palette is not identical to either UI primary or brand plum.
 - `primary-50` is a pale neutral `#F8F9FA`, despite belonging to the primary scale.
 - The theme family called `accent` is mostly white/grey, **not gold**.
-- Semantic token names and component variants do not always map to the same hex: for example, `success` is `#10B981`, but the success Button uses `green-600`, `#16A34A`.
+- Semantic token names and component variants do not always map to the same hex: for example, `success` is `#10B981`, but the success Button and Badge use `green-700`, `#15803D`, for readable white text.
 
 ## 2. Where the palette appears across the website
 
@@ -178,9 +181,9 @@ Validation, failed actions/replies, incorrect-answer feedback and destructive ac
 | `red-200` | `#FECACA` | Light rose | background/fill, border, focus ring; [ChatMessage.tsx](../components/ChatMessage.tsx), [AccountLifecycleStatus.tsx](../components/AccountLifecycleStatus.tsx) |
 | `red-300` | `#FCA5A5` | Soft red | border; [TopicPracticeClient.tsx](../app/materials/practice/[topicId]/TopicPracticeClient.tsx), [AccountDeletionConfirmationClient.tsx](../app/account-deletion/confirm/AccountDeletionConfirmationClient.tsx) |
 | `red-400` | `#F87171` | Coral red | focus ring, border; [Button.tsx](../components/Button.tsx), [ProfileDetailsClient.tsx](../app/settings/profile/ProfileDetailsClient.tsx) |
-| `red-500` | `#EF4444` | Clear red | text, border, background/fill, outline; [SelectField.tsx](../components/SelectField.tsx), [Badge.tsx](../components/Badge.tsx) |
+| `red-500` | `#EF4444` | Clear red | Required markers and error borders; [SelectField.tsx](../components/SelectField.tsx), [TextField.tsx](../components/TextField.tsx). Error messages and error Badge backgrounds use darker red. |
 | `red-600` | `#DC2626` | Strong red | background/fill, text; [Button.tsx](../components/Button.tsx), [Paragraph.tsx](../components/Paragraph.tsx) |
-| `red-700` | `#B91C1C` | Dark red | background/fill, text; [Button.tsx](../components/Button.tsx), [FormErrorMessage.tsx](../components/FormErrorMessage.tsx) |
+| `red-700` | `#B91C1C` | Dark red | Destructive hover, error Badge background and field errors; [Button.tsx](../components/Button.tsx), [Badge.tsx](../components/Badge.tsx), [FormErrorMessage.tsx](../components/FormErrorMessage.tsx) |
 | `red-800` | `#991B1B` | Deep red | text; [ChatMessage.tsx](../components/ChatMessage.tsx), [ClientLanding.tsx](../app/ClientLanding.tsx) |
 | `red-900` | `#7F1D1D` | Wine red | text; [ChatMessage.tsx](../components/ChatMessage.tsx), [AccountDeletionConfirmationClient.tsx](../app/account-deletion/confirm/AccountDeletionConfirmationClient.tsx) |
 | `red-950` | `#450A0A` | Blackened red | text; [AccountLifecycleStatus.tsx](../components/AccountLifecycleStatus.tsx), [AccountDeletionConfirmationClient.tsx](../app/account-deletion/confirm/AccountDeletionConfirmationClient.tsx) |
@@ -195,10 +198,10 @@ Successful saves/account outcomes, correct-answer feedback and resolved review s
 | `green-100` | `#DCFCE7` | Pale mint | background/fill; [MarkingReviewsClient.tsx](../app/marking-reviews/MarkingReviewsClient.tsx), [MarkingReviewPanel.tsx](../app/exams/MarkingReviewPanel.tsx) |
 | `green-200` | `#BBF7D0` | Light green | border; [AccountSettingsClient.tsx](../app/settings/account/AccountSettingsClient.tsx), [ProfileDetailsClient.tsx](../app/settings/profile/ProfileDetailsClient.tsx) |
 | `green-400` | `#4ADE80` | Fresh green | focus ring; [Button.tsx](../components/Button.tsx) |
-| `green-500` | `#22C55E` | Bright green | background/fill; [Badge.tsx](../components/Badge.tsx), [ProgressBar.tsx](../components/ProgressBar.tsx) |
-| `green-600` | `#16A34A` | Strong green | background/fill, text; [Button.tsx](../components/Button.tsx), [Paragraph.tsx](../components/Paragraph.tsx) |
-| `green-700` | `#15803D` | Dark green | background/fill, text; [Button.tsx](../components/Button.tsx), [GuardianPendingClient.tsx](../app/guardian-authorization-pending/GuardianPendingClient.tsx) |
-| `green-800` | `#166534` | Forest green | text; [AccountSettingsClient.tsx](../app/settings/account/AccountSettingsClient.tsx), [ProfileDetailsClient.tsx](../app/settings/profile/ProfileDetailsClient.tsx) |
+| `green-500` | `#22C55E` | Bright green | Success fill in [ProgressBar.tsx](../components/ProgressBar.tsx); not a white-text Badge background. |
+| `green-600` | `#16A34A` | Strong green | Historical feedback mapping; shared success text and controls moved to green-700 in the accessibility cleanup. |
+| `green-700` | `#15803D` | Dark green | Success Button/Badge background and Paragraph/saved/correct-answer text; readable against white. |
+| `green-800` | `#166534` | Forest green | Success Button hover and account feedback text; [Button.tsx](../components/Button.tsx), [AccountSettingsClient.tsx](../app/settings/account/AccountSettingsClient.tsx) |
 | `green-900` | `#14532D` | Deep forest green | text; [MarkingReviewsClient.tsx](../app/marking-reviews/MarkingReviewsClient.tsx), [MarkingReviewPanel.tsx](../app/exams/MarkingReviewPanel.tsx) |
 | `green-950` | `#052E16` | Blackened green | text; [PasswordResetRecoveryClient.tsx](../app/account-security/password-reset-recovery/PasswordResetRecoveryClient.tsx), [PasswordResetAlertClient.tsx](../app/account-security/password-reset-alert/PasswordResetAlertClient.tsx) |
 
@@ -226,8 +229,8 @@ Study-preference warnings plus shared warning Badge, ProgressBar and Paragraph v
 | `yellow-50` | `#FEFCE8` | Lemon white | background/fill; [StudyPreferencesClient.tsx](../app/settings/study-preferences/StudyPreferencesClient.tsx) |
 | `yellow-200` | `#FEF08A` | Pale yellow | border; [StudyPreferencesClient.tsx](../app/settings/study-preferences/StudyPreferencesClient.tsx) |
 | `yellow-500` | `#EAB308` | Golden yellow | background/fill; [Badge.tsx](../components/Badge.tsx), [ProgressBar.tsx](../components/ProgressBar.tsx) |
-| `yellow-600` | `#CA8A04` | Ochre | text; [Paragraph.tsx](../components/Paragraph.tsx) |
-| `yellow-800` | `#854D0E` | Deep ochre | text; [StudyPreferencesClient.tsx](../app/settings/study-preferences/StudyPreferencesClient.tsx) |
+| `yellow-600` | `#CA8A04` | Ochre | Historical Paragraph warning mapping, replaced with yellow-800 for text contrast. |
+| `yellow-800` | `#854D0E` | Deep ochre | Warning Paragraph and study-preference text. Warning Badges instead pair yellow-500 with near-black `#030712`. |
 
 ### Blue
 
@@ -274,7 +277,7 @@ whole website.
 | `#F6CE46` — warm gold | [StudyBuddyIcon.tsx](../components/StudyBuddyIcon.tsx) | Small accent details within icon artwork. |
 | `#17131C` — plum-black | [ChatMarkdown.tsx](../components/ChatMarkdown.tsx) | Outer code-block surface, separate from the imported highlighting theme. |
 | `#B42318` — brick red | [ChatMarkdown.tsx](../components/ChatMarkdown.tsx) | Configured maths-error colour for malformed expressions. |
-| `#9CA3AF` — muted grey | [BottomNav.tsx](../components/BottomNav.tsx) | Inactive bottom-navigation labels; same value as gray-400. |
+| `#6B7280` — muted grey | [BottomNav.tsx](../components/BottomNav.tsx) | Inactive bottom-navigation labels; same value as gray-500. Darkened from gray-400 for readable text on white. |
 | `#E5E7EB`, `#D1D5DB`, `#6B7280` — chart greys | [ProgressClient.tsx](../app/progress/ProgressClient.tsx) | Chart grid, hover cursor and axis labels respectively; same values as gray-200/300/500. |
 
 
@@ -454,11 +457,9 @@ in source. Their palette references are not evidence of current navigation use.
 1. **Three purple layers coexist:** brand plum, UI primary scale and the
    detailed SVG palette. This document records them; it does not authorise
    consolidating or recolouring the approved designs.
-2. **The progress chart's mock markers are navy, not gold.** The current fill
-   and legend use secondary-500 `#102B3F`, although nearby explanatory copy says
-   “Gold markers”. This is a copy/style mismatch in
-   [ProgressClient](../app/progress/ProgressClient.tsx), not a reason to label
-   the actual colour gold here.
+2. **The progress chart's mock markers are navy, not gold.** The fill, legend
+   and corrected explanatory copy in [ProgressClient](../app/progress/ProgressClient.tsx)
+   now agree on secondary-500 `#102B3F`.
 3. **Semantic variants are not one-to-one tokens.** A success Button, success
    Badge, Paragraph and Small can resolve to different greens. Read their
    component mappings rather than assuming “success” always means `#10B981`.
@@ -469,6 +470,8 @@ in source. Their palette references are not evidence of current navigation use.
    accessibility endorsement for arbitrary text/background combinations.
    Check the real size, background, opacity, hover/focus and disabled state.
    Retain text/icons as well as colour to communicate status.
+   The shared keyboard-focus treatment pairs primary-700 `#4A3480` with a
+   white `#FFFFFF` surround so it remains visible on light and dark surfaces.
 6. **Keep this guide current.** Update it when tokens, hard-coded page colours,
    SVG fills or imported highlighting styles change. Follow the
    [frontend review checklist](DMCTN_UI_TASTE_GATE.md); document the result

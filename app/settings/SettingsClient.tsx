@@ -54,7 +54,7 @@ const supportLinks = [
 
 export default function SettingsClient() {
   return (
-    <main className="mx-auto w-full max-w-6xl space-y-8 py-4 pb-24 sm:py-8 lg:pb-8">
+    <div className="mx-auto w-full max-w-6xl space-y-8 py-4 pb-24 sm:py-8 lg:pb-8">
       <header className="rounded-3xl border border-[#E4D6EA] bg-[#F7F0FA] p-5 sm:p-8">
         <Link
           href="/profile"
@@ -163,6 +163,6 @@ export default function SettingsClient() {
           ))}
         </div>
       </section>
-    </main>
+    </div>
   );
 }

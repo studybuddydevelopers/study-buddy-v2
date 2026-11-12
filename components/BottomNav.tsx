@@ -8,7 +8,7 @@ import StudyBuddyIcon, {
 } from "@/components/StudyBuddyIcon";
 
 const ACTIVE_COLOR = "#6C3483";
-const INACTIVE_COLOR = "#9CA3AF";
+const INACTIVE_COLOR = "#6B7280";
 
 interface NavTab {
   label: string;

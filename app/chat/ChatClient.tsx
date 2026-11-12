@@ -192,7 +192,8 @@ export default function ChatClient() {
   const [chatPendingDeletion, setChatPendingDeletion] =
     useState<ApiChat | null>(null);
   const listRef = useRef<HTMLDivElement | null>(null);
-  const deleteDialogRef = useRef<HTMLDivElement | null>(null);
+  const deleteDialogRef = useRef<HTMLDialogElement | null>(null);
+  const composerRef = useRef<HTMLTextAreaElement | null>(null);
 
   const selectedChat = useMemo(
     () => chats.find((chat) => chat.id === selectedChatId) ?? null,
@@ -214,22 +215,26 @@ export default function ChatClient() {
   useEffect(() => {
     listRef.current?.scrollTo({
       top: listRef.current.scrollHeight,
-      behavior: "smooth",
+      behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth",
     });
   }, [messages]);
 
   useEffect(() => {
     if (!chatPendingDeletion) return;
 
-    deleteDialogRef.current?.focus();
-    const closeOnEscape = (event: KeyboardEvent) => {
-      if (event.key === "Escape" && !savingChat) {
-        setChatPendingDeletion(null);
+    const dialog = deleteDialogRef.current;
+    const previousFocus = document.activeElement;
+    const composer = composerRef.current;
+    dialog?.showModal();
+    return () => {
+      dialog?.close();
+      if (previousFocus instanceof HTMLElement && previousFocus.isConnected) {
+        previousFocus.focus();
+      } else {
+        composer?.focus();
       }
     };
-    document.addEventListener("keydown", closeOnEscape);
-    return () => document.removeEventListener("keydown", closeOnEscape);
-  }, [chatPendingDeletion, savingChat]);
+  }, [chatPendingDeletion]);
 
   useEffect(() => {
     const loadBootstrapData = async () => {
@@ -588,6 +593,7 @@ export default function ChatClient() {
                   key={chat.id}
                   type="button"
                   onClick={() => selectChat(chat.id)}
+                  aria-current={chat.id === selectedChatId ? "true" : undefined}
                   className={`w-full text-left rounded-xl border px-3 py-2 transition ${
                     chat.id === selectedChatId
                       ? "border-primary-400 bg-primary-50 text-primary-900"
@@ -641,7 +647,7 @@ export default function ChatClient() {
                   <Button
                     variant="destructive"
                     size="sm"
-                    onClick={() => setChatPendingDeletion(selectedChat)}
+                    onClick={() => { setError(null); setChatPendingDeletion(selectedChat); }}
                     disabled={savingChat}
                     icon={
                       <Trash2
@@ -711,6 +717,9 @@ export default function ChatClient() {
 
           <div
             ref={listRef}
+            role="region"
+            aria-label="Chat messages"
+            tabIndex={0}
             className="min-h-[320px] max-h-[52vh] flex-1 overflow-y-scroll rounded-2xl border border-accent-200 bg-white p-4 shadow-sm [scrollbar-gutter:stable] lg:min-h-0 lg:max-h-none"
           >
             {loadingMessages ? (
@@ -814,14 +823,17 @@ export default function ChatClient() {
             </div>
           )}
 
-          {error && (
-            <Paragraph variant="error" className="mt-1">
+          {error && !chatPendingDeletion && (
+            <Paragraph variant="error" className="mt-1" role="alert">
               {error}
             </Paragraph>
           )}
 
           <div className="border border-accent-200 rounded-2xl bg-white shadow-sm p-4 space-y-3">
             <textarea
+              ref={composerRef}
+              aria-label="Message to AI tutor"
+              aria-describedby="chat-composer-help"
               className="w-full border border-accent-200 rounded-lg p-3 focus:outline-none focus:ring-2 focus:ring-primary-400 text-gray-900 max-h-28"
               placeholder="Ask a study question... Shift+Enter for new line"
               rows={3}
@@ -831,6 +843,9 @@ export default function ChatClient() {
               disabled={sending || loadingChats}
               maxLength={4000}
             />
+            <span id="chat-composer-help" className="sr-only">
+              Press Enter to send, or Shift+Enter for a new line. Maximum 4000 characters.
+            </span>
             <div className="flex items-center justify-between gap-3 flex-wrap">
               <Paragraph variant="muted" gutter="none" className="text-sm">
                 {input.length}/4000
@@ -849,23 +864,38 @@ export default function ChatClient() {
       </div>
 
       {chatPendingDeletion && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-gray-950/60 px-4"
-          role="presentation"
-          onMouseDown={(event) => {
+        <dialog
+          ref={deleteDialogRef}
+          aria-labelledby="delete-chat-title"
+          aria-describedby="delete-chat-description"
+          className="m-auto w-[calc(100%-2rem)] max-w-md max-h-[85svh] overflow-y-auto rounded-2xl border border-red-200 bg-white p-0 shadow-2xl backdrop:bg-gray-950/60"
+          onCancel={(event) => {
+            event.preventDefault();
+            if (!savingChat) setChatPendingDeletion(null);
+          }}
+          onKeyDown={(event) => {
+            if (event.key !== "Tab") return;
+            const buttons = event.currentTarget.querySelectorAll<HTMLButtonElement>("button:not(:disabled)");
+            const first = buttons[0];
+            const last = buttons[buttons.length - 1];
+            if (!first) {
+              event.preventDefault();
+            } else if (event.shiftKey && document.activeElement === first) {
+              event.preventDefault();
+              last.focus();
+            } else if (!event.shiftKey && document.activeElement === last) {
+              event.preventDefault();
+              first.focus();
+            }
+          }}
+          onClick={(event) => {
             if (event.target === event.currentTarget && !savingChat) {
               setChatPendingDeletion(null);
             }
           }}
         >
           <div
-            ref={deleteDialogRef}
-            role="dialog"
-            tabIndex={-1}
-            aria-modal="true"
-            aria-labelledby="delete-chat-title"
-            aria-describedby="delete-chat-description"
-            className="w-full max-w-md rounded-2xl border border-red-200 bg-white p-6 shadow-2xl"
+            className="p-6"
           >
             <div className="flex items-start gap-3">
               <span className="rounded-xl bg-red-50 p-2 text-red-700">
@@ -888,7 +918,8 @@ export default function ChatClient() {
                 </p>
               </div>
             </div>
-            <div className="mt-6 flex justify-end gap-3">
+            {error && <p role="alert" className="mt-4 text-sm text-red-700">{error}</p>}
+            <div className="mt-6 flex flex-wrap justify-end gap-3">
               <Button
                 variant="secondary"
                 onClick={() => setChatPendingDeletion(null)}
@@ -907,7 +938,7 @@ export default function ChatClient() {
               </Button>
             </div>
           </div>
-        </div>
+        </dialog>
       )}
     </div>
   );

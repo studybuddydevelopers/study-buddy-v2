@@ -248,6 +248,8 @@ export default function ContactUsPage() {
                   />
                   <TextField
                     label="Email address"
+                    type="email"
+                    autoComplete="email"
                     required
                     placeholder="you@example.com"
                     value={form.email}
@@ -263,10 +265,14 @@ export default function ContactUsPage() {
                 </div>
 
                 <div className="flex flex-col gap-1">
-                  <label className="text-sm font-semibold text-gray-900">
+                  <label htmlFor="contact-subject" className="text-sm font-semibold text-gray-900">
                     Subject <span className="text-red-500">*</span>
                   </label>
                   <select
+                    id="contact-subject"
+                    required
+                    aria-invalid={Boolean(touched.subject && errors.subject)}
+                    aria-describedby={touched.subject && errors.subject ? "contact-subject-error" : undefined}
                     value={form.subject}
                     onChange={(event) => {
                       touch("subject");
@@ -290,17 +296,21 @@ export default function ContactUsPage() {
                     ))}
                   </select>
                   {touched.subject && errors.subject && (
-                    <p className="mt-1 text-sm text-red-500">
+                    <p id="contact-subject-error" role="alert" className="mt-1 text-sm text-red-700">
                       {errors.subject}
                     </p>
                   )}
                 </div>
 
                 <div className="flex flex-col gap-1">
-                  <label className="text-sm font-semibold text-gray-900">
+                  <label htmlFor="contact-message" className="text-sm font-semibold text-gray-900">
                     Message <span className="text-red-500">*</span>
                   </label>
                   <textarea
+                    id="contact-message"
+                    required
+                    aria-invalid={Boolean(touched.message && errors.message)}
+                    aria-describedby={touched.message && errors.message ? "contact-message-error" : undefined}
                     rows={7}
                     placeholder="Tell us what happened, what page you were on, and what you expected to see."
                     value={form.message}
@@ -318,7 +328,7 @@ export default function ContactUsPage() {
                     }`}
                   />
                   {touched.message && errors.message && (
-                    <p className="mt-1 text-sm text-red-500">
+                    <p id="contact-message-error" role="alert" className="mt-1 text-sm text-red-700">
                       {errors.message}
                     </p>
                   )}

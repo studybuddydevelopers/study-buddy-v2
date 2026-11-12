@@ -1,6 +1,6 @@
 # Study Buddy frontend review checklist
 
-Last updated: 1 November 2026.
+Last updated: 12 November 2026 (accessibility checks).
 
 This adapts the repository's UI taste-gate workflow to Study Buddy. It is a
 review checklist, not a blanket accessibility/security certification. Use the
@@ -46,10 +46,16 @@ Check mobile first, then tablet and desktop. Useful widths are 320, 375, 425,
 
 - One page-content main landmark, meaningful headings and descriptive page titles.
 - Visible keyboard focus, sensible focus order and recovery after dialogs.
+- First Tab exposes the skip link; activating it focuses the page-content main without traversing the header.
+- Multi-select opens by keyboard, choices remain reachable, and Escape closes it and returns focus. Checkbox/radio cards and settings switches retain native keyboard behaviour.
+- A button-styled navigation action is one link, not a button inside a link. Disabled/loading navigation does not follow its destination.
+- Chat confirmation contains Tab/Shift+Tab focus, handles Escape only when idle, restores focus and keeps deletion errors inside the dialog. Recheck these if its controls change.
+- Progress help works on hover and keyboard focus, dismisses with Escape and does not gain click-to-toggle behaviour. Daily activity data and carousel dots remain keyboard-reachable, with uniquely named regions.
 - Labels for fields and icon-only controls; decorative graphics do not repeat adjacent text.
 - Comfortable text and touch targets; colours and animation are not the only status cues.
 - Readable inline errors and announced loading/save states.
 - Reduced motion, 200% zoom and long content work without losing actions.
+- Fade-in paragraphs remain visible with reduced motion; chat/practice scrolling does not force smooth movement in that mode.
 - Tables, code and maths overflow inside their own containers.
 - A page or its route-specific layout uses the shared metadata helper.
 - Only intended public pages appear in the sitemap. Indexing directives do not secure private pages.
@@ -67,7 +73,10 @@ git diff --check
 
 For a focused UI change, run the nearby tests first. Useful existing suites cover
 metadata, auth form feedback, navbar state, account recovery/deletion views,
-Markdown/maths, notification presentation and review detail pages. Tests named
+Markdown/maths, notification presentation and review detail pages. The
+[accessibility safeguards](../components/Accessibility.test.tsx) and
+[Button tests](../components/Button.test.tsx) cover source/static semantics and
+selected handlers, not actual browser focus or screen-reader output. Tests named
 `e2e` may use a mocked database; inspect their scope before calling them a real
 browser or deployed end-to-end test.
 
@@ -92,7 +101,9 @@ part of ordinary visual verification. Use approved test environments and account
 
 ## Current frontend follow-up
 
-- Some account/settings views still nest a main landmark under the shared shell; cleanup remains.
+- The single-main landmark, skip link, labelled fields and keyboard controls have regression coverage; retain those checks for future changes.
+- See the [12 November verification record](FRONTEND_BUG_AND_FIX_HISTORY.md#verification-for-the-accessibility-cleanup) for completed public-page and synthetic-component browser checks. Authenticated release journeys, VoiceOver/NVDA, CAPTCHA, zoom and physical-device safe areas still need acceptance; zero automated violations is not certification.
+- Meaningful question diagrams now have identification text, but equivalent descriptions of their mathematical content still require content-author review. A generic diagram label is not a full alternative.
 - Component-specific text sizes, contrast, focus behaviour and touch targets need browser-level verification; the shared tokens are not a site-wide guarantee.
 - Notifications are implemented but staging migration and authenticated live checks remain pending.
 - Full offline operation is not implemented by Low Data Mode alone.

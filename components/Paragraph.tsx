@@ -55,8 +55,8 @@ const variantTokens: Record<Variant, string> = {
   default: "text-gray-800",
   muted: "text-gray-700",
   superMuted: "text-gray-600",
-  success: "text-green-600",
-  warning: "text-yellow-600",
+  success: "text-green-700",
+  warning: "text-yellow-800",
   error: "text-red-600",
   info: "text-blue-600",
 };
@@ -71,7 +71,7 @@ const gutterTokens: Record<Exclude<Gutter, "auto">, string> = {
 
 // simple motion-safe fade-in animation using Tailwind
 const fadeInClass =
-  "motion-safe:animate-[fadeIn_0.5s_ease-out_forwards] opacity-0 will-change-[opacity,transform]";
+  "motion-safe:animate-[fadeIn_0.5s_ease-out_forwards] motion-safe:opacity-0 will-change-[opacity,transform]";
 
 export default function Paragraph(props: ParagraphProps) {
   const {
