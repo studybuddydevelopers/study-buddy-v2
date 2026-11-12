@@ -135,9 +135,31 @@ npm test -- components/ChatMarkdown.test.ts lib/markdown-math.test.ts
 For shared controls, landmarks or keyboard behaviour, include:
 
 ```bash
-npm test -- components/Accessibility.test.tsx components/Button.test.tsx
+npm test -- \
+  components/Accessibility.test.tsx \
+  components/FormControls.accessibility.test.tsx \
+  components/Button.test.tsx \
+  components/Card.test.tsx \
+  app/ClientLayoutWrapper.test.tsx \
+  app/chat/ChatClient.test.tsx \
+  app/progress/ProgressClient.test.tsx
 ```
 
+The accessibility regression suite covers:
+
+- unique field IDs, label/error associations, optional/disabled states,
+  password-control naming and native choice semantics;
+- button links, disabled/loading navigation, busy state and descriptive names;
+- Card activation with Enter/Space, unrelated keys and descendant events;
+- signed-in/out shell landmark ownership, skip targets, navigation names and
+  active/inactive mobile label contrast against its white background;
+- initial chat composer instructions, transcript naming and keyboard reachability;
+- progress headings, help associations, distinct carousel regions/dots, date
+  links, 7/30/90-day data alternatives, unavailable/empty states and results tables.
+
+These additions use the existing Vitest setup, real component markup and synthetic
+data, with no new test dependencies or product routes. Shell/chat markup tests
+guard against accidental fetches; their server rendering does not run effects.
 These tests inspect source/static markup and selected handlers. They do not
 exercise real browser focus, dialog containment or screen-reader announcements;
 use the browser checks below and the [accessibility checklist](DMCTN_UI_TASTE_GATE.md#4-review-accessibility-and-metadata).
