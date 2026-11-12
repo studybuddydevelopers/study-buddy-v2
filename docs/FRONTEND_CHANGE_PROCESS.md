@@ -188,6 +188,69 @@ failures from regressions.
 
 ### Browser checks
 
+#### Repeatable isolated browser regressions
+
+Install the locked development dependencies using the normal local setup, then:
+
+```bash
+npx --no-install playwright install chromium webkit
+npm run test:browser
+```
+
+Linux runners also need Playwright's browser system dependencies. The existing
+CI workflow installs them with `playwright install --with-deps chromium webkit`
+and runs this suite before the production build. CI execution itself must still
+be checked on the reviewed pull request; a local pass is not a CI result.
+
+[playwright.config.ts](../playwright.config.ts) runs the real shell/page/client
+components with the real Tailwind/global CSS through a test-only loopback
+fixture. [Browser tests](../tests/browser/accessibility.spec.ts) cover 21 public
+page states and shared controls, chat, study preferences and progress at 320px
+and 1440px; the four shared/learner views also run at 768px. They check landmarks,
+headings, page overflow and axe rules tagged `wcag2a`, `wcag2aa`, `wcag21aa`,
+`wcag22aa` and `best-practice` in Chromium and WebKit. Finite entry animations
+settle before contrast scans; rules are not disabled to hide failures.
+
+Interaction tests cover keyboard navigation, field feedback, password controls,
+choices/switches, progress help, daily records, carousel dots and reduced motion.
+[Chat-dialog tests](../tests/browser/chat-dialog.spec.ts) cover focus containment
+and restoration, pending deletion, failed deletion and retry.
+[Touch tests](../tests/browser/touch.spec.ts) use native Chromium touch input at
+320px and 768px. Native horizontal scrolling and the 769px grid boundary also
+have coverage. The 720px/450px viewport checks reflow equivalent to a
+1440px/900px viewport at 200% zoom, **not actual browser-toolbar zoom**.
+
+On macOS, WebKit uses Option–Tab in the skip-link and choice-navigation tests
+to include controls without modifying the user's system settings. Other
+platforms use Tab. This follows [Safari's documented keyboard navigation](https://support.apple.com/guide/safari/cpsh003/mac);
+do not add artificial tabindex values to application controls to work around
+host preferences.
+
+The fixture does not load application environment files or start Next/API
+handlers. Navigation, images and authentication adapters are test substitutes;
+all API data is synthetic, and unexpected API/external requests fail the test.
+This does **not** cover Next server rendering/hydration, client-side route
+announcements, metadata delivery, real authentication, CAPTCHA, email, credit
+accounting or live services. Recovery/confirmation pages exercise their
+missing-link state, not valid private links. No test route is added under `app/`.
+
+Reports, failure screenshots and traces stay in the ignored
+`output/playwright/` directory. Inspect locally with:
+
+```bash
+npx --no-install playwright show-report output/playwright/report
+```
+
+Use synthetic content only; do not attach live account traces to public issues.
+For new cases, import `test` from `tests/browser/support.ts` so request isolation
+and uncaught-browser-error checks remain active. Add explicit mock responses for
+new API states; do not allow real-service fallbacks. These scans supplement the
+[manual acceptance checklist](DMCTN_UI_TASTE_GATE.md#manual-assistive-technology-and-zoom-acceptance),
+not a conformance certificate. See [Playwright's accessibility testing guide](https://playwright.dev/docs/accessibility-testing)
+for the distinction between automated and manual checks.
+
+#### Release-browser acceptance
+
 Start at 320px and test the relevant boundary widths from the website guide,
 including just below/at/above a changed breakpoint. Check wider screens too.
 For shared layouts, use the full regression-width list in the UI checklist.
@@ -205,8 +268,9 @@ and content; never publish real account screenshots or recovery URLs.
 
 For accessibility scans, also record the routes/states, browser, rule scope and
 whether APIs/authentication were mocked. A zero-violation result applies only to
-those automated rules and states. Do not present a one-off local fixture as a
-committed browser-test suite or reuse the November results as release acceptance.
+those automated rules and states. Distinguish the reusable isolated suite from
+earlier one-off checks and from deployed acceptance; do not reuse historical
+November results as acceptance for a different release candidate.
 
 ## 6. Update documentation and history with the change
 
