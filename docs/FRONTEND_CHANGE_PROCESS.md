@@ -1,6 +1,7 @@
 # Frontend change process
 
 Last reviewed: 1 November 2026.
+Accessibility maintenance checks updated: 12 November 2026.
 
 Use this process whenever a change affects Study Buddy's pages, components,
 styles, SVGs, illustrations, fonts, navigation, responsive behaviour, metadata,
@@ -131,6 +132,16 @@ Run nearby tests first, for example:
 npm test -- components/ChatMarkdown.test.ts lib/markdown-math.test.ts
 ```
 
+For shared controls, landmarks or keyboard behaviour, include:
+
+```bash
+npm test -- components/Accessibility.test.tsx components/Button.test.tsx
+```
+
+These tests inspect source/static markup and selected handlers. They do not
+exercise real browser focus, dialog containment or screen-reader announcements;
+use the browser checks below and the [accessibility checklist](DMCTN_UI_TASTE_GATE.md#4-review-accessibility-and-metadata).
+
 Before promoting application-code changes, run the applicable broader checks
 against the candidate being reviewed:
 
@@ -169,6 +180,11 @@ browser behaviour. A Node render, class-name assertion, build or test named
 e2e does not establish these outcomes. Record the browser, viewport, candidate
 revision and whether evidence is automated or manual. Use synthetic accounts
 and content; never publish real account screenshots or recovery URLs.
+
+For accessibility scans, also record the routes/states, browser, rule scope and
+whether APIs/authentication were mocked. A zero-violation result applies only to
+those automated rules and states. Do not present a one-off local fixture as a
+committed browser-test suite or reuse the November results as release acceptance.
 
 ## 6. Update documentation and history with the change
 
