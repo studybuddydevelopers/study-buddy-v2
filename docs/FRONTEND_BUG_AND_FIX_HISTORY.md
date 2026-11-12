@@ -25,6 +25,9 @@ follow [SECURITY.md](../SECURITY.md).
   does not prove its rendering defect was fixed.
 - **Unverified:** the report is retained, but its cause or successful correction
   has not been established here.
+- **User-verified:** the user reports a successful manual check. Record only
+  the scope they supplied; do not treat it as an agent-observed, automated or
+  site-wide acceptance result.
 
 Short commit IDs are evidence available through `git show <commit>`. They are
 not release identifiers. Test links identify coverage, not browser screenshots
@@ -228,7 +231,7 @@ Local verification for this follow-up:
 - **28 script tests passed**. Lint passed with the same two unrelated
   unused-function warnings in the existing AI module. `git diff --check` passed.
 - Browser dependencies/configuration and the CI browser-test steps were added.
-  CI has not been executed remotely for these uncommitted changes. Generated
+  Remote CI results were not verified for this handoff. Generated
   reports/traces are ignored by Git and lint; browser specs are excluded from
   Vitest and run separately through Playwright.
 
@@ -240,18 +243,76 @@ or application tabindex values were changed to make tests pass. See the
 [test process](FRONTEND_CHANGE_PROCESS.md#repeatable-isolated-browser-regressions)
 for reproducible commands and exclusions.
 
-**Not completed:** native VoiceOver/NVDA, actual browser zoom, physical-device
-acceptance, real CAPTCHA/authenticated journeys, mathematical content
-alternatives and staging acceptance. The
+**Not completed at that handoff:** native VoiceOver/NVDA, actual browser zoom,
+physical-device acceptance, real CAPTCHA/authenticated journeys, mathematical content
+alternatives and staging acceptance. Later zoom results and user-reported
+VoiceOver acceptance are recorded in the follow-up below. The
 [manual checklist](DMCTN_UI_TASTE_GATE.md#manual-assistive-technology-and-zoom-acceptance)
 records the remaining checks without claiming conformance.
 
-Read-only integration review found 67 commits on the feature branch beyond
-the local `staging` reference, including earlier CI/dependency work as well as
+The earlier read-only integration review found 67 commits on the feature branch
+beyond the local `staging` reference, including earlier CI/dependency work as well as
 accessibility changes. This was a local-reference comparison, not a remote
 sync or release approval. Review that complete scope before an authorised
 staging-first merge. No Git staging, commits, merges, pushes or deployment were
 performed for this follow-up; Git staging/commits remain with the user.
+
+### Native browser zoom and user VoiceOver follow-up — 12 November 2026
+
+Status: **local 200% browser-zoom checks passed; VoiceOver user-verified for
+the pages checked; staging acceptance pending**.
+
+The agent's zoom checks used committed revision `0c798c0` on
+`test/site-accessibility-browser`, Chrome 157 on macOS 15.4 and the isolated
+browser fixture. The fixture renders the real UI components but substitutes
+Next/navigation/authentication adapters and uses synthetic API responses.
+External requests were blocked; no live learner account or service was used.
+
+- Native browser keyboard shortcuts changed Chrome to **200% zoom**. The native
+  window stayed 1440 logical pixels wide while `innerWidth` changed from 1440 to 720 CSS
+  pixels and `devicePixelRatio` from 2 to 4; root CSS `zoom` stayed `1`. This was
+  actual browser zoom, not the reusable suite's 720px viewport approximation.
+  The zoomed content viewport measured 720 × 404 CSS pixels.
+- All **25 fixture pages/states** (21 public/account states plus shared controls,
+  chat, study preferences and progress) had one main landmark, one primary
+  heading and no page-level horizontal overflow at that zoom. This is a reflow
+  check, not proof that every text block or visual state was inspected.
+- Progress keyboard checks passed for all three carousel dot groups, expansion
+  and focus of the 90 daily records, and help opening on focus/dismissing with
+  Escape.
+- The synthetic chat-deletion dialog kept safe initial focus, contained forward
+  and reverse Tab navigation, retained its error and enabled retry after a
+  simulated failure, and restored trigger focus after Escape. Both action
+  buttons remained within the zoomed viewport before closing the dialog.
+- The Low Data Mode switch could be changed by keyboard and became enabled
+  again after its mocked save. The checked footer link remained focused,
+  visible and unobscured by the bottom navigation at that zoom.
+- The user reported that **VoiceOver worked properly after checking it**.
+  This is user-reported manual verification for the pages they checked. The
+  routes, browser/VoiceOver versions and individual scenarios were not supplied;
+  do not infer full checklist coverage or a particular release candidate.
+  The agent could not retrieve native spoken announcements, so no independent
+  agent-observed screen-reader pass is claimed. NVDA was not tested.
+
+The temporary browser/server were closed and browser zoom restored to 100%.
+Local synthetic artifacts remain ignored under `output/playwright/`; no raw
+traces or personal screenshots are included in this public record. No application
+code changed during these checks. The earlier automated test counts were not
+rerun for this follow-up or its documentation update.
+
+**Still outstanding:** release-candidate checks for real Next route announcements,
+authentication/CAPTCHA and relevant signed-in/error states; physical-phone
+keyboard/safe-area behaviour; increased-text-size checks; author-reviewed
+mathematical diagram descriptions; and staging acceptance. Confirm remote CI
+against the reviewed revision separately. Local zoom evidence and a user-reported
+VoiceOver check do not establish whole-site WCAG conformance.
+
+Documentation is being updated on `docs/accessibility-verification-results`,
+created from `0c798c0`. At branch creation, local `staging` was an ancestor with
+93 commits between it and this revision. This local-reference count is not a
+remote sync or merge approval; review the complete scope before an authorised
+staging-first merge. No staging, commits, merge, push or deployment were performed
+for this documentation update; Git staging/commits remain with the user.
 
 ## Verification recorded for the 1 November documentation update
 
