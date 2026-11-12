@@ -20,6 +20,7 @@
     "test": "vitest run",
     "test:scripts": "node --test scripts/*.test.mjs",
     "test:watch": "vitest",
+    "test:browser": "playwright test",
     "resources:migrate-past-questions": "tsx scripts/migrate-past-questions-to-resources.ts",
     "resources:rebuild-search-text": "tsx scripts/rebuild-resource-search-text.ts",
     "resources:embed-chunks": "tsx scripts/embed-resource-chunks.ts",
@@ -64,11 +65,14 @@
     "zod": "4.6.6"
   },
   "devDependencies": {
+    "@axe-core/playwright": "4.12.1",
+    "@playwright/test": "1.65.0",
     "@types/node": "20.19.43",
     "@types/react": "18.2.55",
     "@types/react-dom": "18.2.18",
     "eslint": "^9.0.0",
     "eslint-config-next": "16.4.1",
+    "esbuild": "0.28.1",
     "prisma": "5.17.0",
     "ts-node": "10.9.2",
     "tsx": "^4.23.13",
