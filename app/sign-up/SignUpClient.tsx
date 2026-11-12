@@ -193,7 +193,7 @@ export default function SignUpClient() {
 
         {/* Heading */}
         <div className="flex flex-row items-center justify-center gap-2 mb-6">
-          <Heading2 gutter="none" className="text-center">
+          <Heading2 as="h1" gutter="none" className="text-center">
             Create your account
           </Heading2>
           <CurrentIcon
