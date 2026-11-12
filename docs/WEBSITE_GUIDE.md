@@ -1,6 +1,7 @@
 # Study Buddy frontend guide
 
 Last checked against the working tree: 1 November 2026.
+Accessibility behaviour updated against source: 12 November 2026.
 
 This is the public contributor map for the website. It describes code in this
 checkout, not a guarantee that every feature is deployed. Notifications are
@@ -35,9 +36,10 @@ Keep metadata in server pages/layouts. Use client components where interaction
 requires them, and pass only the data a screen needs. Dynamic route params and
 search params use the async conventions supported by this Next.js version.
 
-The shell supplies the main landmark. New page content should use a `div`,
-`section` or `article`, not another `main`. Some existing account/settings views
-still need landmark cleanup; do not claim site-wide conformance from the shell alone.
+The shell supplies the main landmark and a keyboard-visible skip link. New page
+content should use a `div`, `section` or `article`, not another `main`.
+Account/settings duplicates were removed in the 12 November accessibility
+cleanup; a source regression test guards ownership. This is not site-wide certification.
 
 ## Navigation and responsive behaviour
 
@@ -92,6 +94,42 @@ Reuse the existing Button, form, Card, Badge, ProgressBar, heading/text componen
 [PolicyDocumentPage](../components/PolicyDocumentPage.tsx).
 Icon-only controls need accessible names; decorative images should not repeat adjacent text.
 
+Shared fields associate errors with their controls. Custom choice cards retain
+native keyboard-operable inputs, and the multi-select uses a disclosure button
+with checkboxes, Tab navigation and Escape-to-close. Settings switches are
+named and described. Use `Button href="..."` for a button-styled link, never a
+Button nested inside Link. The global keyboard-focus treatment uses purple and
+white to remain visible on light and dark surfaces.
+
+### Accessibility behaviour to preserve
+
+- The skip link targets the shell's focusable `main-content`; header/footer
+  remain outside it. Keep one primary page heading and a logical heading order,
+  using the heading components' `as` prop when semantics and typography differ.
+- Shared text/select fields connect labels and errors to their inputs and expose
+  required/invalid state. Password visibility controls have descriptive names
+  and a 44px target. Do not replace labels with placeholder-only instructions.
+- Multi-select opens with Enter/Space, uses Tab and native checkbox keys for
+  choices, and closes with Escape while returning focus to its trigger. Choice
+  cards keep native inputs visually hidden, not removed with `display: none`.
+- Clickable Cards support Enter/Space without also activating from a child
+  control's keypress. Static Cards do not enter the keyboard order. Prefer a
+  real link for navigation; a disabled/loading Button with `href` does not navigate.
+- Global focus styling pairs a primary-700 outline with white separation, and
+  scroll clearance accounts for the bottom navigation. Inactive mobile labels
+  now use gray-500. Feedback shades are recorded in the
+  [colour guide](UI_COLOUR_GUIDE.md); do not revert them to low-contrast variants.
+- Fade-in text remains visible with reduced motion enabled. Chat auto-scroll
+  and practice wrong-answer scrolling respect that preference. Global loading
+  exposes a named status while its SB artwork is decorative.
+- Use scoped table headers and distinct names for scrollable regions. The
+  cookie table and progress daily-data area are keyboard-focusable; progress
+  carousel regions have names distinct from their enclosing sections.
+
+These are implemented behaviours, not proof that every page/state has passed
+assistive-technology testing. The [fix history](FRONTEND_BUG_AND_FIX_HISTORY.md#verification-for-the-accessibility-cleanup)
+records the actual verification scope and remaining work.
+
 ## Page map and behaviour
 
 ### Public information and account journeys
@@ -124,6 +162,10 @@ textbooks and topic practice. Route existence does not establish that a content
 catalogue is populated or approved for publication.
 [TopicPracticeClient](../app/materials/practice/[topicId]/TopicPracticeClient.tsx)
 handles practice, feedback and drafts. Preserve pagination and low-data preferences.
+Answer fields and low-data image buttons have contextual names. Practice diagrams
+now identify the question they belong to, but still need author-reviewed text
+describing their mathematical content; generic identification is not equivalent
+access to the diagram.
 
 ### Mock exams, marking and reviews
 
@@ -152,7 +194,10 @@ can be shown, with evidence requirements for weak-topic recommendations.
 - Range controls use **Last [7] [30] [90] days** with calendar-style links.
 - Subject/topic filters and mock-history pagination are preserved in the URL.
 - Trend data has one point per day, not multi-day bars. The responsive chart
-  shows activity and has a data alternative; daily grouping uses UTC.
+  shows activity and has an expandable daily-data alternative for all users;
+  daily grouping uses UTC. Explanatory copy calls mock markers navy.
+- Progress help appears on hover or keyboard focus, can be dismissed with
+  Escape, and has no click-to-toggle state.
 - Honest overview, Recommended next actions and Subject goals use swipeable
   cards **below 769px**, with centred keyboard-reachable dot controls and no arrows.
   Wider screens use grids.
@@ -176,6 +221,13 @@ card in the current settings hub.
 selection, title editing, history, generation status, retry and deletion
 confirmation. It is not the legacy stateless quick-chat endpoint. Save/delete
 use familiar white pencil/bin icons.
+
+The delete confirmation is a native modal dialog with Escape handling and focus
+return. Escape/backdrop dismissal is blocked during deletion; failed-delete
+feedback stays inside the dialog. Tab/Shift+Tab stay among its available actions,
+and closing returns focus to the previous control or, if removed, the composer.
+Message input and the scrollable transcript have accessible names; automatic
+scrolling respects reduced motion.
 
 [ChatMarkdown](../components/ChatMarkdown.tsx) uses Streamdown, KaTeX and syntax
 highlighting, with [math normalisation](../lib/markdown-math.ts). Keep formulas,
