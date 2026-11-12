@@ -5,7 +5,6 @@ import Paragraph from "@/components/Paragraph";
 import Button from "@/components/Button";
 import Card from "@/components/Card";
 import Heading1 from "@/components/Heading1";
-import Link from "next/link";
 import StudyBuddyIcon from "@/components/StudyBuddyIcon";
 
 export default function ClientEmailVerify() {
@@ -62,11 +61,9 @@ export default function ClientEmailVerify() {
         </Paragraph>
 
         <div className="flex justify-center">
-          <Link href="/login">
-            <Button variant="primary" size="lg" className="rounded-xl">
-              {confirmed ? "Log in to Study Buddy" : "Go to Login"}
-            </Button>
-          </Link>
+          <Button href="/login" variant="primary" size="lg" className="rounded-xl">
+            {confirmed ? "Log in to Study Buddy" : "Go to Login"}
+          </Button>
         </div>
 
       </Card>
