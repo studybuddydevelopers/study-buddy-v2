@@ -1,6 +1,6 @@
 # Deployment and Security Change Process
 
-Last reviewed: 1 November 2026
+Last reviewed: 12 November 2026
 
 This is the required change-control process for anything that can affect the
 deployment, security, privacy, reliability, or recovery of Study Buddy. It
@@ -95,6 +95,12 @@ installation, targeted tests, the wider test suite, linting, type/build checks,
 secret scanning, and dependency review. A security-sensitive change must not
 be merged with an unexplained failed check.
 
+CI must declare every non-runtime executable required by its tests. Do not
+assume a command available on a maintainer workstation is installed on a clean
+runner. Provision the narrow test prerequisite explicitly, keep it out of the
+production image unless the application needs it at runtime, and reproduce the
+clean-runner result before treating a workstation-only pass as evidence.
+
 Do not use production data or credentials in local or CI verification. Treat
 unexpected secret-scanner or dependency findings as security work rather than
 silencing the control.
@@ -131,6 +137,13 @@ Apply database changes through the controlled migration workflow. Deploy the
 approved immutable revision, run narrow production smoke checks, and monitor
 the affected signals. Do not broaden permissions or disable controls to make a
 release pass.
+
+Protected-branch requirements are release controls, not optional friction. A
+passing author-owned change still requires the configured independent review.
+Do not use administrator bypass to avoid that review. Promote the reviewed
+revision to staging, verify the deployed staging application and affected
+services, then rerun the complete checks against the production pull request
+before merging to the default branch.
 
 ### 6. Close the change
 
