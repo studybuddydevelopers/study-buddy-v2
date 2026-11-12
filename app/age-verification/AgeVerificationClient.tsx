@@ -65,7 +65,7 @@ export default function AgeVerificationClient() {
   }
 
   return (
-    <main className="mx-auto flex min-h-screen w-full max-w-xl items-center px-6 py-12">
+    <div className="mx-auto flex min-h-screen w-full max-w-xl items-center px-6 py-12">
       <section className="w-full rounded-2xl border border-gray-200 bg-white p-6 shadow-sm sm:p-10">
         <Heading1 gutter="sm">Complete your age check</Heading1>
         <p className="mb-6 leading-relaxed text-gray-700">
@@ -95,6 +95,6 @@ export default function AgeVerificationClient() {
           <Button variant="primary" size="lg" className="w-full" loading={loading} disabled={loading} onClick={submit}>Continue</Button>
         </div>
       </section>
-    </main>
+    </div>
   );
 }

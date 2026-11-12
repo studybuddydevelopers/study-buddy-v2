@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useId, useState } from "react";
 import Link from "next/link";
 import StudyBuddyIcon from "@/components/StudyBuddyIcon";
 
@@ -107,7 +107,7 @@ export default function StudyPreferencesClient({
     settings.cloudPracticeDraftsEnabled && settings.lowDataModeEnabled;
 
   return (
-    <main className="mx-auto w-[90vw] max-w-3xl space-y-6 py-10">
+    <div className="mx-auto w-[90vw] max-w-3xl space-y-6 py-10">
       <div className="space-y-3">
         <Link
           href={backHref}
@@ -164,7 +164,7 @@ export default function StudyPreferencesClient({
           Cloud practice drafts are enabled but paused while Low Data Mode is on.
         </p>
       )}
-    </main>
+    </div>
   );
 }
 
@@ -183,23 +183,29 @@ function SettingToggle({
   saving: boolean;
   onChange: (checked: boolean) => void;
 }) {
+  const toggleId = useId();
   return (
     <div className="flex items-start justify-between gap-4 rounded-xl border border-accent-200 bg-white p-5 shadow-sm">
       <div className="min-w-0 space-y-1">
-        <h2 className="text-base font-semibold text-gray-900">{title}</h2>
-        <p className="text-sm leading-6 text-gray-600">{description}</p>
-        {saving && <p className="text-xs text-gray-500">Saving...</p>}
+        <h2 id={`${toggleId}-label`} className="text-base font-semibold text-gray-900">{title}</h2>
+        <p id={`${toggleId}-description`} className="text-sm leading-6 text-gray-600">{description}</p>
+        {saving && <p role="status" className="text-xs text-gray-500">Saving...</p>}
       </div>
 
-      <label className="relative mt-1 inline-flex h-6 w-11 shrink-0 cursor-pointer items-center">
+      <label className="relative inline-flex h-11 w-11 shrink-0 cursor-pointer items-center">
+        <span className="sr-only">{title}</span>
         <input
+          id={toggleId}
+          role="switch"
+          aria-labelledby={`${toggleId}-label`}
+          aria-describedby={`${toggleId}-description`}
           type="checkbox"
           className="peer sr-only"
           checked={checked}
           disabled={disabled}
           onChange={(event) => onChange(event.target.checked)}
         />
-        <span className="h-6 w-11 rounded-full bg-gray-300 transition-colors peer-checked:bg-primary-500 peer-disabled:cursor-not-allowed peer-disabled:opacity-60" />
+        <span className="h-6 w-11 rounded-full bg-gray-300 transition-colors peer-checked:bg-primary-500 peer-focus-visible:outline peer-focus-visible:outline-2 peer-focus-visible:outline-offset-4 peer-focus-visible:outline-primary-700 peer-disabled:cursor-not-allowed peer-disabled:opacity-60" />
         <span className="absolute left-1 h-4 w-4 rounded-full bg-white transition-transform peer-checked:translate-x-5" />
       </label>
     </div>

@@ -22,6 +22,7 @@ export default function Table({ columns, data }: TableProps) {
           <tr>
             {columns.map((col) => (
               <th
+                scope="col"
                 key={col.key}
                 className="text-left font-semibold text-gray-900 p-4 border-b border-gray-300"
               >

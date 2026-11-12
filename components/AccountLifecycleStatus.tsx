@@ -150,7 +150,7 @@ export default function AccountLifecycleStatus({
   }
 
   return (
-    <main className="mx-auto flex min-h-screen w-full max-w-xl items-center px-6 py-12">
+    <div className="mx-auto flex min-h-screen w-full max-w-xl items-center px-6 py-12">
       <section className="w-full rounded-2xl border border-gray-200 bg-white p-8 text-center shadow-sm">
         <Heading1 gutter="sm">
           {mode === "deactivated"
@@ -235,7 +235,7 @@ export default function AccountLifecycleStatus({
           .
         </p>
       </section>
-    </main>
+    </div>
   );
 }
 
@@ -260,7 +260,7 @@ export function DeletionPendingView({
   const submitting = submittingAction !== null;
 
   return (
-    <main className="flex min-h-[70svh] min-w-0 items-center bg-[#FAF8FB] py-8 sm:px-6 sm:py-12 lg:py-16">
+    <div className="flex min-h-[70svh] min-w-0 items-center bg-[#FAF8FB] py-8 sm:px-6 sm:py-12 lg:py-16">
       <section
         aria-labelledby="deletion-pending-title"
         aria-busy={loading}
@@ -411,6 +411,6 @@ export function DeletionPendingView({
           </div>
         </div>
       </section>
-    </main>
+    </div>
   );
 }

@@ -106,7 +106,7 @@ export default async function ProfilePage() {
   const planStatus = subscription?.status ?? "active";
 
   return (
-    <main className="mx-auto w-full max-w-6xl space-y-8 py-4 pb-24 sm:py-8 lg:pb-8">
+    <div className="mx-auto w-full max-w-6xl space-y-8 py-4 pb-24 sm:py-8 lg:pb-8">
       <header className="overflow-hidden rounded-3xl bg-[#3B2A56] text-white shadow-sm">
         <div className="relative flex flex-col gap-6 p-5 sm:flex-row sm:items-center sm:p-8">
           <div
@@ -307,6 +307,6 @@ export default async function ProfilePage() {
           </div>
         </section>
       </div>
-    </main>
+    </div>
   );
 }
