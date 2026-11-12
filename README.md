@@ -9,6 +9,7 @@ details, credentials, personal data, or production evidence.
 ## Frontend documentation
 
 Frontend documentation was checked against the working tree on **1 November
+2026**, with accessibility behaviour and verification updated on **12 November
 2026**. Start with the [website guide](docs/WEBSITE_GUIDE.md) for current page
 behaviour, branding and breakpoints; the [codebase map](CODEBASE_BREAKDOWN.md)
 for responsibilities; the [AI experience guide](AI_FEATURES_GUIDE.md) for saved
@@ -90,7 +91,7 @@ Deployment requirements:
 - Progress follow-up: validate the implemented separate metrics, daily trends, filters, mobile carousels and compact mock results against learner feedback.
 - Sheets data integration: integrate data from sheets into the app through a controlled import/sync workflow, with validation and duplicate handling before records are saved.
 - Dashboard follow-up: validate the implemented continuation action, daily tasks, weekly activity and focus-topic layout rather than treating the whole revamp as unstarted.
-- Frontend acceptance: clean up remaining nested landmarks in account/settings views and record browser, keyboard, zoom and low-bandwidth checks using the UI checklist. Tests alone do not establish site-wide accessibility conformance.
+- Frontend acceptance: retain the single-main-landmark regression guard and record browser, keyboard, zoom and low-bandwidth checks using the UI checklist. The November accessibility cleanup is implemented; tests alone do not establish site-wide conformance.
 
 ## Immediate Implementation Queue
 
@@ -489,13 +490,21 @@ Observed DB cleanup candidates, not automatically deleted:
 
 ## Frontend Accessibility, Metadata, And Form Feedback
 
-- The shared layout keeps the navbar and footer outside its page-content `<main>`. New pages must not nest another main landmark; some existing account/settings views still need cleanup. This is a requirement, not a claim of complete compliance.
+- The shared layout keeps the navbar and footer outside its single page-content `<main>` and provides a keyboard-visible skip link. Account/settings duplicates have been removed; a source regression test guards against their return.
+- Shared controls include labelled field errors, native keyboard-operable choices, visible focus, and reduced-motion-safe text. Navigation styled as a Button uses its `href` prop rather than wrapping a button in a link. Chat deletion uses a native modal dialog. These improvements are not a claim of complete accessibility conformance.
 - Every page route has metadata through its page or route-specific layout using [lib/site-metadata.ts](lib/site-metadata.ts). A coverage test checks adoption of the shared policy, not the quality of every description.
 - The shared metadata policy keeps the `| Study Buddy` title suffix consistent and generates matching Open Graph and X/Twitter titles and descriptions.
 - Public pages are indexable. Protected learning routes, authentication states, account pages and the 404 page use non-indexing metadata. Temporary audit/preview routes have been removed.
 - [app/robots.ts](app/robots.ts) contains crawler directives, while [app/sitemap.ts](app/sitemap.ts) lists public pages. Neither is an access-control mechanism.
 - `APP_ORIGIN` supplies the production metadata base, canonical URLs, sitemap URLs, and robots host. Canonical and sitemap URLs are deliberately omitted when that trusted origin is not configured.
 - Login and sign-up failures render inside accessible `role="alert"` regions instead of disruptive browser `alert()` dialogs. CAPTCHA, rate-limit, API, and connection failures use the same inline treatment.
+
+The [12 November accessibility change record](docs/FRONTEND_BUG_AND_FIX_HISTORY.md#accessibility-cleanup--12-november-2026)
+lists the corrections, automated/browser evidence and outstanding acceptance
+work. Implementation is local on `feature/site-accessibility-cleanup`; staging
+and production acceptance are not recorded as complete. Keep the
+[shared-control regression tests](components/Accessibility.test.tsx) and
+[Button tests](components/Button.test.tsx) passing when changing these controls.
 - [`components/FormErrorMessage.tsx`](components/FormErrorMessage.tsx) provides the shared visual and assistive-technology treatment, and [`lib/client-response-error.ts`](lib/client-response-error.ts) safely prefers human-readable API messages over machine error codes.
 
 ## Local Setup
