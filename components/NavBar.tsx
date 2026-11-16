@@ -90,19 +90,20 @@ export default function NavBar({
 
   return (
     <header className="flex items-center justify-between gap-2 bg-background shadow px-3 py-3 sm:px-6">
-      <Link href={isAuthenticated ? "/dashboard" : "/"} prefetch={false}>
+      <Link href={isAuthenticated ? "/dashboard" : "/"} prefetch={false} aria-label="Study Buddy home">
         <div className="flex items-center gap-2">
-          <SbEqualizerLoadingPattern size={28} showMessage={false} />
+          <span aria-hidden="true"><SbEqualizerLoadingPattern size={28} showMessage={false} /></span>
           <LogoName size="lg" />
         </div>
       </Link>
 
-      <nav className="hidden min-[1110px]:flex min-[1110px]:gap-3 xl:gap-5">
+      <nav aria-label="Primary navigation" className="hidden min-[1110px]:flex min-[1110px]:gap-3 xl:gap-5">
         {links.map((link) => (
           <Link
             key={link.href}
             href={link.href}
             prefetch={false}
+            aria-current={pathname.startsWith(link.href) ? "page" : undefined}
             className={`${linkBase} inline-flex items-center gap-2 ${
               pathname.startsWith(link.href) ? linkActive : ""
             }`}

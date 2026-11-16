@@ -63,7 +63,7 @@ export default function AccountSettingsClient() {
   }
 
   return (
-    <main className="mx-auto w-[90vw] max-w-3xl space-y-6 py-10">
+    <div className="mx-auto w-[90vw] max-w-3xl space-y-6 py-10">
       <div className="space-y-3">
         <Link
           href="/settings"
@@ -245,6 +245,6 @@ export default function AccountSettingsClient() {
           )}
         </div>
       </section>
-    </main>
+    </div>
   );
 }

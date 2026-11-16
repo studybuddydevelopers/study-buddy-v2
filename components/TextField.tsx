@@ -44,6 +44,7 @@ export default function TextField({
 }: TextFieldProps) {
   const generatedId = useId();
   const inputId = id ?? generatedId;
+  const errorId = `${inputId}-error`;
   const [showPassword, setShowPassword] = useState(false);
   const isPassword = type === "password";
   const inputType = isPassword && showPassword ? "text" : type;
@@ -71,11 +72,15 @@ export default function TextField({
           onFocus={onFocus}      
           onBlur={onBlur}        
           disabled={disabled}
+          required={required}
+          aria-invalid={error ? true : undefined}
+          aria-describedby={error ? errorId : undefined}
           className={`w-full px-4 py-3 rounded-xl border border-transparent bg-gray-50 text-gray-900 text-[0.95rem] transition-all duration-200
-            placeholder:text-gray-400
+            placeholder:text-gray-500
             focus:border-primary-500 focus:bg-background focus:outline-none focus:ring-2 focus:ring-primary-300
             ${error ? "border-red-500 bg-red-50" : ""}
             ${disabled ? "bg-gray-200 cursor-not-allowed" : ""}
+            ${isPassword ? "pr-16" : ""}
           `}
         />
 
@@ -86,7 +91,8 @@ export default function TextField({
             onClick={() => setShowPassword(!showPassword)}
             disabled={disabled}
             aria-label={showPassword ? "Hide password" : "Show password"}
-            className={`absolute right-3 flex items-center justify-center text-gray-500 transition-colors duration-200
+            aria-controls={inputId}
+            className={`absolute right-1 flex h-11 w-11 items-center justify-center rounded-lg text-gray-500 transition-colors duration-200
               hover:text-gray-900 disabled:cursor-not-allowed disabled:text-gray-400
             `}
           >
@@ -95,7 +101,7 @@ export default function TextField({
         )}
       </div>
 
-      {error && <p className="text-sm text-red-500 mt-1">{error}</p>}
+      {error && <p id={errorId} role="alert" className="text-sm text-red-700 mt-1">{error}</p>}
     </div>
   );
 }

@@ -125,7 +125,7 @@ export default function ClientLanding() {
 
         {/* WHY CHOOSE SECTION */}
         <section className="mt-28">
-          <Heading1 align="center" gutter="md" className="mb-10">
+          <Heading1 as="h2" align="center" gutter="md" className="mb-10">
             Why Choose Study Buddy?
           </Heading1>
 
@@ -146,7 +146,7 @@ export default function ClientLanding() {
                 </div>
 
                 <div className="flex flex-1 flex-col justify-center px-6 py-8 sm:px-10 md:py-10">
-                  <Heading6 gutter="sm" weight="bold" className="text-left">
+                  <Heading6 as="h3" gutter="sm" weight="bold" className="text-left">
                     Personalized Study Plans
                   </Heading6>
 
@@ -173,7 +173,7 @@ export default function ClientLanding() {
                 </div>
 
                 <div className="flex flex-1 flex-col justify-center px-6 py-8 sm:px-10 md:py-10">
-                  <Heading6 gutter="sm" weight="bold" className="text-left">
+                  <Heading6 as="h3" gutter="sm" weight="bold" className="text-left">
                     Comprehensive Practice Tests
                   </Heading6>
 
@@ -200,7 +200,7 @@ export default function ClientLanding() {
                 </div>
 
                 <div className="flex flex-1 flex-col justify-center px-6 py-8 sm:px-10 md:py-10">
-                  <Heading6 gutter="sm" weight="bold" className="text-left">
+                  <Heading6 as="h3" gutter="sm" weight="bold" className="text-left">
                     Expert Guidance
                   </Heading6>
 

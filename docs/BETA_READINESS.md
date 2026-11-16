@@ -1,6 +1,7 @@
 # Beta Readiness
 
 Last reviewed: 1 November 2026
+Frontend accessibility acceptance note updated: 12 November 2026.
 
 This is a public-safe summary, not the live launch register. The restricted
 company register contains current owners, dates, environment identifiers,
@@ -46,8 +47,16 @@ connection-pool values, test identities, run URLs, or detailed test results.
 Use the [website guide](WEBSITE_GUIDE.md) for current routes and behaviour and
 the [UI review checklist](DMCTN_UI_TASTE_GATE.md) for release checks, including
 320px layouts, keyboard/focus behaviour, loading/empty/error states, metadata
-and low-data preferences. Remaining nested main landmarks in account/settings
-views need follow-up; do not claim site-wide accessibility conformance.
+and low-data preferences. The November accessibility cleanup removes the
+remaining nested main landmarks and improves shared controls; assistive-technology
+and authenticated release checks remain outstanding. Do not claim site-wide
+conformance from these changes alone.
+
+The [frontend change record](FRONTEND_BUG_AND_FIX_HISTORY.md#verification-for-the-accessibility-cleanup)
+separates completed local public-page/synthetic-component browser checks from
+outstanding staging acceptance. Confirm authenticated journeys, screen-reader
+output, CAPTCHA, zoom and content alternatives against the release candidate;
+do not infer those results from automated accessibility scans.
 
 Automated component/route tests are not live browser evidence. Notifications
 have source and automated coverage, but their migration and live staging

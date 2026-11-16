@@ -38,6 +38,9 @@ function ClientLayoutChrome({ children }: { children: React.ReactNode }) {
 
   return (
     <NotificationProvider enabled={isAuthenticated}>
+      <a href="#main-content" className="skip-link">
+        Skip to main content
+      </a>
       <Navbar
         isAuthenticated={isAuthenticated}
         signInLink="/login"
@@ -45,7 +48,7 @@ function ClientLayoutChrome({ children }: { children: React.ReactNode }) {
       />
 
       {/* Page content */}
-      <main>
+      <main id="main-content" tabIndex={-1}>
         <Suspense>
           {children}
         </Suspense>

@@ -102,7 +102,7 @@ export default function ResetPasswordClient() {
     <div className="flex items-center justify-center p-7 mt-7 flex-1">
       <Card shadow="md" hover className="flex flex-col">
         <div className="flex flex-row justify-center">
-          <Heading2 gutter="lg" className="text-center">
+          <Heading2 as="h1" gutter="lg" className="text-center">
             New Password Request
           </Heading2>
 
@@ -128,7 +128,7 @@ export default function ResetPasswordClient() {
           />
 
           {success && (
-            <p className="text-green-600 text-sm mb-4">
+            <p role="status" className="text-green-700 text-sm mb-4">
               Reset link sent! Check your inbox.
             </p>
           )}

@@ -652,6 +652,7 @@ export default function ExamInstanceClient({
                   </div>
                 ) : (
                   <textarea
+                    aria-label={`Your answer to question ${idx + 1}`}
                     className="w-full border border-accent-200 rounded-lg p-3 focus:outline-none focus:ring-2 focus:ring-primary-400 text-gray-900"
                     placeholder={
                       isWritten
@@ -678,7 +679,7 @@ export default function ExamInstanceClient({
                 gradeInfo?.isCorrect !== undefined && (
                 <div className="text-sm font-medium">
                   {gradeInfo.isCorrect ? (
-                    <span className="text-green-600">Correct</span>
+                    <span className="text-green-700">Correct</span>
                   ) : (
                     <span className="text-red-600">Incorrect</span>
                   )}
@@ -693,7 +694,7 @@ export default function ExamInstanceClient({
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div className="space-y-1">
           {error && (
-            <Paragraph variant="error" gutter="none">
+            <Paragraph variant="error" gutter="none" role="alert">
               {error}
             </Paragraph>
           )}

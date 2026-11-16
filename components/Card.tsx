@@ -89,9 +89,15 @@ export default function Card({
   return (
     <div 
       className={cardClasses}
-      onClick={handleClick}
+      onClick={onClick ? handleClick : undefined}
       role={onClick ? 'button' : undefined}
       tabIndex={onClick ? 0 : undefined}
+      onKeyDown={onClick ? (event) => {
+        if (event.target === event.currentTarget && (event.key === 'Enter' || event.key === ' ')) {
+          event.preventDefault();
+          onClick();
+        }
+      } : undefined}
     >
       {/* Header */}
       {header && (

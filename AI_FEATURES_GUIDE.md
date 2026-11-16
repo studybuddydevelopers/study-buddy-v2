@@ -1,6 +1,7 @@
 # AI experience guide
 
 Last checked against the working tree: 1 November 2026.
+Chat accessibility notes updated: 12 November 2026; no model/marking changes.
 
 This guide covers the learner-facing experience and frontend integration, not
 production credentials, privileged access configuration or adversarial test
@@ -26,6 +27,14 @@ White pencil/bin icons remain on save/delete actions. Conversation and chat-list
 panels have their own scroll areas. Auto-scroll logic already exists; test
 changes against long histories and learners reading older messages rather than
 describing it as an entirely missing feature.
+
+The composer has an accessible name and instructions for Enter/Shift+Enter;
+the transcript is a named, keyboard-focusable scroll region. Automatic scrolling
+uses instant movement when reduced motion is requested. Chat deletion uses a
+native modal dialog with contained keyboard focus, Escape/backdrop dismissal
+when idle and focus return on closing. During deletion, dismissal is blocked;
+any failure is announced inside the dialog. These are UI changes, not changes
+to chat storage, provider selection, credits or marking rules.
 
 Reusable presentation lives in [ChatMessage](components/ChatMessage.tsx),
 [ChatMessageContainer](components/ChatMessageContainer.tsx) and
@@ -101,3 +110,7 @@ Relevant tests include [ChatMarkdown](components/ChatMarkdown.test.ts),
 [chat failure copy](components/chatFailureCopy.test.ts) and notification/review
 tests beside their implementations. Follow the
 [website guide](docs/WEBSITE_GUIDE.md) and [UI checklist](docs/DMCTN_UI_TASTE_GATE.md).
+
+The [12 November frontend record](docs/FRONTEND_BUG_AND_FIX_HISTORY.md#verification-for-the-accessibility-cleanup)
+includes synthetic chat-dialog keyboard/browser checks. It does not establish
+live deletion, generated-message announcements or screen-reader acceptance.

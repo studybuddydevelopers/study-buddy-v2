@@ -5,7 +5,6 @@
 import Button from "@/components/Button";
 import Heading1 from "@/components/Heading1";
 import Paragraph from "@/components/Paragraph";
-import Link from "next/link";
 
 export default function UnauthorizedClient() {
   return (
@@ -17,17 +16,13 @@ export default function UnauthorizedClient() {
       </Paragraph>
 
       <div className="flex gap-4 mt-6">
-        <Link href="/login">
-          <Button variant="primary" size="md">
-            Log In
-          </Button>
-        </Link>
+        <Button href="/login" variant="primary" size="md">
+          Log In
+        </Button>
 
-        <Link href="/sign-up">
-          <Button variant="outline" size="md">
-            Sign Up
-          </Button>
-        </Link>
+        <Button href="/sign-up" variant="outline" size="md">
+          Sign Up
+        </Button>
       </div>
     </div>
   );

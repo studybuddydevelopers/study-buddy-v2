@@ -88,6 +88,40 @@
 /* ----------------------------------------------------------
    APP RESET + UTILS
 -----------------------------------------------------------*/
+/* A two-tone indicator stays visible on both white and dark brand surfaces.
+   Keep this outside Tailwind's layers so utility resets cannot hide it. */
+:focus-visible {
+  outline: 3px solid var(--primary-700) !important;
+  outline-offset: 3px !important;
+  box-shadow: 0 0 0 3px #FFFFFF;
+}
+
+/* Leave room for the fixed mobile navigation when focusing a control. */
+html {
+  scroll-padding-bottom: calc(5rem + env(safe-area-inset-bottom));
+}
+
+@media (min-width: 1110px) {
+  html { scroll-padding-bottom: 1rem; }
+}
+
+.skip-link {
+  position: fixed;
+  top: 0.75rem;
+  left: 0.75rem;
+  z-index: 100;
+  padding: 0.75rem 1rem;
+  border-radius: 0.5rem;
+  background: #FFFFFF;
+  color: var(--primary-700);
+  font-weight: 600;
+  transform: translateY(calc(-100% - 1rem));
+}
+
+.skip-link:focus {
+  transform: translateY(0);
+}
+
 #root {
   max-width: 1280px;
   margin: 0 auto;

@@ -1,6 +1,6 @@
 # Study Buddy frontend review checklist
 
-Last updated: 1 November 2026.
+Last updated: 12 November 2026 (accessibility checks).
 
 This adapts the repository's UI taste-gate workflow to Study Buddy. It is a
 review checklist, not a blanket accessibility/security certification. Use the
@@ -46,10 +46,16 @@ Check mobile first, then tablet and desktop. Useful widths are 320, 375, 425,
 
 - One page-content main landmark, meaningful headings and descriptive page titles.
 - Visible keyboard focus, sensible focus order and recovery after dialogs.
+- First Tab exposes the skip link; activating it focuses the page-content main without traversing the header.
+- Multi-select opens by keyboard, choices remain reachable, and Escape closes it and returns focus. Checkbox/radio cards and settings switches retain native keyboard behaviour.
+- A button-styled navigation action is one link, not a button inside a link. Disabled/loading navigation does not follow its destination.
+- Chat confirmation contains Tab/Shift+Tab focus, handles Escape only when idle, restores focus and keeps deletion errors inside the dialog. Recheck these if its controls change.
+- Progress help works on hover and keyboard focus, dismisses with Escape and does not gain click-to-toggle behaviour. Daily activity data and carousel dots remain keyboard-reachable, with uniquely named regions.
 - Labels for fields and icon-only controls; decorative graphics do not repeat adjacent text.
 - Comfortable text and touch targets; colours and animation are not the only status cues.
 - Readable inline errors and announced loading/save states.
 - Reduced motion, 200% zoom and long content work without losing actions.
+- Fade-in paragraphs remain visible with reduced motion; chat/practice scrolling does not force smooth movement in that mode.
 - Tables, code and maths overflow inside their own containers.
 - A page or its route-specific layout uses the shared metadata helper.
 - Only intended public pages appear in the sitemap. Indexing directives do not secure private pages.
@@ -59,6 +65,7 @@ Check mobile first, then tablet and desktop. Useful widths are 320, 375, 425,
 
 ```bash
 npm test
+npm run test:browser
 npx tsc --noEmit
 npm run lint
 npm run build
@@ -67,9 +74,17 @@ git diff --check
 
 For a focused UI change, run the nearby tests first. Useful existing suites cover
 metadata, auth form feedback, navbar state, account recovery/deletion views,
-Markdown/maths, notification presentation and review detail pages. Tests named
+Markdown/maths, notification presentation and review detail pages. The
+[accessibility safeguards](../components/Accessibility.test.tsx) and
+[Button tests](../components/Button.test.tsx) cover source/static semantics and
+selected handlers, not actual browser focus or screen-reader output. Tests named
 `e2e` may use a mocked database; inspect their scope before calling them a real
 browser or deployed end-to-end test.
+
+The [repeatable browser suite](FRONTEND_CHANGE_PROCESS.md#repeatable-isolated-browser-regressions)
+adds Chromium/WebKit axe and keyboard checks plus Chromium touch gestures with
+synthetic data. Install its browsers once as documented there. It does not
+exercise the Next server, real accounts or native screen-reader speech.
 
 Also exercise the changed journey in a browser with keyboard navigation,
 slow connectivity, failure states and reduced motion. Keep results tied to a
@@ -78,6 +93,33 @@ For documentation-only edits, verify links/claims and report that no fresh
 browser acceptance test was performed.
 Record corrected bugs or UX regressions in the
 [frontend history](FRONTEND_BUG_AND_FIX_HISTORY.md), with verification status.
+
+### Manual assistive-technology and zoom acceptance
+
+Status for the browser-test handoff: **not performed; release acceptance pending**.
+Use an approved synthetic account on the exact staging candidate. Record the
+revision, OS/browser, assistive-technology version, outcome and any defects in
+restricted release evidence. Do not mark these complete from DOM assertions.
+
+- With VoiceOver/Safari or NVDA/Firefox or Chrome, navigate by landmarks and
+  headings. Confirm one main region, useful heading order and meaningful
+  announcements when navigating between real Next routes.
+- Reach the skip link using the platform's keyboard navigation. Check that it
+  bypasses navigation, moves focus into main and leaves a visible focus indicator.
+- Read field labels, required state, errors, switch state and password-control
+  names. Open a multi-select, change choices and dismiss it without losing focus.
+- Open chat deletion: confirm its name/description is spoken, background content
+  is excluded and focus cannot escape. Verify cancel, pending, failure/retry and
+  success against approved synthetic responses; no real learner chat is needed.
+- Confirm progress-help text is available on focus and can be dismissed after
+  hover. Navigate every carousel via dots and read its position without repeated
+  announcements. Open daily data and verify dates/counts remain understandable
+  independently of the visual graph.
+- At actual 200% browser zoom and with increased text size, check readable copy,
+  wrapping, reachable controls and no page-level horizontal scroll. Check the
+  physical mobile keyboard, safe areas, touch swipe and reduced motion separately.
+- Test the configured CAPTCHA and signed-in/error states outside the fixture.
+  Ask content authors to approve equivalent mathematical diagram descriptions.
 
 ## 6. Record evidence safely
 
@@ -92,7 +134,9 @@ part of ordinary visual verification. Use approved test environments and account
 
 ## Current frontend follow-up
 
-- Some account/settings views still nest a main landmark under the shared shell; cleanup remains.
+- The single-main landmark, skip link, labelled fields and keyboard controls have regression coverage; retain those checks for future changes.
+- See the [12 November verification record](FRONTEND_BUG_AND_FIX_HISTORY.md#verification-for-the-accessibility-cleanup) for completed public-page and synthetic-component browser checks. Authenticated release journeys, VoiceOver/NVDA, CAPTCHA, zoom and physical-device safe areas still need acceptance; zero automated violations is not certification.
+- Meaningful question diagrams now have identification text, but equivalent descriptions of their mathematical content still require content-author review. A generic diagram label is not a full alternative.
 - Component-specific text sizes, contrast, focus behaviour and touch targets need browser-level verification; the shared tokens are not a site-wide guarantee.
 - Notifications are implemented but staging migration and authenticated live checks remain pending.
 - Full offline operation is not implemented by Low Data Mode alone.
