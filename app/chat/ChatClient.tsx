@@ -400,7 +400,6 @@ export default function ChatClient() {
     } catch (err) {
       console.error(err);
       setError((err as Error).message);
-      setChatPendingDeletion(null);
     } finally {
       setSavingChat(false);
     }

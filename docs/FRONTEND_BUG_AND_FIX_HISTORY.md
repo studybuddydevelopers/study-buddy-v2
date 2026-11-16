@@ -200,6 +200,59 @@ all authenticated/error states, physical-device zoom or VoiceOver/NVDA. Diagram
 identification still needs equivalent, author-reviewed mathematical descriptions.
 Automated scans and synthetic fixtures are not a WCAG conformance certification.
 
+### Repeatable browser-test follow-up — 12 November 2026
+
+Implemented on `test/site-accessibility-browser`, based on the committed
+`feature/site-accessibility-cleanup` revision `d75598e`. This follow-up adds a
+reusable [Playwright configuration](../playwright.config.ts) and
+[isolated browser tests](../tests/browser/accessibility.spec.ts); the earlier
+one-off verification above remains a historical record with different scope.
+
+Two gaps were reproduced in failing browser tests before correction:
+
+| Related issue | Reproduced gap and cause | Correction and regression evidence |
+| --- | --- | --- |
+| FE-067 follow-up | Escape did not hide progress help opened by hovering while focus was elsewhere. Its key handler was attached only to the help button. | [ProgressClient](../app/progress/ProgressClient.tsx) now listens for Escape at document level, with effect cleanup. Hover/focus reopening and the absence of click toggling are preserved. The browser test exercises both hover and keyboard paths. |
+| FE-064 follow-up | A failed chat deletion closed the dialog, removing its inline error/retry context. The catch block cleared the pending confirmation as well as setting the error. | [ChatClient](../app/chat/ChatClient.tsx) keeps the dialog open after failure. [Dialog tests](../tests/browser/chat-dialog.spec.ts) verify the alert, enabled retry and successful retry, alongside pending-action protection and focus restoration. |
+
+Local verification for this follow-up:
+
+- **140 browser tests passed**: Chromium and WebKit page/interaction checks plus
+  Chromium touch-swipe checks. The 21 public page states and four shared/learner
+  views had no violations under the selected axe rules at 320px and 1440px;
+  the four shared/learner views also passed at 768px. Interaction coverage
+  includes the 634px/768px/769px carousel boundaries and reduced motion.
+- **1,358 Vitest tests passed across 118 files**. TypeScript and the production
+  build passed. The build retains the existing Next.js React 18 deprecation
+  warning; upgrading React is outside this change.
+- **28 script tests passed**. Lint passed with the same two unrelated
+  unused-function warnings in the existing AI module. `git diff --check` passed.
+- Browser dependencies/configuration and the CI browser-test steps were added.
+  CI has not been executed remotely for these uncommitted changes. Generated
+  reports/traces are ignored by Git and lint; browser specs are excluded from
+  Vitest and run separately through Playwright.
+
+The browser suite uses synthetic API data and substitute Next/navigation/auth
+adapters, not a running Next application. A 720px layout check is a
+zoom-equivalent reflow check, not actual browser zoom. macOS WebKit uses native
+Option–Tab where required by its keyboard-navigation settings; no OS settings
+or application tabindex values were changed to make tests pass. See the
+[test process](FRONTEND_CHANGE_PROCESS.md#repeatable-isolated-browser-regressions)
+for reproducible commands and exclusions.
+
+**Not completed:** native VoiceOver/NVDA, actual browser zoom, physical-device
+acceptance, real CAPTCHA/authenticated journeys, mathematical content
+alternatives and staging acceptance. The
+[manual checklist](DMCTN_UI_TASTE_GATE.md#manual-assistive-technology-and-zoom-acceptance)
+records the remaining checks without claiming conformance.
+
+Read-only integration review found 67 commits on the feature branch beyond
+the local `staging` reference, including earlier CI/dependency work as well as
+accessibility changes. This was a local-reference comparison, not a remote
+sync or release approval. Review that complete scope before an authorised
+staging-first merge. No Git staging, commits, merges, pushes or deployment were
+performed for this follow-up; Git staging/commits remain with the user.
+
 ## Verification recorded for the 1 November documentation update
 
 On 1 November 2026, **76 tests passed across 20 targeted test files** in the

@@ -71,5 +71,11 @@ jobs:
       - name: Run script tests
         run: npm run test:scripts
 
+      - name: Install accessibility test browsers
+        run: npx --no-install playwright install --with-deps chromium webkit
+
+      - name: Run isolated accessibility browser tests
+        run: npm run test:browser
+
       - name: Build production application
         run: npm run build

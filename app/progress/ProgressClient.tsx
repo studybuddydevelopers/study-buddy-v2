@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { ArrowRight, CircleHelp } from "lucide-react";
 import {
@@ -50,6 +50,14 @@ function pct(rate: number): number {
 
 function ProgressHelp() {
   const [dismissed, setDismissed] = useState(false);
+  useEffect(() => {
+    // Hover can reveal the tooltip while keyboard focus is elsewhere.
+    const dismissOnEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setDismissed(true);
+    };
+    document.addEventListener("keydown", dismissOnEscape);
+    return () => document.removeEventListener("keydown", dismissOnEscape);
+  }, []);
   return (
     <div className="group/help relative inline-flex" onMouseEnter={() => setDismissed(false)}>
       <button
@@ -57,9 +65,6 @@ function ProgressHelp() {
         aria-label="About progress measures"
         aria-describedby="progress-help"
         onFocus={() => setDismissed(false)}
-        onKeyDown={(event) => {
-          if (event.key === "Escape") setDismissed(true);
-        }}
         className="inline-flex h-11 w-11 items-center justify-center rounded-full text-primary-700"
       >
         <CircleHelp className="h-5 w-5" aria-hidden="true" />
