@@ -212,6 +212,10 @@ before merging to the default branch.
 - Update on a dedicated branch and review lockfile and transitive changes.
 - Run the full test, lint, build, staging smoke, and relevant security checks.
 - Do not publish exploit details for an unresolved production dependency.
+- A temporary audit exception must be exact, fail closed for graph changes,
+  have automated regression tests, identify an expiry date, and be removed as
+  soon as a compatible patched release exists. Broad severity suppression is
+  not permitted.
 
 ### Provider, DNS, domain, or transactional email
 
