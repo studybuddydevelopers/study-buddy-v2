@@ -249,6 +249,27 @@ new API states; do not allow real-service fallbacks. These scans supplement the
 not a conformance certificate. See [Playwright's accessibility testing guide](https://playwright.dev/docs/accessibility-testing)
 for the distinction between automated and manual checks.
 
+#### Native browser zoom and screen-reader evidence
+
+Keep actual browser zoom separate from viewport emulation and CSS zoom. Use an
+isolated browser with synthetic content, without forcing an emulated viewport,
+then change zoom using the browser's native controls. Record the revision,
+browser/OS, zoom level and resulting CSS viewport. Verify the level through the
+browser controls or corroborating metrics; a device-pixel ratio alone is not
+proof of zoom. Restore the original level and close temporary test resources.
+
+The [12 November follow-up](FRONTEND_BUG_AND_FIX_HISTORY.md#native-browser-zoom-and-user-voiceover-follow-up--12-november-2026)
+records completed local 200% Chrome zoom checks. The repeatable suite still uses
+its documented viewport-equivalent check; it has not gained a native-zoom test.
+
+For screen readers, distinguish direct observation of native announcements from
+DOM/accessibility-tree assertions and user-reported verification. Record the
+pages/scenarios and environment supplied by the tester. If a user confirms it
+works without that detail, record the limited confirmation rather than inventing
+coverage. A blocked or timed-out attempt to read speech is not a pass. Do not
+change assistive-technology or system permissions without the user's approval.
+Local checks do not replace acceptance on the exact staging candidate.
+
 #### Release-browser acceptance
 
 Start at 320px and test the relevant boundary widths from the website guide,
