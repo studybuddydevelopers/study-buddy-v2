@@ -2,9 +2,8 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Pencil, Trash2 } from "lucide-react";
-import StudyBuddyIcon from "@/components/StudyBuddyIcon";
-import Heading1 from "@/components/Heading1";
+import { ArrowDown, ArrowUp, LoaderCircle, PanelLeft, Pencil, SlidersHorizontal, SquarePen, Trash2, X } from "lucide-react";
+import Image from "@/components/Image";
 import Paragraph from "@/components/Paragraph";
 import Button from "@/components/Button";
 import ChatMessageContainer, {
@@ -20,6 +19,22 @@ const AI_AVATAR = "/images/ai-tutor-avatar.svg";
 const DEFAULT_USER_AVATAR = "/images/profile-avatar.svg";
 const CHAT_PAGE_SIZE = 25;
 const MESSAGE_PAGE_SIZE = 50;
+
+function trapDialogButtonFocus(event: React.KeyboardEvent<HTMLDialogElement>) {
+  if (event.key !== "Tab") return;
+  const buttons = event.currentTarget.querySelectorAll<HTMLButtonElement>("button:not(:disabled)");
+  const first = buttons[0];
+  const last = buttons[buttons.length - 1];
+  if (!first) {
+    event.preventDefault();
+  } else if (event.shiftKey && document.activeElement === first) {
+    event.preventDefault();
+    last.focus();
+  } else if (!event.shiftKey && document.activeElement === last) {
+    event.preventDefault();
+    first.focus();
+  }
+}
 
 interface MeResponse {
   profile: {
@@ -191,9 +206,18 @@ export default function ChatClient() {
   const [loadingCitationId, setLoadingCitationId] = useState<string | null>(null);
   const [chatPendingDeletion, setChatPendingDeletion] =
     useState<ApiChat | null>(null);
+  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [mobileHistoryOpen, setMobileHistoryOpen] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [awayFromLatest, setAwayFromLatest] = useState(false);
   const listRef = useRef<HTMLDivElement | null>(null);
   const deleteDialogRef = useRef<HTMLDialogElement | null>(null);
+  const historyDialogRef = useRef<HTMLDialogElement | null>(null);
+  const historyTriggerRef = useRef<HTMLButtonElement | null>(null);
   const composerRef = useRef<HTMLTextAreaElement | null>(null);
+  const citationPreviewRef = useRef<HTMLDivElement | null>(null);
+  const newChatIdRef = useRef<string | null>(null);
+  const followLatestRef = useRef(true);
 
   const selectedChat = useMemo(
     () => chats.find((chat) => chat.id === selectedChatId) ?? null,
@@ -211,13 +235,45 @@ export default function ChatClient() {
   const titleDraft = selectedChat
     ? titleDraftByChat[selectedChat.id] ?? selectedChat.title
     : "";
+  const busy = savingChat || sending || messages.some((message) => message.retrying && message.status === "PENDING");
+  const emptyConversation = !loadingChats && !loadingMessages && messages.length === 0;
 
   useEffect(() => {
+    if (!followLatestRef.current || messages.length === 0) return;
     listRef.current?.scrollTo({
       top: listRef.current.scrollHeight,
       behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth",
     });
   }, [messages]);
+
+  useEffect(() => {
+    const composer = composerRef.current;
+    if (!composer) return;
+    composer.style.height = "auto";
+    composer.style.height = `${Math.min(composer.scrollHeight, 180)}px`;
+  }, [input]);
+
+  useEffect(() => {
+    if (!citationPreview && !loadingCitationId) return;
+    citationPreviewRef.current?.scrollIntoView({ block: "nearest", behavior: "auto" });
+  }, [citationPreview, loadingCitationId]);
+
+  useEffect(() => {
+    if (!mobileHistoryOpen) return;
+    const dialog = historyDialogRef.current;
+    const trigger = historyTriggerRef.current;
+    const composer = composerRef.current;
+    const desktop = window.matchMedia("(min-width: 1024px)");
+    const closeOnDesktop = () => { if (desktop.matches) setMobileHistoryOpen(false); };
+    dialog?.showModal();
+    desktop.addEventListener("change", closeOnDesktop);
+    return () => {
+      desktop.removeEventListener("change", closeOnDesktop);
+      dialog?.close();
+      if (desktop.matches) composer?.focus();
+      else trigger?.focus();
+    };
+  }, [mobileHistoryOpen]);
 
   useEffect(() => {
     if (!chatPendingDeletion) return;
@@ -278,6 +334,13 @@ export default function ChatClient() {
     if (!selectedChatId) {
       return;
     }
+    // A newly created chat is already known to be empty. A concurrent history
+    // fetch could replace its first optimistic turn with an empty response.
+    if (newChatIdRef.current === selectedChatId) {
+      newChatIdRef.current = null;
+      setLoadingMessages(false);
+      return;
+    }
 
     let ignore = false;
     const loadMessages = async () => {
@@ -317,6 +380,15 @@ export default function ChatClient() {
   };
 
   const selectChat = (chatId: string) => {
+    if (chatId !== selectedChatId) {
+      setMessages([]);
+      setLoadingMessages(true);
+    }
+    followLatestRef.current = true;
+    setAwayFromLatest(false);
+    setMobileHistoryOpen(false);
+    setSettingsOpen(false);
+    setError(null);
     setCitationPreview(null);
     setSelectedChatId(chatId);
   };
@@ -347,6 +419,7 @@ export default function ChatClient() {
         method: "POST",
         body: JSON.stringify({}),
       });
+      newChatIdRef.current = data.chat.id;
       upsertChat(data.chat);
       selectChat(data.chat.id);
       setMessages([]);
@@ -435,8 +508,9 @@ export default function ChatClient() {
 
   const handleSend = async () => {
     const message = input.trim();
-    if (!message || sending) return;
+    if (!message || busy || loadingChats || loadingMessages) return;
 
+    followLatestRef.current = true;
     setInput("");
     setError(null);
     setSending(true);
@@ -445,6 +519,7 @@ export default function ChatClient() {
     if (!chat) {
       chat = await createChat();
       if (!chat) {
+        setInput(message);
         setSending(false);
         return;
       }
@@ -550,226 +625,199 @@ export default function ChatClient() {
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    if (e.key === "Enter" && !e.shiftKey) {
+    if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) {
       e.preventDefault();
       void handleSend();
     }
   };
 
-  return (
-    <div className="w-[90vw] max-w-6xl mx-auto py-6 min-h-[calc(100vh-120px)]">
-      <div className="flex items-start justify-between gap-4 flex-wrap mb-4">
-        <div>
-          <Heading1 gutter="sm">AI Chat</Heading1>
-          <Paragraph variant="superMuted" gutter="none">
-            Ask study questions and keep the thread after refresh.
-          </Paragraph>
-        </div>
-        <Button
-          variant="primary"
-          onClick={() => void createChat()}
-          loading={savingChat}
-          icon={<StudyBuddyIcon name="plus" size={20} />}
-        >
-          New Chat
-        </Button>
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-[280px_1fr] gap-4">
-        <aside className="max-h-[260px] overflow-y-scroll rounded-2xl border border-accent-200 bg-white p-3 shadow-sm [scrollbar-gutter:stable] lg:max-h-[calc(100vh-190px)]">
-          {loadingChats ? (
-            <Paragraph variant="muted" gutter="none" className="text-sm">
-              Loading chats...
-            </Paragraph>
-          ) : chats.length === 0 ? (
-            <Paragraph variant="muted" gutter="none" className="text-sm">
-              No saved chats yet.
-            </Paragraph>
-          ) : (
-            <div className="space-y-2">
-              {chats.map((chat) => (
+  const history = (
+    <div className="flex min-h-0 flex-1 flex-col">
+      <h2 className="px-3 pb-3 pt-2 text-xs font-semibold text-primary-700">Your chats</h2>
+      {loadingChats ? (
+        <p role="status" className="px-3 text-sm text-gray-600">Loading chats…</p>
+      ) : chats.length === 0 ? (
+        <p className="px-3 text-sm leading-relaxed text-gray-600">Your conversations will appear here after you start a chat.</p>
+      ) : (
+        <nav aria-label="Saved chats" className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-1">
+          <ul className="space-y-1">
+            {chats.map((chat) => (
+              <li key={chat.id}>
                 <button
-                  key={chat.id}
                   type="button"
                   onClick={() => selectChat(chat.id)}
+                  disabled={busy}
                   aria-current={chat.id === selectedChatId ? "true" : undefined}
-                  className={`w-full text-left rounded-xl border px-3 py-2 transition ${
+                  className={"w-full rounded-xl px-3 py-3 text-left text-sm transition-colors disabled:cursor-wait " + (
                     chat.id === selectedChatId
-                      ? "border-primary-400 bg-primary-50 text-primary-900"
-                      : "border-transparent hover:bg-gray-50 text-gray-900"
-                  }`}
+                      ? "bg-primary-100 font-medium text-primary-900"
+                      : "text-gray-700 hover:bg-accent-700"
+                  )}
+                  title={chat.title}
                 >
-                  <span className="flex items-center gap-2">
-                    <StudyBuddyIcon name="chat" size={20} />
-                    <span className="font-semibold truncate">{chat.title}</span>
-                  </span>
-                  <span className="block text-xs text-gray-500 truncate mt-1">
-                    {chat.topic?.title ?? chat.subject?.name ?? "General chat"}
-                  </span>
+                  <span className="block truncate">{chat.title}</span>
                 </button>
-              ))}
-            </div>
-          )}
+              </li>
+            ))}
+          </ul>
+        </nav>
+      )}
+    </div>
+  );
+
+  return (
+    <div className="mx-auto my-3 flex h-[calc(100dvh-12rem-env(safe-area-inset-bottom))] min-h-[400px] w-full max-w-[1600px] overflow-hidden rounded-2xl border border-accent-700 bg-white min-[1110px]:h-[calc(100dvh-8rem)]">
+      {sidebarOpen && (
+        <aside id="chat-history-desktop" aria-label="Chat history" className="hidden w-60 shrink-0 flex-col border-r border-accent-700 bg-primary-50 p-3 lg:flex xl:w-64">
+          {history}
         </aside>
+      )}
 
-        <div className="flex min-h-[calc(100vh-220px)] flex-col gap-3 lg:h-[calc(100vh-190px)] lg:min-h-0">
-          <div className="border border-accent-200 rounded-2xl bg-white shadow-sm p-4 space-y-3">
-            {selectedChat ? (
-              <>
-                <div className="flex items-center gap-2">
-                  <input
-                    value={titleDraft}
-                    onChange={(e) =>
-                      setTitleDraftByChat((prev) => ({
-                        ...prev,
-                        [selectedChat.id]: e.target.value,
-                      }))
-                    }
-                    className="min-w-0 flex-1 border border-accent-200 rounded-lg px-3 py-2 text-gray-900 font-semibold focus:outline-none focus:ring-2 focus:ring-primary-300"
-                    maxLength={120}
-                    aria-label="Chat title"
-                  />
-                  <Button
-                    variant="primary"
-                    size="sm"
-                    onClick={() => void patchSelectedChat({ title: titleDraft })}
-                    disabled={savingChat || !titleDraft.trim()}
-                    icon={
-                      <Pencil
-                        className="h-[18px] w-[18px] text-white"
-                        aria-hidden="true"
-                      />
-                    }
-                  >
-                    Save
-                  </Button>
-                  <Button
-                    variant="destructive"
-                    size="sm"
-                    onClick={() => { setError(null); setChatPendingDeletion(selectedChat); }}
-                    disabled={savingChat}
-                    icon={
-                      <Trash2
-                        className="h-[18px] w-[18px] text-white"
-                        aria-hidden="true"
-                      />
-                    }
-                    ariaLabel="Delete chat"
-                  />
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <label className="flex flex-col gap-1 text-sm font-semibold text-gray-900">
-                    Subject
-                    <select
-                      value={selectedChat.subjectId ?? ""}
-                      onChange={(e) =>
-                        void patchSelectedChat({
-                          subjectId: e.target.value || null,
-                          topicId: null,
-                        })
-                      }
-                      disabled={savingChat || selectedChatStarted}
-                      className="w-full rounded-lg border border-accent-200 px-3 py-2 bg-white font-normal focus:outline-none focus:ring-2 focus:ring-primary-300 disabled:bg-gray-100 disabled:text-gray-500"
-                    >
-                      <option value="">General</option>
-                      {subjects.map((subject) => (
-                        <option key={subject.id} value={subject.id}>
-                          {subject.displayName ?? subject.name}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-
-                  <label className="flex flex-col gap-1 text-sm font-semibold text-gray-900">
-                    Topic
-                    <select
-                      value={selectedChat.topicId ?? ""}
-                      onChange={(e) =>
-                        void patchSelectedChat({
-                          topicId: e.target.value || null,
-                        })
-                      }
-                      disabled={
-                        savingChat ||
-                        !selectedChat.subjectId ||
-                        selectedChatStarted
-                      }
-                      className="w-full rounded-lg border border-accent-200 px-3 py-2 bg-white font-normal focus:outline-none focus:ring-2 focus:ring-primary-300 disabled:bg-gray-100 disabled:text-gray-500"
-                    >
-                      <option value="">No topic</option>
-                      {(selectedSubject?.topics ?? []).map((topic) => (
-                        <option key={topic.id} value={topic.id}>
-                          {topic.title}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                </div>
-              </>
-            ) : (
-              <Paragraph variant="muted" gutter="none">
-                Create a chat to start asking questions.
-              </Paragraph>
-            )}
+      <div className="flex min-w-0 flex-1 flex-col">
+        <header className="flex shrink-0 items-center gap-1 px-2 py-2 sm:gap-2 sm:px-4">
+          <button
+            type="button"
+            aria-label={sidebarOpen ? "Hide chat history" : "Show chat history"}
+            aria-expanded={sidebarOpen}
+            aria-controls={sidebarOpen ? "chat-history-desktop" : undefined}
+            onClick={() => setSidebarOpen((open) => !open)}
+            className="hidden h-11 w-11 shrink-0 items-center justify-center rounded-xl text-gray-600 hover:bg-primary-50 lg:inline-flex"
+          >
+            <PanelLeft size={21} aria-hidden="true" />
+          </button>
+          <button
+            ref={historyTriggerRef}
+            type="button"
+            aria-label="Show chat history"
+            aria-haspopup="dialog"
+            aria-expanded={mobileHistoryOpen}
+            onClick={() => setMobileHistoryOpen(true)}
+            className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-gray-600 hover:bg-primary-50 lg:hidden"
+          >
+            <PanelLeft size={21} aria-hidden="true" />
+          </button>
+          <div className="min-w-0 flex-1">
+            <h1 className="text-lg font-semibold tracking-tight text-[#6C3483]">AI Chat</h1>
+            {selectedChat && <p className="truncate text-xs text-gray-600">{selectedChat.title}</p>}
           </div>
+          {selectedChat && (
+            <button
+              type="button"
+              aria-label="Chat settings"
+              aria-expanded={settingsOpen}
+              aria-controls="chat-settings"
+              onClick={() => setSettingsOpen((open) => !open)}
+              className={"inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl hover:bg-primary-50 " + (settingsOpen ? "bg-primary-100 text-primary-800" : "text-gray-600")}
+            >
+              <SlidersHorizontal size={20} aria-hidden="true" />
+            </button>
+          )}
+          <button
+            type="button"
+            aria-label="New chat"
+            onClick={() => void createChat()}
+            disabled={busy || loadingChats}
+            className="inline-flex h-11 shrink-0 items-center justify-center gap-2 rounded-xl px-3 text-primary-700 hover:bg-primary-50 disabled:cursor-wait disabled:opacity-50"
+          >
+            <SquarePen size={21} aria-hidden="true" />
+            <span className="hidden text-sm font-medium sm:inline">New chat</span>
+          </button>
+        </header>
 
+        {selectedChat && (
+          <section id="chat-settings" aria-label="Chat settings" hidden={!settingsOpen} className="max-h-[45%] shrink-0 overflow-y-auto border-y border-accent-700 bg-primary-50 px-4 py-4 sm:px-6">
+            <div className="mx-auto max-w-3xl space-y-4">
+              <div className="flex items-center gap-2">
+                <input
+                  value={titleDraft}
+                  onChange={(e) => setTitleDraftByChat((prev) => ({ ...prev, [selectedChat.id]: e.target.value }))}
+                  className="min-h-11 min-w-0 flex-1 rounded-xl border border-accent-800 bg-white px-3 py-2 font-medium text-gray-900"
+                  maxLength={120}
+                  aria-label="Chat title"
+                />
+                <Button
+                  variant="primary"
+                  size="sm"
+                  onClick={() => void patchSelectedChat({ title: titleDraft })}
+                  disabled={busy || !titleDraft.trim()}
+                  ariaLabel="Save chat title"
+                  className="min-h-11 min-w-11"
+                  icon={<Pencil className="h-[18px] w-[18px] text-white" aria-hidden="true" />}
+                >
+                  <span className="hidden sm:inline">Save</span>
+                </Button>
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  onClick={() => { setError(null); setChatPendingDeletion(selectedChat); }}
+                  disabled={busy}
+                  className="min-h-11 min-w-11"
+                  icon={<Trash2 className="h-[18px] w-[18px] text-white" aria-hidden="true" />}
+                  ariaLabel="Delete chat"
+                />
+              </div>
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <label className="flex min-w-0 flex-col gap-1 text-sm font-medium text-gray-900">
+                  Subject
+                  <select
+                    value={selectedChat.subjectId ?? ""}
+                    onChange={(e) => void patchSelectedChat({ subjectId: e.target.value || null, topicId: null })}
+                    disabled={busy || selectedChatStarted}
+                    className="min-h-11 w-full rounded-xl border border-accent-800 bg-white px-3 py-2 font-normal disabled:bg-gray-100 disabled:text-gray-500"
+                  >
+                    <option value="">General</option>
+                    {subjects.map((subject) => <option key={subject.id} value={subject.id}>{subject.displayName ?? subject.name}</option>)}
+                  </select>
+                </label>
+                <label className="flex min-w-0 flex-col gap-1 text-sm font-medium text-gray-900">
+                  Topic
+                  <select
+                    value={selectedChat.topicId ?? ""}
+                    onChange={(e) => void patchSelectedChat({ topicId: e.target.value || null })}
+                    disabled={busy || !selectedChat.subjectId || selectedChatStarted}
+                    className="min-h-11 w-full rounded-xl border border-accent-800 bg-white px-3 py-2 font-normal disabled:bg-gray-100 disabled:text-gray-500"
+                  >
+                    <option value="">No topic</option>
+                    {(selectedSubject?.topics ?? []).map((topic) => <option key={topic.id} value={topic.id}>{topic.title}</option>)}
+                  </select>
+                </label>
+              </div>
+              {selectedChatStarted && <p className="text-xs text-gray-600">Subject and topic are fixed after your first message. Start a new chat to change them.</p>}
+            </div>
+          </section>
+        )}
+
+        <div className={"flex min-h-0 flex-1 flex-col " + (emptyConversation ? "justify-center" : "")}>
           <div
             ref={listRef}
             role="region"
             aria-label="Chat messages"
             tabIndex={0}
-            className="min-h-[320px] max-h-[52vh] flex-1 overflow-y-scroll rounded-2xl border border-accent-200 bg-white p-4 shadow-sm [scrollbar-gutter:stable] lg:min-h-0 lg:max-h-none"
+            onScroll={(event) => {
+              const list = event.currentTarget;
+              const away = list.scrollHeight - list.scrollTop - list.clientHeight > 80;
+              followLatestRef.current = !away;
+              setAwayFromLatest(away);
+            }}
+            className={"min-h-0 overflow-y-auto overscroll-contain px-3 sm:px-6 " + (emptyConversation ? "max-h-[45%] shrink" : "flex-1")}
           >
-            {loadingMessages ? (
-              <div
-                className="flex h-full min-h-[260px] items-center justify-center"
-                role="status"
-                aria-label="Loading chat messages"
-              >
-                <div className="w-full max-w-md space-y-3">
-                  <div className="space-y-3">
-                    <div className="flex items-start gap-3">
-                      <div className="h-10 w-10 shrink-0 animate-pulse rounded-full bg-secondary-100" />
-                      <div className="w-2/3 space-y-2 rounded-2xl bg-gray-100 p-3">
-                        <div className="h-3 w-11/12 animate-pulse rounded-full bg-primary-100" />
-                        <div className="h-3 w-7/12 animate-pulse rounded-full bg-primary-100" />
-                      </div>
-                    </div>
-                    <div className="flex items-start justify-end gap-3">
-                      <div className="w-3/5 space-y-2 rounded-2xl bg-primary-50 p-3">
-                        <div className="ml-auto h-3 w-10/12 animate-pulse rounded-full bg-primary-200" />
-                        <div className="ml-auto h-3 w-6/12 animate-pulse rounded-full bg-primary-200" />
-                      </div>
-                      <div className="h-10 w-10 shrink-0 animate-pulse rounded-full bg-secondary-100" />
-                    </div>
-                    <div className="flex items-start gap-3">
-                      <div className="h-10 w-10 shrink-0 animate-pulse rounded-full bg-primary-100" />
-                      <div className="w-4/5 space-y-2 rounded-2xl bg-gray-100 p-3">
-                        <div className="h-3 w-full animate-pulse rounded-full bg-secondary-100" />
-                        <div className="h-3 w-8/12 animate-pulse rounded-full bg-secondary-100" />
-                      </div>
-                    </div>
-                  </div>
+            <div className="mx-auto w-full max-w-3xl py-4 sm:py-6">
+              {loadingChats || loadingMessages ? (
+                <div className="flex min-h-32 items-center justify-center gap-3 text-sm text-gray-600" role="status" aria-label="Loading chat messages">
+                  <LoaderCircle size={20} className="motion-safe:animate-spin" aria-hidden="true" />
+                  Loading conversation…
                 </div>
-              </div>
-            ) : messages.length === 0 ? (
-              <div className="h-full min-h-[260px] flex items-center justify-center text-center">
-                <Paragraph variant="muted" gutter="none" className="max-w-md">
-                  Ask a study question to start this saved chat.
-                </Paragraph>
-              </div>
-            ) : (
-              <ChatMessageContainer
-                messages={messages}
-                onRetry={handleRetry}
-                onCitationClick={handleCitationClick}
-              />
-            )}
-          </div>
-
+              ) : messages.length === 0 ? (
+                <div className="mx-auto max-w-lg text-center">
+                  <Image src={AI_AVATAR} alt="" width={64} height={64} rounded="full" className="mx-auto mb-3 !h-12 !w-12 !object-contain sm:!h-16 sm:!w-16" />
+                  <h2 className="text-2xl font-semibold leading-tight tracking-tight text-primary-900 sm:text-3xl">What are we learning today?</h2>
+                  <p className="mt-3 text-sm leading-relaxed text-gray-600">A tricky topic, a practice question, or a little revision. Let’s work through it.</p>
+                </div>
+              ) : (
+                <ChatMessageContainer messages={messages} onRetry={handleRetry} onCitationClick={handleCitationClick} />
+              )}
           {(citationPreview || loadingCitationId) && (
-            <div className="border border-accent-200 rounded-2xl bg-white shadow-sm p-4">
+            <div ref={citationPreviewRef} role="region" aria-label="Source preview" className="mt-6 rounded-2xl border border-accent-700 bg-primary-50 p-4">
               {loadingCitationId ? (
                 <Paragraph variant="muted" gutter="none" className="text-sm">
                   Loading source...
@@ -822,45 +870,106 @@ export default function ChatClient() {
             </div>
           )}
 
-          {error && !chatPendingDeletion && (
-            <Paragraph variant="error" className="mt-1" role="alert">
-              {error}
-            </Paragraph>
-          )}
+            </div>
+          </div>
 
-          <div className="border border-accent-200 rounded-2xl bg-white shadow-sm p-4 space-y-3">
-            <textarea
-              ref={composerRef}
-              aria-label="Message to AI tutor"
-              aria-describedby="chat-composer-help"
-              className="w-full border border-accent-200 rounded-lg p-3 focus:outline-none focus:ring-2 focus:ring-primary-400 text-gray-900 max-h-28"
-              placeholder="Ask a study question... Shift+Enter for new line"
-              rows={3}
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              onKeyDown={handleKeyDown}
-              disabled={sending || loadingChats}
-              maxLength={4000}
-            />
-            <span id="chat-composer-help" className="sr-only">
-              Press Enter to send, or Shift+Enter for a new line. Maximum 4000 characters.
-            </span>
-            <div className="flex items-center justify-between gap-3 flex-wrap">
-              <Paragraph variant="muted" gutter="none" className="text-sm">
-                {input.length}/4000
-              </Paragraph>
-              <Button
-                variant="primary"
-                onClick={handleSend}
-                loading={sending}
-                disabled={sending || loadingChats || !input.trim()}
+          <div className="relative shrink-0 px-3 pb-3 pt-2 sm:px-6 sm:pb-4">
+            {awayFromLatest && !emptyConversation && (
+              <button
+                type="button"
+                aria-label="Jump to latest message"
+                onClick={() => {
+                  followLatestRef.current = true;
+                  listRef.current?.scrollTo({ top: listRef.current.scrollHeight, behavior: "auto" });
+                  setAwayFromLatest(false);
+                }}
+                className="absolute -top-12 left-1/2 inline-flex h-11 w-11 -translate-x-1/2 items-center justify-center rounded-full border border-accent-700 bg-white text-primary-700 shadow-sm"
               >
-                Send
-              </Button>
+                <ArrowDown size={20} aria-hidden="true" />
+              </button>
+            )}
+            <div className="mx-auto w-full max-w-3xl">
+              {error && !chatPendingDeletion && (
+                <p className="mb-3 max-h-24 overflow-y-auto rounded-xl bg-red-50 px-3 py-2 text-sm text-red-800" role="alert">{error}</p>
+              )}
+              <form
+                aria-label="Send a message"
+                onSubmit={(event) => { event.preventDefault(); void handleSend(); }}
+                className="rounded-[26px] border border-accent-800 bg-primary-50 p-3 shadow-sm transition-shadow focus-within:border-primary-400 focus-within:shadow-md"
+              >
+                <textarea
+                  ref={composerRef}
+                  aria-label="Message to AI tutor"
+                  aria-describedby="chat-composer-help"
+                  className="block max-h-[180px] min-h-11 w-full resize-none rounded-xl border-0 bg-transparent px-2 py-2 text-base leading-6 text-gray-900 placeholder:text-gray-500"
+                  placeholder="Ask Study Buddy…"
+                  rows={1}
+                  value={input}
+                  onChange={(e) => setInput(e.target.value)}
+                  onKeyDown={handleKeyDown}
+                  disabled={busy || loadingChats || loadingMessages}
+                  maxLength={4000}
+                />
+                <span id="chat-composer-help" className="sr-only">
+                  Press Enter to send, or Shift+Enter for a new line. Maximum 4000 characters.
+                </span>
+                <div className="mt-1 flex items-center justify-between gap-2">
+                  <span className="min-w-0 truncate px-2 text-xs text-gray-600">
+                    {input.length >= 3600 ? input.length + "/4000 characters" : selectedSubject?.displayName ?? selectedSubject?.name ?? "Study Buddy"}
+                  </span>
+                  <button
+                    type="submit"
+                    aria-label={sending ? "Sending message" : "Send message"}
+                    disabled={busy || loadingChats || loadingMessages || !input.trim()}
+                    className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-primary-500 text-white transition-colors hover:bg-primary-700 disabled:cursor-not-allowed disabled:bg-accent-700 disabled:text-gray-500"
+                  >
+                    {sending ? <LoaderCircle size={22} className="motion-safe:animate-spin" aria-hidden="true" /> : <ArrowUp size={22} aria-hidden="true" />}
+                  </button>
+                </div>
+              </form>
+              {emptyConversation && (
+                <div className="mt-4 flex flex-wrap justify-center gap-2" aria-label="Study suggestions">
+                  {[
+                    { label: "Explain a topic", prompt: "Help me understand " },
+                    { label: "Quiz me", prompt: "Give me a practice question on " },
+                    { label: "Check my working", prompt: "Help me check my working step by step:\n" },
+                  ].map((suggestion) => (
+                    <button
+                      key={suggestion.label}
+                      type="button"
+                      onClick={() => { setInput(suggestion.prompt); composerRef.current?.focus(); }}
+                      disabled={busy}
+                      className="min-h-11 rounded-full border border-accent-700 px-3 py-2 text-xs text-primary-800 hover:border-primary-200 hover:bg-primary-50 disabled:opacity-50"
+                    >{suggestion.label}</button>
+                  ))}
+                </div>
+              )}
+              <p className="mt-3 text-center text-xs leading-5 text-gray-600">Study Buddy can make mistakes. Check important answers.</p>
             </div>
           </div>
         </div>
       </div>
+
+      {mobileHistoryOpen && (
+        <dialog
+          ref={historyDialogRef}
+          aria-label="Chat history"
+          className="fixed inset-y-0 left-0 right-auto m-0 h-dvh max-h-none w-80 max-w-[85vw] border-r border-accent-700 bg-primary-50 p-0 shadow-xl backdrop:bg-gray-950/40"
+          onCancel={(event) => { event.preventDefault(); setMobileHistoryOpen(false); }}
+          onKeyDown={trapDialogButtonFocus}
+          onClick={(event) => { if (event.target === event.currentTarget) setMobileHistoryOpen(false); }}
+        >
+          <div className="flex h-full flex-col p-3">
+            <div className="mb-3 flex items-center justify-between gap-3 px-2">
+              <p className="font-semibold text-[#6C3483]">Study Buddy</p>
+              <button type="button" aria-label="Close chat history" onClick={() => setMobileHistoryOpen(false)} className="inline-flex h-11 w-11 items-center justify-center rounded-xl text-gray-600 hover:bg-primary-100">
+                <X size={21} aria-hidden="true" />
+              </button>
+            </div>
+            {history}
+          </div>
+        </dialog>
+      )}
 
       {chatPendingDeletion && (
         <dialog
@@ -872,21 +981,7 @@ export default function ChatClient() {
             event.preventDefault();
             if (!savingChat) setChatPendingDeletion(null);
           }}
-          onKeyDown={(event) => {
-            if (event.key !== "Tab") return;
-            const buttons = event.currentTarget.querySelectorAll<HTMLButtonElement>("button:not(:disabled)");
-            const first = buttons[0];
-            const last = buttons[buttons.length - 1];
-            if (!first) {
-              event.preventDefault();
-            } else if (event.shiftKey && document.activeElement === first) {
-              event.preventDefault();
-              last.focus();
-            } else if (!event.shiftKey && document.activeElement === last) {
-              event.preventDefault();
-              first.focus();
-            }
-          }}
+          onKeyDown={trapDialogButtonFocus}
           onClick={(event) => {
             if (event.target === event.currentTarget && !savingChat) {
               setChatPendingDeletion(null);
