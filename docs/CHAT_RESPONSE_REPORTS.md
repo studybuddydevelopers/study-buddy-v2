@@ -30,6 +30,18 @@ Regenerate the Prisma client as part of the application build. This database
 operation did not deploy application code or run authenticated live report and
 support-review flows; those remain separate release acceptance checks.
 
+A local report-status lookup failure was traced to a development server retaining
+a Prisma client created before the report model was generated. The client cache
+now checks the generated schema before reuse, with regression coverage in
+[Prisma cache tests](../lib/prisma.test.ts). Restart the development server after
+regenerating Prisma so route modules also load the current generated code.
+Fresh-client report lookups against both databases passed without reading or
+creating learner reports. After the local server restart, the learner confirmed
+the form opened, and the server returned successful responses for an
+authenticated status lookup, report submission and subsequent lookup. The
+authenticated support-review cycle and deployed application acceptance remain
+unverified.
+
 Validation covers authentication, owned completed responses, input validation,
 duplicate submission, submission limits and restricted review updates. Synthetic
 Chromium/WebKit checks cover submitting from the intended message, failure and
