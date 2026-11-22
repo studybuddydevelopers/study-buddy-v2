@@ -41,7 +41,7 @@ No browser-wide computed-style or contrast certification was performed.
 | Colour name | Hex | Predominant location | Why it is used |
 | --- | --- | --- | --- |
 | Brand plum purple | `#6C3483` | SB mark, Study Buddy wordmark, active bottom-nav labels, dashboard actions and activity bars. | Recognisable brand identity and emphasis for important actions. |
-| UI primary purple | `#6247AA` | Shared primary buttons, desktop active/hover navigation, learner chat bubbles. | Consistent interactive colour across reusable controls. |
+| UI primary purple | `#6247AA` | Shared primary buttons, desktop active/hover navigation, chat send button. | Consistent interactive colour across reusable controls. |
 | UI strong purple | `#5A3F9A` | Progress fills/trend, selected answer states, links and primary badges. | Stronger emphasis within the primary scale. |
 | UI dark purple | `#4A3480` | Links, labels, callout text and selected-state copy. | Darker purple text and emphasis on pale surfaces. |
 | Deep illustration purple | `#3B2A56` | Dashboard continuation panels, profile header, icons/illustration details. | A dark brand-related surface with light text; visual depth. |
@@ -95,11 +95,11 @@ through a utility such as `bg-primary-500`, `text-primary-700`, or directly with
 | Token | Hex | Descriptive name | Current use / role |
 | --- | --- | --- | --- |
 | `primary-50` | `#F8F9FA` | Cool off-white | Subtle card, selection and callout backing; keeps large areas light. |
-| `primary-100` | `#E2CFEA` | Pale lilac | Ghost-button hover, callout/selected borders and pale highlights. |
+| `primary-100` | `#E2CFEA` | Pale lilac | Learner chat bubbles and selected chat history, ghost-button hover, callout/selected borders and pale highlights. |
 | `primary-200` | `#C4A0D6` | Soft lavender | Selected-response borders, soft fills and rings; also the chat blockquote border. |
 | `primary-300` | `#A06CD5` | Medium lavender | Focus/hover rings and selected-option borders. |
 | `primary-400` | `#8B5BC7` | Bright muted purple | Shared primary-button hover and input/button focus treatment. |
-| `primary-500` | `#6247AA` | UI primary purple | Default primary Button, outline-button border, navigation emphasis and learner chat bubble. |
+| `primary-500` | `#6247AA` | UI primary purple | Default primary Button, outline-button border, navigation emphasis and chat send button. |
 | `primary-600` | `#5A3F9A` | Strong purple | Links, primary Badge/ProgressBar, progress chart line/fill and selections. |
 | `primary-700` | `#4A3480` | Dark purple | Stronger links, headings and callout/selected-state copy. |
 | `primary-800` | `#3A2966` | Deep violet | Deep emphasis in private learner screens and response controls. |
@@ -326,7 +326,7 @@ Asset locations:
 | [Practice tests](../public/images/practice-tests.svg) | Home practice-test feature. |
 | [Expert guidance](../public/images/expert-guidance.svg) | Home guidance feature. |
 | [AI avatar](../public/images/ai-tutor-avatar.svg) | Chat assistant and About AI-support illustration. |
-| [Profile avatar](../public/images/profile-avatar.svg) | Navigation, profile/edit-profile fallback and learner chat avatar. |
+| [Profile avatar](../public/images/profile-avatar.svg) | Navigation and profile/edit-profile fallback. The redesigned conversation identifies learner messages with lilac bubbles rather than a repeated avatar. |
 | [SB mark](../public/images/study-buddy-mark.svg) | Small brand artwork, loaders/masks and About branding. |
 | [Logo icon](../public/logo-icon.svg) / [favicon](../app/favicon.svg) | Browser/site identity on rounded white backing. |
 

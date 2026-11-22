@@ -94,7 +94,7 @@ const markdownComponents: Components = {
     return (
       <div
         className="my-3 max-w-full overflow-x-auto rounded-lg border border-gray-300 bg-white"
-        role="region"
+        role="group"
         aria-label="Scrollable table"
         tabIndex={0}
       >

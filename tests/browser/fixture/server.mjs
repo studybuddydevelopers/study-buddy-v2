@@ -34,12 +34,19 @@ const { outputFiles } = await build({
   define: { "process.env": "{}" },
   loader: { ".svg": "dataurl" },
 });
+const stylesheets = await Promise.all([
+  "app/globals.css",
+  "node_modules/highlight.js/styles/github-dark.css",
+  "node_modules/katex/dist/katex.min.css",
+  "node_modules/streamdown/styles.css",
+].map((file) => readFile(path.join(root, file), "utf8")));
 const css = await postcss([
   tailwindcss({ ...config, content: [...config.content, "./tests/browser/fixture/**/*.tsx"] }),
   autoprefixer(),
-]).process(await readFile(path.join(root, "app/globals.css"), "utf8"), { from: path.join(root, "app/globals.css") });
+]).process(stylesheets.join("\n"), { from: path.join(root, "app/globals.css") });
 const html = '<!doctype html><html lang="en"><head><meta name="viewport" content="width=device-width,initial-scale=1"><title>Study Buddy accessibility fixture</title><link rel="stylesheet" href="/fixture.css"></head><body><div id="fixture"></div><script src="/fixture.js"></script></body></html>';
 const publicRoot = await realpath(path.join(root, "public"));
+const mathFontRoot = await realpath(path.join(root, "node_modules/katex/dist/fonts"));
 const types = { ".svg": "image/svg+xml", ".png": "image/png", ".jpg": "image/jpeg", ".webp": "image/webp" };
 
 const server = http.createServer(async (req, res) => {
@@ -52,6 +59,15 @@ const server = http.createServer(async (req, res) => {
   if (pathname === "/fixture.js" || pathname === "/fixture.css") {
     res.setHeader("Content-Type", pathname.endsWith(".js") ? "text/javascript" : "text/css");
     res.end(pathname.endsWith(".js") ? outputFiles.find((file) => file.path.endsWith(".js")).contents : css.css);
+    return;
+  }
+  if (pathname.startsWith("/fonts/")) {
+    try {
+      const file = await realpath(path.join(mathFontRoot, decodeURIComponent(pathname.slice("/fonts/".length))));
+      if (!file.startsWith(mathFontRoot + path.sep) || !file.endsWith(".woff2")) throw new Error("Not a math font");
+      res.setHeader("Content-Type", "font/woff2");
+      res.end(await readFile(file));
+    } catch { res.writeHead(404); res.end(); }
     return;
   }
   if (pathname.startsWith("/images/") || pathname.startsWith("/icons/") || pathname === "/logo-icon.svg") {

@@ -222,12 +222,34 @@ selection, title editing, history, generation status, retry and deletion
 confirmation. It is not the legacy stateless quick-chat endpoint. Save/delete
 use familiar white pencil/bin icons.
 
+The conversation workspace was redesigned on 22 November 2026 using a
+ChatGPT-inspired layout with Study Buddy branding. A centred reading column
+shows pale-lilac learner bubbles and unboxed tutor answers, with the approved
+tutor avatar and a copy-response action. The rounded, growing composer stays
+below the independently scrollable transcript. Empty chats offer prompts that
+prepare a draft without sending it.
+
+History is collapsible on desktop and opens in a native modal drawer below
+1024px. This chat-specific breakpoint does not change the site's 1110px mobile
+navigation breakpoint. The toolbar's **Chat settings** opens title/save/delete
+and subject/topic controls; subject/topic remain fixed after the first message.
+History selection and new-chat actions are disabled during an active send or
+retry. Scrolling up pauses automatic following; **Jump to latest message**
+returns to the bottom.
+
 The delete confirmation is a native modal dialog with Escape handling and focus
 return. Escape/backdrop dismissal is blocked during deletion; failed-delete
 feedback stays inside the dialog. Tab/Shift+Tab stay among its available actions,
 and closing returns focus to the previous control or, if removed, the composer.
 Message input and the scrollable transcript have accessible names; automatic
 scrolling respects reduced motion.
+
+The history drawer also contains keyboard focus, closes with Escape and returns
+focus to its trigger. Repeated Markdown tables use named, focusable groups
+instead of duplicate region landmarks. Synthetic Chromium/WebKit browser
+coverage lives in [chat-workspace.spec.ts](../tests/browser/chat-workspace.spec.ts)
+and [chat-dialog.spec.ts](../tests/browser/chat-dialog.spec.ts); this does not
+establish live account/API operation or physical mobile-keyboard behaviour.
 
 [ChatMarkdown](../components/ChatMarkdown.tsx) uses Streamdown, KaTeX and syntax
 highlighting, with [math normalisation](../lib/markdown-math.ts). Keep formulas,
