@@ -67,6 +67,20 @@ describe("Stage 1 chat routes", () => {
     }
   });
 
+  it("passes a trimmed title search with the authenticated user and pagination", async () => {
+    const { GET } = await import("./route");
+    const response = await GET(new Request("http://localhost/api/v1/ai/chats?q=%20SETs%20&page=2&pageSize=10"));
+    expect(response.status).toBe(200);
+    expect(serviceMocks.listChats).toHaveBeenCalledWith("user-1", { page: 2, pageSize: 10 }, "SETs");
+  });
+
+  it("rejects an overlong title search before querying chats", async () => {
+    const { GET } = await import("./route");
+    const response = await GET(new Request(`http://localhost/api/v1/ai/chats?q=${"x".repeat(121)}`));
+    expect(response.status).toBe(400);
+    expect(serviceMocks.listChats).not.toHaveBeenCalled();
+  });
+
   it("permanently deletes only the authenticated user's selected chat", async () => {
     serviceMocks.deleteChat.mockResolvedValue({ success: true });
 
