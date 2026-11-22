@@ -547,6 +547,11 @@ Generate Prisma client if the schema has changed:
 npx prisma generate
 ```
 
+After regenerating the client, restart any running development server so API
+routes load the updated generated code. The development client cache also checks
+the generated schema before reusing a connection. An applied migration alone
+does not refresh an already-running application's Prisma client.
+
 Seed the database:
 
 ```bash
