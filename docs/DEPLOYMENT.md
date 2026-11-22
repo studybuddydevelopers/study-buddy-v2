@@ -1,6 +1,6 @@
 # Deployment Guide
 
-Last reviewed: 1 November 2026
+Last reviewed: 12 November 2026
 
 This is the public-safe deployment guide for Study Buddy. It deliberately omits
 real environment values, internal network names, service identifiers, account
@@ -41,6 +41,29 @@ npm start
 
 The platform supplies the listening port. Do not commit a production `.env`
 file or inject secrets into the client bundle.
+
+## Continuous integration and promotion
+
+The protected pull-request workflow installs locked dependencies, audits the
+resolved dependency graph, lints, generates framework route types, type-checks,
+runs the application and operational-script suites, and builds the production
+application. Secret scanning remains a separate required check. Tests that use
+a non-Node command must declare and install that command in CI rather than rely
+on a maintainer workstation or a mutable runner image.
+
+Changes move through protected branches in this order:
+
+1. Run the complete pull-request checks for the staging candidate.
+2. Obtain the required review from a collaborator other than the author.
+3. Merge the exact passing revision into staging and wait for deployment.
+4. Exercise the affected staging journeys and record evidence privately.
+5. Rerun the complete checks on the staging-to-production pull request.
+6. Obtain production approval, merge the immutable revision, and verify the
+   production health and affected journeys.
+
+Never bypass an approval or failed check merely to complete a deployment. If a
+runner lacks a test prerequisite, correct the runner definition and rerun the
+same tests; do not remove or silently skip the test.
 
 ## Environment configuration
 
