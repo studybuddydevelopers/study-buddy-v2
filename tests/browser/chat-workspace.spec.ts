@@ -261,14 +261,14 @@ test("failed creation preserves the draft for retry", async ({ page }) => {
   await expect(composer).toBeEnabled();
 });
 
-test("first message in a new chat remains visible while the answer is pending", async ({ page }) => {
+test("first message stays visible while pending and its AI title updates the workspace", async ({ page }) => {
   let release!: () => void;
   const pending = new Promise<void>((resolve) => { release = resolve; });
   await page.route("**/api/v1/ai/chats?*", (route) => route.fulfill({ json: { chats: [] } }));
-  await page.route("**/api/v1/ai/chats", (route) => route.fulfill({ json: { chat } }));
+  await page.route("**/api/v1/ai/chats", (route) => route.fulfill({ json: { chat: { ...chat, title: "New chat" } } }));
   await page.route("**/api/v1/ai/chats/synthetic-chat/messages", async (route) => {
     await pending;
-    await route.fulfill({ json: { chat: { ...chat, isStarted: true }, userMessage: message("1", "USER", "Explain fractions"), assistantMessage: message("2", "ASSISTANT", "A fraction is a part of a whole.") } });
+    await route.fulfill({ json: { chat: { ...chat, title: "Understanding fractions", isStarted: true }, userMessage: message("1", "USER", "Explain fractions"), assistantMessage: message("2", "ASSISTANT", "A fraction is a part of a whole.") } });
   });
   await page.goto("/chat");
   await page.getByRole("textbox", { name: "Message to AI Study Buddy Tutor" }).fill("Explain fractions");
@@ -279,6 +279,10 @@ test("first message in a new chat remains visible while the answer is pending", 
   } finally { release(); }
   await expect(page.getByRole("region", { name: "Chat messages", exact: true })).toContainText("A fraction is a part of a whole.");
   await expect(page.locator("[data-chat-message]")).toHaveCount(2);
+  await expect(page.getByRole("navigation", { name: "Saved chats" }).getByRole("button", { name: "Understanding fractions", exact: true })).toBeVisible();
+  await expect(page.locator("main header")).toContainText("Understanding fractions");
+  await page.getByRole("button", { name: "Chat settings", exact: true }).click();
+  await expect(page.getByRole("textbox", { name: "Chat title" })).toHaveValue("Understanding fractions");
 });
 
 test("source previews remain readable inside a long conversation", async ({ page }) => {
