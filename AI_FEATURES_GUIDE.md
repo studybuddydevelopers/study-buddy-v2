@@ -31,6 +31,14 @@ conversation with any chosen title, subject and topic. Opening or changing
 settings on an unsent draft makes no chat API write; leaving or refreshing it
 does not add an empty conversation to history.
 
+If the learner has not chosen a title, the first message also asks AI for a short
+title describing its topic or learning goal. The saved title is returned with
+the reply and appears in history. Naming runs alongside the answer and falls
+back to the start of the learner's message if it fails. Later turns, retries and
+older conversations are not automatically renamed, and a manual rename takes
+precedence over a delayed AI title. This uses the existing chat provider and
+token-budget controls; no database migration is required.
+
 The ChatGPT-inspired workspace uses Study Buddy's purple palette, right-aligned
 learner bubbles and unboxed tutor answers. White pencil/bin icons remain on
 save/delete actions under **Chat settings**, alongside the subject/topic
@@ -46,8 +54,8 @@ The existing AI avatar sits in a closer-fitting circle with a 3px black border
 and less space above the head; complete
 answers can be copied. Pending replies pair the animated SB volume-bar mark
 with **Thinking through your question…**; reduced motion keeps the mark still.
-Conversation loading uses large, rounded **Loading conversations** lettering
-filled and cleared by purple splashes. Reduced motion shows the filled words.
+Conversation loading uses the SB logo filled and cleared by purple splashes,
+with a small grey caption below it. Reduced motion shows the filled logo.
 The title-search focus indicator follows the complete outer field frame.
 
 Conversation and chat-list panels have their own scroll areas. The growing
