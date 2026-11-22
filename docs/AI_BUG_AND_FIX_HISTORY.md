@@ -1,6 +1,7 @@
 # AI Bug and Fix History
 
-Last reviewed: 1 November 2026. This is a public-safe record of AI-related
+Last updated: 22 November 2026 (chat completion and reporting additions; older
+entries retain their recorded verification scope). This is a public-safe record of AI-related
 defects and corrections found in the tracked history of this checkout, plus
 previously accepted review outcomes supplied for this project. Related commits
 are grouped into incidents; this is not a claim that every past chat, test run,
@@ -31,6 +32,8 @@ an AI release decision.
 
 | ID | Observed problem or limitation | Correction and evidence | Status |
 | --- | --- | --- | --- |
+| AI-033 | General saved-chat replies had a small output allowance and discarded the provider's completion reason, so a cut-off answer could be saved as complete. | The adapter retains the reason; the service allows more output and regenerates once after a length stop. A second incomplete result fails cleanly, without storing partial text as complete. Usage is accounted for across both calls. [Adapter](../lib/ai/chat/openai-provider.test.ts) and [lifecycle tests](../lib/ai/chats/chat-service.test.ts) cover normal stop, length, filtered/unknown output and budget failure. | Implemented locally; live-provider verification pending |
+| AI-034 | Learners had no tracked way to report an individual saved-chat response. | Owned-response reports, references, restricted support review and learner-visible review notes are implemented with [report tests](../lib/ai/chat-report.test.ts). [Operations](CHAT_RESPONSE_REPORTS.md) records deployment prerequisites. | Implemented locally; migration/deployment pending |
 | AI-001 | The original visible chat did not retain a conversation after refresh. | Stage 1 introduced persisted chats, messages, generation requests and an owned chat API (`eed49eb`); [service tests](../lib/ai/chats/chat-service.test.ts) cover the lifecycle. The separate legacy quick-chat endpoint remains stateless. | Historical limitation addressed in HEAD |
 | AI-002 | Duplicate sends, pending generations and retries needed one logical user message and safe state transitions. | Transactional request creation, idempotency and conditional retry acquisition were added in Stage 1 (`eed49eb`); [tests](../lib/ai/chats/chat-service.test.ts) cover completed/pending duplicates, concurrent retries, invalid output and record ownership. | Fixed in HEAD |
 | AI-003 | The client could lose the generation request reference after a failed send, making immediate retry unreliable. | Send/error responses now carry request metadata for both messages (`84d0328`); [chat service tests](../lib/ai/chats/chat-service.test.ts) and current client state handling cover retry. | Fixed in HEAD |
