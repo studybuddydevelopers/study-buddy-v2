@@ -1,7 +1,8 @@
 // app/chat/ChatClient.tsx
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { openedToday, readOpenedChats, saveOpenedChats, type OpenedChat } from "./opened-chats";
 import { ArrowDown, ArrowUp, LoaderCircle, LockKeyhole, Pencil, Search, SlidersHorizontal, SquarePen, Trash2, X } from "lucide-react";
 import Image from "@/components/Image";
 import StudyBuddyIcon from "@/components/StudyBuddyIcon";
@@ -41,6 +42,7 @@ function trapDialogFocus(event: React.KeyboardEvent<HTMLDialogElement>) {
 }
 
 interface MeResponse {
+  id?: string;
   profile: {
     avatarUrl?: string | null;
   } | null;
@@ -194,6 +196,7 @@ async function fetchJson<T>(url: string, init?: RequestInit): Promise<T> {
 
 export default function ChatClient() {
   const [chats, setChats] = useState<ApiChat[]>([]);
+  const [openedChats, setOpenedChats] = useState<OpenedChat[]>([]);
   const [selectedChatId, setSelectedChatId] = useState<string | null>(null);
   const [messages, setMessages] = useState<ChatMessageData[]>([]);
   const [input, setInput] = useState("");
@@ -271,6 +274,18 @@ export default function ChatClient() {
   const emptyConversation = !loadingChats && !loadingMessages && messages.length === 0;
   const searchOpen = searchMode !== null;
   const searchingTitles = searchOpen && Boolean(searchQuery.trim());
+  const lastOpenedChats = openedToday(openedChats)
+    .flatMap((entry) => chats.find((chat) => chat.id === entry.id) ?? []);
+  const recentChats = chats.filter((chat) => !lastOpenedChats.some((opened) => opened.id === chat.id));
+
+  const rememberOpenedChat = useCallback((id: string) => {
+    const openedAt = Date.now();
+    setOpenedChats((previous) => openedToday([{ id, openedAt }, ...previous.filter((entry) => entry.id !== id)], openedAt));
+  }, []);
+
+  useEffect(() => {
+    if (!loadingChats && me?.id) saveOpenedChats(me.id, openedChats);
+  }, [loadingChats, me?.id, openedChats]);
 
   useEffect(() => {
     if (searchMode !== "inline" || !mobileHistoryOpen) return;
@@ -389,9 +404,7 @@ export default function ChatClient() {
           }),
         ]);
 
-        if (meResponse.ok) {
-          setMe((await meResponse.json()) as MeResponse);
-        }
+        const viewer = meResponse.ok ? await meResponse.json() as MeResponse : null;
         if (materialsResponse.ok) {
           const data = (await materialsResponse.json()) as MaterialsOverviewResponse;
           setSubjects(data.subjects ?? []);
@@ -402,7 +415,21 @@ export default function ChatClient() {
 
         const data = (await chatsResponse.json()) as { chats: ApiChat[] };
         const orderedChats = sortChats(data.chats ?? []);
-        setChats(orderedChats);
+        const opened = readOpenedChats(viewer?.id);
+        // An opened chat can be older than the first history page. Resolve its
+        // current title through the existing ownership-checked endpoint.
+        const missingOpened = await Promise.all(opened
+          .filter((entry) => !orderedChats.some((chat) => chat.id === entry.id))
+          .map(async (entry) => {
+            try {
+              const result = await fetchJson<{ chat: ApiChat }>(`/api/v1/ai/chats/${encodeURIComponent(entry.id)}`, { cache: "no-store" });
+              return result.chat.id === entry.id && !result.chat.deletedAt ? result.chat : null;
+            } catch { return null; }
+          }));
+        const availableChats = sortChats([...orderedChats, ...missingOpened.filter((chat): chat is ApiChat => chat !== null)]);
+        setMe(viewer);
+        setOpenedChats(opened.filter((entry) => availableChats.some((chat) => chat.id === entry.id)));
+        setChats(availableChats);
         setSelectedChatId((current) => current ?? orderedChats[0]?.id ?? null);
       } catch (err) {
         console.error(err);
@@ -437,6 +464,7 @@ export default function ChatClient() {
         );
 
         if (ignore) return;
+        rememberOpenedChat(selectedChatId);
         setMessages(
           sortApiMessages(data.messages ?? []).map((message) =>
             toChatMessageData(message, me?.profile?.avatarUrl)
@@ -456,7 +484,7 @@ export default function ChatClient() {
     return () => {
       ignore = true;
     };
-  }, [selectedChatId, me?.profile?.avatarUrl]);
+  }, [selectedChatId, me?.profile?.avatarUrl, rememberOpenedChat]);
 
   const upsertChat = (chat: ApiChat) => {
     setChats((prev) =>
@@ -479,6 +507,8 @@ export default function ChatClient() {
     if (chatId !== selectedChatId) {
       setMessages([]);
       setLoadingMessages(true);
+    } else if (!loadingMessages && !error) {
+      rememberOpenedChat(chatId);
     }
     followLatestRef.current = true;
     setAwayFromLatest(false);
@@ -546,6 +576,7 @@ export default function ChatClient() {
         }),
       });
       newChatIdRef.current = data.chat.id;
+      rememberOpenedChat(data.chat.id);
       upsertChat(data.chat);
       selectChat(data.chat.id);
       setMessages([]);
@@ -591,6 +622,7 @@ export default function ChatClient() {
       await fetchJson<{ success: boolean }>(`/api/v1/ai/chats/${chatId}`, {
         method: "DELETE",
       });
+      setOpenedChats((previous) => previous.filter((entry) => entry.id !== chatId));
       setChats((prev) => {
         const remaining = prev.filter((chat) => chat.id !== chatId);
         setCitationPreview(null);
@@ -762,7 +794,7 @@ export default function ChatClient() {
   };
 
   const searchField = (location: "mobile" | "dialog") => (
-    <div id={`chat-search-${location}`} className="chat-title-search flex shrink-0 items-center gap-2 rounded-xl border border-primary-200 bg-white pl-3">
+    <div id={`chat-search-${location}`} className="chat-title-search flex min-w-0 flex-1 shrink-0 items-center gap-2 rounded-xl border border-primary-200 bg-white pl-3">
       {location === "dialog" && <Search size={20} className="shrink-0 text-primary-700" aria-hidden="true" />}
       <input
         ref={location === "mobile" ? mobileSearchRef : dialogSearchRef}
@@ -778,9 +810,32 @@ export default function ChatClient() {
     </div>
   );
 
-  const historyList = (searchActive: boolean) => (
+  const chatItems = (items: ApiChat[], searchActive = false) => (
+    <ul className="space-y-1">
+      {items.map((chat) => (
+        <li key={chat.id}>
+          <button
+            type="button"
+            onClick={() => { if (searchActive) upsertChat(chat); selectChat(chat.id); }}
+            disabled={busy}
+            aria-current={chat.id === selectedChatId ? "true" : undefined}
+            className={"w-full rounded-xl px-3 py-3 text-left text-sm transition-colors disabled:cursor-wait " + (
+              chat.id === selectedChatId
+                ? "bg-primary-100 font-medium text-primary-900"
+                : "text-gray-700 hover:bg-accent-700"
+            )}
+            title={chat.title}
+          >
+            <span className="block truncate">{chat.title}</span>
+          </button>
+        </li>
+      ))}
+    </ul>
+  );
+
+  const historyList = (searchActive: boolean, groupByOpened = false) => (
     <>
-      <h2 className="px-3 pb-3 pt-2 text-xs font-semibold text-primary-700">Your chats</h2>
+      {!groupByOpened && <h2 className="px-3 pb-3 pt-2 text-xs font-semibold text-primary-700">Your chats</h2>}
       {searchActive && <p role="status" className="mb-2 px-3 text-xs text-gray-600">{searchLoading ? "Searching chats…" : searchError ? "" : searchResults.length === 0 ? "No chats match this title." : `${searchResults.length} matching ${searchResults.length === 1 ? "chat" : "chats"}${searchHasMore ? " shown" : ""}`}</p>}
       {searchActive && searchError && <div className="mb-2 rounded-xl bg-red-50 p-3 text-sm text-red-800"><p role="alert">Could not search your chats.</p><button type="button" onClick={() => { setSearchLoading(true); setSearchError(false); setSearchRetry((attempt) => attempt + 1); }} className="mt-1 min-h-11 rounded-lg px-2 font-medium underline">Try search again</button></div>}
       {loadingChats && !searchActive ? (
@@ -789,26 +844,21 @@ export default function ChatClient() {
         <p className="px-3 text-sm leading-relaxed text-gray-600">Your conversations will appear here after you send your first message.</p>
       ) : (
         <nav aria-label={searchActive ? "Chat search results" : "Saved chats"} className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-1">
-          <ul className="space-y-1">
-            {(searchActive ? searchResults : chats).map((chat) => (
-              <li key={chat.id}>
-                <button
-                  type="button"
-                  onClick={() => { if (searchActive) upsertChat(chat); selectChat(chat.id); }}
-                  disabled={busy}
-                  aria-current={chat.id === selectedChatId ? "true" : undefined}
-                  className={"w-full rounded-xl px-3 py-3 text-left text-sm transition-colors disabled:cursor-wait " + (
-                    chat.id === selectedChatId
-                      ? "bg-primary-100 font-medium text-primary-900"
-                      : "text-gray-700 hover:bg-accent-700"
-                  )}
-                  title={chat.title}
-                >
-                  <span className="block truncate">{chat.title}</span>
-                </button>
-              </li>
-            ))}
-          </ul>
+          {groupByOpened && !searchActive ? (
+            <>
+              <section aria-labelledby="chat-last-opened-title" className="pb-4">
+                <div className="flex items-baseline justify-between gap-3 px-3 pb-2">
+                  <h2 id="chat-last-opened-title" className="text-xs font-semibold text-primary-700">Last opened</h2>
+                  <span className="text-xs text-gray-500">Today</span>
+                </div>
+                {lastOpenedChats.length > 0 ? chatItems(lastOpenedChats) : <p className="px-3 py-2 text-sm text-gray-500">Chats you open today will appear here.</p>}
+              </section>
+              <section aria-labelledby="chat-recent-title" className="border-t border-primary-100 pt-4">
+                <h2 id="chat-recent-title" className="px-3 pb-2 text-xs font-semibold text-primary-700">Recent chats</h2>
+                {recentChats.length > 0 ? chatItems(recentChats) : <p className="px-3 py-2 text-sm text-gray-500">No other recent chats.</p>}
+              </section>
+            </>
+          ) : chatItems(searchActive ? searchResults : chats, searchActive)}
           {searchActive && searchHasMore && !searchError && <button type="button" disabled={searchLoading} onClick={() => { setSearchLoading(true); setSearchPage((page) => page + 1); }} className="mt-3 min-h-11 w-full rounded-xl border border-primary-200 px-3 py-2 text-sm font-medium text-primary-800 hover:bg-primary-100 disabled:opacity-50">Show more matches</button>}
         </nav>
       )}
@@ -1162,20 +1212,19 @@ export default function ChatClient() {
         <dialog
           id="chat-search-panel"
           ref={searchDialogRef}
-          aria-labelledby="chat-search-title"
+          aria-label="Search chats"
           className="m-auto w-[calc(100%-2rem)] max-w-xl max-h-[80dvh] overflow-hidden rounded-2xl border border-primary-200 bg-white p-0 shadow-2xl backdrop:bg-gray-950/40"
           onCancel={(event) => { event.preventDefault(); setSearchMode(null); }}
           onKeyDown={trapDialogFocus}
           onClick={(event) => { if (event.target === event.currentTarget) setSearchMode(null); }}
         >
           <div className="flex max-h-[80dvh] min-h-80 flex-col p-5">
-            <div className="mb-3 flex shrink-0 items-center justify-between gap-3">
-              <h2 id="chat-search-title" className="text-xl font-semibold text-[#6C3483]">Search chats</h2>
-              <button type="button" aria-label="Close chat search" onClick={() => setSearchMode(null)} className="inline-flex h-11 w-11 items-center justify-center rounded-xl text-primary-700 hover:bg-primary-50"><X size={22} aria-hidden="true" /></button>
+            <div className="flex shrink-0 items-center gap-3">
+              {searchField("dialog")}
+              <button type="button" aria-label="Close chat search" onClick={() => setSearchMode(null)} className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-primary-700 hover:bg-primary-50"><X size={22} aria-hidden="true" /></button>
             </div>
-            {searchField("dialog")}
             <div className="mt-4 flex min-h-0 flex-1 flex-col">
-              {historyList(searchingTitles)}
+              {historyList(searchingTitles, true)}
             </div>
           </div>
         </dialog>
