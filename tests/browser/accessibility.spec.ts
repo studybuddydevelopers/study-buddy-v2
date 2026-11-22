@@ -184,7 +184,7 @@ test("zoom-equivalent 720px layout keeps primary interactions reachable", async 
       await summary.focus(); await page.keyboard.press("Enter");
       await expect(page.getByRole("region", { name: "Daily activity data" })).toBeVisible();
     } else if (route === "/chat") {
-      await expect(page.getByRole("textbox", { name: "Message to AI tutor" })).toBeEnabled();
+      await expect(page.getByRole("textbox", { name: "Message to AI Study Buddy Tutor" })).toBeEnabled();
     } else if (route === "/settings/study-preferences") {
       await expect(page.getByRole("switch", { name: "Low Data Mode" })).toBeEnabled();
     }
