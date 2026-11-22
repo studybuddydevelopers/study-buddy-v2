@@ -1,6 +1,6 @@
 # Study Buddy codebase breakdown
 
-Last checked against the working tree: 1 November 2026.
+Last checked against the current main source: 23 November 2026.
 Accessibility ownership and test references updated: 12 November 2026.
 
 This public contributor map describes source responsibilities, not production
@@ -12,9 +12,10 @@ infrastructure or access-provisioning procedures. See the
 Study Buddy supports account/profile management, subject/topic practice,
 mock exams, separate coverage/accuracy/performance reporting and saved AI chat.
 Written-answer marking has question-specific support reviews. The notification
-centre is implemented in this working tree but awaits staging migration/live
-checks. Payment integrations exist; their presence does not establish that a
-complete paid-subscription journey is enabled.
+centre and its database migration are present in this source tree; repository
+state does not establish whether the migration was applied or the feature passed
+live-environment acceptance. Payment integrations exist; their presence does
+not establish that a complete paid-subscription journey is enabled.
 
 There are no general administrator, school or teacher account screens in the
 current product. Specialist support workflows are separate from learner views.
@@ -59,7 +60,7 @@ regression test checks main-landmark ownership.
 - [Chat](app/chat): persistent conversations, rendering and retry/delete interactions.
 - [Profile](app/profile) and [Settings](app/settings): learner details, preferences and account management.
 - [Marking reviews](app/marking-reviews): case status and question-specific decisions.
-- [Notifications](app/notifications): review updates and read controls; not yet live-verified.
+- [Notifications](app/notifications): review updates and read controls; deployment acceptance is tracked outside the repository.
 
 The shell switches product navigation at 1110px. Progress carousels switch to
 grids at 769px. These are different decisions, not one universal mobile
