@@ -96,6 +96,42 @@
   box-shadow: 0 0 0 3px #FFFFFF;
 }
 
+/* The title search is one framed field, including its icons. */
+.chat-title-search:has(input:focus-visible) {
+  outline: 3px solid var(--primary-700);
+  outline-offset: 0;
+  box-shadow: 0 0 0 3px #FFFFFF;
+}
+.chat-title-search:has(input:focus-visible) input:focus-visible {
+  outline: none !important;
+  box-shadow: none;
+}
+
+.chat-splash-in,
+.chat-splash-out {
+  transform: scale(0);
+  animation-duration: 4.5s;
+  animation-delay: var(--splash-delay);
+  animation-iteration-count: infinite;
+  animation-timing-function: ease-out;
+}
+.chat-splash-in { animation-name: chat-splash-in; }
+.chat-splash-out { animation-name: chat-splash-out; }
+@keyframes chat-splash-in {
+  0% { transform: scale(0); }
+  25%, 86% { transform: scale(1); }
+  100% { transform: scale(0); }
+}
+@keyframes chat-splash-out {
+  0%, 52% { transform: scale(0); }
+  80%, 90% { transform: scale(1); }
+  100% { transform: scale(0); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .chat-splash-in { animation: none; transform: scale(1); }
+  .chat-splash-out { animation: none; transform: scale(0); }
+}
+
 /* Leave room for the fixed mobile navigation when focusing a control. */
 html {
   scroll-padding-bottom: calc(5rem + env(safe-area-inset-bottom));
