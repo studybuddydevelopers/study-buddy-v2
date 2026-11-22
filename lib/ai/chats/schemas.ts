@@ -2,6 +2,7 @@ import { z } from "zod";
 
 const nullableUuid = z.string().uuid().nullable();
 const optionalNullableUuid = nullableUuid.optional();
+export const chatTitleSearchSchema = z.string().trim().max(120);
 
 export const createChatSchema = z
   .object({

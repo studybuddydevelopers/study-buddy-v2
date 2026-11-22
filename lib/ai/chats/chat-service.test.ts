@@ -622,6 +622,13 @@ class InMemoryChatDb {
 
   private matches<T extends Record<string, unknown>>(item: T, where: Partial<T>) {
     return Object.entries(where).every(([key, value]) => {
+      if (value && typeof value === "object" && "contains" in value) {
+        const filter = value as { contains: string; mode?: string };
+        const text = String(item[key]);
+        return filter.mode === "insensitive"
+          ? text.toLowerCase().includes(filter.contains.toLowerCase())
+          : text.includes(filter.contains);
+      }
       if (
         value &&
         typeof value === "object" &&
@@ -1144,6 +1151,25 @@ describe("ChatService Stage 1 lifecycle", () => {
     const messages = await service.listMessages("user-a", "chat-a", { page: 1, pageSize: 500 });
     expect(messages.pagination.pageSize).toBe(100);
     expect(messages.messages.map((message) => message.id)).toEqual(["msg-a", "msg-b"]);
+  });
+
+  it("searches older titles case-insensitively and paginates only the owner's active matches", async () => {
+    const { db, service } = createService();
+    for (let i = 0; i < 30; i++) {
+      db.seedChat({ id: `recent-${i}`, userId: "user-a", title: "Geography revision", updatedAt: new Date("2026-11-01T12:00:00Z") });
+    }
+    db.seedChat({ id: "older-a", userId: "user-a", title: "Mathematics: Sets", updatedAt: new Date("2026-10-01T12:00:00Z") });
+    db.seedChat({ id: "older-b", userId: "user-a", title: "SETS practice", updatedAt: new Date("2026-10-02T12:00:00Z") });
+    db.seedChat({ id: "other-user", userId: "user-b", title: "Sets" });
+    db.seedChat({ id: "deleted", userId: "user-a", title: "Sets", deletedAt: new Date() });
+    const first = await service.listChats("user-a", { page: 1, pageSize: 1 }, "  sEtS  ");
+    expect(first.chats.map((chat) => chat.id)).toEqual(["older-b"]);
+    expect(first.pagination.total).toBe(2);
+    expect(first.pagination.hasNextPage).toBe(true);
+    const second = await service.listChats("user-a", { page: 2, pageSize: 1 }, "sets");
+    expect(second.chats.map((chat) => chat.id)).toEqual(["older-a"]);
+    expect(second.pagination.hasNextPage).toBe(false);
+    expect((await service.listChats("user-a", undefined, "unmatched")).chats).toEqual([]);
   });
 
   it("feature-gated grounded generation persists an attempt and visible citations", async () => {

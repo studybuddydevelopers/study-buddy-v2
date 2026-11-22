@@ -81,41 +81,166 @@ test("desktop sidebar can collapse without hiding the conversation", async ({ pa
   await expect(page.getByRole("navigation", { name: "Saved chats" })).toBeVisible();
 });
 
-test("suggestions prepare a draft, Shift+Enter adds a line, and Enter sends only once", async ({ page }) => {
-  let release!: () => void;
-  const response = new Promise<void>((resolve) => { release = resolve; });
+for (const width of [320, 1440]) {
+  test(`new chats stay local until sending and Settings stays labelled at ${width}px`, async ({ page }, info) => {
+    await page.setViewportSize({ width, height: 900 });
+    const writes: string[] = [];
+    page.on("request", (request) => {
+      if (request.url().includes("/api/v1/ai/chats") && request.method() !== "GET") writes.push(request.method());
+    });
+    await page.goto("/chat");
+    const settings = page.getByRole("button", { name: "Chat settings", exact: true });
+    await expect(settings.getByText("Settings", { exact: true })).toBeVisible();
+    const newChat = page.getByRole("button", { name: "New chat", exact: true });
+    await newChat.click();
+    await newChat.click();
+    const composer = page.getByRole("textbox", { name: "Message to AI tutor" });
+    await expect(composer).toBeFocused();
+    await composer.fill("An unsent question");
+    await settings.click();
+    await page.getByRole("textbox", { name: "Chat title" }).fill("Unsent draft title");
+    await expect(page.getByText("This chat is saved when you send your first message.")).toBeVisible();
+    await expect(page.getByRole("button", { name: "Save chat title" })).toHaveCount(0);
+    await settings.click();
+    await noPageOverflow(page);
+    await page.screenshot({ path: `output/playwright/chat-draft-${info.project.name}-${width}.png` });
+    if (width < 1024) await page.getByRole("button", { name: "Show chat history" }).click();
+    const savedChats = page.getByRole("navigation", { name: "Saved chats" });
+    await expect(savedChats.getByRole("button")).toHaveCount(1);
+    await savedChats.getByRole("button", { name: chat.title }).click();
+    await expect(composer).toHaveValue("");
+    await newChat.click();
+    await page.reload();
+    await expect(composer).toBeEnabled();
+    await expect(page.getByText("Unsent draft title", { exact: true })).toHaveCount(0);
+    expect(writes).toEqual([]);
+    await audit(page);
+  });
+}
+
+test("first send saves draft settings once and the conversation survives refresh", async ({ page }) => {
+  const subjectId = "11111111-1111-4111-8111-111111111111";
+  const topicId = "22222222-2222-4222-8222-222222222222";
+  const saved = { ...chat, id: "draft-chat", title: "My sets revision", subjectId, topicId, updatedAt: "2026-11-02T12:00:00Z", isStarted: true };
+  const userMessage = { ...message("1", "USER", "Explain the union of sets"), chatId: saved.id };
+  const assistantMessage = { ...message("2", "ASSISTANT", explanation), chatId: saved.id };
+  let creates = 0;
   let sends = 0;
-  await page.route("**/api/v1/ai/chats/synthetic-chat/messages", async (route) => {
+  await page.route("**/api/v1/materials/overview", (route) => route.fulfill({ json: { subjects: [{ id: subjectId, name: "Mathematics", topics: [{ id: topicId, title: "Sets" }] }] } }));
+  await page.route("**/api/v1/ai/chats?*", (route) => route.fulfill({ json: { chats: sends ? [saved, chat] : [chat] } }));
+  await page.route("**/api/v1/ai/chats", (route) => {
+    creates++;
+    expect(route.request().postDataJSON()).toEqual({ title: saved.title, subjectId, topicId });
+    return route.fulfill({ json: { chat: { ...saved, isStarted: false } } });
+  });
+  await page.route("**/api/v1/ai/chats/draft-chat/messages", (route) => {
     sends++;
-    expect(route.request().postDataJSON().message).toBe("Explain sets\nwith an example");
-    await response;
-    await route.fulfill({ json: {
-      chat: { ...chat, isStarted: true },
-      userMessage: message("1", "USER", "Explain sets\nwith an example"),
-      assistantMessage: message("2", "ASSISTANT", explanation),
-    } });
+    expect(route.request().postDataJSON().message).toBe(userMessage.content);
+    return route.fulfill({ json: { chat: saved, userMessage, assistantMessage } });
+  });
+  await page.route("**/api/v1/ai/chats/draft-chat/messages?*", (route) => route.fulfill({ json: { messages: [userMessage, assistantMessage] } }));
+  await page.goto("/chat");
+  await page.getByRole("button", { name: "New chat", exact: true }).click();
+  const settings = page.getByRole("button", { name: "Chat settings", exact: true });
+  await settings.click();
+  await page.getByRole("textbox", { name: "Chat title" }).fill(saved.title);
+  await page.getByRole("combobox", { name: "Subject", exact: true }).selectOption(subjectId);
+  await page.getByRole("combobox", { name: "Topic", exact: true }).selectOption(topicId);
+  await settings.click();
+  expect(creates).toBe(0);
+  await page.getByRole("textbox", { name: "Message to AI tutor" }).fill(userMessage.content);
+  await page.getByRole("button", { name: "Send message", exact: true }).click();
+  const transcript = page.getByRole("region", { name: "Chat messages", exact: true });
+  await expect(transcript).toContainText("Union includes every element");
+  await expect(page.getByRole("navigation", { name: "Saved chats" }).getByRole("button", { name: saved.title })).toHaveCount(1);
+  await page.reload();
+  await expect(transcript).toContainText(userMessage.content);
+  await expect(transcript).toContainText("Union includes every element");
+  expect(creates).toBe(1);
+  expect(sends).toBe(1);
+});
+
+for (const width of [320, 1440]) {
+  test(`composer explains its disabled state while sending at ${width}px`, async ({ page }, info) => {
+    await page.setViewportSize({ width, height: 900 });
+    let release!: () => void;
+    const response = new Promise<void>((resolve) => { release = resolve; });
+    let sends = 0;
+    await page.route("**/api/v1/ai/chats/synthetic-chat/messages", async (route) => {
+      sends++;
+      expect(route.request().postDataJSON().message).toBe("Explain sets\nwith an example");
+      await response;
+      await route.fulfill({ json: {
+        chat: { ...chat, isStarted: true },
+        userMessage: message("1", "USER", "Explain sets\nwith an example"),
+        assistantMessage: message("2", "ASSISTANT", explanation),
+      } });
+    });
+    await page.goto("/chat");
+    await page.getByRole("button", { name: "Explain a topic" }).click();
+    const composer = page.getByRole("textbox", { name: "Message to AI tutor" });
+    const form = page.getByRole("form", { name: "Send a message" });
+    const readyBackground = await form.evaluate(async (element) => {
+      await Promise.all(element.getAnimations().map((animation) => animation.finished.catch(() => {})));
+      return getComputedStyle(element).backgroundColor;
+    });
+    await expect(composer).toBeFocused();
+    await expect(composer).toHaveValue("Help me understand ");
+    expect(sends).toBe(0);
+    await composer.fill("Explain sets");
+    await composer.press("Shift+Enter");
+    await composer.pressSequentially("with an example");
+    await expect(composer).toHaveValue("Explain sets\nwith an example");
+    try {
+      await composer.press("Enter");
+      await expect(page.getByRole("status", { name: "AI Tutor is responding" })).toBeVisible();
+      await expect(page.getByRole("button", { name: "New chat", exact: true })).toBeDisabled();
+      await expect(page.getByRole("button", { name: "Sending message" })).toBeDisabled();
+      await expect(composer).toBeDisabled();
+      await expect(composer).toHaveAttribute("placeholder", "Study Buddy is replying…");
+      await expect(composer).toHaveAccessibleDescription(/Replying — input paused/);
+      await expect(composer).toHaveCSS("cursor", "not-allowed");
+      await expect(form.getByRole("status")).toHaveText("Replying — input paused");
+      await expect(form).not.toHaveCSS("background-color", readyBackground);
+      await noPageOverflow(page);
+      await audit(page);
+      await page.screenshot({ path: `output/playwright/chat-paused-${info.project.name}-${width}.png` });
+    } finally { release(); }
+    await expect(page.getByRole("region", { name: "Chat messages", exact: true })).toContainText("Union includes every element");
+    expect(sends).toBe(1);
+    await expect(composer).toBeEnabled();
+    await expect(composer).toHaveAttribute("placeholder", "Ask Study Buddy…");
+    await expect(form.getByRole("status")).toBeEmpty();
+    await expect(form).toHaveCSS("background-color", readyBackground);
+    await page.getByRole("button", { name: "Chat settings", exact: true }).click();
+    await expect(page.getByRole("combobox", { name: "Subject", exact: true })).toBeDisabled();
+    await audit(page);
+  });
+}
+
+test("retrying explains the paused input and restores it when the retry fails", async ({ page }) => {
+  await page.setViewportSize({ width: 320, height: 900 });
+  let release!: () => void;
+  const pending = new Promise<void>((resolve) => { release = resolve; });
+  await page.route("**/api/v1/ai/chats/synthetic-chat/messages?*", (route) => route.fulfill({ json: {
+    messages: [message("1", "USER", "Explain fractions"), { ...message("2", "ASSISTANT", ""), status: "FAILED", requestId: "request-1", failureCode: "INTERNAL_ERROR" }],
+  } }));
+  await page.route("**/api/v1/ai/chats/synthetic-chat/requests/request-1/retry", async (route) => {
+    await pending;
+    await route.fulfill({ status: 503, json: { message: "Please try again." } });
   });
   await page.goto("/chat");
-  await page.getByRole("button", { name: "Explain a topic" }).click();
   const composer = page.getByRole("textbox", { name: "Message to AI tutor" });
-  await expect(composer).toBeFocused();
-  await expect(composer).toHaveValue("Help me understand ");
-  expect(sends).toBe(0);
-  await composer.fill("Explain sets");
-  await composer.press("Shift+Enter");
-  await composer.pressSequentially("with an example");
-  await expect(composer).toHaveValue("Explain sets\nwith an example");
+  const status = page.getByRole("form", { name: "Send a message" }).getByRole("status");
   try {
-    await composer.press("Enter");
-    await expect(page.getByRole("status", { name: "AI Tutor is responding" })).toBeVisible();
-    await expect(page.getByRole("button", { name: "New chat", exact: true })).toBeDisabled();
-    await expect(page.getByRole("button", { name: "Sending message" })).toBeDisabled();
+    await page.getByRole("button", { name: "Retry", exact: true }).click();
+    await expect(composer).toBeDisabled();
+    await expect(status).toHaveText("Replying — input paused");
   } finally { release(); }
-  await expect(page.getByRole("region", { name: "Chat messages", exact: true })).toContainText("Union includes every element");
-  expect(sends).toBe(1);
-  await page.getByRole("button", { name: "Chat settings", exact: true }).click();
-  await expect(page.getByRole("combobox", { name: "Subject", exact: true })).toBeDisabled();
-  await audit(page);
+  await expect(page.getByRole("alert")).toBeVisible();
+  await expect(composer).toBeEnabled();
+  await expect(composer).toHaveAttribute("placeholder", "Ask Study Buddy…");
+  await expect(status).toBeEmpty();
 });
 
 test("failed creation preserves the draft for retry", async ({ page }) => {
@@ -192,6 +317,42 @@ for (const width of [320, 768, 1440]) {
   });
 }
 
+test("chat title search restores saved chats when cleared", async ({ page }) => {
+  const matchingChat = {
+    ...chat,
+    id: "biology-chat",
+    title: "Biology revision",
+  };
+  await page.route("**/api/v1/ai/chats?*", (route) => {
+    const query = new URL(route.request().url()).searchParams.get("q");
+    return route.fulfill({
+      json: query
+        ? { chats: [matchingChat], pagination: { hasNextPage: false } }
+        : { chats: [chat] },
+    });
+  });
+  await page.goto("/chat");
+  await page.getByRole("button", { name: "Search chats", exact: true }).click();
+  const search = page.getByRole("searchbox", { name: "Search chat titles" });
+  await search.fill("biology");
+  const results = page.getByRole("navigation", { name: "Chat search results" });
+  await expect(
+    results.getByRole("button", { name: matchingChat.title, exact: true })
+  ).toBeVisible();
+  await expect(
+    page.getByRole("status").filter({ hasText: "matching chat" })
+  ).toHaveText("1 matching chat");
+  await page.getByRole("button", { name: "Clear chat search" }).click();
+  await expect(search).toHaveValue("");
+  await expect(search).toBeFocused();
+  await expect(results).toHaveCount(0);
+  await expect(
+    page
+      .getByRole("navigation", { name: "Saved chats" })
+      .getByRole("button", { name: chat.title, exact: true })
+  ).toBeVisible();
+});
+
 test("a response can be copied and clipboard failures are explained", async ({ page }) => {
   await page.addInitScript(() => {
     let attempts = 0;
@@ -204,8 +365,9 @@ test("a response can be copied and clipboard failures are explained", async ({ p
   await page.route("**/api/v1/ai/chats/synthetic-chat/messages?*", (route) => route.fulfill({ json: { messages: [message("1", "ASSISTANT", explanation)] } }));
   await page.goto("/chat");
   await page.getByRole("button", { name: "Copy response", exact: true }).click();
-  await expect(page.getByRole("status")).toHaveText("Copied");
+  const responseStatus = page.getByRole("region", { name: "Chat messages", exact: true }).getByRole("status");
+  await expect(responseStatus).toHaveText("Copied");
   expect(await page.evaluate(() => (window as Window & { copiedResponse?: string }).copiedResponse)).toBe(explanation);
   await page.getByRole("button", { name: "Copy response again", exact: true }).click();
-  await expect(page.getByRole("status")).toContainText("Could not copy");
+  await expect(responseStatus).toContainText("Could not copy");
 });

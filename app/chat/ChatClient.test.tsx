@@ -14,7 +14,9 @@ describe("chat initial accessibility", () => {
     const html = renderToStaticMarkup(<ChatClient />);
     const composer = html.match(/<textarea\b[^>]*>/)?.[0];
     expect(composer).toContain('aria-label="Message to AI tutor"');
-    expect(composer).toContain('aria-describedby="chat-composer-help"');
+    expect(composer).toContain('aria-describedby="chat-composer-help chat-composer-status"');
+    expect(composer).toContain('placeholder="Loading conversation…"');
+    expect(html).toContain("Loading — input paused");
     expect(composer).toContain('disabled=""');
     expect(composer).toContain('maxLength="4000"');
     expect(html).toMatch(/<span\b[^>]*id="chat-composer-help"[^>]*>Press Enter to send, or Shift\+Enter for a new line\. Maximum 4000 characters\.<\/span>/);

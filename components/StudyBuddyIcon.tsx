@@ -6,6 +6,8 @@ export type StudyBuddyIconName =
   | "exams"
   | "progress"
   | "chat"
+  | "sidebarOpen"
+  | "sidebarClose"
   | "profile"
   | "settings"
   | "bell"
@@ -96,6 +98,15 @@ export default function StudyBuddyIcon({
 
 function iconArtwork(name: StudyBuddyIconName) {
   switch (name) {
+    case "sidebarOpen":
+    case "sidebarClose":
+      return (
+        <>
+          <rect x="13" y="13" width="38" height="38" rx="5" fill={PAPER} />
+          <path d="M18 13h8v38h-8a5 5 0 0 1-5-5V18a5 5 0 0 1 5-5Z" fill={PURPLE} />
+          <path d={name === "sidebarClose" ? "m41 24-8 8 8 8" : "m33 24 8 8-8 8"} fill="none" stroke={DEEP_PURPLE} strokeWidth="3" />
+        </>
+      );
     case "dashboard":
       return (
         <>
