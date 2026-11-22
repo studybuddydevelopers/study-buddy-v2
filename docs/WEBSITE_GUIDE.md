@@ -281,10 +281,11 @@ the current matches. The drawer's keyboard focus containment includes its search
 input.
 The **Settings** button displays its label beside the icon at every width. **New chat**
 opens a local draft without writing a chat record or adding a history entry.
-When the first message is sent without a custom title, AI proposes a short topic
-title, which is saved and shown with the reply. If naming fails, the first-message
-excerpt remains as a fallback. A manual title takes precedence, and later turns
-and retries do not retitle the conversation.
+Without a custom title, greetings and vague openings keep **New chat**. AI uses
+recent learner messages to choose a short title once a topic becomes clear,
+including on a later turn after reopening the conversation. Naming failure leaves
+the placeholder and can recover on a later message. Once named, the title stays
+stable; manual titles take precedence and answer retries do not trigger naming.
 Title, subject and topic choices also stay local until the first send; leaving
 or refreshing an unsent draft does not save it. Saved chats retain their normal
 rename/delete controls.
