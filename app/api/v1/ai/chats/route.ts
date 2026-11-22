@@ -6,16 +6,22 @@ import {
   getRoutePagination,
   parseJsonBody,
 } from "@/lib/ai/chats/http";
-import { createChatSchema } from "@/lib/ai/chats/schemas";
+import { chatTitleSearchSchema, createChatSchema } from "@/lib/ai/chats/schemas";
 
 export async function GET(req: Request) {
   const auth = await requireAiUser();
   if ("errorResponse" in auth) return auth.errorResponse;
 
+  const search = chatTitleSearchSchema.safeParse(new URL(req.url).searchParams.get("q") ?? "");
+  if (!search.success) {
+    return NextResponse.json({ message: "Search titles using 120 characters or fewer." }, { status: 400 });
+  }
+
   try {
     const result = await getChatService().listChats(
       auth.dbUser.id,
-      getRoutePagination(req)
+      getRoutePagination(req),
+      search.data
     );
     return NextResponse.json(result);
   } catch (error) {
