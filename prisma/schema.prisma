@@ -35,6 +35,11 @@ enum AiChatMessageStatus {
   FAILED
 }
 
+enum AiMessageReportStatus {
+  OPEN
+  REVIEWED
+}
+
 enum AiGenerationRequestStatus {
   PENDING
   COMPLETED
@@ -235,6 +240,8 @@ model User {
   profile                     UserProfile?
   settings                    UserSettings?
   aiChats                     AiChat[]
+  chatReports                 AiChatMessageReport[] @relation("ChatReportSubmitter")
+  chatReportsReviewed         AiChatMessageReport[] @relation("ChatReportReviewer")
   aiQuestions                 AiQuestion[]
   attempts                    PastQuestionAttempt[]
   practiceDrafts              PracticeAnswerDraft[]
@@ -704,8 +711,29 @@ model AiChatMessage {
   groundingAttempts          AiGroundingAttempt[] @relation("AiGroundingAssistantMessage")
   currentGroundingAttempt    AiGroundingAttempt?  @relation("AiMessageCurrentGroundingAttempt", fields: [currentGroundingAttemptId], references: [id], onDelete: SetNull)
   citations                  AiMessageCitation[]
+  report                     AiChatMessageReport?
 
   @@index([chatId, createdAt, id], map: "AiChatMessage_chatId_createdAt_id_idx")
+}
+
+model AiChatMessageReport {
+  id             String                @id @default(uuid())
+  messageId      String                @unique
+  userId         String
+  reason         String                @db.VarChar(32)
+  details        String                @db.VarChar(2000)
+  status         AiMessageReportStatus @default(OPEN)
+  createdAt      DateTime              @default(now())
+  reviewedAt     DateTime?
+  reviewedById   String?
+  resolutionNote String?               @db.VarChar(2000)
+
+  message    AiChatMessage @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  user       User         @relation("ChatReportSubmitter", fields: [userId], references: [id], onDelete: Cascade)
+  reviewedBy User?        @relation("ChatReportReviewer", fields: [reviewedById], references: [id], onDelete: SetNull)
+
+  @@index([status, createdAt, id])
+  @@index([userId, createdAt])
 }
 
 model AiGenerationRequest {
