@@ -85,7 +85,7 @@ Deployment requirements:
 
 - AI tutor/chat safeguards: make the AI tutor more robust against malpractice and misuse. Add detection, reporting, review workflows, and temporary account suspension for repeated consecutive unresolved malpractice/misuse incidents.
 - AI tutor/chat relevance: stop the AI from answering unrelated questions and keep responses focused on supported study/tutoring use cases.
-- AI tutor/chat UI: refine the existing saved-chat interface and test its current auto-scroll and dedicated scroll areas with long histories; these are not missing initial features.
+- AI tutor/chat UI: the ChatGPT-inspired conversation workspace is implemented locally, with a collapsible history, mobile drawer, growing composer and long-thread browser coverage. Staging review and physical mobile-keyboard checks remain; see [the chat UI guide](docs/WEBSITE_GUIDE.md#chat).
 - AI tutor visual identity: change/update the AI tutor image.
 - AI activity: verify counters across persistent chats and legacy threads before reporting an unresolved counting bug.
 - Progress follow-up: validate the implemented separate metrics, daily trends, filters, mobile carousels and compact mock results against learner feedback.

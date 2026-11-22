@@ -1,4 +1,6 @@
 "use client";
+import { useState } from "react";
+import { Check, Copy } from "lucide-react";
 import Image from "@/components/Image";
 import ChatMarkdown from "@/components/ChatMarkdown";
 import { FAILED_ASSISTANT_MESSAGE } from "@/components/chatFailureCopy";
@@ -37,74 +39,56 @@ export default function ChatMessage({
   onCitationClick,
   retrying = false,
 }: ChatMessageProps) {
+  const [copyState, setCopyState] = useState<"idle" | "copied" | "failed">("idle");
   const isUser = sender === "user";
   const isPending = status === "PENDING";
   const isFailed = status === "FAILED";
   const showCitations = !isPending && !isFailed && citations.length > 0;
   const isInsufficient = Boolean(grounding?.insufficientContext);
 
+  async function copyResponse() {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopyState("copied");
+    } catch {
+      setCopyState("failed");
+    }
+  }
+
   return (
     <div
       data-chat-message
       data-sender={sender}
-      className={`flex items-start gap-2 w-full min-w-0 ${isUser ? "justify-end text-right" : "justify-start text-left"
-        }`}
+      className={`flex w-full min-w-0 ${isUser ? "justify-end" : "flex-col items-start"}`}
     >
-      {/* Avatar (left for AI, right for user) */}
-      {!isUser && avatar && (
-        <Image
-          dataChatAvatar
-          src={avatar}
-          alt={name ?? ""}
-          className="!h-12 !w-12 min-w-[48px] max-w-[48px] shrink-0 rounded-full object-cover"
-          sizes="48px"
-          widths={[48, 96]}
-          width={48}
-          height={48}
-          rounded="full"
-        />
+      {!isUser && (
+        <div className="mb-3 flex items-center gap-2.5">
+          {avatar && <Image dataChatAvatar src={avatar} alt="" className="!h-10 !w-10 shrink-0 !object-contain" sizes="40px" widths={[40, 80]} width={40} height={40} rounded="full" />}
+          <span className="text-sm font-semibold text-primary-900">{name ?? "AI Tutor"}</span>
+        </div>
       )}
 
-      {/* Message + Name wrapper */}
-      <div className={`flex min-w-0 max-w-[78%] flex-col sm:max-w-[70%] ${isUser ? "items-end" : "items-start"}`}>
-        {name && <div className="mb-1 text-xs font-medium text-gray-500">{name}</div>}
+      <div className={`min-w-0 ${isUser ? "max-w-[90%] sm:max-w-[80%]" : "w-full"}`}>
+        {isUser && <span className="sr-only">{name ?? "You"}:</span>}
 
         <div
-          className={`max-w-full overflow-hidden break-words rounded-2xl px-4 py-3 text-sm leading-relaxed shadow-sm ${isUser
-              ? "bg-primary-500 text-background"
+          className={`max-w-full break-words text-base leading-7 ${isUser
+              ? "rounded-3xl bg-primary-100 px-5 py-3 text-primary-900"
               : isFailed
-                ? "bg-red-50 text-red-900 border border-red-100"
+                ? "rounded-2xl border border-red-100 bg-red-50 p-4 text-red-900"
                 : isInsufficient
-                  ? "bg-amber-50 text-amber-950 border border-amber-100"
-                  : "bg-gray-100 text-gray-900"
+                  ? "rounded-2xl border border-amber-100 bg-amber-50 p-4 text-amber-950"
+                  : "text-gray-900"
             }`}
         >
           {isPending ? (
             <div
-              className="flex min-h-16 items-center justify-center gap-2 px-2"
+              className="flex min-h-11 items-center gap-3 text-sm text-gray-600"
               role="status"
               aria-label={`${name ?? "AI Tutor"} is responding`}
             >
-              {avatar &&
-                ["one", "two", "three"].map((coin) => (
-                  <span
-                    key={coin}
-                    aria-hidden="true"
-                    className={`ai-avatar-coin-loader ai-avatar-coin-loader--${coin} inline-flex h-14 w-14 items-center justify-center rounded-full border-2 border-primary-200 bg-white p-1 shadow-sm`}
-                  >
-                    <Image
-                      dataChatAvatar
-                      src={avatar}
-                      alt=""
-                      className="!h-12 !w-12 min-w-[48px] max-w-[48px] shrink-0 rounded-full object-cover"
-                      sizes="48px"
-                      widths={[48, 96]}
-                      width={48}
-                      height={48}
-                      rounded="full"
-                    />
-                  </span>
-                ))}
+              <span aria-hidden="true" className="h-2.5 w-2.5 rounded-full bg-primary-500 motion-safe:animate-pulse" />
+              Thinking through your question…
             </div>
           ) : isFailed ? (
             <div className="space-y-2">
@@ -114,7 +98,7 @@ export default function ChatMessage({
                   type="button"
                   onClick={retrying ? undefined : onRetry}
                   disabled={retrying}
-                  className="rounded-md bg-red-100 px-3 py-1 text-sm font-semibold text-red-800 transition hover:bg-red-200 disabled:opacity-60"
+                  className="min-h-11 rounded-lg bg-red-100 px-3 py-2 text-sm font-semibold text-red-800 transition hover:bg-red-200 disabled:opacity-60"
                 >
                   {retrying ? "Retrying..." : "Retry"}
                 </button>
@@ -130,7 +114,7 @@ export default function ChatMessage({
                       key={citation.id}
                       type="button"
                       onClick={() => onCitationClick?.(citation)}
-                      className="rounded-full border border-primary-200 bg-white px-2.5 py-1 text-xs font-semibold text-primary-800 transition hover:bg-primary-50"
+                      className="min-h-11 rounded-full border border-primary-200 bg-white px-3 py-2 text-xs font-semibold text-primary-800 transition hover:bg-primary-50"
                     >
                       {citation.sourceLabel}
                     </button>
@@ -142,21 +126,20 @@ export default function ChatMessage({
 
 
         </div>
+        {!isUser && !isPending && !isFailed && text && (
+          <div className="mt-2 flex items-center gap-2 text-xs text-gray-600">
+            <button
+              type="button"
+              onClick={() => void copyResponse()}
+              aria-label={copyState === "copied" ? "Copy response again" : "Copy response"}
+              className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl hover:bg-primary-50 hover:text-primary-700"
+            >
+              {copyState === "copied" ? <Check size={18} aria-hidden="true" /> : <Copy size={18} aria-hidden="true" />}
+            </button>
+            <span role="status">{copyState === "copied" ? "Copied" : copyState === "failed" ? "Could not copy. Select the text to copy it." : ""}</span>
+          </div>
+        )}
       </div>
-
-      {isUser && avatar && (
-        <Image
-          dataChatAvatar
-          src={avatar}
-          alt={name ?? ""}
-          className="!h-12 !w-12 min-w-[48px] max-w-[48px] shrink-0 rounded-full object-cover"
-          sizes="48px"
-          widths={[48, 96]}
-          width={48}
-          height={48}
-          rounded="full"
-        />
-      )}
     </div>
   );
 }

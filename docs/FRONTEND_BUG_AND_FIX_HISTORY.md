@@ -85,6 +85,22 @@ claims or sensitive evidence.
 | FE-028 | Saved turns could reorder after refresh, and a failed send could lose the request reference needed for retry. | Client ordering/state and request metadata were corrected (`95fa0b3`, `84d0328`). See [ChatClient](../app/chat/ChatClient.tsx) and [chat service coverage](../lib/ai/chats/chat-service.test.ts). Retry reuses the existing turn rather than intentionally creating another question. | Corrected in source; refresh/retry browser journey still relevant |
 | FE-029 | Decorative title-save/delete icons were less clear than the requested familiar controls. | White pencil and normal bin icons replaced those action icons (`df9cce0`) in [ChatClient](../app/chat/ChatClient.tsx). This does not reopen the approved site-wide icon rollout. | UX change implemented |
 
+### Conversation workspace update — 22 November 2026
+
+| ID | Reported problem / requested change | Correction and evidence | Status |
+| --- | --- | --- | --- |
+| FE-069 | Requested a ChatGPT-inspired conversation layout in Study Buddy colours, replacing stacked history/settings/message panels. | [ChatClient](../app/chat/ChatClient.tsx) now has collapsible desktop history, a mobile history drawer, chat settings disclosure and a centred conversation/composer. [Messages](../components/ChatMessage.tsx) use lilac learner bubbles and unboxed tutor answers with copy controls. | UX change implemented locally; staging review pending |
+| FE-070 | Failed chat creation discarded the draft; fetching a new chat's empty history could replace its first optimistic turn. | Preserve the draft after creation failure and skip the redundant initial history fetch for a newly created chat. Existing stored-chat history still loads normally. [Browser cases](../tests/browser/chat-workspace.spec.ts) exercise creation failure and the first pending/completed turn. | Corrected in source; synthetic browser coverage |
+| FE-071 | Long conversations exposed repeated table region landmarks; the new mobile drawer needed explicit focus containment and Safari focus return. | Tables are named keyboard-scrollable groups. The native history dialog traps Tab/Shift+Tab and restores focus to its trigger; Escape and thread selection close it. [Browser tests](../tests/browser/chat-workspace.spec.ts) cover keyboard interaction and repeated tables. | Corrected in source; Chromium/WebKit coverage |
+
+Verification uses isolated real-component fixtures with synthetic conversations,
+the same maths/highlighting styles as the app and no live AI requests. Coverage
+includes widths from 320px to 1440px, long transcripts, empty states, multiline
+input, copy success/failure, source previews, sending and deletion. It does not
+establish live API/credit behaviour, physical mobile-keyboard behaviour or a
+pixel-identical copy of ChatGPT. The external reference's automated browser
+inspection stopped at a human-verification screen; no challenge was bypassed.
+
 ## Progress and dashboard reporting
 
 | ID | Reported problem | Correction and evidence | Status |
