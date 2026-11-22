@@ -1,6 +1,6 @@
 # Deployment and Security Fix History
 
-Last updated: 12 November 2026
+Last updated: 17 November 2026
 
 This is the public-safe historical register for Study Buddy deployment and
 security defects, hardening gaps, operational failures, and their corrections.
@@ -57,6 +57,7 @@ company tracker, not this public repository.
 | SEC-015 | 29 September 2026 | Marking-review records needed database-level protection in addition to route authorization. | Added row-level security and runtime grants for the marking-review tables. Representative commit: `e933cf1`. | Resolved; live migration/grants require deployment verification |
 | SEC-016 | 1 November 2026 | Public documentation contained unnecessary internal host patterns, live-style tuning, exact monitoring filters, evidence links, and detailed open-control status. No live-looking credential was found, but the detail increased reconnaissance value. | Added a security policy and public-safe deployment guide, sanitised the Railway/beta/incident/pentest/backlog documentation, and moved live values/evidence requirements to the restricted operations boundary. | Corrected in the working tree; commit and deploy documentation changes |
 | SEC-017 | 1 November 2026 | The locked dependency graph contained multiple release-blocking advisories across production and development packages. | Applied compatible framework, validation, rendering, parser, and test-tool patches; pinned the security-sensitive direct updates; constrained transitive rendering to the patched version; and verified the production dependency graph, application tests, operational-script tests, lint, production build, and built-server health response. The protected staging candidate now also passes the complete CI and branch-deployment gates. Exact advisory details remain in the restricted security dashboard. | Resolved in staging candidate; production promotion requires separate approval and verification |
+| SEC-018 | 17 November 2026 | A framework patch became available for two findings, while a separate transitive glob-matching advisory had no patched release and caused every affected build/test dependency path to fail the audit gate. | Updated the framework and matching lint configuration to the compatible patched release. Added a tested, fail-closed audit policy that accepts only the reviewed transitive dependency graph until 17 December 2026; any new moderate-or-higher advisory, dependency-path change, or expiry still fails CI. Repository search found no application-runtime import of the affected glob matcher. | Framework findings resolved; one time-limited dependency risk accepted pending an upstream patch |
 
 ## Open or not independently verified
 
