@@ -2,6 +2,7 @@
 
 Last checked against the working tree: 1 November 2026.
 Chat accessibility notes updated: 12 November 2026; no model/marking changes.
+Conversation layout notes updated: 22 November 2026; no provider/credit changes.
 
 This guide covers the learner-facing experience and frontend integration, not
 production credentials, privileged access configuration or adversarial test
@@ -23,10 +24,18 @@ The main `/chat` page uses [ChatClient](app/chat/ChatClient.tsx) and the persist
 - Retry a failed reply without creating a second copy of their question.
 - Permanently delete a chat after explicit confirmation.
 
-White pencil/bin icons remain on save/delete actions. Conversation and chat-list
-panels have their own scroll areas. Auto-scroll logic already exists; test
-changes against long histories and learners reading older messages rather than
-describing it as an entirely missing feature.
+The ChatGPT-inspired workspace uses Study Buddy's purple palette, right-aligned
+learner bubbles and unboxed tutor answers. White pencil/bin icons remain on
+save/delete actions under **Chat settings**, alongside the subject/topic
+selectors. History collapses on desktop and opens as a modal drawer below
+1024px. The existing AI avatar is retained; complete answers can be copied.
+
+Conversation and chat-list panels have their own scroll areas. The growing
+composer stays below the transcript; empty-state study suggestions prepare a
+draft without making an AI request. Reading older messages pauses automatic
+following, with a **Jump to latest message** action. Failed chat creation keeps
+the unsent draft available for retry. Active sends/retries prevent switching
+threads. These controls use the existing persistent-chat endpoints.
 
 The composer has an accessible name and instructions for Enter/Shift+Enter;
 the transcript is a named, keyboard-focusable scroll region. Automatic scrolling
@@ -49,6 +58,7 @@ GitHub-flavoured Markdown support and syntax highlighting.
 
 - Test inline/display maths, `\cup`, `\cap`, fractions, escaped delimiters, mixed prose, lists, tables and code fences.
 - Keep wide formulas, tables and code scrollable within their containers.
+- Repeated tables remain keyboard-scrollable, named groups without creating duplicate region landmarks.
 - Keep KaTeX's assistive-technology layer available without displaying a second visible copy.
 - External image references render as text placeholders, not automatic downloads.
 - Code blocks provide copying; external links identify that they open a new tab.
