@@ -27,7 +27,7 @@ import type {
 } from "@/lib/resources/retrieval/types";
 import { ChatService } from "./chat-service";
 import { ChatServiceError } from "./errors";
-import { CHAT_TITLE_PROMPT } from "./chat-title";
+import { CHAT_TITLE_PROMPT, CHAT_TITLE_WAIT } from "./chat-title";
 
 type ChatRow = {
   id: string;
@@ -758,12 +758,43 @@ describe("AI default chat titles", () => {
     expect(provider.titleInputs).toHaveLength(0);
   });
 
-  it("does not retitle an older conversation that still has the placeholder title", async () => {
+  it("waits through greetings and names the topic on a later turn, even after reopening", async () => {
     const { db, service, provider } = createService();
-    db.seedChat({ id: "older-chat", userId: "user-a" });
-    await db.aiChatMessage.create({ data: { chatId: "older-chat", role: AiChatRole.USER, content: "An earlier question", status: AiChatMessageStatus.COMPLETED } });
-    const result = await service.sendMessage("user-a", "older-chat", { message: "Explain ratios", clientRequestId: "old-placeholder" });
-    expect(result.chat.title).toBe("New chat");
+    provider.titleResult = { text: "Understanding simultaneous equations", provider: "fake", model: "fake-chat" };
+    const { chat } = await service.createChat("user-a", {});
+    const greeting = { message: "Hello!", clientRequestId: "greeting-title" };
+    expect((await service.sendMessage("user-a", chat.id, greeting)).chat.title).toBe("New chat");
+    await service.sendMessage("user-a", chat.id, greeting);
+    expect(provider.titleInputs).toHaveLength(0);
+    const reopened = new ChatService(db as never, provider);
+    expect((await reopened.sendMessage("user-a", chat.id, { message: "Can you help me?", clientRequestId: "vague-title" })).chat.title).toBe("New chat");
+    expect(provider.titleInputs).toHaveLength(0);
+    const result = await reopened.sendMessage("user-a", chat.id, { message: "I need help with simultaneous equations", clientRequestId: "topic-title" });
+    expect(result.chat.title).toBe("Understanding simultaneous equations");
+    expect(provider.titleInputs).toHaveLength(1);
+    expect(provider.titleInputs[0].messages.slice(1).map((message) => message.content)).toEqual(["Hello!", "Can you help me?", "I need help with simultaneous equations"]);
+  });
+
+  it("leaves the title pending when AI needs more context, then names the clarified topic", async () => {
+    const { service, provider } = createService();
+    const { chat } = await service.createChat("user-a", {});
+    provider.titleResult = { text: CHAT_TITLE_WAIT, provider: "fake", model: "fake-chat" };
+    const vague = await service.sendMessage("user-a", chat.id, { message: "I do not know where to begin", clientRequestId: "unclear-title" });
+    expect(vague.chat.title).toBe("New chat");
+    expect(vague.assistantMessage.status).toBe(AiChatMessageStatus.COMPLETED);
+    provider.titleResult = { text: "Understanding set notation", provider: "fake", model: "fake-chat" };
+    const clarified = await service.sendMessage("user-a", chat.id, { message: "The union and intersection symbols in sets confuse me", clientRequestId: "clarified-title" });
+    expect(clarified.chat.title).toBe("Understanding set notation");
+    expect(provider.titleInputs).toHaveLength(2);
+  });
+
+  it("preserves a manual title saved while the conversation is still only greetings", async () => {
+    const { service, provider } = createService();
+    const { chat } = await service.createChat("user-a", {});
+    await service.sendMessage("user-a", chat.id, { message: "Hello", clientRequestId: "greeting-before-rename" });
+    await service.updateChat("user-a", chat.id, { title: "My evening revision" });
+    const result = await service.sendMessage("user-a", chat.id, { message: "Explain set notation", clientRequestId: "topic-after-rename" });
+    expect(result.chat.title).toBe("My evening revision");
     expect(provider.titleInputs).toHaveLength(0);
   });
 
@@ -776,7 +807,7 @@ describe("AI default chat titles", () => {
     };
     const { chat } = await service.createChat("user-a", {});
     const result = await service.sendMessage("user-a", chat.id, { message: "Explain set notation", clientRequestId: "title-save-failure" });
-    expect(result.chat.title).toBe("Explain set notation");
+    expect(result.chat.title).toBe("New chat");
     expect(result.assistantMessage.status).toBe(AiChatMessageStatus.COMPLETED);
     expect(db.messages.find((message) => message.id === result.assistantMessage.id)?.status).toBe(AiChatMessageStatus.COMPLETED);
   });
@@ -800,15 +831,19 @@ describe("AI default chat titles", () => {
     expect((await send).chat.title).toBe("Ratios for my exam");
   });
 
-  it("keeps the first-message fallback and completed answer when title generation fails", async () => {
+  it("keeps naming pending after a failure and can recover on a later message", async () => {
     const { service, provider } = createService();
     provider.titleResult = new ChatProviderError(AiGenerationFailureCode.PROVIDER_TIMEOUT);
     const { chat } = await service.createChat("user-a", {});
     const result = await service.sendMessage("user-a", chat.id, { message: "Explain set notation", clientRequestId: "title-timeout" });
-    expect(result.chat.title).toBe("Explain set notation");
+    expect(result.chat.title).toBe("New chat");
     expect(result.assistantMessage.status).toBe(AiChatMessageStatus.COMPLETED);
     expect(result.generated).toBe(true);
     expect(provider.titleInputs).toHaveLength(1);
+    provider.titleResult = { text: "Understanding set notation", provider: "fake", model: "fake-chat" };
+    const recovered = await service.sendMessage("user-a", chat.id, { message: "Can you show me a union example?", clientRequestId: "title-recovered" });
+    expect(recovered.chat.title).toBe("Understanding set notation");
+    expect(provider.titleInputs).toHaveLength(2);
   });
 
   it("does not regenerate a title when a failed answer is retried", async () => {
