@@ -22,7 +22,7 @@ beforeEach(() => {
 describe("short auxiliary OpenAI requests", () => {
   it("enforces the title deadline with no automatic retry while retaining the token-budget guard", async () => {
     const provider = new OpenAIChatModelProvider({ apiKey: "synthetic-key", model: "test-model" });
-    expect(await generateChatTitle(provider, "What does a union of two sets mean?")).toBe("Understanding set unions");
+    expect(await generateChatTitle(provider, ["What does a union of two sets mean?"])).toBe("Understanding set unions");
     expect(mocks.create).toHaveBeenCalledWith(expect.objectContaining({ model: "test-model", max_tokens: 64 }), { timeout: 6000, maxRetries: 0 });
     expect(mocks.budget).toHaveBeenCalledTimes(1);
     expect(mocks.budget).toHaveBeenCalledWith(expect.objectContaining({ maxOutputTokens: 64, promptMaterial: expect.any(Array), readActualTokens: expect.any(Function) }));
