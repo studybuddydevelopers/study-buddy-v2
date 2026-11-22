@@ -91,7 +91,7 @@ export class OpenAIChatModelProvider implements ChatModelProvider {
           messages,
           temperature: input.temperature ?? 0.3,
           max_tokens: maxOutputTokens,
-        }),
+        }, input.timeoutMs === undefined ? undefined : { timeout: input.timeoutMs, maxRetries: 0 }),
         readActualTokens: (result) => result.usage?.total_tokens,
       });
 
@@ -109,7 +109,8 @@ export class OpenAIChatModelProvider implements ChatModelProvider {
       const completion = await withGlobalAiTokenBudget({
         promptMaterial: request.messages,
         maxOutputTokens: request.max_tokens,
-        operation: () => this.client.chat.completions.create(request),
+        operation: () => this.client.chat.completions.create(request,
+          input.timeoutMs === undefined ? undefined : { timeout: input.timeoutMs, maxRetries: 0 }),
         readActualTokens: (result) => result.usage?.total_tokens,
       });
 
