@@ -3,6 +3,7 @@ import { test, expect, audit } from "./support";
 test.beforeEach(async ({ page }) => {
   await page.setViewportSize({ width: 320, height: 900 });
   await page.goto("/chat");
+  await page.getByRole("button", { name: "Chat settings", exact: true }).click();
   const trigger = page.getByRole("button", { name: "Delete chat", exact: true });
   await expect(trigger).toBeEnabled();
   await trigger.focus();
