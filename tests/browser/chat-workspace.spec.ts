@@ -22,7 +22,7 @@ for (const width of [320, 390, 768, 1024, 1440]) {
     } }));
     await page.goto("/chat");
     const transcript = page.getByRole("region", { name: "Chat messages", exact: true });
-    const composer = page.getByRole("textbox", { name: "Message to AI tutor" });
+    const composer = page.getByRole("textbox", { name: "Message to AI Study Buddy Tutor" });
     await expect(transcript.locator("[data-chat-message]")).toHaveCount(12);
     await expect(composer).toBeInViewport({ ratio: 1 });
     const submit = page.getByRole("button", { name: "Send message", exact: true });
@@ -76,7 +76,7 @@ test("desktop sidebar can collapse without hiding the conversation", async ({ pa
   await page.goto("/chat");
   await page.getByRole("button", { name: "Hide chat history" }).click();
   await expect(page.getByRole("navigation", { name: "Saved chats" })).toHaveCount(0);
-  await expect(page.getByRole("textbox", { name: "Message to AI tutor" })).toBeEnabled();
+  await expect(page.getByRole("textbox", { name: "Message to AI Study Buddy Tutor" })).toBeEnabled();
   await page.getByRole("button", { name: "Show chat history" }).click();
   await expect(page.getByRole("navigation", { name: "Saved chats" })).toBeVisible();
 });
@@ -94,7 +94,7 @@ for (const width of [320, 1440]) {
     const newChat = page.getByRole("button", { name: "New chat", exact: true });
     await newChat.click();
     await newChat.click();
-    const composer = page.getByRole("textbox", { name: "Message to AI tutor" });
+    const composer = page.getByRole("textbox", { name: "Message to AI Study Buddy Tutor" });
     await expect(composer).toBeFocused();
     await composer.fill("An unsent question");
     await settings.click();
@@ -148,7 +148,7 @@ test("first send saves draft settings once and the conversation survives refresh
   await page.getByRole("combobox", { name: "Topic", exact: true }).selectOption(topicId);
   await settings.click();
   expect(creates).toBe(0);
-  await page.getByRole("textbox", { name: "Message to AI tutor" }).fill(userMessage.content);
+  await page.getByRole("textbox", { name: "Message to AI Study Buddy Tutor" }).fill(userMessage.content);
   await page.getByRole("button", { name: "Send message", exact: true }).click();
   const transcript = page.getByRole("region", { name: "Chat messages", exact: true });
   await expect(transcript).toContainText("Union includes every element");
@@ -178,7 +178,7 @@ for (const width of [320, 1440]) {
     });
     await page.goto("/chat");
     await page.getByRole("button", { name: "Explain a topic" }).click();
-    const composer = page.getByRole("textbox", { name: "Message to AI tutor" });
+    const composer = page.getByRole("textbox", { name: "Message to AI Study Buddy Tutor" });
     const form = page.getByRole("form", { name: "Send a message" });
     const readyBackground = await form.evaluate(async (element) => {
       await Promise.all(element.getAnimations().map((animation) => animation.finished.catch(() => {})));
@@ -193,7 +193,13 @@ for (const width of [320, 1440]) {
     await expect(composer).toHaveValue("Explain sets\nwith an example");
     try {
       await composer.press("Enter");
-      await expect(page.getByRole("status", { name: "AI Tutor is responding" })).toBeVisible();
+      const responding = page.getByRole("status", { name: "AI Study Buddy Tutor is responding" });
+      await expect(responding).toBeVisible();
+      await expect(responding).toContainText("Thinking through your question…");
+      const volumeBars = responding.locator("svg g[mask] rect");
+      await expect(volumeBars.first()).toBeAttached();
+      const firstFrame = await volumeBars.evaluateAll((bars) => bars.map((bar) => bar.getAttribute("height")));
+      await expect.poll(() => volumeBars.evaluateAll((bars) => bars.map((bar) => bar.getAttribute("height")))).not.toEqual(firstFrame);
       await expect(page.getByRole("button", { name: "New chat", exact: true })).toBeDisabled();
       await expect(page.getByRole("button", { name: "Sending message" })).toBeDisabled();
       await expect(composer).toBeDisabled();
@@ -230,7 +236,7 @@ test("retrying explains the paused input and restores it when the retry fails", 
     await route.fulfill({ status: 503, json: { message: "Please try again." } });
   });
   await page.goto("/chat");
-  const composer = page.getByRole("textbox", { name: "Message to AI tutor" });
+  const composer = page.getByRole("textbox", { name: "Message to AI Study Buddy Tutor" });
   const status = page.getByRole("form", { name: "Send a message" }).getByRole("status");
   try {
     await page.getByRole("button", { name: "Retry", exact: true }).click();
@@ -247,7 +253,7 @@ test("failed creation preserves the draft for retry", async ({ page }) => {
   await page.route("**/api/v1/ai/chats?*", (route) => route.fulfill({ json: { chats: [] } }));
   await page.route("**/api/v1/ai/chats", (route) => route.fulfill({ status: 503, json: { message: "Could not create chat. Try again." } }));
   await page.goto("/chat");
-  const composer = page.getByRole("textbox", { name: "Message to AI tutor" });
+  const composer = page.getByRole("textbox", { name: "Message to AI Study Buddy Tutor" });
   await composer.fill("Help me with fractions");
   await page.getByRole("button", { name: "Send message" }).click();
   await expect(page.getByRole("alert")).toContainText("Could not create chat");
@@ -265,10 +271,10 @@ test("first message in a new chat remains visible while the answer is pending", 
     await route.fulfill({ json: { chat: { ...chat, isStarted: true }, userMessage: message("1", "USER", "Explain fractions"), assistantMessage: message("2", "ASSISTANT", "A fraction is a part of a whole.") } });
   });
   await page.goto("/chat");
-  await page.getByRole("textbox", { name: "Message to AI tutor" }).fill("Explain fractions");
+  await page.getByRole("textbox", { name: "Message to AI Study Buddy Tutor" }).fill("Explain fractions");
   try {
     await page.getByRole("button", { name: "Send message" }).click();
-    await expect(page.getByRole("status", { name: "AI Tutor is responding" })).toBeVisible();
+    await expect(page.getByRole("status", { name: "AI Study Buddy Tutor is responding" })).toBeVisible();
     await expect(page.getByRole("region", { name: "Chat messages", exact: true })).toContainText("Explain fractions");
   } finally { release(); }
   await expect(page.getByRole("region", { name: "Chat messages", exact: true })).toContainText("A fraction is a part of a whole.");
@@ -306,7 +312,7 @@ for (const width of [320, 768, 1440]) {
     await expect(page.getByRole("button", { name: "Explain a topic" })).toBeInViewport({ ratio: 1 });
     await noPageOverflow(page);
     await page.screenshot({ path: `output/playwright/chat-empty-${info.project.name}-${width}.png` });
-    const composer = page.getByRole("textbox", { name: "Message to AI tutor" });
+    const composer = page.getByRole("textbox", { name: "Message to AI Study Buddy Tutor" });
     const before = await composer.boundingBox();
     await composer.fill("Help me check my working:\n\n" + "A line of working\n".repeat(12));
     const after = await composer.boundingBox();
