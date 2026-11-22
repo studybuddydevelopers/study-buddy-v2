@@ -3,6 +3,7 @@ import { useState } from "react";
 import { Check, Copy } from "lucide-react";
 import Image from "@/components/Image";
 import ChatMarkdown from "@/components/ChatMarkdown";
+import { SbEqualizerLoadingPattern } from "@/components/SbSequentialFillPreview";
 import { FAILED_ASSISTANT_MESSAGE } from "@/components/chatFailureCopy";
 import type { ChatCitationData } from "./ChatMessageContainer";
 
@@ -63,7 +64,11 @@ export default function ChatMessage({
     >
       {!isUser && (
         <div className="mb-3 flex items-center gap-2.5">
-          {avatar && <Image dataChatAvatar src={avatar} alt="" className="!h-10 !w-10 shrink-0 !object-contain" sizes="40px" widths={[40, 80]} width={40} height={40} rounded="full" />}
+          {avatar && (
+            <span className="inline-flex h-16 w-16 shrink-0 items-center justify-center rounded-full border-[3px] border-black bg-[#5e3194] sm:h-20 sm:w-20">
+              <Image dataChatAvatar src={avatar} alt="" className="!h-[70%] !w-[70%] !object-contain" sizes="(min-width: 640px) 52px, 41px" widths={[52, 104]} width={80} height={80} rounded="none" />
+            </span>
+          )}
           <span className="text-sm font-semibold text-primary-900">{name ?? "AI Tutor"}</span>
         </div>
       )}
@@ -87,7 +92,7 @@ export default function ChatMessage({
               role="status"
               aria-label={`${name ?? "AI Tutor"} is responding`}
             >
-              <span aria-hidden="true" className="h-2.5 w-2.5 rounded-full bg-primary-500 motion-safe:animate-pulse" />
+              <span aria-hidden="true" className="shrink-0"><SbEqualizerLoadingPattern size={44} showMessage={false} /></span>
               Thinking through your question…
             </div>
           ) : isFailed ? (
