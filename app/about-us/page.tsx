@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 import Button from "@/components/Button";
 import Heading1 from "@/components/Heading1";
@@ -91,21 +90,17 @@ export default function AboutUsPage() {
               company limited by shares (RC {COMPANY_REGISTRATION_NUMBER}).
             </p>
             <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-              <Link href="/sign-up">
-                <Button
-                  variant="primary"
-                  size="lg"
-                  className="w-full sm:w-auto"
-                  icon={<ArrowRight className="h-5 w-5" aria-hidden="true" />}
-                >
-                  Start learning
-                </Button>
-              </Link>
-              <Link href="/materials">
-                <Button variant="outline" size="lg" className="w-full sm:w-auto">
-                  Browse materials
-                </Button>
-              </Link>
+              <Button href="/sign-up"
+                variant="primary"
+                size="lg"
+                className="w-full sm:w-auto"
+                icon={<ArrowRight className="h-5 w-5" aria-hidden="true" />}
+              >
+                Start learning
+              </Button>
+              <Button href="/materials" variant="outline" size="lg" className="w-full sm:w-auto">
+                Browse materials
+              </Button>
             </div>
           </div>
 
@@ -163,7 +158,8 @@ export default function AboutUsPage() {
         </div>
       </section>
 
-      <section className="bg-accent-50">
+      <section className="bg-accent-50" aria-labelledby="student-priorities-heading">
+        <h2 id="student-priorities-heading" className="sr-only">Our priorities for students</h2>
         <div className="mx-auto max-w-6xl px-6 py-12">
           <div className="grid gap-4 md:grid-cols-4">
             {principles.map(({ label, icon }) => (
@@ -269,16 +265,14 @@ export default function AboutUsPage() {
               clearer explanation.
             </Paragraph>
           </div>
-          <Link href="/dashboard" className="shrink-0">
-            <Button
-              variant="secondary"
-              size="lg"
-              className="border border-white bg-white text-secondary-700 hover:bg-secondary-100"
-              icon={<ArrowRight className="h-5 w-5" aria-hidden="true" />}
-            >
-              Go to dashboard
-            </Button>
-          </Link>
+          <Button href="/dashboard"
+            variant="secondary"
+            size="lg"
+            className="shrink-0 border border-white bg-white text-secondary-700 hover:bg-secondary-100"
+            icon={<ArrowRight className="h-5 w-5" aria-hidden="true" />}
+          >
+            Go to dashboard
+          </Button>
         </div>
       </section>
     </div>

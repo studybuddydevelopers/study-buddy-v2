@@ -322,7 +322,10 @@ function ReviewAnswersScreen({
       wrongQuestionIds[nextWrongIndex % wrongQuestionIds.length];
     document
       .getElementById(getReviewQuestionElementId(targetQuestionId))
-      ?.scrollIntoView({ behavior: "smooth", block: "start" });
+      ?.scrollIntoView({
+        behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth",
+        block: "start",
+      });
     setNextWrongIndex((current) => (current + 1) % wrongQuestionIds.length);
   };
 
@@ -394,7 +397,7 @@ function ReviewAnswersScreen({
                 {question.questionImageUrl && (
                   <LowDataImage
                     src={question.questionImageUrl}
-                    alt=""
+                    alt={`Diagram for question ${questionIndex + 1}`}
                     className="max-h-64 object-contain"
                     lowDataModeEnabled={lowDataModeEnabled}
                   />
@@ -1166,7 +1169,7 @@ export default function TopicPracticeClient({
             {q.questionImageUrl && (
               <LowDataImage
                 src={q.questionImageUrl}
-                alt=""
+                alt={`Diagram for question ${index + 1}`}
                 className="max-h-64 object-contain"
                 lowDataModeEnabled={lowDataModeEnabled}
               />
@@ -1182,6 +1185,7 @@ export default function TopicPracticeClient({
 
           <div className="space-y-2">
             <textarea
+              aria-label={`Your answer to question ${index + 1}`}
               className="w-full border border-accent-200 rounded-lg p-3 focus:outline-none focus:ring-2 focus:ring-primary-400 text-gray-900 min-h-[100px]"
               placeholder="Type your answer"
               value={answer}

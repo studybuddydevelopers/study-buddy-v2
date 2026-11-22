@@ -1,6 +1,6 @@
 "use client"; // if used inside /app directory for interactivity
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useId } from "react";
 import Image from "next/image";
 import UnfoldIcon from "@/public/icons/unfold.svg"; // ✅ proper Next.js import path
 
@@ -33,6 +33,12 @@ export default function MultiSelectField({
   className = "",
 }: MultiSelectFieldProps) {
   const [isOpen, setIsOpen] = useState(false);
+  const fieldId = useId();
+  const labelId = `${fieldId}-label`;
+  const valueId = `${fieldId}-value`;
+  const optionsId = `${fieldId}-options`;
+  const errorId = `${fieldId}-error`;
+  const triggerRef = useRef<HTMLButtonElement>(null);
   const wrapperRef = useRef<HTMLDivElement>(null);
 
   // ✅ Close dropdown when clicking outside
@@ -56,18 +62,39 @@ export default function MultiSelectField({
   };
 
   return (
-    <div className={`flex flex-col gap-1 relative ${className}`} ref={wrapperRef}>
+    <div
+      className={`flex flex-col gap-1 relative ${className}`}
+      ref={wrapperRef}
+      onBlur={(event) => {
+        if (!event.currentTarget.contains(event.relatedTarget)) setIsOpen(false);
+      }}
+      onKeyDown={(event) => {
+        if (event.key === "Escape" && isOpen) {
+          event.preventDefault();
+          setIsOpen(false);
+          triggerRef.current?.focus();
+        }
+      }}
+    >
       {/* Label */}
       {label && (
-        <label className="text-sm font-semibold text-gray-900">
+        <label id={labelId} htmlFor={fieldId} className="text-sm font-semibold text-gray-900">
           {label}{" "}
           {required && <span className="text-red-500">*</span>}
         </label>
       )}
 
       {/* Select box */}
-      <div
-        className={`flex justify-between items-center px-4 py-3 rounded-xl border border-transparent bg-gray-50 cursor-pointer transition-all duration-200 ${
+      <button
+        ref={triggerRef}
+        id={fieldId}
+        type="button"
+        disabled={disabled}
+        aria-expanded={isOpen && !disabled}
+        aria-controls={optionsId}
+        aria-labelledby={label ? `${labelId} ${valueId}` : valueId}
+        aria-describedby={error ? errorId : undefined}
+        className={`flex justify-between items-center px-4 py-3 text-left rounded-xl border border-transparent bg-gray-50 cursor-pointer transition-all duration-200 ${
           disabled
             ? "bg-gray-200 cursor-not-allowed"
             : "hover:bg-gray-100"
@@ -75,8 +102,9 @@ export default function MultiSelectField({
         onClick={() => !disabled && setIsOpen(!isOpen)}
       >
         <span
+          id={valueId}
           className={
-            value.length ? "text-gray-900" : "text-gray-400"
+            value.length ? "text-gray-900" : "text-gray-500"
           }
         >
           {value.length
@@ -89,25 +117,31 @@ export default function MultiSelectField({
         {/* ✅ Next.js Image for SVG */}
         <Image
           src={UnfoldIcon}
-          alt="Toggle dropdown"
+          alt=""
           width={18}
           height={18}
           className={`text-gray-500 transition-transform duration-200 ${
             isOpen ? "rotate-180" : ""
           }`}
         />
-      </div>
+      </button>
 
       {/* Dropdown */}
-      {isOpen && !disabled && (
-        <div className="absolute top-full left-0 right-0 mt-1 bg-background rounded-xl border border-gray-200 shadow-md max-h-52 overflow-y-auto z-20">
+        <div
+          id={optionsId}
+          hidden={!isOpen || disabled}
+          role="group"
+          aria-label={label ?? placeholder}
+          className="absolute top-full left-0 right-0 mt-1 bg-background rounded-xl border border-gray-200 shadow-md max-h-52 overflow-y-auto z-20"
+        >
           {options.map((opt) => (
             <label
               key={opt.value}
-              className="flex items-center gap-2 px-4 py-2 cursor-pointer text-xs text-gray-900 hover:bg-gray-100"
+              className="flex min-h-11 items-center gap-2 px-4 py-2 cursor-pointer text-xs text-gray-900 hover:bg-gray-100 focus-within:bg-primary-50"
             >
               <input
                 type="checkbox"
+                disabled={disabled}
                 checked={value.includes(opt.value)}
                 onChange={() => toggleValue(opt.value)}
               />
@@ -115,10 +149,9 @@ export default function MultiSelectField({
             </label>
           ))}
         </div>
-      )}
 
       {/* Error message */}
-      {error && <p className="text-sm text-red-500 mt-1">{error}</p>}
+      {error && <p id={errorId} role="alert" className="text-sm text-red-700 mt-1">{error}</p>}
     </div>
   );
 }

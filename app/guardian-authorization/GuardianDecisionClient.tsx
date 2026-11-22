@@ -81,7 +81,7 @@ export default function GuardianDecisionClient() {
   const studentName = details?.studentName ?? "the student";
 
   return (
-    <main className="mx-auto flex min-h-screen min-w-0 w-full max-w-2xl items-center px-4 py-12 [overflow-wrap:anywhere] sm:px-6">
+    <div className="mx-auto flex min-h-screen min-w-0 w-full max-w-2xl items-center px-4 py-12 [overflow-wrap:anywhere] sm:px-6">
       <section className="w-full min-w-0 rounded-2xl border border-gray-200 bg-white p-4 shadow-sm sm:p-10">
         <h1 className="mb-2 text-3xl font-extrabold leading-tight text-gray-900 sm:text-4xl lg:text-5xl">
           Guardian authorisation
@@ -108,6 +108,6 @@ export default function GuardianDecisionClient() {
           </div>
         ) : null}
       </section>
-    </main>
+    </div>
   );
 }

@@ -33,7 +33,7 @@ export default function CheckEmailClient() {
       <Card shadow="md" hover className="flex flex-col w-full max-w-md">
         {/* Heading + Icon */}
         <div className="flex flex-row justify-center items-center gap-3">
-          <Heading2 gutter="lg" className="text-center">
+          <Heading2 as="h1" gutter="lg" className="text-center">
             Check Your Email
           </Heading2>
 

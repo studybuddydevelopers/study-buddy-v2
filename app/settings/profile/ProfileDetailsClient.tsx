@@ -146,7 +146,7 @@ export default function ProfileDetailsClient({
   }
 
   return (
-    <main className="mx-auto w-full max-w-4xl space-y-6 py-4 pb-24 sm:py-8 lg:pb-8">
+    <div className="mx-auto w-full max-w-4xl space-y-6 py-4 pb-24 sm:py-8 lg:pb-8">
       <header className="rounded-3xl border border-[#E4D6EA] bg-[#F7F0FA] p-5 sm:p-7">
         <Link
           href={backHref}
@@ -407,6 +407,6 @@ export default function ProfileDetailsClient({
           </Button>
         </div>
       </form>
-    </main>
+    </div>
   );
 }

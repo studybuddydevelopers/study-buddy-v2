@@ -132,7 +132,7 @@ export default function LoginClient() {
       <div className="w-full max-w-md bg-accent-500 border border-gray-200 rounded-2xl shadow-md px-6 py-8 sm:px-10 sm:py-10">
 
         <div className="flex flex-row items-center justify-center gap-2 mb-6">
-          <Heading2 gutter="none" className="text-center">
+          <Heading2 as="h1" gutter="none" className="text-center">
             Welcome back
           </Heading2>
           <CurrentIcon

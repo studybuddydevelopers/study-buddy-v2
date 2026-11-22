@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
+import Link from "next/link";
 
 type Variant =
   | "disabledPlain"
@@ -32,6 +33,7 @@ export interface ButtonProps {
   ariaLabel?: string;
   ariaDisabled?: boolean;
   ariaDescribedBy?: string;
+  href?: string;
 }
 
 export default function Button({
@@ -49,6 +51,7 @@ export default function Button({
   ariaLabel,
   ariaDisabled = false,
   ariaDescribedBy,
+  href,
 }: ButtonProps) {
   useEffect(() => {
     const body = document.body;
@@ -82,7 +85,7 @@ export default function Button({
     destructive:
       "bg-red-600 hover:bg-red-700 text-background focus:ring-red-400",
     success:
-      "bg-green-600 hover:bg-green-700 text-background focus:ring-green-400",
+      "bg-green-700 hover:bg-green-800 text-background focus:ring-green-400",
     neutral:
       "bg-gray-200 hover:bg-gray-300 text-gray-900 focus:ring-gray-400",
     disabledPlain:
@@ -134,6 +137,17 @@ export default function Button({
     .filter(Boolean)
     .join(" ");
 
+  if (href && !isDisabled && !ariaDisabled) {
+    return (
+      <Link href={href} prefetch={false} className={buttonClasses} aria-label={ariaLabel} aria-describedby={ariaDescribedBy} onClick={onClick}>
+        <span className="flex items-center gap-2">
+          {icon && <span aria-hidden="true">{icon}</span>}
+          {children}
+        </span>
+      </Link>
+    );
+  }
+
   return (
     <button
       type={type}
@@ -142,11 +156,13 @@ export default function Button({
       disabled={isDisabled}
       aria-disabled={isDisabled || ariaDisabled ? true : undefined}
       aria-describedby={ariaDescribedBy}
+      aria-busy={loading || undefined}
       aria-label={ariaLabel || (typeof children === "string" ? children : undefined)}
     >
       {loading ? (
         <span className="flex items-center gap-2">
           <svg
+            aria-hidden="true"
             className="animate-spin h-4 w-4 text-current"
             viewBox="0 0 24 24"
           >

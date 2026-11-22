@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useId } from "react";
 import Image from "next/image";
 import UnfoldIcon from "@/public/icons/unfold.svg"; // ✅ Next.js-friendly SVG import
 
@@ -32,10 +32,12 @@ export default function SelectField({
   required = false,
   className = "",
 }: SelectFieldProps) {
+  const inputId = useId();
+  const errorId = `${inputId}-error`;
   return (
     <div className={`flex flex-col gap-1 ${className}`}>
       {label && (
-        <label className="text-sm font-semibold text-gray-900">
+        <label htmlFor={inputId} className="text-sm font-semibold text-gray-900">
           {label}{" "}
           {required && <span className="text-red-500">*</span>}
         </label>
@@ -43,6 +45,10 @@ export default function SelectField({
 
       <div className="relative flex items-center">
         <select
+          id={inputId}
+          required={required}
+          aria-invalid={error ? true : undefined}
+          aria-describedby={error ? errorId : undefined}
           value={value}
           onChange={onChange}
           disabled={disabled}
@@ -72,7 +78,7 @@ export default function SelectField({
         />
       </div>
 
-      {error && <p className="text-sm text-red-500 mt-1">{error}</p>}
+      {error && <p id={errorId} role="alert" className="text-sm text-red-700 mt-1">{error}</p>}
     </div>
   );
 }

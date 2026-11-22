@@ -17,7 +17,7 @@ export default function SingleChoiceOption({
 }: SingleChoiceOptionProps) {
   return (
     <label
-      className={`flex items-center w-full border rounded-2xl px-4 py-3 cursor-pointer transition-all border-gray-200 hover:border-primary-300 ${
+      className={`flex items-center w-full border rounded-2xl px-4 py-3 cursor-pointer transition-all border-gray-200 hover:border-primary-300 focus-within:ring-2 focus-within:ring-primary-700 focus-within:ring-offset-2 ${
         checked ? "border-primary-400 bg-accent-50" : ""
       }`}
     >
@@ -27,7 +27,7 @@ export default function SingleChoiceOption({
         value={value}
         checked={checked}
         onChange={() => onChange?.(value)}
-        className="hidden"
+        className="sr-only"
       />
 
       {/* Custom radio circle */}

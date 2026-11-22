@@ -198,7 +198,7 @@ export default function MockExamsClient({
       </Paragraph>
 
       {error && (
-        <Paragraph variant="error" className="mt-3">
+        <Paragraph variant="error" className="mt-3" role="alert">
           {error}
         </Paragraph>
       )}

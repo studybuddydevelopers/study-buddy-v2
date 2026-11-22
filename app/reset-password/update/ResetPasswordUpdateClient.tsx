@@ -243,7 +243,7 @@ export default function ResetPasswordUpdateClient() {
     return (
       <div className="flex items-center justify-center p-7 mt-7 flex-1">
         <Card shadow="md" hover className="flex flex-col w-full items-center p-6">
-          <Heading2 gutter="sm" className="text-center">
+          <Heading2 as="h1" gutter="sm" className="text-center">
             Checking Reset Link
           </Heading2>
           <div className="mt-6">
@@ -258,7 +258,7 @@ export default function ResetPasswordUpdateClient() {
     return (
       <div className="flex items-center justify-center p-7 mt-7 flex-1">
         <Card shadow="md" hover className="flex flex-col w-full items-center p-2">
-          <Heading2 gutter="lg" className="min-w-max text-center">
+          <Heading2 as="h1" gutter="lg" className="min-w-max text-center">
             Reset Link Expired
           </Heading2>
 
@@ -281,7 +281,7 @@ export default function ResetPasswordUpdateClient() {
       <div className="flex items-center justify-center p-7 mt-7 flex-1">
         <Card shadow="md" hover className="flex flex-col w-full items-center p-6">
           <div className="flex flex-col">
-            <Heading2 gutter="sm" className="text-center">
+            <Heading2 as="h1" gutter="sm" className="text-center">
               Invalid Reset Link
             </Heading2>
             <p className="mb-5 max-w-md text-center text-sm text-gray-600">
@@ -300,7 +300,7 @@ export default function ResetPasswordUpdateClient() {
     <div className="flex items-center justify-center p-7 mt-7 flex-1">
       <Card shadow="md" hover className="flex flex-col w-full min-w-max">
         <div className="flex flex-row justify-center w-full">
-          <Heading2 gutter="lg" className="min-w-max">
+          <Heading2 as="h1" gutter="lg" className="min-w-max">
             Set New Password
           </Heading2>
           <CurrentIcon
@@ -332,7 +332,7 @@ export default function ResetPasswordUpdateClient() {
             <p className="text-red-500 text-sm">{errorMessage}</p>
           )}
           {success && (
-            <p className="text-green-600 text-sm">
+            <p role="status" className="text-green-700 text-sm">
               Password updated! Redirecting...
             </p>
           )}

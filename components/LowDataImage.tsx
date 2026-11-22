@@ -25,6 +25,7 @@ export default function LowDataImage({
         <Button
           variant="outline"
           size="sm"
+          ariaLabel={alt ? `Load image: ${alt}` : "Load image"}
           onClick={() => setUserRequestedImage(true)}
         >
           Load image

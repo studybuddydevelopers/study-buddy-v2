@@ -32,7 +32,7 @@ export default function GuardianPendingClient() {
   }
 
   return (
-    <main className="mx-auto flex min-h-screen w-full max-w-xl items-center px-6 py-12">
+    <div className="mx-auto flex min-h-screen w-full max-w-xl items-center px-6 py-12">
       <section className="w-full rounded-2xl border border-gray-200 bg-white p-8 text-center shadow-sm">
         <Heading1 gutter="sm">Guardian approval is required</Heading1>
         <p className="leading-relaxed text-gray-700">This account stays locked until the parent or legal guardian named during registration uses the one-time email link to approve or deny it.</p>
@@ -45,6 +45,6 @@ export default function GuardianPendingClient() {
         </div>
         <p className="mt-6 text-sm text-gray-600">Need help? Email <a className="font-semibold text-primary-700 hover:underline" href="mailto:privacy@studybuddyng.com">privacy@studybuddyng.com</a>.</p>
       </section>
-    </main>
+    </div>
   );
 }
