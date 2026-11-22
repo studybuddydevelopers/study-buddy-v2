@@ -47,7 +47,7 @@ export default function ChatMessageContainer({
   onCitationClick,
 }: Readonly<ChatMessageContainerProps>) {
   return (
-    <div className="flex w-full min-w-0 flex-col space-y-3">
+    <div className="flex w-full min-w-0 flex-col gap-8 sm:gap-10">
       {messages.map((msg) => (
         <ChatMessage
           key={msg.id}
