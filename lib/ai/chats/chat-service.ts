@@ -29,7 +29,7 @@ import {
 } from "@/lib/ai/grounding/grounded-generation-service";
 import type { CreateChatInput, SendChatMessageInput, UpdateChatInput } from "./schemas";
 import { ChatServiceError } from "./errors";
-import { generateChatTitle } from "./chat-title";
+import { CHAT_TITLE_CONTEXT_LIMIT, generateChatTitle } from "./chat-title";
 
 const DEFAULT_CHAT_TITLE = "New chat";
 const CHAT_PAGE_SIZE_DEFAULT = 20;
@@ -144,7 +144,7 @@ interface PaginationInput {
 
 interface InitializedGeneration {
   kind: "created" | "existing";
-  needsTitle?: boolean;
+  titleMessages?: string[];
   retryRequired?: boolean;
   chat: AiChatWithRelations;
   request: AiGenerationWithMessages;
@@ -191,10 +191,6 @@ function truncateTitle(value: string) {
 
 function initialTitle(input?: string | null) {
   return input ? truncateTitle(input) : DEFAULT_CHAT_TITLE;
-}
-
-function deriveTitleFromMessage(message: string) {
-  return initialTitle(message);
 }
 
 function serializeChat(chat: AiChatWithRelations) {
@@ -644,12 +640,13 @@ export class ChatService {
       return this.serializeGenerationResult(initialized, false);
     }
 
-    if (!initialized.needsTitle) return this.generateAndPersist(initialized, "send");
+    const titleMessages = initialized.titleMessages;
+    if (!titleMessages) return this.generateAndPersist(initialized, "send");
 
     // Start naming alongside the answer, outside the database transaction.
     // The short auxiliary call uses the existing provider token-budget guard.
     const titlePromise = Promise.resolve()
-      .then(() => generateChatTitle(this.getProvider(), initialized.request.userMessage.content))
+      .then(() => generateChatTitle(this.getProvider(), titleMessages))
       .catch(() => null);
     const [result, title] = await Promise.all([
       this.generateAndPersist(initialized, "send"),
@@ -740,13 +737,15 @@ export class ChatService {
           include: requestInclude,
         });
 
-        let needsTitle = false;
-        if (chat.title === DEFAULT_CHAT_TITLE && chat.messages.length === 0) {
-          const claimed = await tx.aiChat.updateMany({
-            where: { id: chatId, userId, deletedAt: null, title: DEFAULT_CHAT_TITLE },
-            data: { title: deriveTitleFromMessage(input.message) },
+        let titleMessages: string[] | undefined;
+        if (chat.title === DEFAULT_CHAT_TITLE) {
+          const recent = await tx.aiChatMessage.findMany({
+            where: { chatId, role: AiChatRole.USER },
+            select: { content: true },
+            orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+            take: CHAT_TITLE_CONTEXT_LIMIT,
           });
-          needsTitle = claimed.count === 1;
+          titleMessages = recent.reverse().map((message) => message.content);
         }
         const updatedChat = await tx.aiChat.update({
           where: { id: chatId },
@@ -756,7 +755,7 @@ export class ChatService {
 
         return {
           kind: "created",
-          needsTitle,
+          titleMessages,
           chat: updatedChat,
           request,
         };
