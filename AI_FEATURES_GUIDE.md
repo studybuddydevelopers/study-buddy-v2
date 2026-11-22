@@ -31,12 +31,17 @@ conversation with any chosen title, subject and topic. Opening or changing
 settings on an unsent draft makes no chat API write; leaving or refreshing it
 does not add an empty conversation to history.
 
-If the learner has not chosen a title, the first message also asks AI for a short
-title describing its topic or learning goal. The saved title is returned with
-the reply and appears in history. Naming runs alongside the answer and falls
-back to the start of the learner's message if it fails. Later turns, retries and
-older conversations are not automatically renamed, and a manual rename takes
-precedence over a delayed AI title. This uses the existing chat provider and
+Chats without a chosen title remain **New chat** until the learner introduces a
+clear topic or learning goal. Obvious greetings and generic help requests skip
+the extra naming call. For other openings, AI considers bounded recent learner
+messages and can leave naming pending when there is not enough context. A later
+message can supply the topic, even after the conversation is reopened.
+
+The saved title is returned with the reply and appears in history. Naming runs
+alongside the answer; a failed naming request leaves **New chat** and can recover
+on a later learner message. Once a title is saved, subsequent turns do not
+automatically change it. Manual titles take precedence, and duplicate sends and
+answer retries do not repeat naming. This uses the existing chat provider and
 token-budget controls; no database migration is required.
 
 The ChatGPT-inspired workspace uses Study Buddy's purple palette, right-aligned
