@@ -229,10 +229,22 @@ tutor avatar and a copy-response action. The rounded, growing composer stays
 below the independently scrollable transcript. Empty chats offer prompts that
 prepare a draft without sending it.
 
+The tutor SVG fits inside a circular badge with a black border in the welcome
+state and beside replies; the inset keeps the full illustration visible. While
+sending or retrying, the disabled composer shows a grey
+background, a disabled cursor, a replying placeholder and **Replying — input
+paused** status. Loading/saving states have matching explanations; the normal
+composer returns when the request finishes, including after failure.
+
 History is collapsible on desktop and opens in a native modal drawer below
 1024px. This chat-specific breakpoint does not change the site's 1110px mobile
 navigation breakpoint. The toolbar's **Chat settings** opens title/save/delete
 and subject/topic controls; subject/topic remain fixed after the first message.
+The button displays **Settings** beside its icon at every width. **New chat**
+opens a local draft without writing a chat record or adding a history entry.
+Title, subject and topic choices also stay local until the first send; leaving
+or refreshing an unsent draft does not save it. Saved chats retain their normal
+rename/delete controls.
 History selection and new-chat actions are disabled during an active send or
 retry. Scrolling up pauses automatic following; **Jump to latest message**
 returns to the bottom.
