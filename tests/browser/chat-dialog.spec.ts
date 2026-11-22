@@ -46,7 +46,7 @@ test("cannot dismiss while deleting and restores composer focus after success", 
     await expect(dialog).toBeVisible();
   } finally { release(); }
   await expect(dialog).toHaveCount(0);
-  await expect(page.getByRole("textbox", { name: "Message to AI tutor" })).toBeFocused();
+  await expect(page.getByRole("textbox", { name: "Message to AI Study Buddy Tutor" })).toBeFocused();
 });
 
 test("keeps a failed deletion's alert in the dialog and permits a retry", async ({ page }) => {
