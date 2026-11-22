@@ -11,17 +11,25 @@ for (const width of [320, 768]) {
       const scroller = page.getByRole("region", { name, exact: true });
       await scroller.scrollIntoViewIfNeeded();
       const box = (await scroller.boundingBox())!;
-      await input.send("Input.synthesizeScrollGesture", {
-        x: box.x + box.width * 0.85,
-        y: box.y + box.height / 2,
-        xDistance: -box.width * 0.7,
-        yDistance: 0,
-        speed: 400,
-        gestureSourceType: "touch",
-        preventFling: true,
+      const startX = box.x + box.width * 0.8;
+      const endX = box.x + box.width * 0.2;
+      const y = box.y + box.height / 2;
+      await input.send("Input.dispatchTouchEvent", {
+        type: "touchStart",
+        touchPoints: [{ x: startX, y }],
       });
-      await expect(page.getByRole("button", { name: new RegExp(`^Show ${item} 2:`) })).toHaveAttribute("aria-current", "true");
+      for (let step = 1; step <= 12; step += 1) {
+        await input.send("Input.dispatchTouchEvent", {
+          type: "touchMove",
+          touchPoints: [{ x: startX + ((endX - startX) * step) / 12, y }],
+        });
+      }
+      await input.send("Input.dispatchTouchEvent", {
+        type: "touchEnd",
+        touchPoints: [],
+      });
       await expect.poll(() => scroller.evaluate((element) => element.scrollLeft)).toBeGreaterThan(0);
+      await expect(page.getByRole("button", { name: new RegExp(`^Show ${item} 2:`) })).toHaveAttribute("aria-current", "true");
     }
     await noPageOverflow(page);
   });
