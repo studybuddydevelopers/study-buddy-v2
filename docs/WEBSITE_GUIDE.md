@@ -236,9 +236,9 @@ Reopening Report shows any support review note. The restricted review workspace
 includes a chat-report queue; see [report operations](CHAT_RESPONSE_REPORTS.md)
 for the migration and release prerequisites.
 
-While a conversation loads, large rounded **Loading conversations** lettering
-fills and clears through purple splash spots. With reduced motion, it remains
-fully filled. The title-search field now draws its keyboard-focus indicator
+While a conversation loads, the SB logo fills and clears through purple splash
+spots, with a small grey **Loading screen…** caption underneath. With reduced
+motion, the logo remains fully filled. The title-search field draws its keyboard-focus indicator
 around the outer frame, including the search and clear icons.
 
 The tutor SVG sits in a compact circular frame with a 3px black border in the
@@ -266,7 +266,12 @@ Both desktop history and the mobile drawer include **New chat** and **Search
 chats**. Search finds saved titles case-insensitively across the learner's entire
 history, with paginated matches, loading/empty feedback, retry on failure and a
 clear control. From 768px, **Search chats** opens a centred modal popup with its
-own input and results. Below 768px, search remains in the history drawer. The
+own input and results, without a visible title above the field. Before typing,
+the popup groups up to three chats opened today under **Last opened**, then the
+remaining conversations under **Recent chats**, without duplicates. Opening
+times use the browser's local day and are remembered per account in that browser;
+only chat IDs and timestamps are stored. Typing shows title matches, and clearing
+the field restores the groups. Below 768px, search remains in the history drawer. The
 popup focuses the input, contains keyboard focus and restores focus when closed
 with Escape, its close button or the backdrop. An inline search moves into the
 popup if the viewport grows to tablet width, preserving its query and results.
