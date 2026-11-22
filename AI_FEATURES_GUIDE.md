@@ -24,6 +24,11 @@ The main `/chat` page uses [ChatClient](app/chat/ChatClient.tsx) and the persist
 - Retry a failed reply without creating a second copy of their question.
 - Permanently delete a chat after explicit confirmation.
 
+**New chat** opens an unsaved local draft. The first send creates its saved
+conversation with any chosen title, subject and topic. Opening or changing
+settings on an unsent draft makes no chat API write; leaving or refreshing it
+does not add an empty conversation to history.
+
 The ChatGPT-inspired workspace uses Study Buddy's purple palette, right-aligned
 learner bubbles and unboxed tutor answers. White pencil/bin icons remain on
 save/delete actions under **Chat settings**, alongside the subject/topic

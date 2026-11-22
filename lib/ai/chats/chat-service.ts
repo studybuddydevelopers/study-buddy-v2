@@ -404,19 +404,25 @@ export class ChatService {
     return { chat: serializeChat(chat) };
   }
 
-  async listChats(userId: string, pagination?: PaginationInput) {
+  async listChats(userId: string, pagination?: PaginationInput, titleSearch = "") {
     const page = normalizePagination(
       pagination,
       CHAT_PAGE_SIZE_DEFAULT,
       CHAT_PAGE_SIZE_MAX
     );
 
+    const query = titleSearch.trim();
+    const where: Prisma.AiChatWhereInput = {
+      userId,
+      deletedAt: null,
+      ...(query ? { title: { contains: query, mode: "insensitive" } } : {}),
+    };
     const [total, chats] = await this.db.$transaction([
       this.db.aiChat.count({
-        where: { userId, deletedAt: null },
+        where,
       }),
       this.db.aiChat.findMany({
-        where: { userId, deletedAt: null },
+        where,
         include: chatInclude,
         orderBy: [{ updatedAt: "desc" }, { id: "desc" }],
         skip: page.skip,

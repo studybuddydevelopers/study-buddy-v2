@@ -2,8 +2,9 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { ArrowDown, ArrowUp, LoaderCircle, PanelLeft, Pencil, SlidersHorizontal, SquarePen, Trash2, X } from "lucide-react";
+import { ArrowDown, ArrowUp, LoaderCircle, LockKeyhole, Pencil, Search, SlidersHorizontal, SquarePen, Trash2, X } from "lucide-react";
 import Image from "@/components/Image";
+import StudyBuddyIcon from "@/components/StudyBuddyIcon";
 import Paragraph from "@/components/Paragraph";
 import Button from "@/components/Button";
 import ChatMessageContainer, {
@@ -19,12 +20,13 @@ const AI_AVATAR = "/images/ai-tutor-avatar.svg";
 const DEFAULT_USER_AVATAR = "/images/profile-avatar.svg";
 const CHAT_PAGE_SIZE = 25;
 const MESSAGE_PAGE_SIZE = 50;
+const EMPTY_CHAT_DRAFT = { title: "", subjectId: null as string | null, topicId: null as string | null };
 
-function trapDialogButtonFocus(event: React.KeyboardEvent<HTMLDialogElement>) {
+function trapDialogFocus(event: React.KeyboardEvent<HTMLDialogElement>) {
   if (event.key !== "Tab") return;
-  const buttons = event.currentTarget.querySelectorAll<HTMLButtonElement>("button:not(:disabled)");
-  const first = buttons[0];
-  const last = buttons[buttons.length - 1];
+  const controls = event.currentTarget.querySelectorAll<HTMLElement>("button:not(:disabled), input:not(:disabled)");
+  const first = controls[0];
+  const last = controls[controls.length - 1];
   if (!first) {
     event.preventDefault();
   } else if (event.shiftKey && document.activeElement === first) {
@@ -194,6 +196,7 @@ export default function ChatClient() {
   const [messages, setMessages] = useState<ChatMessageData[]>([]);
   const [input, setInput] = useState("");
   const [titleDraftByChat, setTitleDraftByChat] = useState<Record<string, string>>({});
+  const [chatDraft, setChatDraft] = useState(EMPTY_CHAT_DRAFT);
   const [me, setMe] = useState<MeResponse | null>(null);
   const [subjects, setSubjects] = useState<SubjectOption[]>([]);
   const [loadingChats, setLoadingChats] = useState(true);
@@ -209,12 +212,22 @@ export default function ChatClient() {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [mobileHistoryOpen, setMobileHistoryOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchResults, setSearchResults] = useState<ApiChat[]>([]);
+  const [searchPage, setSearchPage] = useState(1);
+  const [searchHasMore, setSearchHasMore] = useState(false);
+  const [searchLoading, setSearchLoading] = useState(false);
+  const [searchError, setSearchError] = useState(false);
+  const [searchRetry, setSearchRetry] = useState(0);
   const [awayFromLatest, setAwayFromLatest] = useState(false);
   const listRef = useRef<HTMLDivElement | null>(null);
   const deleteDialogRef = useRef<HTMLDialogElement | null>(null);
   const historyDialogRef = useRef<HTMLDialogElement | null>(null);
   const historyTriggerRef = useRef<HTMLButtonElement | null>(null);
   const composerRef = useRef<HTMLTextAreaElement | null>(null);
+  const desktopSearchRef = useRef<HTMLInputElement | null>(null);
+  const mobileSearchRef = useRef<HTMLInputElement | null>(null);
   const citationPreviewRef = useRef<HTMLDivElement | null>(null);
   const newChatIdRef = useRef<string | null>(null);
   const followLatestRef = useRef(true);
@@ -223,10 +236,11 @@ export default function ChatClient() {
     () => chats.find((chat) => chat.id === selectedChatId) ?? null,
     [chats, selectedChatId]
   );
+  const chatSettings = selectedChat ?? chatDraft;
 
   const selectedSubject = useMemo(
-    () => subjects.find((subject) => subject.id === selectedChat?.subjectId),
-    [subjects, selectedChat?.subjectId]
+    () => subjects.find((subject) => subject.id === chatSettings.subjectId),
+    [subjects, chatSettings.subjectId]
   );
   const selectedChatStarted = Boolean(
     selectedChat?.isStarted ||
@@ -234,9 +248,86 @@ export default function ChatClient() {
   );
   const titleDraft = selectedChat
     ? titleDraftByChat[selectedChat.id] ?? selectedChat.title
-    : "";
-  const busy = savingChat || sending || messages.some((message) => message.retrying && message.status === "PENDING");
+    : chatDraft.title;
+  const replying = sending || messages.some((message) => message.retrying && message.status === "PENDING");
+  const busy = savingChat || replying;
+  const composerDisabled = busy || loadingChats || loadingMessages;
+  const composerPlaceholder = replying
+    ? "Study Buddy is replying…"
+    : loadingChats || loadingMessages
+      ? "Loading conversation…"
+      : savingChat ? "Saving chat…" : "Ask Study Buddy…";
+  const composerStatus = replying
+    ? "Replying — input paused"
+    : loadingChats || loadingMessages
+      ? "Loading — input paused"
+      : savingChat ? "Saving — input paused" : "";
   const emptyConversation = !loadingChats && !loadingMessages && messages.length === 0;
+  const searchingTitles = searchOpen && Boolean(searchQuery.trim());
+  const visibleChats = searchingTitles ? searchResults : chats;
+
+  const resetSearch = () => {
+    setSearchQuery("");
+    setSearchResults([]);
+    setSearchPage(1);
+    setSearchHasMore(false);
+    setSearchLoading(false);
+    setSearchError(false);
+    setSearchRetry(0);
+  };
+
+  const updateSearchQuery = (query: string) => {
+    setSearchQuery(query);
+    setSearchResults([]);
+    setSearchPage(1);
+    setSearchHasMore(false);
+    setSearchLoading(Boolean(query.trim()));
+    setSearchError(false);
+  };
+
+  const retrySearch = () => {
+    setSearchLoading(true);
+    setSearchError(false);
+    setSearchRetry((attempt) => attempt + 1);
+  };
+
+  const showMoreSearchResults = () => {
+    setSearchLoading(true);
+    setSearchError(false);
+    setSearchPage((page) => page + 1);
+  };
+
+  useEffect(() => {
+    if (!searchOpen) return;
+    const frame = requestAnimationFrame(() => {
+      (mobileHistoryOpen ? mobileSearchRef : desktopSearchRef).current?.focus();
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [searchOpen, mobileHistoryOpen, sidebarOpen]);
+
+  useEffect(() => {
+    const query = searchQuery.trim();
+    if (!searchOpen || !query) return;
+    const controller = new AbortController();
+    const timeout = window.setTimeout(async () => {
+      try {
+        const params = new URLSearchParams({ q: query, page: String(searchPage), pageSize: String(CHAT_PAGE_SIZE) });
+        const data = await fetchJson<{ chats: ApiChat[]; pagination: { hasNextPage: boolean } }>(
+          `/api/v1/ai/chats?${params}`, { cache: "no-store", signal: controller.signal }
+        );
+        if (controller.signal.aborted) return;
+        setSearchResults((previous) => searchPage === 1
+          ? data.chats
+          : [...previous, ...data.chats.filter((chat) => !previous.some((item) => item.id === chat.id))]);
+        setSearchHasMore(Boolean(data.pagination?.hasNextPage));
+      } catch {
+        if (!controller.signal.aborted) setSearchError(true);
+      } finally {
+        if (!controller.signal.aborted) setSearchLoading(false);
+      }
+    }, searchPage === 1 ? 250 : 0);
+    return () => { window.clearTimeout(timeout); controller.abort(); };
+  }, [searchOpen, searchQuery, searchPage, searchRetry]);
 
   useEffect(() => {
     if (!followLatestRef.current || messages.length === 0) return;
@@ -380,6 +471,8 @@ export default function ChatClient() {
   };
 
   const selectChat = (chatId: string) => {
+    setSearchOpen(false);
+    resetSearch();
     if (chatId !== selectedChatId) {
       setMessages([]);
       setLoadingMessages(true);
@@ -389,8 +482,29 @@ export default function ChatClient() {
     setMobileHistoryOpen(false);
     setSettingsOpen(false);
     setError(null);
+    setInput("");
+    setChatDraft(EMPTY_CHAT_DRAFT);
     setCitationPreview(null);
     setSelectedChatId(chatId);
+  };
+
+  const startNewChat = () => {
+    if (busy || loadingChats) return;
+    setSearchOpen(false);
+    resetSearch();
+    setSelectedChatId(null);
+    setMessages([]);
+    setLoadingMessages(false);
+    setInput("");
+    setChatDraft(EMPTY_CHAT_DRAFT);
+    setError(null);
+    setCitationPreview(null);
+    setLoadingCitationId(null);
+    setSettingsOpen(false);
+    setMobileHistoryOpen(false);
+    followLatestRef.current = true;
+    setAwayFromLatest(false);
+    requestAnimationFrame(() => composerRef.current?.focus());
   };
 
   const handleCitationClick = async (citation: ChatCitationData) => {
@@ -417,7 +531,11 @@ export default function ChatClient() {
     try {
       const data = await fetchJson<{ chat: ApiChat }>("/api/v1/ai/chats", {
         method: "POST",
-        body: JSON.stringify({}),
+        body: JSON.stringify({
+          title: chatDraft.title.trim() || undefined,
+          subjectId: chatDraft.subjectId,
+          topicId: chatDraft.topicId,
+        }),
       });
       newChatIdRef.current = data.chat.id;
       upsertChat(data.chat);
@@ -433,8 +551,11 @@ export default function ChatClient() {
     }
   };
 
-  const patchSelectedChat = async (updates: Partial<ApiChat>) => {
-    if (!selectedChatId) return;
+  const patchSelectedChat = async (updates: Partial<Pick<ApiChat, "title" | "subjectId" | "topicId">>) => {
+    if (!selectedChatId) {
+      setChatDraft((draft) => ({ ...draft, ...updates }));
+      return;
+    }
 
     setSavingChat(true);
     setError(null);
@@ -469,6 +590,7 @@ export default function ChatClient() {
         return remaining;
       });
       setMessages([]);
+      setChatDraft(EMPTY_CHAT_DRAFT);
       setChatPendingDeletion(null);
     } catch (err) {
       console.error(err);
@@ -631,21 +753,46 @@ export default function ChatClient() {
     }
   };
 
-  const history = (
+  const history = (location: "desktop" | "mobile") => (
     <div className="flex min-h-0 flex-1 flex-col">
+      <div className="mb-4 space-y-1">
+        <button type="button" aria-label="New chat in sidebar" onClick={startNewChat} disabled={busy || loadingChats} className="flex min-h-11 w-full items-center gap-3 rounded-xl bg-primary-500 px-3 py-2 text-left text-sm font-medium text-white hover:bg-primary-700 disabled:cursor-not-allowed disabled:opacity-50">
+          <SquarePen size={20} aria-hidden="true" /><span>New chat</span>
+        </button>
+        <button type="button" aria-expanded={searchOpen} aria-controls={searchOpen ? `chat-search-${location}` : undefined} onClick={() => { setSearchOpen((open) => !open); resetSearch(); }} className="flex min-h-11 w-full items-center gap-3 rounded-xl px-3 py-2 text-left text-sm font-medium text-primary-800 hover:bg-primary-100">
+          <Search size={20} aria-hidden="true" /><span>Search chats</span>
+        </button>
+        {searchOpen && (
+          <div id={`chat-search-${location}`} className="flex items-center gap-1 rounded-xl border border-primary-200 bg-white pl-3">
+            <input
+              ref={location === "mobile" ? mobileSearchRef : desktopSearchRef}
+              type="search"
+              aria-label="Search chat titles"
+              placeholder="Search by title…"
+              value={searchQuery}
+              maxLength={120}
+              onChange={(event) => updateSearchQuery(event.target.value)}
+              className="min-h-11 min-w-0 flex-1 rounded-lg bg-transparent py-2 text-sm text-gray-900"
+            />
+            {searchQuery && <button type="button" aria-label="Clear chat search" onClick={() => { resetSearch(); (location === "mobile" ? mobileSearchRef : desktopSearchRef).current?.focus(); }} className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-primary-700 hover:bg-primary-50"><X size={18} aria-hidden="true" /></button>}
+          </div>
+        )}
+      </div>
       <h2 className="px-3 pb-3 pt-2 text-xs font-semibold text-primary-700">Your chats</h2>
-      {loadingChats ? (
+      {searchingTitles && <p role="status" className="mb-2 px-3 text-xs text-gray-600">{searchLoading ? "Searching chats…" : searchError ? "" : searchResults.length === 0 ? "No chats match this title." : `${searchResults.length} matching ${searchResults.length === 1 ? "chat" : "chats"}${searchHasMore ? " shown" : ""}`}</p>}
+      {searchingTitles && searchError && <div className="mb-2 rounded-xl bg-red-50 p-3 text-sm text-red-800"><p role="alert">Could not search your chats.</p><button type="button" onClick={retrySearch} className="mt-1 min-h-11 rounded-lg px-2 font-medium underline">Try search again</button></div>}
+      {loadingChats && !searchingTitles ? (
         <p role="status" className="px-3 text-sm text-gray-600">Loading chats…</p>
-      ) : chats.length === 0 ? (
-        <p className="px-3 text-sm leading-relaxed text-gray-600">Your conversations will appear here after you start a chat.</p>
+      ) : chats.length === 0 && !searchingTitles ? (
+        <p className="px-3 text-sm leading-relaxed text-gray-600">Your conversations will appear here after you send your first message.</p>
       ) : (
-        <nav aria-label="Saved chats" className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-1">
+        <nav aria-label={searchingTitles ? "Chat search results" : "Saved chats"} className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-1">
           <ul className="space-y-1">
-            {chats.map((chat) => (
+            {visibleChats.map((chat) => (
               <li key={chat.id}>
                 <button
                   type="button"
-                  onClick={() => selectChat(chat.id)}
+                  onClick={() => { if (searchingTitles) upsertChat(chat); selectChat(chat.id); }}
                   disabled={busy}
                   aria-current={chat.id === selectedChatId ? "true" : undefined}
                   className={"w-full rounded-xl px-3 py-3 text-left text-sm transition-colors disabled:cursor-wait " + (
@@ -660,6 +807,7 @@ export default function ChatClient() {
               </li>
             ))}
           </ul>
+          {searchingTitles && searchHasMore && !searchError && <button type="button" disabled={searchLoading} onClick={showMoreSearchResults} className="mt-3 min-h-11 w-full rounded-xl border border-primary-200 px-3 py-2 text-sm font-medium text-primary-800 hover:bg-primary-100 disabled:opacity-50">Show more matches</button>}
         </nav>
       )}
     </div>
@@ -669,7 +817,7 @@ export default function ChatClient() {
     <div className="mx-auto my-3 flex h-[calc(100dvh-12rem-env(safe-area-inset-bottom))] min-h-[400px] w-full max-w-[1600px] overflow-hidden rounded-2xl border border-accent-700 bg-white min-[1110px]:h-[calc(100dvh-8rem)]">
       {sidebarOpen && (
         <aside id="chat-history-desktop" aria-label="Chat history" className="hidden w-60 shrink-0 flex-col border-r border-accent-700 bg-primary-50 p-3 lg:flex xl:w-64">
-          {history}
+          {history("desktop")}
         </aside>
       )}
 
@@ -681,9 +829,9 @@ export default function ChatClient() {
             aria-expanded={sidebarOpen}
             aria-controls={sidebarOpen ? "chat-history-desktop" : undefined}
             onClick={() => setSidebarOpen((open) => !open)}
-            className="hidden h-11 w-11 shrink-0 items-center justify-center rounded-xl text-gray-600 hover:bg-primary-50 lg:inline-flex"
+            className="hidden h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-primary-200 bg-primary-50 hover:bg-primary-100 lg:inline-flex"
           >
-            <PanelLeft size={21} aria-hidden="true" />
+            <StudyBuddyIcon name={sidebarOpen ? "sidebarClose" : "sidebarOpen"} size={36} />
           </button>
           <button
             ref={historyTriggerRef}
@@ -692,30 +840,30 @@ export default function ChatClient() {
             aria-haspopup="dialog"
             aria-expanded={mobileHistoryOpen}
             onClick={() => setMobileHistoryOpen(true)}
-            className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-gray-600 hover:bg-primary-50 lg:hidden"
+            className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-primary-200 bg-primary-50 hover:bg-primary-100 lg:hidden"
           >
-            <PanelLeft size={21} aria-hidden="true" />
+            <StudyBuddyIcon name="sidebarOpen" size={36} />
           </button>
           <div className="min-w-0 flex-1">
             <h1 className="text-lg font-semibold tracking-tight text-[#6C3483]">AI Chat</h1>
             {selectedChat && <p className="truncate text-xs text-gray-600">{selectedChat.title}</p>}
           </div>
-          {selectedChat && (
-            <button
-              type="button"
-              aria-label="Chat settings"
-              aria-expanded={settingsOpen}
-              aria-controls="chat-settings"
-              onClick={() => setSettingsOpen((open) => !open)}
-              className={"inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl hover:bg-primary-50 " + (settingsOpen ? "bg-primary-100 text-primary-800" : "text-gray-600")}
-            >
-              <SlidersHorizontal size={20} aria-hidden="true" />
-            </button>
-          )}
+          <button
+            type="button"
+            aria-label="Chat settings"
+            aria-expanded={settingsOpen}
+            aria-controls="chat-settings"
+            disabled={loadingChats}
+            onClick={() => setSettingsOpen((open) => !open)}
+            className={"inline-flex h-11 shrink-0 items-center justify-center gap-2 rounded-xl px-2 text-sm font-medium hover:bg-primary-50 disabled:opacity-50 " + (settingsOpen ? "bg-primary-100 text-primary-800" : "text-gray-600")}
+          >
+            <SlidersHorizontal size={20} aria-hidden="true" />
+            <span>Settings</span>
+          </button>
           <button
             type="button"
             aria-label="New chat"
-            onClick={() => void createChat()}
+            onClick={startNewChat}
             disabled={busy || loadingChats}
             className="inline-flex h-11 shrink-0 items-center justify-center gap-2 rounded-xl px-3 text-primary-700 hover:bg-primary-50 disabled:cursor-wait disabled:opacity-50"
           >
@@ -724,68 +872,74 @@ export default function ChatClient() {
           </button>
         </header>
 
-        {selectedChat && (
-          <section id="chat-settings" aria-label="Chat settings" hidden={!settingsOpen} className="max-h-[45%] shrink-0 overflow-y-auto border-y border-accent-700 bg-primary-50 px-4 py-4 sm:px-6">
-            <div className="mx-auto max-w-3xl space-y-4">
-              <div className="flex items-center gap-2">
-                <input
-                  value={titleDraft}
-                  onChange={(e) => setTitleDraftByChat((prev) => ({ ...prev, [selectedChat.id]: e.target.value }))}
-                  className="min-h-11 min-w-0 flex-1 rounded-xl border border-accent-800 bg-white px-3 py-2 font-medium text-gray-900"
-                  maxLength={120}
-                  aria-label="Chat title"
-                />
-                <Button
-                  variant="primary"
-                  size="sm"
-                  onClick={() => void patchSelectedChat({ title: titleDraft })}
-                  disabled={busy || !titleDraft.trim()}
-                  ariaLabel="Save chat title"
-                  className="min-h-11 min-w-11"
-                  icon={<Pencil className="h-[18px] w-[18px] text-white" aria-hidden="true" />}
-                >
-                  <span className="hidden sm:inline">Save</span>
-                </Button>
-                <Button
-                  variant="destructive"
-                  size="sm"
-                  onClick={() => { setError(null); setChatPendingDeletion(selectedChat); }}
-                  disabled={busy}
-                  className="min-h-11 min-w-11"
-                  icon={<Trash2 className="h-[18px] w-[18px] text-white" aria-hidden="true" />}
-                  ariaLabel="Delete chat"
-                />
-              </div>
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                <label className="flex min-w-0 flex-col gap-1 text-sm font-medium text-gray-900">
-                  Subject
-                  <select
-                    value={selectedChat.subjectId ?? ""}
-                    onChange={(e) => void patchSelectedChat({ subjectId: e.target.value || null, topicId: null })}
-                    disabled={busy || selectedChatStarted}
-                    className="min-h-11 w-full rounded-xl border border-accent-800 bg-white px-3 py-2 font-normal disabled:bg-gray-100 disabled:text-gray-500"
+        <section id="chat-settings" aria-label="Chat settings" hidden={!settingsOpen} className="max-h-[45%] shrink-0 overflow-y-auto border-y border-accent-700 bg-primary-50 px-4 py-4 sm:px-6">
+          <div className="mx-auto max-w-3xl space-y-4">
+            <div className="flex items-center gap-2">
+              <input
+                value={titleDraft}
+                onChange={(e) => selectedChat
+                  ? setTitleDraftByChat((prev) => ({ ...prev, [selectedChat.id]: e.target.value }))
+                  : setChatDraft((draft) => ({ ...draft, title: e.target.value }))}
+                className="min-h-11 min-w-0 flex-1 rounded-xl border border-accent-800 bg-white px-3 py-2 font-medium text-gray-900"
+                maxLength={120}
+                aria-label="Chat title"
+                placeholder="New chat"
+              />
+              {selectedChat && (
+                <>
+                  <Button
+                    variant="primary"
+                    size="sm"
+                    onClick={() => void patchSelectedChat({ title: titleDraft })}
+                    disabled={busy || !titleDraft.trim()}
+                    ariaLabel="Save chat title"
+                    className="min-h-11 min-w-11"
+                    icon={<Pencil className="h-[18px] w-[18px] text-white" aria-hidden="true" />}
                   >
-                    <option value="">General</option>
-                    {subjects.map((subject) => <option key={subject.id} value={subject.id}>{subject.displayName ?? subject.name}</option>)}
-                  </select>
-                </label>
-                <label className="flex min-w-0 flex-col gap-1 text-sm font-medium text-gray-900">
-                  Topic
-                  <select
-                    value={selectedChat.topicId ?? ""}
-                    onChange={(e) => void patchSelectedChat({ topicId: e.target.value || null })}
-                    disabled={busy || !selectedChat.subjectId || selectedChatStarted}
-                    className="min-h-11 w-full rounded-xl border border-accent-800 bg-white px-3 py-2 font-normal disabled:bg-gray-100 disabled:text-gray-500"
-                  >
-                    <option value="">No topic</option>
-                    {(selectedSubject?.topics ?? []).map((topic) => <option key={topic.id} value={topic.id}>{topic.title}</option>)}
-                  </select>
-                </label>
-              </div>
-              {selectedChatStarted && <p className="text-xs text-gray-600">Subject and topic are fixed after your first message. Start a new chat to change them.</p>}
+                    <span className="hidden sm:inline">Save</span>
+                  </Button>
+                  <Button
+                    variant="destructive"
+                    size="sm"
+                    onClick={() => { setError(null); setChatPendingDeletion(selectedChat); }}
+                    disabled={busy}
+                    className="min-h-11 min-w-11"
+                    icon={<Trash2 className="h-[18px] w-[18px] text-white" aria-hidden="true" />}
+                    ariaLabel="Delete chat"
+                  />
+                </>
+              )}
             </div>
-          </section>
-        )}
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <label className="flex min-w-0 flex-col gap-1 text-sm font-medium text-gray-900">
+                Subject
+                <select
+                  value={chatSettings.subjectId ?? ""}
+                  onChange={(e) => void patchSelectedChat({ subjectId: e.target.value || null, topicId: null })}
+                  disabled={busy || selectedChatStarted}
+                  className="min-h-11 w-full rounded-xl border border-accent-800 bg-white px-3 py-2 font-normal disabled:bg-gray-100 disabled:text-gray-500"
+                >
+                  <option value="">General</option>
+                  {subjects.map((subject) => <option key={subject.id} value={subject.id}>{subject.displayName ?? subject.name}</option>)}
+                </select>
+              </label>
+              <label className="flex min-w-0 flex-col gap-1 text-sm font-medium text-gray-900">
+                Topic
+                <select
+                  value={chatSettings.topicId ?? ""}
+                  onChange={(e) => void patchSelectedChat({ topicId: e.target.value || null })}
+                  disabled={busy || !chatSettings.subjectId || selectedChatStarted}
+                  className="min-h-11 w-full rounded-xl border border-accent-800 bg-white px-3 py-2 font-normal disabled:bg-gray-100 disabled:text-gray-500"
+                >
+                  <option value="">No topic</option>
+                  {(selectedSubject?.topics ?? []).map((topic) => <option key={topic.id} value={topic.id}>{topic.title}</option>)}
+                </select>
+              </label>
+            </div>
+            {selectedChatStarted && <p className="text-xs text-gray-600">Subject and topic are fixed after your first message. Start a new chat to change them.</p>}
+            {!selectedChat && <p className="text-xs text-gray-600">This chat is saved when you send your first message.</p>}
+          </div>
+        </section>
 
         <div className={"flex min-h-0 flex-1 flex-col " + (emptyConversation ? "justify-center" : "")}>
           <div
@@ -809,7 +963,9 @@ export default function ChatClient() {
                 </div>
               ) : messages.length === 0 ? (
                 <div className="mx-auto max-w-lg text-center">
-                  <Image src={AI_AVATAR} alt="" width={64} height={64} rounded="full" className="mx-auto mb-3 !h-12 !w-12 !object-contain sm:!h-16 sm:!w-16" />
+                  <span className="mx-auto mb-3 flex h-20 w-20 items-center justify-center rounded-full border-[3px] border-black bg-[#5e3194] sm:h-24 sm:w-24">
+                    <Image src={AI_AVATAR} alt="" width={96} height={96} rounded="none" className="!h-[70%] !w-[70%] !object-contain" />
+                  </span>
                   <h2 className="text-2xl font-semibold leading-tight tracking-tight text-primary-900 sm:text-3xl">What are we learning today?</h2>
                   <p className="mt-3 text-sm leading-relaxed text-gray-600">A tricky topic, a practice question, or a little revision. Let’s work through it.</p>
                 </div>
@@ -895,35 +1051,41 @@ export default function ChatClient() {
               <form
                 aria-label="Send a message"
                 onSubmit={(event) => { event.preventDefault(); void handleSend(); }}
-                className="rounded-[26px] border border-accent-800 bg-primary-50 p-3 shadow-sm transition-shadow focus-within:border-primary-400 focus-within:shadow-md"
+                className={"rounded-[26px] border border-accent-800 p-3 transition-colors " + (composerDisabled
+                  ? "cursor-not-allowed bg-accent-600"
+                  : "bg-primary-50 shadow-sm focus-within:border-primary-400 focus-within:shadow-md")}
               >
                 <textarea
                   ref={composerRef}
                   aria-label="Message to AI tutor"
-                  aria-describedby="chat-composer-help"
-                  className="block max-h-[180px] min-h-11 w-full resize-none rounded-xl border-0 bg-transparent px-2 py-2 text-base leading-6 text-gray-900 placeholder:text-gray-500"
-                  placeholder="Ask Study Buddy…"
+                  aria-describedby="chat-composer-help chat-composer-status"
+                  className="block max-h-[180px] min-h-11 w-full resize-none rounded-xl border-0 bg-transparent px-2 py-2 text-base leading-6 text-gray-900 placeholder:text-gray-500 disabled:cursor-not-allowed disabled:text-gray-600 disabled:placeholder:text-gray-600 disabled:opacity-100"
+                  placeholder={composerPlaceholder}
                   rows={1}
                   value={input}
                   onChange={(e) => setInput(e.target.value)}
                   onKeyDown={handleKeyDown}
-                  disabled={busy || loadingChats || loadingMessages}
+                  disabled={composerDisabled}
                   maxLength={4000}
                 />
                 <span id="chat-composer-help" className="sr-only">
                   Press Enter to send, or Shift+Enter for a new line. Maximum 4000 characters.
                 </span>
                 <div className="mt-1 flex items-center justify-between gap-2">
-                  <span className="min-w-0 truncate px-2 text-xs text-gray-600">
-                    {input.length >= 3600 ? input.length + "/4000 characters" : selectedSubject?.displayName ?? selectedSubject?.name ?? "Study Buddy"}
+                  <span id="chat-composer-status" role="status" className={composerStatus ? "flex min-w-0 items-center gap-2 px-2 text-xs text-gray-600" : "sr-only"}>
+                    {composerStatus && <LockKeyhole size={15} aria-hidden="true" className="shrink-0" />}
+                    {composerStatus}
                   </span>
+                  {!composerStatus && <span className="min-w-0 truncate px-2 text-xs text-gray-600">
+                    {input.length >= 3600 ? input.length + "/4000 characters" : selectedSubject?.displayName ?? selectedSubject?.name ?? "Study Buddy"}
+                  </span>}
                   <button
                     type="submit"
                     aria-label={sending ? "Sending message" : "Send message"}
-                    disabled={busy || loadingChats || loadingMessages || !input.trim()}
+                    disabled={composerDisabled || !input.trim()}
                     className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-primary-500 text-white transition-colors hover:bg-primary-700 disabled:cursor-not-allowed disabled:bg-accent-700 disabled:text-gray-500"
                   >
-                    {sending ? <LoaderCircle size={22} className="motion-safe:animate-spin" aria-hidden="true" /> : <ArrowUp size={22} aria-hidden="true" />}
+                    {replying ? <LoaderCircle size={22} className="motion-safe:animate-spin" aria-hidden="true" /> : <ArrowUp size={22} aria-hidden="true" />}
                   </button>
                 </div>
               </form>
@@ -956,17 +1118,17 @@ export default function ChatClient() {
           aria-label="Chat history"
           className="fixed inset-y-0 left-0 right-auto m-0 h-dvh max-h-none w-80 max-w-[85vw] border-r border-accent-700 bg-primary-50 p-0 shadow-xl backdrop:bg-gray-950/40"
           onCancel={(event) => { event.preventDefault(); setMobileHistoryOpen(false); }}
-          onKeyDown={trapDialogButtonFocus}
+          onKeyDown={trapDialogFocus}
           onClick={(event) => { if (event.target === event.currentTarget) setMobileHistoryOpen(false); }}
         >
           <div className="flex h-full flex-col p-3">
             <div className="mb-3 flex items-center justify-between gap-3 px-2">
               <p className="font-semibold text-[#6C3483]">Study Buddy</p>
-              <button type="button" aria-label="Close chat history" onClick={() => setMobileHistoryOpen(false)} className="inline-flex h-11 w-11 items-center justify-center rounded-xl text-gray-600 hover:bg-primary-100">
-                <X size={21} aria-hidden="true" />
+              <button type="button" aria-label="Close chat history" onClick={() => setMobileHistoryOpen(false)} className="inline-flex h-11 w-11 items-center justify-center rounded-xl border border-primary-200 bg-primary-50 hover:bg-primary-100">
+                <StudyBuddyIcon name="sidebarClose" size={36} />
               </button>
             </div>
-            {history}
+            {history("mobile")}
           </div>
         </dialog>
       )}
@@ -981,7 +1143,7 @@ export default function ChatClient() {
             event.preventDefault();
             if (!savingChat) setChatPendingDeletion(null);
           }}
-          onKeyDown={trapDialogButtonFocus}
+          onKeyDown={trapDialogFocus}
           onClick={(event) => {
             if (event.target === event.currentTarget && !savingChat) {
               setChatPendingDeletion(null);
