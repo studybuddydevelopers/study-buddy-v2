@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
-  auth: vi.fn(), support: vi.fn(), rateLimit: vi.fn(),
+  auth: vi.fn(), support: vi.fn(), rateLimit: vi.fn(), getClientIp: vi.fn(),
   db: {
     aiChatMessage: { findFirst: vi.fn() },
     aiChatMessageReport: { findFirst: vi.fn(), upsert: vi.fn(), updateMany: vi.fn() },
@@ -9,7 +9,10 @@ const mocks = vi.hoisted(() => ({
 }));
 vi.mock("@/lib/auth", () => ({ requireAiUser: mocks.auth }));
 vi.mock("@/lib/marking-review-support", () => ({ requireMarkingReviewSupport: mocks.support }));
-vi.mock("@/lib/security/rate-limit", () => ({ enforceRateLimitRules: mocks.rateLimit }));
+vi.mock("@/lib/security/rate-limit", () => ({
+  enforceRateLimitRules: mocks.rateLimit,
+  getClientIp: mocks.getClientIp,
+}));
 vi.mock("@/lib/prisma", () => ({ prisma: { ...mocks.db, $transaction: (operation: (db: typeof mocks.db) => Promise<unknown>) => operation(mocks.db) } }));
 
 import { getChatReport, submitChatReport } from "./chat-report-service";
@@ -26,6 +29,7 @@ describe("chat response reporting", () => {
     mocks.auth.mockResolvedValue({ dbUser: { id: "learner-1" } });
     mocks.support.mockResolvedValue({ dbUser: { id: "support-1" } });
     mocks.rateLimit.mockResolvedValue(null);
+    mocks.getClientIp.mockReturnValue("203.0.113.9");
     mocks.db.aiChatMessage.findFirst.mockResolvedValue({ id: "message-1" });
     mocks.db.aiChatMessageReport.findFirst.mockResolvedValue(null);
     mocks.db.aiChatMessageReport.upsert.mockResolvedValue(receipt);
@@ -70,6 +74,20 @@ describe("chat response reporting", () => {
   it("respects report submission limits", async () => {
     mocks.rateLimit.mockResolvedValue(Response.json({}, { status: 429 }));
     expect((await POST(request({ reason: "OTHER" }), context))?.status).toBe(429);
+    expect(mocks.rateLimit).toHaveBeenCalledWith([
+      {
+        scope: "chat-report:account",
+        identifier: "learner-1",
+        limit: 20,
+        windowMs: 60 * 60_000,
+      },
+      {
+        scope: "chat-report:ip",
+        identifier: "203.0.113.9",
+        limit: 300,
+        windowMs: 60 * 60_000,
+      },
+    ]);
     expect(mocks.db.aiChatMessageReport.upsert).not.toHaveBeenCalled();
   });
 

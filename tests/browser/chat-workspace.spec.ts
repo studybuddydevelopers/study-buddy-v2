@@ -353,7 +353,7 @@ test("chat title search restores saved chats when cleared", async ({ page }) => 
   await expect(search).toBeFocused();
   await expect(results).toHaveCount(0);
   await expect(
-    page
+    page.locator("#chat-search-panel")
       .getByRole("navigation", { name: "Saved chats" })
       .getByRole("button", { name: chat.title, exact: true })
   ).toBeVisible();
