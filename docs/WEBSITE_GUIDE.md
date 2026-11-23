@@ -229,8 +229,26 @@ tutor avatar and a copy-response action. The rounded, growing composer stays
 below the independently scrollable transcript. Empty chats offer prompts that
 prepare a draft without sending it.
 
-The tutor SVG fits inside a circular badge with a black border in the welcome
-state and beside replies; the inset keeps the full illustration visible. While
+Each completed tutor response has **Report response** beside Copy. Its dialog
+attaches that response and its question, collects a reason and optional details,
+and shows a saved reference/status. Failures keep the draft available for retry.
+Reopening Report shows any support review note. The restricted review workspace
+includes a chat-report queue; see [report operations](CHAT_RESPONSE_REPORTS.md)
+for the migration and release prerequisites.
+
+While a conversation loads, large rounded **Loading conversations** lettering
+fills and clears through purple splash spots. With reduced motion, it remains
+fully filled. The title-search field now draws its keyboard-focus indicator
+around the outer frame, including the search and clear icons.
+
+The tutor SVG sits in a compact circular frame with a 3px black border in the
+welcome state (64px, rising to 80px from 640px) and beside replies (56px, rising
+to 64px from 640px). The artwork uses 90% of the inner width and sits 2px higher
+to reduce the gap above the head while keeping the figure close to its previous
+size. The frame clips the outer background/shoulder corners, not the head.
+Pending replies use
+the approved animated SB volume-bar mark beside **Thinking through your
+question…**. The mark stays still for reduced-motion users. While
 sending or retrying, the disabled composer shows a grey
 background, a disabled cursor, a replying placeholder and **Replying — input
 paused** status. Loading/saving states have matching explanations; the normal
@@ -240,7 +258,23 @@ History is collapsible on desktop and opens in a native modal drawer below
 1024px. This chat-specific breakpoint does not change the site's 1110px mobile
 navigation breakpoint. The toolbar's **Chat settings** opens title/save/delete
 and subject/topic controls; subject/topic remain fixed after the first message.
-The button displays **Settings** beside its icon at every width. **New chat**
+The visible **AI Chat** toolbar heading is removed; an off-screen primary heading
+retains the accessible page name. Tutor names, composer labels, pending status
+and demo copy use **AI Study Buddy Tutor**.
+Opening/closing history uses a purple Study Buddy panel-and-chevron illustration.
+Both desktop history and the mobile drawer include **New chat** and **Search
+chats**. Search finds saved titles case-insensitively across the learner's entire
+history, with paginated matches, loading/empty feedback, retry on failure and a
+clear control. From 768px, **Search chats** opens a centred modal popup with its
+own input and results. Below 768px, search remains in the history drawer. The
+popup focuses the input, contains keyboard focus and restores focus when closed
+with Escape, its close button or the backdrop. An inline search moves into the
+popup if the viewport grows to tablet width, preserving its query and results.
+Selecting an older result closes search and opens its conversation and settings.
+Changing the query cancels the previous search so late responses cannot replace
+the current matches. The drawer's keyboard focus containment includes its search
+input.
+The **Settings** button displays its label beside the icon at every width. **New chat**
 opens a local draft without writing a chat record or adding a history entry.
 Title, subject and topic choices also stay local until the first send; leaving
 or refreshing an unsent draft does not save it. Saved chats retain their normal
@@ -260,7 +294,9 @@ The history drawer also contains keyboard focus, closes with Escape and returns
 focus to its trigger. Repeated Markdown tables use named, focusable groups
 instead of duplicate region landmarks. Synthetic Chromium/WebKit browser
 coverage lives in [chat-workspace.spec.ts](../tests/browser/chat-workspace.spec.ts)
-and [chat-dialog.spec.ts](../tests/browser/chat-dialog.spec.ts); this does not
+and [chat-dialog.spec.ts](../tests/browser/chat-dialog.spec.ts), with title search,
+pagination and sidebar draft actions in
+[chat-search.spec.ts](../tests/browser/chat-search.spec.ts); this does not
 establish live account/API operation or physical mobile-keyboard behaviour.
 
 [ChatMarkdown](../components/ChatMarkdown.tsx) uses Streamdown, KaTeX and syntax

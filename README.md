@@ -83,10 +83,10 @@ Deployment requirements:
 
 ## Product TODOs
 
-- AI tutor/chat safeguards: make the AI tutor more robust against malpractice and misuse. Add detection, reporting, review workflows, and temporary account suspension for repeated consecutive unresolved malpractice/misuse incidents.
-- AI tutor/chat relevance: stop the AI from answering unrelated questions and keep responses focused on supported study/tutoring use cases.
-- AI tutor/chat UI: the ChatGPT-inspired conversation workspace is implemented locally, with a collapsible history, mobile drawer, growing composer and long-thread browser coverage. Staging review and physical mobile-keyboard checks remain; see [the chat UI guide](docs/WEBSITE_GUIDE.md#chat).
-- AI tutor visual identity: change/update the AI tutor image.
+- AI Study Buddy Tutor/chat safeguards: message-specific reporting and support review are implemented in source ([release prerequisites](docs/CHAT_RESPONSE_REPORTS.md)). Misuse detection and decisions about repeated unresolved misuse remain separate work.
+- AI Study Buddy Tutor/chat relevance: stop the AI from answering unrelated questions and keep responses focused on supported study/tutoring use cases.
+- AI Study Buddy Tutor/chat UI: the ChatGPT-inspired conversation workspace is implemented locally, with a collapsible history, mobile drawer, growing composer and long-thread browser coverage. Staging review and physical mobile-keyboard checks remain; see [the chat UI guide](docs/WEBSITE_GUIDE.md#chat).
+- AI Study Buddy Tutor visual identity: change/update the AI Study Buddy Tutor image.
 - AI activity: verify counters across persistent chats and legacy threads before reporting an unresolved counting bug.
 - Progress follow-up: validate the implemented separate metrics, daily trends, filters, mobile carousels and compact mock results against learner feedback.
 - Sheets data integration: integrate data from sheets into the app through a controlled import/sync workflow, with validation and duplicate handling before records are saved.
@@ -465,7 +465,7 @@ Applied DB optimization migration: [`20260726090000_add_query_performance_indexe
 
 Implemented DB/query optimizations:
 
-- Added query-focused indexes for dashboard/progress aggregates, practice materials, AI tutor threads/messages, mock exam resume/history, recommendations, subscriptions, admin user listing, subject/topic lookup, and payment verification.
+- Added query-focused indexes for dashboard/progress aggregates, practice materials, AI Study Buddy Tutor threads/messages, mock exam resume/history, recommendations, subscriptions, admin user listing, subject/topic lookup, and payment verification.
 - Added `Transaction.reference` as a unique DB constraint so Paystack duplicate-prevention is enforced by the database, not only by application code.
 - Added `ProgressTrack(userId, subjectId)` as a unique DB constraint so each user has one progress row per subject.
 - Updated progress update APIs to use direct composite upserts against `ProgressTrack(userId, subjectId)`.

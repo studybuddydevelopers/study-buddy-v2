@@ -56,11 +56,13 @@ AI
 --
 - POST `/ai/messages` (auth) — Body: `message` (string, req), `subjectId?`, `topicId?`. Returns `{ userMessage, aiResponse, meta }`.
 - POST `/ai/chats` (auth) — Body: `title?`, `subjectId?`, `topicId?`. Validates subject/topic rules and creates a persistent general chat. Returns `{ chat }`.
-- GET `/ai/chats` (auth) — Query: `page?=1`, `pageSize?=20` (max 50). Lists active chats for the current user ordered by `updatedAt DESC, id DESC`.
+- GET `/ai/chats` (auth) — Query: `page?=1`, `pageSize?=20` (max 50), `q?` (trimmed title search, max 120 characters). Lists active chats for the current user ordered by `updatedAt DESC, id DESC`. A non-empty `q` filters titles case-insensitively before pagination; blank/omitted `q` keeps normal history browsing.
 - GET `/ai/chats/:chatId` (auth) — Returns one chat owned by the current user; deleted chats return 404.
 - PATCH `/ai/chats/:chatId` (auth) — Body: `title?`, `subjectId?`, `topicId?`. An empty chat may be reclassified; a topic requires its subject. After the first user message, classification changes return 409, but renaming remains allowed.
 - DELETE `/ai/chats/:chatId` (auth) — Permanently deletes the owned chat and its cascading messages, generation requests, grounding attempts, and citations after the client confirmation screen.
 - GET `/ai/chats/:chatId/messages` (auth) — Query: `page?=1`, `pageSize?=50` (max 100). Lists messages ordered by `createdAt ASC, id ASC`.
+- GET `/ai/chats/:chatId/messages/:messageId/report` (auth) — Returns the owned completed tutor response's report receipt/status, or `null` when none exists.
+- POST `/ai/chats/:chatId/messages/:messageId/report` (auth) — Body: `reason` (`INCORRECT`, `INCOMPLETE`, `UNSAFE`, `OTHER`), optional `details` (max 2000 characters). Creates or returns the response's existing report; the server attaches the owned message and question. Requires the chat-report migration.
 - POST `/ai/chats/:chatId/messages` (auth) — Body: `message` (1–4000 chars), `clientRequestId` (req). Creates/persists one user message, one empty pending assistant message, and one generation request. Duplicate completed/pending requests return existing state. Duplicate failed requests return failed state with `retryRequired`; use retry endpoint.
 - POST `/ai/chats/:chatId/requests/:requestId/retry` (auth) — Atomically retries a failed generation request without duplicating the user or assistant message.
 - GET `/ai/chats/:chatId/citations/:citationId` (auth) — Stage 4 citation preview. Verifies chat ownership and citation/message/attempt relationships, then returns bounded historical excerpt metadata. Does not expose private storage bucket/path or full original files.

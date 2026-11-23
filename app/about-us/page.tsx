@@ -109,7 +109,7 @@ export default function AboutUsPage() {
               <div className="mb-4 flex items-center gap-3 border-b border-gray-200 pb-4">
                 <Image
                   src="/images/ai-tutor-avatar.svg"
-                  alt="Study Buddy AI tutor avatar"
+                  alt="AI Study Buddy Tutor avatar"
                   rounded="full"
                   className="!h-14 !w-14 shrink-0 object-cover"
                   width={56}

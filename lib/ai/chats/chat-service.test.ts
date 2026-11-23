@@ -724,6 +724,53 @@ class FakeSearchRepository implements ResourceSearchRepository {
 }
 
 describe("ChatService Stage 1 lifecycle", () => {
+  it("regenerates a length-limited answer once with more room and saves only the complete response", async () => {
+    const { db, service, provider } = createService(new InMemoryChatDb(), new SequenceProvider([
+      { text: "Incomplete $A \\cup", finishReason: "length", provider: "fake", model: "test", usage: { inputTokens: 10, outputTokens: 2000, totalTokens: 2010 } },
+      { text: "Complete: $A \\cup B$ is the union.", finishReason: "stop", provider: "fake", model: "test", usage: { inputTokens: 10, outputTokens: 2100, totalTokens: 2110 } },
+    ]));
+    db.seedChat({ id: "chat-1", userId: "user-a" });
+    const result = await service.sendMessage("user-a", "chat-1", { message: "Explain sets in detail", clientRequestId: "request-1" });
+    expect(provider.inputs.map((input) => input.maxOutputTokens)).toEqual([2000, 4000]);
+    expect(provider.inputs[1].messages).toEqual(provider.inputs[0].messages);
+    expect(result.assistantMessage).toMatchObject({ status: "COMPLETED", content: "Complete: $A \\cup B$ is the union." });
+    expect(db.messages.find((message) => message.role === "ASSISTANT")).toMatchObject({ inputTokens: 20, outputTokens: 4100 });
+    expect(db.messages).toHaveLength(2);
+    expect(db.requests).toHaveLength(1);
+  });
+
+  it("does not save a second cut-off answer as complete or retry indefinitely", async () => {
+    const partial = { text: "Incomplete", finishReason: "length", provider: "fake", model: "test" };
+    const { db, service, provider } = createService(new InMemoryChatDb(), new SequenceProvider([partial, partial]));
+    db.seedChat({ id: "chat-1", userId: "user-a" });
+    const result = await service.sendMessage("user-a", "chat-1", { message: "Explain sets", clientRequestId: "request-1" });
+    expect(provider.invocations).toBe(2);
+    expect(result.assistantMessage).toMatchObject({ status: "FAILED", content: "", failureCode: "INVALID_PROVIDER_RESPONSE" });
+    expect(db.messages).toHaveLength(2);
+  });
+
+  it.each(["content_filter", "tool_calls", "unknown", null])("does not retry or present %s output as a completed answer", async (finishReason) => {
+    const { db, service, provider } = createService(new InMemoryChatDb(), new SequenceProvider([
+      { text: "Partial", finishReason, provider: "fake", model: "test" },
+    ]));
+    db.seedChat({ id: "chat-1", userId: "user-a" });
+    const result = await service.sendMessage("user-a", "chat-1", { message: "Explain sets", clientRequestId: "request-1" });
+    expect(provider.invocations).toBe(1);
+    expect(result.assistantMessage).toMatchObject({ status: "FAILED", content: "" });
+  });
+
+  it("keeps the same retryable turn if the larger response is blocked by the budget guard", async () => {
+    const { db, service, provider } = createService(new InMemoryChatDb(), new SequenceProvider([
+      { text: "Partial", finishReason: "length", provider: "fake", model: "test" },
+      new ChatProviderError(AiGenerationFailureCode.RATE_LIMITED),
+    ]));
+    db.seedChat({ id: "chat-1", userId: "user-a" });
+    const result = await service.sendMessage("user-a", "chat-1", { message: "Explain sets", clientRequestId: "request-1" });
+    expect(provider.invocations).toBe(2);
+    expect(result.assistantMessage).toMatchObject({ status: "FAILED", content: "", failureCode: "RATE_LIMITED" });
+    expect(db.requests).toHaveLength(1);
+  });
+
   it("rejects another user's chat", async () => {
     const { db, service } = createService();
     db.seedChat({ id: "chat-1", userId: "owner" });

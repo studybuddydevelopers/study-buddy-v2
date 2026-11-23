@@ -29,7 +29,7 @@ import {
 } from "@/lib/security/ai-budget";
 
 const SYSTEM_PROMPT =
-  "You are Study Buddy, an AI tutor helping Nigerian secondary school students prepare for WAEC exams. " +
+  "You are AI Study Buddy Tutor, helping Nigerian secondary school students prepare for WAEC exams. " +
   "You specialise in Mathematics and Biology. Keep answers concise and use plain text only — no LaTeX, " +
   "no markdown, no bullet symbols. Use simple notation like x^2, sqrt(), 3/4. Be encouraging and direct.";
 

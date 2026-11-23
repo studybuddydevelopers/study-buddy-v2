@@ -38,12 +38,14 @@ export interface ChatMessageData {
 interface ChatMessageContainerProps {
   messages: ChatMessageData[];
   onRetry?: (message: ChatMessageData) => void;
+  onReport?: (message: ChatMessageData) => void;
   onCitationClick?: (citation: ChatCitationData) => void;
 }
 
 export default function ChatMessageContainer({
   messages,
   onRetry,
+  onReport,
   onCitationClick,
 }: Readonly<ChatMessageContainerProps>) {
   return (
@@ -66,6 +68,7 @@ export default function ChatMessageContainer({
               : undefined
           }
           onCitationClick={onCitationClick}
+          onReport={onReport ? () => onReport(msg) : undefined}
         />
       ))}
     </div>

@@ -13,9 +13,9 @@ describe("chat initial accessibility", () => {
   it("gives the composer a name and instructions while chats are loading", () => {
     const html = renderToStaticMarkup(<ChatClient />);
     const composer = html.match(/<textarea\b[^>]*>/)?.[0];
-    expect(composer).toContain('aria-label="Message to AI tutor"');
+    expect(composer).toContain('aria-label="Message to AI Study Buddy Tutor"');
     expect(composer).toContain('aria-describedby="chat-composer-help chat-composer-status"');
-    expect(composer).toContain('placeholder="Loading conversation…"');
+    expect(composer).toContain('placeholder="Loading conversations…"');
     expect(html).toContain("Loading — input paused");
     expect(composer).toContain('disabled=""');
     expect(composer).toContain('maxLength="4000"');

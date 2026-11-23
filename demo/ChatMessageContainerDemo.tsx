@@ -8,8 +8,8 @@ export default function ChatMessageContainerDemo() {
     {
       id: 1,
       sender: "ai",
-      name: "AI Tutor",
-      text: "Hi there! I’m your AI tutor. Ask me anything about your WAEC subjects, and I’ll do my best to help you understand and prepare effectively.",
+      name: "AI Study Buddy Tutor",
+      text: "Hi there! I’m your AI Study Buddy Tutor. Ask me anything about your WAEC subjects, and I’ll do my best to help you understand and prepare effectively.",
       avatar: "https://i.pravatar.cc/40?img=32",
     },
     {
@@ -22,7 +22,7 @@ export default function ChatMessageContainerDemo() {
     {
       id: 3,
       sender: "ai",
-      name: "AI Tutor",
+      name: "AI Study Buddy Tutor",
       text: "Osmosis is the movement of water molecules through a semi-permeable membrane, from a region of lower solute concentration to a region of higher solute concentration.",
       avatar: "https://i.pravatar.cc/40?img=32",
     },
