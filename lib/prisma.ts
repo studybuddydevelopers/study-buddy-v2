@@ -1,14 +1,25 @@
 // lib/prisma.ts
-import { PrismaClient } from "@prisma/client";
+import { Prisma, PrismaClient } from "@prisma/client";
 
 const globalForPrisma = globalThis as unknown as {
   prisma?: PrismaClient;
+  prismaSchema?: string;
 };
 
-export const prisma =
-  globalForPrisma.prisma ??
-  new PrismaClient();
+// Fast Refresh can retain a client created before `prisma generate`. Reusing
+// that instance would leave newly generated models/fields unavailable at runtime.
+const development = process.env.NODE_ENV !== "production";
+const schema = development
+  ? JSON.stringify({ version: Prisma.prismaVersion.client, datamodel: Prisma.dmmf.datamodel })
+  : undefined;
+const cached = development ? globalForPrisma.prisma : undefined;
 
-if (process.env.NODE_ENV !== "production") {
+export const prisma = cached && globalForPrisma.prismaSchema === schema
+  ? cached
+  : new PrismaClient();
+
+if (development) {
   globalForPrisma.prisma = prisma;
+  globalForPrisma.prismaSchema = schema;
+  if (cached && cached !== prisma) void cached.$disconnect().catch(() => {});
 }
