@@ -31,6 +31,19 @@ conversation with any chosen title, subject and topic. Opening or changing
 settings on an unsent draft makes no chat API write; leaving or refreshing it
 does not add an empty conversation to history.
 
+Chats without a chosen title remain **New chat** until the learner introduces a
+clear topic or learning goal. Obvious greetings and generic help requests skip
+the extra naming call. For other openings, AI considers bounded recent learner
+messages and can leave naming pending when there is not enough context. A later
+message can supply the topic, even after the conversation is reopened.
+
+The saved title is returned with the reply and appears in history. Naming runs
+alongside the answer; a failed naming request leaves **New chat** and can recover
+on a later learner message. Once a title is saved, subsequent turns do not
+automatically change it. Manual titles take precedence, and duplicate sends and
+answer retries do not repeat naming. This uses the existing chat provider and
+token-budget controls; no database migration is required.
+
 The ChatGPT-inspired workspace uses Study Buddy's purple palette, right-aligned
 learner bubbles and unboxed tutor answers. White pencil/bin icons remain on
 save/delete actions under **Chat settings**, alongside the subject/topic
@@ -46,8 +59,8 @@ The existing AI avatar sits in a closer-fitting circle with a 3px black border
 and less space above the head; complete
 answers can be copied. Pending replies pair the animated SB volume-bar mark
 with **Thinking through your question…**; reduced motion keeps the mark still.
-Conversation loading uses large, rounded **Loading conversations** lettering
-filled and cleared by purple splashes. Reduced motion shows the filled words.
+Conversation loading uses the SB logo filled and cleared by purple splashes,
+with a small grey caption below it. Reduced motion shows the filled logo.
 The title-search focus indicator follows the complete outer field frame.
 
 Conversation and chat-list panels have their own scroll areas. The growing

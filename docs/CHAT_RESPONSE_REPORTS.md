@@ -23,11 +23,14 @@ clears its identity link without discarding another learner's report.
 
 ## Deployment and verification
 
-The migration `20261122190000_add_ai_chat_message_reports` must be applied through
-the normal staging-first deployment process before reports can be submitted.
-Regenerate the Prisma client as part of the build. The migration and application
-changes must be released together. Preparing and checking the migration locally
-does not mean it has been applied to staging or production.
+The migration `20261122190000_add_ai_chat_message_reports` was applied to staging
+and then production on 22 November 2026 using Prisma Migrate. Both environments
+passed checks for the migration record, expected schema, access restrictions and
+application database permissions. Neither environment has pending migrations.
+
+Regenerate the Prisma client as part of the application build. This database
+operation did not deploy application code or run authenticated live report and
+support-review flows; those remain separate release acceptance checks.
 
 Validation covers authentication, owned completed responses, input validation,
 duplicate submission, submission limits and restricted review updates. Synthetic

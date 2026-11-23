@@ -9,6 +9,8 @@ export interface GenerateInput {
   messages: GenerateMessage[];
   temperature?: number;
   maxOutputTokens?: number;
+  /** Optional shorter deadline for auxiliary requests; disables SDK retries. */
+  timeoutMs?: number;
 }
 
 export interface GenerateUsage {

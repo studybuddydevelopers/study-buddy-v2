@@ -27,6 +27,7 @@ import type {
 } from "@/lib/resources/retrieval/types";
 import { ChatService } from "./chat-service";
 import { ChatServiceError } from "./errors";
+import { CHAT_TITLE_PROMPT, CHAT_TITLE_WAIT } from "./chat-title";
 
 type ChatRow = {
   id: string;
@@ -128,10 +129,17 @@ type ResourceChunkRow = {
 class SequenceProvider implements ChatModelProvider {
   invocations = 0;
   inputs: GenerateInput[] = [];
+  titleInputs: GenerateInput[] = [];
+  titleResult: GenerateResult | Error = { text: "Study session", provider: "fake", model: "fake-chat" };
 
   constructor(private readonly results: Array<GenerateResult | Error>) {}
 
   async generate(input: GenerateInput): Promise<GenerateResult> {
+    if (input.messages[0]?.content === CHAT_TITLE_PROMPT) {
+      this.titleInputs.push(input);
+      if (this.titleResult instanceof Error) throw this.titleResult;
+      return this.titleResult;
+    }
     this.inputs.push(input);
     this.invocations += 1;
     const next = this.results.shift();
@@ -723,6 +731,136 @@ class FakeSearchRepository implements ResourceSearchRepository {
   }
 }
 
+describe("AI default chat titles", () => {
+  it("names the first turn, returns the saved title, and does not rename on duplicate or later messages", async () => {
+    const { db, service, provider } = createService();
+    provider.titleResult = { text: "Understanding set unions", provider: "fake", model: "fake-chat" };
+    const { chat } = await service.createChat("user-a", {});
+    const input = { message: "Can you help me understand when to use the union of two sets?", clientRequestId: "first-title" };
+    const first = await service.sendMessage("user-a", chat.id, input);
+    expect(first.chat.title).toBe("Understanding set unions");
+    expect(db.chats[0].title).toBe(first.chat.title);
+    expect(first.assistantMessage.status).toBe(AiChatMessageStatus.COMPLETED);
+    const duplicate = await service.sendMessage("user-a", chat.id, input);
+    expect(duplicate.chat.title).toBe(first.chat.title);
+    await service.sendMessage("user-a", chat.id, { message: "Now explain intersections", clientRequestId: "follow-up-title" });
+    expect(db.chats[0].title).toBe(first.chat.title);
+    expect(provider.titleInputs).toHaveLength(1);
+    expect(provider.titleInputs[0].messages[1].content).toBe(input.message);
+    expect(provider.invocations).toBe(2);
+  });
+
+  it("preserves a title chosen before sending", async () => {
+    const { service, provider } = createService();
+    const { chat } = await service.createChat("user-a", { title: "My WAEC revision" });
+    const result = await service.sendMessage("user-a", chat.id, { message: "Explain ratios", clientRequestId: "custom-title" });
+    expect(result.chat.title).toBe("My WAEC revision");
+    expect(provider.titleInputs).toHaveLength(0);
+  });
+
+  it("waits through greetings and names the topic on a later turn, even after reopening", async () => {
+    const { db, service, provider } = createService();
+    provider.titleResult = { text: "Understanding simultaneous equations", provider: "fake", model: "fake-chat" };
+    const { chat } = await service.createChat("user-a", {});
+    const greeting = { message: "Hello!", clientRequestId: "greeting-title" };
+    expect((await service.sendMessage("user-a", chat.id, greeting)).chat.title).toBe("New chat");
+    await service.sendMessage("user-a", chat.id, greeting);
+    expect(provider.titleInputs).toHaveLength(0);
+    const reopened = new ChatService(db as never, provider);
+    expect((await reopened.sendMessage("user-a", chat.id, { message: "Can you help me?", clientRequestId: "vague-title" })).chat.title).toBe("New chat");
+    expect(provider.titleInputs).toHaveLength(0);
+    const result = await reopened.sendMessage("user-a", chat.id, { message: "I need help with simultaneous equations", clientRequestId: "topic-title" });
+    expect(result.chat.title).toBe("Understanding simultaneous equations");
+    expect(provider.titleInputs).toHaveLength(1);
+    expect(provider.titleInputs[0].messages.slice(1).map((message) => message.content)).toEqual(["Hello!", "Can you help me?", "I need help with simultaneous equations"]);
+  });
+
+  it("leaves the title pending when AI needs more context, then names the clarified topic", async () => {
+    const { service, provider } = createService();
+    const { chat } = await service.createChat("user-a", {});
+    provider.titleResult = { text: CHAT_TITLE_WAIT, provider: "fake", model: "fake-chat" };
+    const vague = await service.sendMessage("user-a", chat.id, { message: "I do not know where to begin", clientRequestId: "unclear-title" });
+    expect(vague.chat.title).toBe("New chat");
+    expect(vague.assistantMessage.status).toBe(AiChatMessageStatus.COMPLETED);
+    provider.titleResult = { text: "Understanding set notation", provider: "fake", model: "fake-chat" };
+    const clarified = await service.sendMessage("user-a", chat.id, { message: "The union and intersection symbols in sets confuse me", clientRequestId: "clarified-title" });
+    expect(clarified.chat.title).toBe("Understanding set notation");
+    expect(provider.titleInputs).toHaveLength(2);
+  });
+
+  it("preserves a manual title saved while the conversation is still only greetings", async () => {
+    const { service, provider } = createService();
+    const { chat } = await service.createChat("user-a", {});
+    await service.sendMessage("user-a", chat.id, { message: "Hello", clientRequestId: "greeting-before-rename" });
+    await service.updateChat("user-a", chat.id, { title: "My evening revision" });
+    const result = await service.sendMessage("user-a", chat.id, { message: "Explain set notation", clientRequestId: "topic-after-rename" });
+    expect(result.chat.title).toBe("My evening revision");
+    expect(provider.titleInputs).toHaveLength(0);
+  });
+
+  it("does not lose a completed answer when saving the generated title fails", async () => {
+    const { db, service } = createService();
+    const updateMany = db.aiChat.updateMany;
+    db.aiChat.updateMany = async (input) => {
+      if (input.data.title === "Study session") throw new Error("Title write failed");
+      return updateMany(input);
+    };
+    const { chat } = await service.createChat("user-a", {});
+    const result = await service.sendMessage("user-a", chat.id, { message: "Explain set notation", clientRequestId: "title-save-failure" });
+    expect(result.chat.title).toBe("New chat");
+    expect(result.assistantMessage.status).toBe(AiChatMessageStatus.COMPLETED);
+    expect(db.messages.find((message) => message.id === result.assistantMessage.id)?.status).toBe(AiChatMessageStatus.COMPLETED);
+  });
+
+  it("keeps a concurrent manual rename when the AI title arrives later", async () => {
+    const { service, provider } = createService();
+    let started!: () => void;
+    let release!: () => void;
+    const titleStarted = new Promise<void>((resolve) => { started = resolve; });
+    const pending = new Promise<void>((resolve) => { release = resolve; });
+    const generate = provider.generate.bind(provider);
+    provider.generate = async (input) => {
+      if (input.messages[0]?.content === CHAT_TITLE_PROMPT) { started(); await pending; }
+      return generate(input);
+    };
+    const { chat } = await service.createChat("user-a", {});
+    const send = service.sendMessage("user-a", chat.id, { message: "Explain ratios", clientRequestId: "rename-during-title" });
+    await titleStarted;
+    try { await service.updateChat("user-a", chat.id, { title: "Ratios for my exam" }); }
+    finally { release(); }
+    expect((await send).chat.title).toBe("Ratios for my exam");
+  });
+
+  it("keeps naming pending after a failure and can recover on a later message", async () => {
+    const { service, provider } = createService();
+    provider.titleResult = new ChatProviderError(AiGenerationFailureCode.PROVIDER_TIMEOUT);
+    const { chat } = await service.createChat("user-a", {});
+    const result = await service.sendMessage("user-a", chat.id, { message: "Explain set notation", clientRequestId: "title-timeout" });
+    expect(result.chat.title).toBe("New chat");
+    expect(result.assistantMessage.status).toBe(AiChatMessageStatus.COMPLETED);
+    expect(result.generated).toBe(true);
+    expect(provider.titleInputs).toHaveLength(1);
+    provider.titleResult = { text: "Understanding set notation", provider: "fake", model: "fake-chat" };
+    const recovered = await service.sendMessage("user-a", chat.id, { message: "Can you show me a union example?", clientRequestId: "title-recovered" });
+    expect(recovered.chat.title).toBe("Understanding set notation");
+    expect(provider.titleInputs).toHaveLength(2);
+  });
+
+  it("does not regenerate a title when a failed answer is retried", async () => {
+    const { service, provider } = createService(new InMemoryChatDb(), new SequenceProvider([
+      new ChatProviderError(AiGenerationFailureCode.PROVIDER_ERROR),
+      { text: "A complete answer.", provider: "fake", model: "fake-chat" },
+    ]));
+    const { chat } = await service.createChat("user-a", {});
+    const failed = await service.sendMessage("user-a", chat.id, { message: "Explain set notation", clientRequestId: "retry-title" });
+    expect(failed.assistantMessage.status).toBe(AiChatMessageStatus.FAILED);
+    const retried = await service.retryGeneration("user-a", chat.id, failed.request.id);
+    expect(retried.assistantMessage.status).toBe(AiChatMessageStatus.COMPLETED);
+    expect(retried.chat.title).toBe(failed.chat.title);
+    expect(provider.titleInputs).toHaveLength(1);
+  });
+});
+
 describe("ChatService Stage 1 lifecycle", () => {
   it("regenerates a length-limited answer once with more room and saves only the complete response", async () => {
     const { db, service, provider } = createService(new InMemoryChatDb(), new SequenceProvider([
@@ -1244,6 +1382,8 @@ describe("ChatService Stage 1 lifecycle", () => {
 
     expect(searchRepository.calls).toBe(1);
     expect(provider.structuredInvocations).toBe(1);
+    expect(provider.titleInputs).toHaveLength(1);
+    expect(result.chat.title).toBe("Study session");
     expect(provider.structuredInputs[0]?.messages[0]?.content).not.toContain(
       "prefer a familiar Nigerian context"
     );
