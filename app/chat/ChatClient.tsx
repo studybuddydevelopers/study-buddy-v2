@@ -272,6 +272,37 @@ export default function ChatClient() {
   const searchOpen = searchMode !== null;
   const searchingTitles = searchOpen && Boolean(searchQuery.trim());
 
+  const resetSearch = () => {
+    setSearchQuery("");
+    setSearchResults([]);
+    setSearchPage(1);
+    setSearchHasMore(false);
+    setSearchLoading(false);
+    setSearchError(false);
+    setSearchRetry(0);
+  };
+
+  const updateSearchQuery = (query: string) => {
+    setSearchQuery(query);
+    setSearchResults([]);
+    setSearchPage(1);
+    setSearchHasMore(false);
+    setSearchLoading(Boolean(query.trim()));
+    setSearchError(false);
+  };
+
+  const retrySearch = () => {
+    setSearchLoading(true);
+    setSearchError(false);
+    setSearchRetry((attempt) => attempt + 1);
+  };
+
+  const showMoreSearchResults = () => {
+    setSearchLoading(true);
+    setSearchError(false);
+    setSearchPage((page) => page + 1);
+  };
+
   useEffect(() => {
     if (searchMode !== "inline" || !mobileHistoryOpen) return;
     const frame = requestAnimationFrame(() => mobileSearchRef.current?.focus());
@@ -464,18 +495,9 @@ export default function ChatClient() {
     );
   };
 
-  const changeSearchQuery = (query: string) => {
-    setSearchQuery(query);
-    setSearchPage(1);
-    setSearchResults([]);
-    setSearchLoading(Boolean(query.trim()));
-    setSearchError(false);
-    setSearchHasMore(false);
-  };
-
   const selectChat = (chatId: string) => {
     setSearchMode(null);
-    changeSearchQuery("");
+    resetSearch();
     if (chatId !== selectedChatId) {
       setMessages([]);
       setLoadingMessages(true);
@@ -499,7 +521,7 @@ export default function ChatClient() {
   const startNewChat = () => {
     if (busy || loadingChats) return;
     setSearchMode(null);
-    changeSearchQuery("");
+    resetSearch();
     setSelectedChatId(null);
     setMessages([]);
     setLoadingMessages(false);
@@ -771,10 +793,10 @@ export default function ChatClient() {
         placeholder="Search by title…"
         value={searchQuery}
         maxLength={120}
-        onChange={(event) => changeSearchQuery(event.target.value)}
+        onChange={(event) => updateSearchQuery(event.target.value)}
         className="min-h-11 min-w-0 flex-1 rounded-lg bg-transparent py-2 text-sm text-gray-900 [&::-webkit-search-cancel-button]:appearance-none"
       />
-      {searchQuery && <button type="button" aria-label="Clear chat search" onClick={() => { changeSearchQuery(""); (location === "mobile" ? mobileSearchRef : dialogSearchRef).current?.focus(); }} className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-primary-700 hover:bg-primary-50"><X size={18} aria-hidden="true" /></button>}
+      {searchQuery && <button type="button" aria-label="Clear chat search" onClick={() => { resetSearch(); (location === "mobile" ? mobileSearchRef : dialogSearchRef).current?.focus(); }} className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-primary-700 hover:bg-primary-50"><X size={18} aria-hidden="true" /></button>}
     </div>
   );
 
@@ -782,7 +804,7 @@ export default function ChatClient() {
     <>
       <h2 className="px-3 pb-3 pt-2 text-xs font-semibold text-primary-700">Your chats</h2>
       {searchActive && <p role="status" className="mb-2 px-3 text-xs text-gray-600">{searchLoading ? "Searching chats…" : searchError ? "" : searchResults.length === 0 ? "No chats match this title." : `${searchResults.length} matching ${searchResults.length === 1 ? "chat" : "chats"}${searchHasMore ? " shown" : ""}`}</p>}
-      {searchActive && searchError && <div className="mb-2 rounded-xl bg-red-50 p-3 text-sm text-red-800"><p role="alert">Could not search your chats.</p><button type="button" onClick={() => { setSearchLoading(true); setSearchError(false); setSearchRetry((attempt) => attempt + 1); }} className="mt-1 min-h-11 rounded-lg px-2 font-medium underline">Try search again</button></div>}
+      {searchActive && searchError && <div className="mb-2 rounded-xl bg-red-50 p-3 text-sm text-red-800"><p role="alert">Could not search your chats.</p><button type="button" onClick={retrySearch} className="mt-1 min-h-11 rounded-lg px-2 font-medium underline">Try search again</button></div>}
       {loadingChats && !searchActive ? (
         <p role="status" className="px-3 text-sm text-gray-600">Loading chats…</p>
       ) : chats.length === 0 && !searchActive ? (
@@ -809,7 +831,7 @@ export default function ChatClient() {
               </li>
             ))}
           </ul>
-          {searchActive && searchHasMore && !searchError && <button type="button" disabled={searchLoading} onClick={() => { setSearchLoading(true); setSearchPage((page) => page + 1); }} className="mt-3 min-h-11 w-full rounded-xl border border-primary-200 px-3 py-2 text-sm font-medium text-primary-800 hover:bg-primary-100 disabled:opacity-50">Show more matches</button>}
+          {searchActive && searchHasMore && !searchError && <button type="button" disabled={searchLoading} onClick={showMoreSearchResults} className="mt-3 min-h-11 w-full rounded-xl border border-primary-200 px-3 py-2 text-sm font-medium text-primary-800 hover:bg-primary-100 disabled:opacity-50">Show more matches</button>}
         </nav>
       )}
     </>
@@ -828,7 +850,7 @@ export default function ChatClient() {
           aria-haspopup={location === "desktop" ? "dialog" : undefined}
           aria-controls={searchMode === "dialog" ? "chat-search-panel" : searchMode === "inline" && location === "mobile" ? "chat-search-mobile" : undefined}
           onClick={() => {
-            changeSearchQuery("");
+            resetSearch();
             setSearchMode(window.matchMedia("(min-width: 768px)").matches ? "dialog" : searchMode === "inline" ? null : "inline");
           }}
           className="flex min-h-11 w-full items-center gap-3 rounded-xl px-3 py-2 text-left text-sm font-medium text-primary-800 hover:bg-primary-100"

@@ -249,6 +249,9 @@ export function analyzeHoldoutV3Contamination(input: {
       item.split !== "capability_e2"
   );
   const findings: HoldoutV3ContaminationFinding[] = [];
+  const normalizedTestCorpus = input.testCorpus
+    ? normalizeQuery(input.testCorpus)
+    : "";
 
   const ids = new Set<string>();
   for (const item of input.cases) {
@@ -269,9 +272,8 @@ export function analyzeHoldoutV3Contamination(input: {
     const holdoutFacts = normalizeFactSet(holdoutCase.requiredFacts ?? []);
     const holdoutTrapWords = trapWords(holdoutCase);
 
-    if (input.testCorpus && holdoutQuery) {
-      const normalizedCorpus = normalizeQuery(input.testCorpus);
-      if (normalizedCorpus.includes(holdoutQuery)) {
+    if (normalizedTestCorpus && holdoutQuery) {
+      if (normalizedTestCorpus.includes(holdoutQuery)) {
         findings.push({
           type: "EXACT_DUPLICATE_QUERY",
           holdoutCaseId: holdoutCase.id,
