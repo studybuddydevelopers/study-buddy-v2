@@ -5,26 +5,23 @@ import type { CSSProperties } from "react";
 
 // A fixed shuffled order keeps the splashes playful without changing on hydration.
 const SPOTS = [
-  [240, 110], [110, 40], [395, 120], [310, 40], [50, 120],
-  [210, 40], [335, 120], [145, 120], [370, 40], [450, 120],
-  [165, 40], [285, 120], [270, 40], [95, 120], [190, 120],
+  [425, 380], [235, 60], [600, 540], [425, 60], [235, 700],
+  [600, 220], [425, 700], [235, 380], [600, 60], [600, 700],
+  [235, 220], [425, 540], [425, 220], [235, 540], [600, 380],
 ] as const;
 
 export default function ChatConversationLoading() {
   const id = useId().replaceAll(":", "");
-  const lettering = `chat-loading-letters-${id}`;
+  const mark = `chat-loading-mark-${id}`;
   const splash = `chat-loading-splash-${id}`;
   const mask = `chat-loading-mask-${id}`;
 
   return (
-    <div role="status" aria-label="Loading conversations" className="flex min-h-52 items-center justify-center py-8 sm:min-h-64">
-      <svg aria-hidden="true" viewBox="0 0 480 180" className="chat-conversation-loading w-full max-w-lg overflow-visible">
+    <div role="status" aria-label="Loading conversations" className="flex min-h-52 flex-col items-center justify-center gap-3 py-8 sm:min-h-64">
+      <svg aria-hidden="true" viewBox="0 0 745 745" className="chat-conversation-loading h-32 w-32 sm:h-36 sm:w-36">
         <defs>
-          <g id={lettering} textAnchor="middle" fontFamily="ui-rounded, 'Arial Rounded MT Bold', 'Trebuchet MS', sans-serif" fontWeight="900" strokeLinejoin="round">
-            <text x="240" y="67" fontSize="62">Loading</text>
-            <text x="240" y="139" fontSize="52" textLength="430" lengthAdjust="spacingAndGlyphs">conversations</text>
-          </g>
-          <g id={splash}>
+          <image id={mark} href="/images/study-buddy-mark.svg" width="745" height="745" />
+          <g id={splash} transform="scale(2)">
             <circle r="66" />
             <circle cx="54" cy="-32" r="19" />
             <circle cx="-53" cy="-24" r="15" />
@@ -33,8 +30,8 @@ export default function ChatConversationLoading() {
             <circle cx="-59" cy="28" r="11" />
             <circle cx="30" cy="-59" r="12" />
           </g>
-          <mask id={mask} maskUnits="userSpaceOnUse" x="0" y="0" width="480" height="180" style={{ maskType: "luminance" }}>
-            <rect width="480" height="180" fill="black" />
+          <mask id={mask} maskUnits="userSpaceOnUse" x="0" y="0" width="745" height="745" style={{ maskType: "luminance" }}>
+            <rect width="745" height="745" fill="black" />
             {SPOTS.map(([x, y], index) => (
               <g key={`in-${index}`} transform={`translate(${x} ${y}) rotate(${index * 37})`}>
                 <use href={`#${splash}`} fill="white" className="chat-splash-in" style={{ "--splash-delay": `${index * 55}ms` } as CSSProperties} />
@@ -47,10 +44,10 @@ export default function ChatConversationLoading() {
             ))}
           </mask>
         </defs>
-        <use href={`#${lettering}`} transform="translate(0 4)" fill="#E6D7EE" stroke="#E6D7EE" strokeWidth="5" />
-        <use href={`#${lettering}`} fill="#F7F0FB" stroke="#6C3483" strokeWidth="2.5" />
-        <use href={`#${lettering}`} fill="#6C3483" mask={`url(#${mask})`} />
+        <use href={`#${mark}`} opacity="0.14" />
+        <use href={`#${mark}`} mask={`url(#${mask})`} />
       </svg>
+      <p aria-hidden="true" className="text-sm text-gray-500">Loading screen…</p>
     </div>
   );
 }

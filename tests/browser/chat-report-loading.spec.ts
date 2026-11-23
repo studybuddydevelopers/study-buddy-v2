@@ -59,7 +59,7 @@ for (const width of [320, 1440]) {
     await audit(page);
   });
 
-  test(`conversation loading uses splash-filled lettering without overflow at ${width}px`, async ({ page }, info) => {
+  test(`conversation loading uses the splash-filled SB logo without overflow at ${width}px`, async ({ page }, info) => {
     await page.setViewportSize({ width, height: 900 });
     let release!: () => void;
     const pending = new Promise<void>((resolve) => { release = resolve; });
@@ -81,7 +81,7 @@ for (const width of [320, 1440]) {
   });
 }
 
-test("loading lettering stays filled and still with reduced motion", async ({ page }) => {
+test("loading logo stays filled and still with reduced motion", async ({ page }) => {
   await page.emulateMedia({ reducedMotion: "reduce" });
   let release!: () => void;
   const pending = new Promise<void>((resolve) => { release = resolve; });

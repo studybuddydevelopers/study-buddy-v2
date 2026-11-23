@@ -123,9 +123,11 @@ for (const width of [768, 1440]) {
     expect(Math.abs(bounds!.x + bounds!.width / 2 - width / 2)).toBeLessThan(2);
     await close.focus();
     await page.keyboard.press("Shift+Tab");
+    await expect(input).toBeFocused();
+    await page.keyboard.press("Shift+Tab");
     await expect(popup.getByRole("button", { name: chat.title })).toBeFocused();
     await page.keyboard.press("Tab");
-    await expect(close).toBeFocused();
+    await expect(input).toBeFocused();
     await audit(page);
     await page.keyboard.press("Escape");
     await expect(popup).toHaveCount(0);
