@@ -1,12 +1,13 @@
 # Study Buddy frontend guide
 
-Last checked against the working tree: 1 November 2026.
+Last checked against the current main source: 23 November 2026.
 Accessibility behaviour updated against source: 12 November 2026.
 
 This is the public contributor map for the website. It describes code in this
-checkout, not a guarantee that every feature is deployed. Notifications are
-implemented locally; staging migration and live verification remain pending.
-Production access, credentials and operational procedures do not belong here.
+checkout, not a guarantee that every feature is deployed. Notifications and
+their migration are present in source; deployment and live acceptance are
+tracked in the restricted release record. Production access, credentials and
+operational procedures do not belong here.
 
 ## Start here
 
@@ -317,15 +318,16 @@ the client waits for message responses. See the [AI guide](../AI_FEATURES_GUIDE.
 
 ### Notifications
 
-The locally implemented [inbox](../app/notifications/NotificationsClient.tsx)
+The source [inbox](../app/notifications/NotificationsClient.tsx)
 has pagination, refresh, read/unread actions and bulk read marking. Opening a
 decision marks its notification read after mounting, not during link prefetch.
 Save failures are retryable. Decisions include both upheld and adjusted marks;
 copy must describe decreases honestly too.
 
 The bell refreshes on visible-page entry/focus and periodically while visible.
-This is in-app notification delivery, not browser push or email. Preserve its
-**pending staging verification** status in release notes.
+This is in-app notification delivery, not browser push or email. Release notes
+must use the live acceptance status from the restricted release record rather
+than infer deployment from this source guide.
 
 ## Metadata, accessibility and verification
 

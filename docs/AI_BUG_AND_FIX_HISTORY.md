@@ -1,8 +1,9 @@
 # AI Bug and Fix History
 
-Last updated: 22 November 2026 (chat completion and reporting additions; older
-entries retain their recorded verification scope). This is a public-safe record of AI-related
-defects and corrections found in the tracked history of this checkout, plus
+Last updated: 23 November 2026 (chat completion, reporting and development-client
+cache additions; older entries retain their recorded verification scope). This
+is a public-safe record of AI-related defects and corrections found in the
+tracked history of this checkout, plus
 previously accepted review outcomes supplied for this project. Related commits
 are grouped into incidents; this is not a claim that every past chat, test run,
 or unrecorded report has been recovered. A commit or unit test proves source
@@ -91,7 +92,7 @@ legacy; none of the entries below authorizes source-grounded claims to users.
 | ID | Observed problem | Correction and evidence | Status |
 | --- | --- | --- | --- |
 | AI-030 | A retried written-exam flow could charge or reserve AI marking credit twice. | Credit reservation was reused for the same attempt (`009291b`); [written-paper lifecycle tests](../app/api/v1/mock-exams/written-paper-lifecycle.e2e.test.ts). | Fixed in HEAD; live billing smoke test remains useful |
-| AI-031 | Marking-review cases needed stronger linkage to the exact answer being disputed. | Case references and related tests were tightened (`40be323`); [review route tests](../app/api/v1/support/marking-reviews/[id]/route.test.ts). | Fixed in HEAD; current worktree has additional uncommitted review changes |
+| AI-031 | Marking-review cases needed stronger linkage to the exact answer being disputed. | Case references and related tests were tightened (`40be323`); [review route tests](../app/api/v1/support/marking-reviews/[id]/route.test.ts). | Fixed in HEAD; live acceptance remains separate |
 | AI-032 | Legacy AI-question and recommendation routes had uneven error handling and type safety. | Bounded validation and safe error handling were improved (`6045939`, `4b331de`, `c4c6890`); see [API reference](../app/api/v1/README.md). | Fixed in HEAD for covered routes |
 
 ## Remaining follow-up

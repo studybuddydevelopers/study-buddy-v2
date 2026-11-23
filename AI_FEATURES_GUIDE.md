@@ -1,6 +1,6 @@
 # AI experience guide
 
-Last checked against the working tree: 1 November 2026.
+Last checked against the current main source: 23 November 2026.
 Chat accessibility notes updated: 12 November 2026; no model/marking changes.
 Conversation layout notes updated: 22 November 2026; no provider/credit changes.
 
@@ -140,9 +140,9 @@ eligibility/balance and display insufficient-credit and retry states clearly.
 
 [MarkingReviewPanel](app/exams/MarkingReviewPanel.tsx) creates a case for the
 specific answer the learner disputes. Review list/detail pages show the
-reference, status, original/current scores and support decision. The locally
-implemented notification centre reports resolved reviews; staging migration
-and live checks are still pending.
+reference, status, original/current scores and support decision. The source
+includes a notification centre and migration for resolved reviews; live
+deployment and acceptance must be confirmed in the restricted release record.
 
 AI marks are practice feedback, not official grades. Reporting a mark does not
 replace marking-quality evaluation or communicating uncertainty.
