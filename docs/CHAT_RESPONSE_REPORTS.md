@@ -6,6 +6,8 @@ and response. It returns a reference and **Awaiting review** status after the
 server saves the report. A failed submission retains the form; opening a report
 again shows its current status. One response has one report, so retrying a
 submission cannot create duplicate cases or overwrite the original details.
+Submissions are limited per account and by a higher shared-IP ceiling so abuse
+is bounded without treating a school network as a single learner.
 
 Support opens **Chat response reports** from the existing restricted review
 workspace. Open and reviewed cases are paginated. Each case shows the original

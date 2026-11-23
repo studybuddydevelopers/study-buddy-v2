@@ -327,6 +327,42 @@ for (const width of [320, 768, 1440]) {
   });
 }
 
+test("chat title search restores saved chats when cleared", async ({ page }) => {
+  const matchingChat = {
+    ...chat,
+    id: "biology-chat",
+    title: "Biology revision",
+  };
+  await page.route("**/api/v1/ai/chats?*", (route) => {
+    const query = new URL(route.request().url()).searchParams.get("q");
+    return route.fulfill({
+      json: query
+        ? { chats: [matchingChat], pagination: { hasNextPage: false } }
+        : { chats: [chat] },
+    });
+  });
+  await page.goto("/chat");
+  await page.getByRole("button", { name: "Search chats", exact: true }).click();
+  const search = page.getByRole("searchbox", { name: "Search chat titles" });
+  await search.fill("biology");
+  const results = page.getByRole("navigation", { name: "Chat search results" });
+  await expect(
+    results.getByRole("button", { name: matchingChat.title, exact: true })
+  ).toBeVisible();
+  await expect(
+    page.getByRole("status").filter({ hasText: "matching chat" })
+  ).toHaveText("1 matching chat");
+  await page.getByRole("button", { name: "Clear chat search" }).click();
+  await expect(search).toHaveValue("");
+  await expect(search).toBeFocused();
+  await expect(results).toHaveCount(0);
+  await expect(
+    page.locator("#chat-search-panel")
+      .getByRole("navigation", { name: "Saved chats" })
+      .getByRole("button", { name: chat.title, exact: true })
+  ).toBeVisible();
+});
+
 test("a response can be copied and clipboard failures are explained", async ({ page }) => {
   await page.addInitScript(() => {
     let attempts = 0;
