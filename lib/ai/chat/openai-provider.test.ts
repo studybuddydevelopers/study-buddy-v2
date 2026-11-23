@@ -2,10 +2,18 @@ import { describe, expect, it } from "vitest";
 import {
   buildOpenAIStructuredChatRequest,
   parseOpenAIStructuredChatCompletion,
+  parseOpenAIChatCompletion,
 } from "./openai-provider";
 import { capabilityGroundedTeachOutputSchema } from "../grounding/pipelines/capability-grounding-pipeline";
 
 describe("OpenAI structured chat adapter contract", () => {
+  it("preserves plain-chat stop reasons so a token limit cannot look like a completed answer", () => {
+    for (const reason of ["stop", "length", "content_filter", null]) {
+      expect(parseOpenAIChatCompletion({ choices: [{ message: { content: "Some answer" }, finish_reason: reason }] }, "test-model")).toMatchObject({
+        text: "Some answer", finishReason: reason ?? "unknown",
+      });
+    }
+  });
   it("serializes the same strict json_schema request shape used by the adapter", () => {
     assertStrictSchemaPropertiesAreRequired(
       capabilityGroundedTeachOutputSchema.schema

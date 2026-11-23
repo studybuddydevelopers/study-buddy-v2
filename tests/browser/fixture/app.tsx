@@ -32,6 +32,7 @@ import ResetAlert from "@/app/account-security/password-reset-alert/PasswordRese
 import ResetRecovery from "@/app/account-security/password-reset-recovery/PasswordResetRecoveryClient";
 import Preferences from "@/app/settings/study-preferences/StudyPreferencesClient";
 import Chat from "@/app/chat/ChatClient";
+import ChatReportReviewCard from "@/app/support/chat-reports/ChatReportReviewCard";
 import Progress from "@/app/progress/ProgressClient";
 import { progressReport } from "./data";
 
@@ -74,9 +75,10 @@ const pages: Record<string, React.ReactNode> = {
   "/account-security/password-reset-recovery": <ResetRecovery />,
   "/settings/study-preferences": <Preferences backHref="/profile" backLabel="Back to profile" />,
   "/chat": <Chat />,
+  "/support/chat-reports": <div className="mx-auto max-w-3xl space-y-4 py-6"><h1 className="text-2xl font-semibold">Chat response reports</h1><ChatReportReviewCard initialReport={{ id: "report-1", status: "OPEN", createdAt: "2026-11-22T12:00:00Z", reviewedAt: null, resolutionNote: null, reason: "INCORRECT", details: "Please check this example.", title: "Sets revision", question: "What is a union?", response: "An incorrect example." }} /></div>,
   "/progress": <Progress progress={progressReport(new URLSearchParams(window.location.search).get("range"))} />,
 };
-const authenticated = ["/chat", "/progress", "/settings/study-preferences"].includes(route);
+const authenticated = ["/chat", "/progress", "/settings/study-preferences", "/support/chat-reports"].includes(route);
 createRoot(document.getElementById("fixture")!).render(
   <div className="p-6 max-[320px]:px-[7.5px]">
     <Shell isAuthenticated={authenticated}>{pages[route] ?? <h1>Unknown fixture page</h1>}</Shell>

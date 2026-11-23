@@ -1,6 +1,6 @@
 "use client";
 import { useState } from "react";
-import { Check, Copy } from "lucide-react";
+import { Check, Copy, Flag } from "lucide-react";
 import Image from "@/components/Image";
 import ChatMarkdown from "@/components/ChatMarkdown";
 import { SbEqualizerLoadingPattern } from "@/components/SbSequentialFillPreview";
@@ -24,6 +24,7 @@ interface ChatMessageProps {
   } | null;
   citations?: ChatCitationData[];
   onRetry?: () => void;
+  onReport?: () => void;
   onCitationClick?: (citation: ChatCitationData) => void;
   retrying?: boolean;
 }
@@ -37,6 +38,7 @@ export default function ChatMessage({
   grounding,
   citations = [],
   onRetry,
+  onReport,
   onCitationClick,
   retrying = false,
 }: ChatMessageProps) {
@@ -65,11 +67,11 @@ export default function ChatMessage({
       {!isUser && (
         <div className="mb-3 flex items-center gap-2.5">
           {avatar && (
-            <span className="inline-flex h-16 w-16 shrink-0 items-center justify-center rounded-full border-[3px] border-black bg-[#5e3194] sm:h-20 sm:w-20">
-              <Image dataChatAvatar src={avatar} alt="" className="!h-[70%] !w-[70%] !object-contain" sizes="(min-width: 640px) 52px, 41px" widths={[52, 104]} width={80} height={80} rounded="none" />
+            <span className="inline-flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-full border-[3px] border-black bg-[#5e3194] sm:h-16 sm:w-16">
+              <Image dataChatAvatar src={avatar} alt="" className="!h-auto !w-[90%] -translate-y-0.5 !object-contain" sizes="(min-width: 640px) 52px, 45px" widths={[52, 104]} width={64} height={64} rounded="none" />
             </span>
           )}
-          <span className="text-sm font-semibold text-primary-900">{name ?? "AI Tutor"}</span>
+          <span className="text-sm font-semibold text-primary-900">{name ?? "AI Study Buddy Tutor"}</span>
         </div>
       )}
 
@@ -90,7 +92,7 @@ export default function ChatMessage({
             <div
               className="flex min-h-11 items-center gap-3 text-sm text-gray-600"
               role="status"
-              aria-label={`${name ?? "AI Tutor"} is responding`}
+              aria-label={`${name ?? "AI Study Buddy Tutor"} is responding`}
             >
               <span aria-hidden="true" className="shrink-0"><SbEqualizerLoadingPattern size={44} showMessage={false} /></span>
               Thinking through your question…
@@ -141,6 +143,7 @@ export default function ChatMessage({
             >
               {copyState === "copied" ? <Check size={18} aria-hidden="true" /> : <Copy size={18} aria-hidden="true" />}
             </button>
+            {onReport && <button type="button" onClick={(event) => { event.currentTarget.focus(); onReport(); }} aria-label="Report response" title="Report response" className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl hover:bg-primary-50 hover:text-primary-700"><Flag size={18} aria-hidden="true" /></button>}
             <span role="status">{copyState === "copied" ? "Copied" : copyState === "failed" ? "Could not copy. Select the text to copy it." : ""}</span>
           </div>
         )}

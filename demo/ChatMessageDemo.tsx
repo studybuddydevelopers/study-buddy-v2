@@ -9,8 +9,8 @@ export default function ChatMessageDemo() {
       <Heading1 gutter="md">Chat Message Demo</Heading1>
       <ChatMessage
         sender="ai"
-        name="AI Tutor"
-        text="Hi there! I’m your AI tutor. Ask me anything about your WAEC subjects, and I’ll do my best to help you understand and prepare effectively."
+        name="AI Study Buddy Tutor"
+        text="Hi there! I’m your AI Study Buddy Tutor. Ask me anything about your WAEC subjects, and I’ll do my best to help you understand and prepare effectively."
         avatar="https://i.pravatar.cc/40?img=32" // placeholder avatar
       />
       <ChatMessage

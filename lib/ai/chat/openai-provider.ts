@@ -18,7 +18,7 @@ import type {
 type OpenAIChatCompletionResponse = {
   id?: string;
   model?: string;
-  choices?: Array<{ message?: { content?: string | null } | null }>;
+  choices?: Array<{ message?: { content?: string | null } | null; finish_reason?: string | null }>;
   usage?: {
     prompt_tokens?: number;
     completion_tokens?: number;
@@ -95,16 +95,7 @@ export class OpenAIChatModelProvider implements ChatModelProvider {
         readActualTokens: (result) => result.usage?.total_tokens,
       });
 
-      return {
-        text: completion.choices?.[0]?.message?.content ?? "",
-        provider: "openai",
-        model: this.model,
-        usage: {
-          inputTokens: completion.usage?.prompt_tokens,
-          outputTokens: completion.usage?.completion_tokens,
-          totalTokens: completion.usage?.total_tokens,
-        },
-      };
+      return parseOpenAIChatCompletion(completion, this.model);
     } catch (error) {
       throw new ChatProviderError(mapOpenAIError(error));
     }
@@ -132,6 +123,23 @@ export class OpenAIChatModelProvider implements ChatModelProvider {
       throw new ChatProviderError(mapOpenAIError(error));
     }
   }
+}
+
+export function parseOpenAIChatCompletion(
+  completion: OpenAIChatCompletionResponse,
+  model: string
+): GenerateResult {
+  return {
+    text: completion.choices?.[0]?.message?.content ?? "",
+    finishReason: completion.choices?.[0]?.finish_reason ?? "unknown",
+    provider: "openai",
+    model,
+    usage: {
+      inputTokens: completion.usage?.prompt_tokens,
+      outputTokens: completion.usage?.completion_tokens,
+      totalTokens: completion.usage?.total_tokens,
+    },
+  };
 }
 
 export function buildOpenAIStructuredChatRequest(

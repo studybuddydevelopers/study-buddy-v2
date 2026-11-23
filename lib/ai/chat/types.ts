@@ -19,6 +19,7 @@ export interface GenerateUsage {
 
 export interface GenerateResult {
   text: string;
+  finishReason?: string | null;
   provider: string;
   model: string;
   usage?: GenerateUsage;

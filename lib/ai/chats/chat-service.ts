@@ -35,6 +35,8 @@ const CHAT_PAGE_SIZE_DEFAULT = 20;
 const CHAT_PAGE_SIZE_MAX = 50;
 const MESSAGE_PAGE_SIZE_DEFAULT = 50;
 const MESSAGE_PAGE_SIZE_MAX = 100;
+const CHAT_RESPONSE_MAX_TOKENS = 2000;
+const CHAT_RESPONSE_RETRY_MAX_TOKENS = 4000;
 
 const chatInclude = {
   subject: { select: { id: true, name: true, examCode: true } },
@@ -308,6 +310,13 @@ function getTokenValue(value: number | undefined) {
 }
 
 function validateProviderResult(result: GenerateResult) {
+  if (result.finishReason !== undefined && result.finishReason !== "stop") {
+    throw new ChatServiceError(
+      "INVALID_PROVIDER_RESPONSE",
+      502,
+      "The AI provider did not complete the response."
+    );
+  }
   const text = typeof result.text === "string" ? result.text.trim() : "";
   if (!text) {
     throw new ChatServiceError(
@@ -333,6 +342,19 @@ function validateProviderResult(result: GenerateResult) {
     model,
     inputTokens: getTokenValue(usage.inputTokens),
     outputTokens: getTokenValue(usage.outputTokens),
+  };
+}
+
+function combineGenerationUsage(first?: GenerateUsage, second?: GenerateUsage): GenerateUsage {
+  const sum = (left?: number, right?: number) => {
+    const a = getTokenValue(left);
+    const b = getTokenValue(right);
+    return a === undefined || b === undefined ? undefined : a + b;
+  };
+  return {
+    inputTokens: sum(first?.inputTokens, second?.inputTokens),
+    outputTokens: sum(first?.outputTokens, second?.outputTokens),
+    totalTokens: sum(first?.totalTokens, second?.totalTokens),
   };
 }
 
@@ -852,11 +874,22 @@ export class ChatService {
 
     try {
       const messages = await this.buildProviderMessages(initialized.chat);
-      const providerResult = await this.getProvider().generate({
+      let providerResult = await this.getProvider().generate({
         messages,
         temperature: 0.3,
-        maxOutputTokens: 500,
+        maxOutputTokens: CHAT_RESPONSE_MAX_TOKENS,
       });
+      // Regenerate once with more room instead of stitching cut Markdown/LaTeX.
+      // Both calls retain the provider's global token-budget checks.
+      if (providerResult.finishReason === "length") {
+        const previousUsage = providerResult.usage;
+        providerResult = await this.getProvider().generate({
+          messages,
+          temperature: 0.3,
+          maxOutputTokens: CHAT_RESPONSE_RETRY_MAX_TOKENS,
+        });
+        providerResult = { ...providerResult, usage: combineGenerationUsage(previousUsage, providerResult.usage) };
+      }
       const validated = validateProviderResult(providerResult);
 
       const request = await this.db.$transaction(async (tx) => {

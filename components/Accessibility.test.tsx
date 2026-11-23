@@ -108,7 +108,7 @@ describe("site accessibility safeguards", () => {
     expect(chat).toContain("<dialog");
     expect(chat).toContain("dialog?.showModal()");
     expect(chat).toContain("previousFocus.focus()");
-    expect(chat).toContain('aria-label="Message to AI tutor"');
+    expect(chat).toContain('aria-label="Message to AI Study Buddy Tutor"');
   });
 
   it("provides a primary heading without changing account-entry typography", () => {

@@ -20,8 +20,10 @@ The main `/chat` page uses [ChatClient](app/chat/ChatClient.tsx) and the persist
 - Create/select saved chats with supported subject/topic context.
 - Rename a chat using its title-save control.
 - Reopen conversations after refresh and load paginated history.
+- Search saved chat titles, including conversations beyond the initial history page.
 - See pending, completed and failed generation states.
 - Retry a failed reply without creating a second copy of their question.
+- Report a completed tutor response and revisit its support-review status.
 - Permanently delete a chat after explicit confirmation.
 
 **New chat** opens an unsaved local draft. The first send creates its saved
@@ -33,7 +35,20 @@ The ChatGPT-inspired workspace uses Study Buddy's purple palette, right-aligned
 learner bubbles and unboxed tutor answers. White pencil/bin icons remain on
 save/delete actions under **Chat settings**, alongside the subject/topic
 selectors. History collapses on desktop and opens as a modal drawer below
-1024px. The existing AI avatar is retained; complete answers can be copied.
+1024px. Both versions include **New chat** and **Search chats** controls, with
+Study Buddy panel-and-chevron icons for opening/closing history. Title search
+is case-insensitive, offers more matches when available and has clear empty,
+loading and retry states. It searches the learner's saved titles, not messages.
+Search opens in a centred modal from 768px; phones keep it in the history drawer.
+The tutor is named **AI Study Buddy Tutor**, including assistive labels. The
+visible chat toolbar heading is removed while its accessible page name remains.
+The existing AI avatar sits in a closer-fitting circle with a 3px black border
+and less space above the head; complete
+answers can be copied. Pending replies pair the animated SB volume-bar mark
+with **Thinking through your question…**; reduced motion keeps the mark still.
+Conversation loading uses large, rounded **Loading conversations** lettering
+filled and cleared by purple splashes. Reduced motion shows the filled words.
+The title-search focus indicator follows the complete outer field frame.
 
 Conversation and chat-list panels have their own scroll areas. The growing
 composer stays below the transcript; empty-state study suggestions prepare a
@@ -47,8 +62,24 @@ the transcript is a named, keyboard-focusable scroll region. Automatic scrolling
 uses instant movement when reduced motion is requested. Chat deletion uses a
 native modal dialog with contained keyboard focus, Escape/backdrop dismissal
 when idle and focus return on closing. During deletion, dismissal is blocked;
-any failure is announced inside the dialog. These are UI changes, not changes
-to chat storage, provider selection, credits or marking rules.
+any failure is announced inside the dialog.
+
+General saved-chat responses now allow more output and retain the provider's
+completion reason. A response that hits the output limit is regenerated once
+with a larger allowance using the same conversation context. Only the completed
+answer is saved; a second cut-off or other incomplete result enters the existing
+failed/retry state. This avoids splicing incomplete Markdown or maths and does
+not create another learner turn. Each provider call retains the global token
+budget guard; usage from both calls is combined when reported. This change does
+not establish live answer quality or change the separate grounded-chat gate.
+
+**Report response**, beside Copy, opens a reason/details form linked to the exact
+saved response and its question. Submission returns a reference and pending
+status; repeated submissions reuse the case. Support reviews cases through its
+existing restricted workspace and saves a note. Learners reopen Report to see
+the status and note. Reports are removed with their chat/account. See
+[response-report operations](docs/CHAT_RESPONSE_REPORTS.md), including the
+required migration before deployment.
 
 Reusable presentation lives in [ChatMessage](components/ChatMessage.tsx),
 [ChatMessageContainer](components/ChatMessageContainer.tsx) and

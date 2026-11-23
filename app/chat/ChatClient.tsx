@@ -11,6 +11,8 @@ import ChatMessageContainer, {
   type ChatCitationData,
   type ChatMessageData,
 } from "@/components/ChatMessageContainer";
+import ChatConversationLoading from "@/components/ChatConversationLoading";
+import ChatResponseReportDialog from "@/components/ChatResponseReportDialog";
 import {
   getChatErrorMessage,
   isGenerationFailureCode,
@@ -161,7 +163,7 @@ function toChatMessageData(
   return {
     id: message.id,
     sender: isUser ? "user" : "ai",
-    name: isUser ? "You" : "AI Tutor",
+    name: isUser ? "You" : "AI Study Buddy Tutor",
     text: message.content,
     avatar: isUser ? userAvatar ?? DEFAULT_USER_AVATAR : AI_AVATAR,
     status: message.status,
@@ -212,7 +214,8 @@ export default function ChatClient() {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [mobileHistoryOpen, setMobileHistoryOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
-  const [searchOpen, setSearchOpen] = useState(false);
+  const [reportedMessage, setReportedMessage] = useState<ChatMessageData | null>(null);
+  const [searchMode, setSearchMode] = useState<"inline" | "dialog" | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<ApiChat[]>([]);
   const [searchPage, setSearchPage] = useState(1);
@@ -226,8 +229,11 @@ export default function ChatClient() {
   const historyDialogRef = useRef<HTMLDialogElement | null>(null);
   const historyTriggerRef = useRef<HTMLButtonElement | null>(null);
   const composerRef = useRef<HTMLTextAreaElement | null>(null);
-  const desktopSearchRef = useRef<HTMLInputElement | null>(null);
+  const searchDialogRef = useRef<HTMLDialogElement | null>(null);
+  const dialogSearchRef = useRef<HTMLInputElement | null>(null);
   const mobileSearchRef = useRef<HTMLInputElement | null>(null);
+  const desktopSearchTriggerRef = useRef<HTMLButtonElement | null>(null);
+  const mobileSearchTriggerRef = useRef<HTMLButtonElement | null>(null);
   const citationPreviewRef = useRef<HTMLDivElement | null>(null);
   const newChatIdRef = useRef<string | null>(null);
   const followLatestRef = useRef(true);
@@ -255,7 +261,7 @@ export default function ChatClient() {
   const composerPlaceholder = replying
     ? "Study Buddy is replying…"
     : loadingChats || loadingMessages
-      ? "Loading conversation…"
+      ? "Loading conversations…"
       : savingChat ? "Saving chat…" : "Ask Study Buddy…";
   const composerStatus = replying
     ? "Replying — input paused"
@@ -263,8 +269,8 @@ export default function ChatClient() {
       ? "Loading — input paused"
       : savingChat ? "Saving — input paused" : "";
   const emptyConversation = !loadingChats && !loadingMessages && messages.length === 0;
+  const searchOpen = searchMode !== null;
   const searchingTitles = searchOpen && Boolean(searchQuery.trim());
-  const visibleChats = searchingTitles ? searchResults : chats;
 
   const resetSearch = () => {
     setSearchQuery("");
@@ -298,12 +304,16 @@ export default function ChatClient() {
   };
 
   useEffect(() => {
-    if (!searchOpen) return;
-    const frame = requestAnimationFrame(() => {
-      (mobileHistoryOpen ? mobileSearchRef : desktopSearchRef).current?.focus();
-    });
-    return () => cancelAnimationFrame(frame);
-  }, [searchOpen, mobileHistoryOpen, sidebarOpen]);
+    if (searchMode !== "inline" || !mobileHistoryOpen) return;
+    const frame = requestAnimationFrame(() => mobileSearchRef.current?.focus());
+    const tablet = window.matchMedia("(min-width: 768px)");
+    const openPopupOnTablet = () => { if (tablet.matches) setSearchMode("dialog"); };
+    tablet.addEventListener("change", openPopupOnTablet);
+    return () => {
+      cancelAnimationFrame(frame);
+      tablet.removeEventListener("change", openPopupOnTablet);
+    };
+  }, [searchMode, mobileHistoryOpen]);
 
   useEffect(() => {
     const query = searchQuery.trim();
@@ -365,6 +375,21 @@ export default function ChatClient() {
       else trigger?.focus();
     };
   }, [mobileHistoryOpen]);
+
+  useEffect(() => {
+    if (searchMode !== "dialog") return;
+    const dialog = searchDialogRef.current;
+    const desktopTrigger = desktopSearchTriggerRef.current;
+    const mobileTrigger = mobileSearchTriggerRef.current;
+    const composer = composerRef.current;
+    dialog?.showModal();
+    dialogSearchRef.current?.focus();
+    return () => {
+      dialog?.close();
+      const trigger = [mobileTrigger, desktopTrigger].find((element) => element?.isConnected && element.getClientRects().length > 0);
+      (trigger ?? composer)?.focus();
+    };
+  }, [searchMode]);
 
   useEffect(() => {
     if (!chatPendingDeletion) return;
@@ -471,7 +496,7 @@ export default function ChatClient() {
   };
 
   const selectChat = (chatId: string) => {
-    setSearchOpen(false);
+    setSearchMode(null);
     resetSearch();
     if (chatId !== selectedChatId) {
       setMessages([]);
@@ -488,9 +513,14 @@ export default function ChatClient() {
     setSelectedChatId(chatId);
   };
 
+  const closeMobileHistory = () => {
+    setMobileHistoryOpen(false);
+    if (searchMode === "inline") setSearchMode(null);
+  };
+
   const startNewChat = () => {
     if (busy || loadingChats) return;
-    setSearchOpen(false);
+    setSearchMode(null);
     resetSearch();
     setSelectedChatId(null);
     setMessages([]);
@@ -665,7 +695,7 @@ export default function ChatClient() {
       {
         id: optimisticAssistantId,
         sender: "ai",
-        name: "AI Tutor",
+        name: "AI Study Buddy Tutor",
         text: "",
         avatar: AI_AVATAR,
         status: "PENDING",
@@ -753,46 +783,40 @@ export default function ChatClient() {
     }
   };
 
-  const history = (location: "desktop" | "mobile") => (
-    <div className="flex min-h-0 flex-1 flex-col">
-      <div className="mb-4 space-y-1">
-        <button type="button" aria-label="New chat in sidebar" onClick={startNewChat} disabled={busy || loadingChats} className="flex min-h-11 w-full items-center gap-3 rounded-xl bg-primary-500 px-3 py-2 text-left text-sm font-medium text-white hover:bg-primary-700 disabled:cursor-not-allowed disabled:opacity-50">
-          <SquarePen size={20} aria-hidden="true" /><span>New chat</span>
-        </button>
-        <button type="button" aria-expanded={searchOpen} aria-controls={searchOpen ? `chat-search-${location}` : undefined} onClick={() => { setSearchOpen((open) => !open); resetSearch(); }} className="flex min-h-11 w-full items-center gap-3 rounded-xl px-3 py-2 text-left text-sm font-medium text-primary-800 hover:bg-primary-100">
-          <Search size={20} aria-hidden="true" /><span>Search chats</span>
-        </button>
-        {searchOpen && (
-          <div id={`chat-search-${location}`} className="flex items-center gap-1 rounded-xl border border-primary-200 bg-white pl-3">
-            <input
-              ref={location === "mobile" ? mobileSearchRef : desktopSearchRef}
-              type="search"
-              aria-label="Search chat titles"
-              placeholder="Search by title…"
-              value={searchQuery}
-              maxLength={120}
-              onChange={(event) => updateSearchQuery(event.target.value)}
-              className="min-h-11 min-w-0 flex-1 rounded-lg bg-transparent py-2 text-sm text-gray-900"
-            />
-            {searchQuery && <button type="button" aria-label="Clear chat search" onClick={() => { resetSearch(); (location === "mobile" ? mobileSearchRef : desktopSearchRef).current?.focus(); }} className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-primary-700 hover:bg-primary-50"><X size={18} aria-hidden="true" /></button>}
-          </div>
-        )}
-      </div>
+  const searchField = (location: "mobile" | "dialog") => (
+    <div id={`chat-search-${location}`} className="chat-title-search flex shrink-0 items-center gap-2 rounded-xl border border-primary-200 bg-white pl-3">
+      {location === "dialog" && <Search size={20} className="shrink-0 text-primary-700" aria-hidden="true" />}
+      <input
+        ref={location === "mobile" ? mobileSearchRef : dialogSearchRef}
+        type="search"
+        aria-label="Search chat titles"
+        placeholder="Search by title…"
+        value={searchQuery}
+        maxLength={120}
+        onChange={(event) => updateSearchQuery(event.target.value)}
+        className="min-h-11 min-w-0 flex-1 rounded-lg bg-transparent py-2 text-sm text-gray-900 [&::-webkit-search-cancel-button]:appearance-none"
+      />
+      {searchQuery && <button type="button" aria-label="Clear chat search" onClick={() => { resetSearch(); (location === "mobile" ? mobileSearchRef : dialogSearchRef).current?.focus(); }} className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-primary-700 hover:bg-primary-50"><X size={18} aria-hidden="true" /></button>}
+    </div>
+  );
+
+  const historyList = (searchActive: boolean) => (
+    <>
       <h2 className="px-3 pb-3 pt-2 text-xs font-semibold text-primary-700">Your chats</h2>
-      {searchingTitles && <p role="status" className="mb-2 px-3 text-xs text-gray-600">{searchLoading ? "Searching chats…" : searchError ? "" : searchResults.length === 0 ? "No chats match this title." : `${searchResults.length} matching ${searchResults.length === 1 ? "chat" : "chats"}${searchHasMore ? " shown" : ""}`}</p>}
-      {searchingTitles && searchError && <div className="mb-2 rounded-xl bg-red-50 p-3 text-sm text-red-800"><p role="alert">Could not search your chats.</p><button type="button" onClick={retrySearch} className="mt-1 min-h-11 rounded-lg px-2 font-medium underline">Try search again</button></div>}
-      {loadingChats && !searchingTitles ? (
+      {searchActive && <p role="status" className="mb-2 px-3 text-xs text-gray-600">{searchLoading ? "Searching chats…" : searchError ? "" : searchResults.length === 0 ? "No chats match this title." : `${searchResults.length} matching ${searchResults.length === 1 ? "chat" : "chats"}${searchHasMore ? " shown" : ""}`}</p>}
+      {searchActive && searchError && <div className="mb-2 rounded-xl bg-red-50 p-3 text-sm text-red-800"><p role="alert">Could not search your chats.</p><button type="button" onClick={retrySearch} className="mt-1 min-h-11 rounded-lg px-2 font-medium underline">Try search again</button></div>}
+      {loadingChats && !searchActive ? (
         <p role="status" className="px-3 text-sm text-gray-600">Loading chats…</p>
-      ) : chats.length === 0 && !searchingTitles ? (
+      ) : chats.length === 0 && !searchActive ? (
         <p className="px-3 text-sm leading-relaxed text-gray-600">Your conversations will appear here after you send your first message.</p>
       ) : (
-        <nav aria-label={searchingTitles ? "Chat search results" : "Saved chats"} className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-1">
+        <nav aria-label={searchActive ? "Chat search results" : "Saved chats"} className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-1">
           <ul className="space-y-1">
-            {visibleChats.map((chat) => (
+            {(searchActive ? searchResults : chats).map((chat) => (
               <li key={chat.id}>
                 <button
                   type="button"
-                  onClick={() => { if (searchingTitles) upsertChat(chat); selectChat(chat.id); }}
+                  onClick={() => { if (searchActive) upsertChat(chat); selectChat(chat.id); }}
                   disabled={busy}
                   aria-current={chat.id === selectedChatId ? "true" : undefined}
                   className={"w-full rounded-xl px-3 py-3 text-left text-sm transition-colors disabled:cursor-wait " + (
@@ -807,9 +831,35 @@ export default function ChatClient() {
               </li>
             ))}
           </ul>
-          {searchingTitles && searchHasMore && !searchError && <button type="button" disabled={searchLoading} onClick={showMoreSearchResults} className="mt-3 min-h-11 w-full rounded-xl border border-primary-200 px-3 py-2 text-sm font-medium text-primary-800 hover:bg-primary-100 disabled:opacity-50">Show more matches</button>}
+          {searchActive && searchHasMore && !searchError && <button type="button" disabled={searchLoading} onClick={showMoreSearchResults} className="mt-3 min-h-11 w-full rounded-xl border border-primary-200 px-3 py-2 text-sm font-medium text-primary-800 hover:bg-primary-100 disabled:opacity-50">Show more matches</button>}
         </nav>
       )}
+    </>
+  );
+
+  const history = (location: "desktop" | "mobile") => (
+    <div className="flex min-h-0 flex-1 flex-col">
+      <div className="mb-4 space-y-1">
+        <button type="button" aria-label="New chat in sidebar" onClick={startNewChat} disabled={busy || loadingChats} className="flex min-h-11 w-full items-center gap-3 rounded-xl bg-primary-500 px-3 py-2 text-left text-sm font-medium text-white hover:bg-primary-700 disabled:cursor-not-allowed disabled:opacity-50">
+          <SquarePen size={20} aria-hidden="true" /><span>New chat</span>
+        </button>
+        <button
+          type="button"
+          ref={location === "mobile" ? mobileSearchTriggerRef : desktopSearchTriggerRef}
+          aria-expanded={searchOpen}
+          aria-haspopup={location === "desktop" ? "dialog" : undefined}
+          aria-controls={searchMode === "dialog" ? "chat-search-panel" : searchMode === "inline" && location === "mobile" ? "chat-search-mobile" : undefined}
+          onClick={() => {
+            resetSearch();
+            setSearchMode(window.matchMedia("(min-width: 768px)").matches ? "dialog" : searchMode === "inline" ? null : "inline");
+          }}
+          className="flex min-h-11 w-full items-center gap-3 rounded-xl px-3 py-2 text-left text-sm font-medium text-primary-800 hover:bg-primary-100"
+        >
+          <Search size={20} aria-hidden="true" /><span>Search chats</span>
+        </button>
+        {searchMode === "inline" && location === "mobile" && searchField("mobile")}
+      </div>
+      {historyList(searchMode === "inline" && location === "mobile" && searchingTitles)}
     </div>
   );
 
@@ -845,8 +895,8 @@ export default function ChatClient() {
             <StudyBuddyIcon name="sidebarOpen" size={36} />
           </button>
           <div className="min-w-0 flex-1">
-            <h1 className="text-lg font-semibold tracking-tight text-[#6C3483]">AI Chat</h1>
-            {selectedChat && <p className="truncate text-xs text-gray-600">{selectedChat.title}</p>}
+            <h1 className="sr-only">AI Study Buddy Tutor</h1>
+            {selectedChat && <p className="truncate text-sm font-medium text-primary-900">{selectedChat.title}</p>}
           </div>
           <button
             type="button"
@@ -957,20 +1007,17 @@ export default function ChatClient() {
           >
             <div className="mx-auto w-full max-w-3xl py-4 sm:py-6">
               {loadingChats || loadingMessages ? (
-                <div className="flex min-h-32 items-center justify-center gap-3 text-sm text-gray-600" role="status" aria-label="Loading chat messages">
-                  <LoaderCircle size={20} className="motion-safe:animate-spin" aria-hidden="true" />
-                  Loading conversation…
-                </div>
+                <ChatConversationLoading />
               ) : messages.length === 0 ? (
                 <div className="mx-auto max-w-lg text-center">
-                  <span className="mx-auto mb-3 flex h-20 w-20 items-center justify-center rounded-full border-[3px] border-black bg-[#5e3194] sm:h-24 sm:w-24">
-                    <Image src={AI_AVATAR} alt="" width={96} height={96} rounded="none" className="!h-[70%] !w-[70%] !object-contain" />
+                  <span className="mx-auto mb-3 flex h-16 w-16 items-center justify-center overflow-hidden rounded-full border-[3px] border-black bg-[#5e3194] sm:h-20 sm:w-20">
+                    <Image src={AI_AVATAR} alt="" width={80} height={80} rounded="none" className="!h-auto !w-[90%] -translate-y-0.5 !object-contain" />
                   </span>
                   <h2 className="text-2xl font-semibold leading-tight tracking-tight text-primary-900 sm:text-3xl">What are we learning today?</h2>
                   <p className="mt-3 text-sm leading-relaxed text-gray-600">A tricky topic, a practice question, or a little revision. Let’s work through it.</p>
                 </div>
               ) : (
-                <ChatMessageContainer messages={messages} onRetry={handleRetry} onCitationClick={handleCitationClick} />
+                <ChatMessageContainer messages={messages} onRetry={handleRetry} onCitationClick={handleCitationClick} onReport={setReportedMessage} />
               )}
           {(citationPreview || loadingCitationId) && (
             <div ref={citationPreviewRef} role="region" aria-label="Source preview" className="mt-6 rounded-2xl border border-accent-700 bg-primary-50 p-4">
@@ -1057,7 +1104,7 @@ export default function ChatClient() {
               >
                 <textarea
                   ref={composerRef}
-                  aria-label="Message to AI tutor"
+                  aria-label="Message to AI Study Buddy Tutor"
                   aria-describedby="chat-composer-help chat-composer-status"
                   className="block max-h-[180px] min-h-11 w-full resize-none rounded-xl border-0 bg-transparent px-2 py-2 text-base leading-6 text-gray-900 placeholder:text-gray-500 disabled:cursor-not-allowed disabled:text-gray-600 disabled:placeholder:text-gray-600 disabled:opacity-100"
                   placeholder={composerPlaceholder}
@@ -1117,14 +1164,14 @@ export default function ChatClient() {
           ref={historyDialogRef}
           aria-label="Chat history"
           className="fixed inset-y-0 left-0 right-auto m-0 h-dvh max-h-none w-80 max-w-[85vw] border-r border-accent-700 bg-primary-50 p-0 shadow-xl backdrop:bg-gray-950/40"
-          onCancel={(event) => { event.preventDefault(); setMobileHistoryOpen(false); }}
+          onCancel={(event) => { event.preventDefault(); closeMobileHistory(); }}
           onKeyDown={trapDialogFocus}
-          onClick={(event) => { if (event.target === event.currentTarget) setMobileHistoryOpen(false); }}
+          onClick={(event) => { if (event.target === event.currentTarget) closeMobileHistory(); }}
         >
           <div className="flex h-full flex-col p-3">
             <div className="mb-3 flex items-center justify-between gap-3 px-2">
               <p className="font-semibold text-[#6C3483]">Study Buddy</p>
-              <button type="button" aria-label="Close chat history" onClick={() => setMobileHistoryOpen(false)} className="inline-flex h-11 w-11 items-center justify-center rounded-xl border border-primary-200 bg-primary-50 hover:bg-primary-100">
+              <button type="button" aria-label="Close chat history" onClick={closeMobileHistory} className="inline-flex h-11 w-11 items-center justify-center rounded-xl border border-primary-200 bg-primary-50 hover:bg-primary-100">
                 <StudyBuddyIcon name="sidebarClose" size={36} />
               </button>
             </div>
@@ -1132,6 +1179,31 @@ export default function ChatClient() {
           </div>
         </dialog>
       )}
+
+      {searchMode === "dialog" && (
+        <dialog
+          id="chat-search-panel"
+          ref={searchDialogRef}
+          aria-labelledby="chat-search-title"
+          className="m-auto w-[calc(100%-2rem)] max-w-xl max-h-[80dvh] overflow-hidden rounded-2xl border border-primary-200 bg-white p-0 shadow-2xl backdrop:bg-gray-950/40"
+          onCancel={(event) => { event.preventDefault(); setSearchMode(null); }}
+          onKeyDown={trapDialogFocus}
+          onClick={(event) => { if (event.target === event.currentTarget) setSearchMode(null); }}
+        >
+          <div className="flex max-h-[80dvh] min-h-80 flex-col p-5">
+            <div className="mb-3 flex shrink-0 items-center justify-between gap-3">
+              <h2 id="chat-search-title" className="text-xl font-semibold text-[#6C3483]">Search chats</h2>
+              <button type="button" aria-label="Close chat search" onClick={() => setSearchMode(null)} className="inline-flex h-11 w-11 items-center justify-center rounded-xl text-primary-700 hover:bg-primary-50"><X size={22} aria-hidden="true" /></button>
+            </div>
+            {searchField("dialog")}
+            <div className="mt-4 flex min-h-0 flex-1 flex-col">
+              {historyList(searchingTitles)}
+            </div>
+          </div>
+        </dialog>
+      )}
+
+      {reportedMessage && selectedChatId && <ChatResponseReportDialog chatId={selectedChatId} message={reportedMessage} onClose={() => setReportedMessage(null)} />}
 
       {chatPendingDeletion && (
         <dialog
