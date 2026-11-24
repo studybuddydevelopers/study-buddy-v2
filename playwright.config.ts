@@ -10,7 +10,11 @@ export default defineConfig({
   workers: 2,
   timeout: 30_000,
   outputDir: "output/playwright/results",
-  reporter: [["list"], ["html", { outputFolder: "output/playwright/report", open: "never" }]],
+  reporter: [
+    ["list"],
+    ["html", { outputFolder: "output/playwright/report", open: "never" }],
+    ["json", { outputFile: "output/playwright/results.json" }],
+  ],
   use: {
     baseURL: "http://127.0.0.1:3105",
     locale: "en-GB",
