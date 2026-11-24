@@ -1,6 +1,6 @@
 # Beta Readiness
 
-Last reviewed: 1 November 2026
+Last reviewed: 24 November 2026
 Frontend accessibility acceptance note updated: 12 November 2026.
 
 This is a public-safe summary, not the live launch register. The restricted
@@ -41,6 +41,21 @@ The private release record should confirm the latest result for:
 
 Public documentation does not record live account counts, exact limits,
 connection-pool values, test identities, run URLs, or detailed test results.
+
+## Current dependency and release evidence
+
+The 24 November dependency baseline completed protected staging, production
+promotion, post-merge CI, Railway web deployment, and narrow live health and
+security-header verification. The release used the repository's exact Node.js
+runtime contract, and GitHub reported no open Dependabot security alerts after
+deployment.
+
+This does not close the beta or public-launch gates. The advisory behind the
+earlier exact transitive audit exception was withdrawn, and the current audit
+has no package-specific allowance after removal of the obsolete rule and its
+tests. Backup restoration, provider-access review, authenticated release-
+candidate journeys, and the independent manual review retain their separate
+evidence requirements.
 
 ## Frontend acceptance
 
