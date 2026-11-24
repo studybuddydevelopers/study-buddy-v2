@@ -57,4 +57,7 @@ ALTER DEFAULT PRIVILEGES FOR ROLE postgres IN SCHEMA public
 ALTER DEFAULT PRIVILEGES FOR ROLE postgres IN SCHEMA public
   GRANT USAGE, SELECT, UPDATE ON SEQUENCES TO studybuddy_runtime;
 
-GRANT CONNECT ON DATABASE postgres TO studybuddy_runtime;
+SELECT format(
+  'GRANT CONNECT ON DATABASE %I TO studybuddy_runtime',
+  current_database()
+) \gexec
