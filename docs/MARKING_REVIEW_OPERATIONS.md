@@ -1,5 +1,7 @@
 # Marking-review operations
 
+Last checked against the current main source: 23 November 2026.
+
 This public document describes behaviour, not the live operator roster. Store
 authorised user identifiers, access-review evidence, and account-recovery
 details in the restricted operations system.
@@ -20,8 +22,8 @@ written mock exam and receives a reference in the form
   inbox supports read/unread state and loading older items; the navigation bell
   shows the unread count.
 - These are source-level behaviours, not a deployment assertion. The
-  notification migration and live staging checks were not verified during the
-  1 November 2026 frontend documentation update.
+  notification migration is present in the repository; application and live
+  checks must be confirmed in the restricted release record.
 
 See the [website guide](WEBSITE_GUIDE.md) and
 [AI experience guide](../AI_FEATURES_GUIDE.md) for frontend states. Do not put

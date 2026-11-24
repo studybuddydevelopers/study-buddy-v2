@@ -1,7 +1,7 @@
 API v1 Reference
 ================
 
-Frontend contracts checked against source on 1 November 2026. This is not a
+Frontend contracts checked against source on 23 November 2026. This is not a
 deployment record or a guarantee that every feature is enabled. See the
 [website guide](../../../docs/WEBSITE_GUIDE.md) for page behaviour and the
 [security policy](../../../SECURITY.md) for safe reporting. Examples must use
@@ -28,7 +28,15 @@ Auth & Account
 - POST `/account/security/password-reset-lock` — Exchanges the security-alert link token after explicit learner confirmation. Display incomplete-link, working, success and failure states; opening a page must not perform the action.
 - POST `/account/security/password-reset-recovery` — Exchanges the recovery link token after explicit confirmation and requests the next recovery step. Never log or display the token in diagnostic UI.
 - POST `/account/security/password-reset-recovery/complete` (recovery session) — Completes recovery when server-side checks pass; do not infer completion solely from a client-side success screen.
+- POST `/account/age-verification` (auth) — Body: `dateOfBirth`, `acceptedTerms`, plus `guardianName`, `guardianEmail`, and `guardianRelationship` (`PARENT` or `LEGAL_GUARDIAN`) for a learner aged 13–17. Adults who accept the current terms continue to `/dashboard`; under-13 accounts are restricted; 13–17 accounts move to guardian authorisation with AI access disabled until separately approved. Follow the returned `nextPath` and do not treat email delivery as proof of authorisation.
+- POST `/guardian-authorizations/lookup` — Body: `token`. Returns the bounded guardian/student display details, request status and expiry state needed to render the decision page. Responses are not cacheable; never put the token in logs, screenshots or analytics.
+- POST `/guardian-authorizations/decision` — Body: `token`, `decision` (`GRANT` or `DENY`). Granting also requires `confirmsAuthority: true` and `acceptsNotices: true`; `aiAuthorized` is a separate optional choice and is never implied by account approval. A request can be decided only once.
+- POST `/guardian-authorizations/resend` (auth, restricted account allowed) — Reissues the current learner's pending/expired guardian request and returns the masked guardian email. It does not let the learner change the guardian details.
 - GET `/me` (auth) — Returns user basics, profile, and latest subscription `{ id, createdAt, profile, subscription }`; 404 if no DB user record.
+
+Public contact
+--------------
+- POST `/contact` — Body: `name`, `email`, `subject`, `message`. Validates and accepts a bounded public contact-form submission. The current handler records acceptance metadata only; it does **not** persist the message or deliver it to a company mailbox, so the UI must not promise delivery until a delivery integration exists.
 
 Profile
 -------
@@ -80,8 +88,10 @@ Past Questions
 - POST `/past-questions/attempt` (auth) — Body: `questionId` (req), `userAnswer` (string, optional), `timeTakenSeconds?`. Grades exact match, saves attempt, returns `{ attemptId, questionId, isCorrect, score, timeTakenSeconds, attemptedAt }`.
 - GET `/past-questions/by-topic` (auth) — Query: `topicId` (req), `page?=1`, `pageSize?=10` (max 25). Returns `{ topic, subject, questions, pagination }`.
 - GET `/past-questions/drafts` (auth) — Query: `topicId` (req), `questionId?` repeated or `questionIds?` comma-separated. Returns drafts only for the requested questions when IDs are provided.
+- PATCH `/past-questions/drafts` (auth) — Body: one `{ questionId, answerText }` draft or `{ drafts: [...] }`, up to 25 unique questions. Non-blank answers are upserted; blank answers delete the saved draft. Returns `{ saved: false, reason: "cloud_sync_disabled" }` when cloud drafts are disabled or Low Data Mode is active.
 - POST `/past-questions/explanation` (auth) — Body: `questionId`. Returns question text, answer, explanation, subject/topic IDs, year, difficulty.
 - POST `/past-questions/query` (auth) — Currently behaves like `/past-questions/explanation`: body `questionId`, returns the stored question/answer/explanation payload.
+- POST `/past-questions/quiz-session` (auth) — Body: `topicId`, `startedAt`, optional `finishedAt`, and `answers` containing up to 200 question snapshots. Records the session and answer summary, then removes matching saved drafts. Returns `{ sessionId, summary }`.
 
 Mock Exams
 ----------
@@ -92,6 +102,7 @@ Mock Exams
 - POST `/mock-exams/submit` (auth) — Body: `instanceId`, `answers: [{ answerId, userAnswer }]`. User must own instance and not have submitted already. Saves answers, sets `submittedAt`, returns `{ instanceId, submittedAt, answers }`.
 - POST `/mock-exams/grade` (auth) — Body: `instanceId`. Scores a submitted objective paper against stored answers; written papers use AI marking instead.
 - POST `/mock-exams/ai-mark` (auth with AI access) — Body: `instanceId`. Marks a submitted written paper and returns its result. Failed marking is retryable on the same reserved instance without charging another 5 credits. Do not create a replacement attempt to retry a marking failure.
+- POST `/mock-exams/self-grade` — Retired manual-marking endpoint. Always returns `410 MANUAL_MARKING_DISABLED`; written papers use AI marking and learners can report an individual marking decision for review.
 - GET `/mock-exams/marking-reviews` (auth) — Lists up to 50 marking-review cases owned by the learner, including reference, status and decision.
 - POST `/mock-exams/marking-reviews` (auth) — Body: `answerId`, `reason`. Creates one tracked review case per AI-marked written answer and snapshots the exam, question, learner answer, model answer, marking guide, AI rationale and original score.
 
@@ -115,6 +126,15 @@ Payments
 --------
 - POST `/payments/verify` (auth) — Body: `reference`. Calls Paystack verify, records transaction if not already stored, returns `{ provider: "paystack", verified: true, transaction, duplicate? }`.
 - POST `/payments/webhook` — Paystack webhook (raw body, signature checked). Requires `metadata.userId` from Paystack payload; creates transaction unless reference already exists. Returns `{ success: true }` or `{ received: true }`.
+
+WhatsApp webhook
+----------------
+- GET `/whatsapp/webhook` — Provider verification handshake. It is a provider callback, not a browser or learner action.
+- POST `/whatsapp/webhook` — Signed inbound WhatsApp delivery. The handler validates the raw request before parsing it, acknowledges accepted deliveries, and processes supported text messages asynchronously. Do not expose callback credentials or copy provider payloads containing phone numbers/messages into public logs or documentation.
+
+Server-only scheduled endpoints
+-------------------------------
+- `/account/deletion/cron` and `/ai/recommendations/cron` are invoked by isolated scheduled services, not the browser frontend. Their authentication, schedules and live destinations belong in the restricted operations record, not this API guide.
 
 Internal Resources (Stage 2)
 ----------------------------
