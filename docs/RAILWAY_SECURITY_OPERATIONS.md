@@ -1,6 +1,6 @@
 # Railway Security Operations
 
-Last reviewed: 1 November 2026
+Last reviewed: 24 November 2026
 
 This document is a public-safe operating standard for Study Buddy on Railway.
 It is not the live production runbook. Exact service names, internal addresses,
@@ -54,6 +54,10 @@ created and reviewed privately. In particular:
   privately for the environment; and
 - secret values are never printed in build logs, command output, screenshots,
   tickets, or reports.
+
+Railway builds must honour the exact Node.js engine declared by `package.json`
+and `.nvmrc`. Review the detected runtime in build evidence after changing
+either file or upgrading a package with a new minimum runtime.
 
 Seal production variables after validation where the platform supports it.
 Rotate exposed values and review access/logs; simply editing documentation or
@@ -166,6 +170,12 @@ public issue.
 
 - Dependabot proposes dependency updates; review and test them rather than
   merging groups blindly.
+- Major framework, ORM, runtime, and build-tool updates use dedicated migration
+  branches. Keep coupled packages, such as Prisma CLI and client, on compatible
+  versions and validate runtime/database behaviour before promotion.
+- Any temporary audit exception must be exact, graph-bound, tested, owned, and
+  time-limited. The withdrawn `picomatch` advisory's obsolete exception has
+  been removed; the current gate has no package-specific allowance.
 - Secret scanning runs on proposed and committed changes. A historical secret
   must be revoked or rotated even if it is later removed from Git.
 - The OWASP ZAP baseline targets only the approved non-production environment
@@ -190,6 +200,7 @@ For every material production release, privately retain:
 - commit and deployment identifiers;
 - migration and runtime-role verification;
 - security/test/scan results;
+- dependency provenance and any unexpired risk-acceptance reference;
 - smoke-test outcomes;
 - scheduled-job and monitoring checks;
 - rollback owner and known-good artifact; and

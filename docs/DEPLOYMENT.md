@@ -1,6 +1,6 @@
 # Deployment Guide
 
-Last reviewed: 12 November 2026
+Last reviewed: 24 November 2026
 
 This is the public-safe deployment guide for Study Buddy. It deliberately omits
 real environment values, internal network names, service identifiers, account
@@ -29,9 +29,19 @@ platform.
 Install the locked dependencies and build the production application:
 
 ```bash
+nvm use
 npm ci
 npm run build
 ```
+
+Use the exact Node.js version declared by `package.json` and `.nvmrc`. CI and
+the hosting platform must use the same runtime contract; a dependency upgrade
+that changes its minimum Node.js version is a coordinated runtime release, not
+an isolated lockfile edit. The project-level npm configuration rejects an
+unsupported runtime before installation instead of continuing with a partial
+or unreliable dependency tree. FNM users can run
+`fnm use --install-if-missing`; use one active Node version manager rather than
+loading both NVM and FNM in the same shell.
 
 Start it with:
 
@@ -64,6 +74,11 @@ Changes move through protected branches in this order:
 Never bypass an approval or failed check merely to complete a deployment. If a
 runner lacks a test prerequisite, correct the runner definition and rerun the
 same tests; do not remove or silently skip the test.
+
+If a clean hosted runner stalls on an external download without a code failure,
+cancel that run, retain the earlier evidence, and rerun the unchanged revision
+on a fresh runner. Do not treat the stalled run as a pass or bypass the required
+check.
 
 ## Environment configuration
 
@@ -145,6 +160,24 @@ Before switching traffic, verify privately that:
 Production payment, child AI access, public uploads, and other high-risk
 features remain disabled until their separate legal, privacy, safety, and
 security gates pass.
+
+## Current dependency baseline
+
+The 24 November 2026 production release uses the exact Node.js version in the
+repository runtime files and OpenAI SDK 7.62.0. The same immutable dependency
+revision passed protected staging and production pull-request checks, the
+post-merge production workflow, Railway deployment, and narrow live health and
+security-header checks. GitHub reported no open Dependabot security alerts
+after release.
+
+GitHub withdrew the earlier `picomatch` advisory on 18 November 2026. The
+temporary exception and its special-case tests were removed; the audit policy
+now blocks every current moderate-or-higher finding without package-specific
+allowances.
+
+Direct Tailwind 4 and client-only Prisma 7 proposals were not released. They
+require separate migration changes and full staging/rollback validation; in
+particular, Prisma CLI and client versions must remain coordinated.
 
 ## Rollback
 
