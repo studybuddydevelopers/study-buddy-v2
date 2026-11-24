@@ -26,6 +26,8 @@
     "test:scripts": "node --test scripts/*.test.mjs",
     "test:watch": "vitest",
     "test:browser": "playwright test",
+    "test:e2e:prepare": "node scripts/prepare-e2e-database.mjs",
+    "test:e2e": "playwright test --config=playwright.e2e.config.ts",
     "verify:node-runtime": "node scripts/verify-node-runtime.mjs",
     "resources:migrate-past-questions": "tsx scripts/migrate-past-questions-to-resources.ts",
     "resources:rebuild-search-text": "tsx scripts/rebuild-resource-search-text.ts",

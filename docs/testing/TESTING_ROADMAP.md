@@ -129,6 +129,9 @@ passing exact revision produces auditable artifacts.
 
 #### 2. `test/real-next-e2e-harness`
 
+Implementation status: implemented on the named workstream branch; promotion
+requires its complete CI and protected-staging checks to pass.
+
 - Build and start the real Next.js production server under Playwright.
 - Use disposable synthetic data and deterministic provider fakes.
 - Prove middleware/proxy, cookies, redirects, server/client boundaries, static

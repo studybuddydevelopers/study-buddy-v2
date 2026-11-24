@@ -13,6 +13,7 @@
 # testing
 /coverage
 /output/playwright/
+/output/playwright-e2e/
 /output/test-results/
 .playwright-mcp/
 .grounded-evaluation-reports/
