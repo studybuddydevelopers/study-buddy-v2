@@ -65,7 +65,7 @@ only a triage signal.
 | Schema/migration source assertions | Present for selected AI/resource migrations | Apply the complete migration chain to disposable PostgreSQL, run Prisma drift checks and verify actual grants/RLS/indexes |
 | Database integration | Live verifier exists outside ordinary CI | Test runtime and migration roles, cross-account denial, transactions, concurrency, idempotency and rollback compatibility |
 | Fixture browser/accessibility | Six Playwright specs across Chromium, WebKit and touch | Keep this fast layer, but do not use it as assembled-app evidence |
-| Real Next.js E2E | Not present | Boot the production build and exercise browser-to-route-to-database journeys with provider fakes |
+| Real Next.js E2E | Production-build harness is enforced in CI with anonymous and authenticated database-backed journeys | Expand browsers and launch-critical journeys through the later workstreams below |
 | Provider contract/sandbox | Mostly mocked unit contracts; some production smoke history | Add controlled fake-server contracts and bounded staging sandbox checks for Supabase, Resend, OpenAI, Paystack and WhatsApp |
 | Accessibility | axe/keyboard/reflow checks are strong for fixture states; some manual evidence exists | Test real route transitions/authenticated pages; add screen reader, 200%/400% zoom, increased text, reduced motion and physical-device checks |
 | Browser/device compatibility | Chromium/WebKit fixture projects; limited touch sizes | Add Firefox and a supported-device/browser matrix against the assembled app; verify mobile keyboard, safe areas and network degradation |
@@ -129,8 +129,7 @@ passing exact revision produces auditable artifacts.
 
 #### 2. `test/real-next-e2e-harness`
 
-Implementation status: implemented on the named workstream branch; promotion
-requires its complete CI and protected-staging checks to pass.
+Implementation status: deployed to staging and production on 24 November 2026.
 
 - Build and start the real Next.js production server under Playwright.
 - Use disposable synthetic data and deterministic provider fakes.
@@ -143,6 +142,9 @@ Exit: a browser can complete one anonymous and one authenticated database-backed
 journey against the built application without production credentials.
 
 #### 3. `test/database-migrations-roles-rls`
+
+Implementation status: implemented on the named workstream branch; promotion
+requires its complete CI and protected-staging checks to pass.
 
 - Provision disposable PostgreSQL with the required extensions.
 - Apply the complete migration chain from an empty database.

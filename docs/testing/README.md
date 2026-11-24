@@ -173,6 +173,7 @@ need an owner, reason and expiry; they cannot silently satisfy a release gate.
 - [Testing roadmap](./TESTING_ROADMAP.md)
 - [CI testing baseline](./CI_BASELINE.md)
 - [Real Next.js E2E harness](./REAL_NEXT_E2E_HARNESS.md)
+- [Database migration, role and RLS gate](./DATABASE_MIGRATIONS_ROLES_RLS.md)
 - [Deployment and security change process](../DEPLOYMENT_SECURITY_CHANGE_PROCESS.md)
 - [Frontend change process](../FRONTEND_CHANGE_PROCESS.md)
 - [AI change process](../AI_CHANGE_PROCESS.md)
