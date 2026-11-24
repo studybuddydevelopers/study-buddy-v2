@@ -639,6 +639,8 @@ README, screenshot, or commit.
 - [`docs/DEPLOYMENT_SECURITY_FIX_HISTORY.md`](./docs/DEPLOYMENT_SECURITY_FIX_HISTORY.md): public-safe record of deployment/security bugs, fixes, verification and open follow-up
 - [`docs/RAILWAY_SECURITY_OPERATIONS.md`](./docs/RAILWAY_SECURITY_OPERATIONS.md): public-safe Railway operating standard
 - [`docs/BETA_READINESS.md`](./docs/BETA_READINESS.md): public-safe beta gates
+- [`docs/testing/README.md`](./docs/testing/README.md): testing programme, branch workflow, environment rules and evidence standard
+- [`docs/testing/TESTING_ROADMAP.md`](./docs/testing/TESTING_ROADMAP.md): repository-backed test inventory, gaps, priorities and acceptance gates
 - [`CODEBASE_BREAKDOWN.md`](./CODEBASE_BREAKDOWN.md): broad codebase map
 - [`docs/WEBSITE_GUIDE.md`](./docs/WEBSITE_GUIDE.md): path-by-path app walkthrough
 - [`docs/UI_COLOUR_GUIDE.md`](./docs/UI_COLOUR_GUIDE.md): complete source-backed colour inventory, predominant uses and purposes

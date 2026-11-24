@@ -5,10 +5,12 @@ on:
     branches:
       - main
       - staging
+      - docs/testing-baseline-and-roadmap
   push:
     branches:
       - main
       - staging
+      - docs/testing-baseline-and-roadmap
   workflow_dispatch:
 
 permissions:
@@ -53,6 +55,10 @@ jobs:
       - name: Install locked dependencies
         run: npm ci
 
+      - name: Verify Node runtime contract
+        id: runtime
+        run: npm run verify:node-runtime
+
       - name: Audit dependencies
         run: npm run security:audit-dependencies
 
@@ -65,17 +71,56 @@ jobs:
       - name: Type-check
         run: npx --no-install tsc --noEmit --pretty false
 
-      - name: Run application tests
-        run: npm test
+      - name: Check test policy
+        id: test_policy
+        run: npm run test:policy -- --json=output/test-results/test-policy.json
+
+      - name: Run application tests with coverage
+        id: coverage
+        run: npm run test:coverage
 
       - name: Run script tests
-        run: npm run test:scripts
+        id: node_scripts
+        run: |
+          mkdir -p output/test-results
+          node --test --test-reporter=junit scripts/*.test.mjs | tee output/test-results/node-scripts.xml
 
       - name: Install accessibility test browsers
         run: npx --no-install playwright install --with-deps chromium webkit
 
       - name: Run isolated accessibility browser tests
+        id: browser
         run: npm run test:browser
 
       - name: Build production application
-        run: npm run build
+        id: build
+        run: |
+          mkdir -p output/test-results
+          npm run build | tee output/test-results/build.log
+
+      - name: Write CI evidence manifest
+        if: ${{ always() }}
+        env:
+          RUNTIME_OUTCOME: ${{ steps.runtime.outcome }}
+          TEST_POLICY_OUTCOME: ${{ steps.test_policy.outcome }}
+          COVERAGE_OUTCOME: ${{ steps.coverage.outcome }}
+          NODE_SCRIPTS_OUTCOME: ${{ steps.node_scripts.outcome }}
+          BROWSER_OUTCOME: ${{ steps.browser.outcome }}
+          BUILD_OUTCOME: ${{ steps.build.outcome }}
+        run: |
+          node scripts/write-ci-evidence.mjs
+          cat output/test-results/ci-summary.md >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload CI evidence
+        if: ${{ always() }}
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: ci-evidence-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            coverage/
+            output/test-results/
+            output/playwright/results/
+            output/playwright/report/
+            output/playwright/results.json
+          if-no-files-found: warn
+          retention-days: 14
