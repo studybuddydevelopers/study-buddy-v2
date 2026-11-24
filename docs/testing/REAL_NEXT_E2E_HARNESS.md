@@ -1,0 +1,114 @@
+# Real Next.js end-to-end harness
+
+Last reviewed: 24 November 2026
+
+## Purpose
+
+This harness tests the assembled production build rather than the isolated
+component fixture server. It starts the built Next.js application, a
+deterministic local Supabase Auth fake and a disposable pgvector PostgreSQL
+database containing synthetic records only.
+
+It currently proves:
+
+- an anonymous request crosses the real proxy and redirects away from a
+  protected page;
+- public health, static-asset and API routing work through the real server;
+- a synthetic learner can log in through the real login UI and route handler;
+- the Supabase SSR cookie survives a full browser refresh; and
+- the dashboard and authenticated APIs read seeded data from PostgreSQL.
+
+The existing `npm run test:browser` suite remains a separate, faster fixture
+browser layer. It does not start Next.js or PostgreSQL.
+
+## Isolation and safety controls
+
+- The setup script rejects non-PostgreSQL URLs, non-loopback hosts and database
+  names that do not end in `_e2e` before it can recreate a database.
+- The database is recreated for every run and contains synthetic test data.
+- CI uses a digest-pinned pgvector container and creates only the compatibility
+  roles and schema needed by the complete migration chain.
+- Supabase Auth is replaced by a localhost-only deterministic HTTP fake. No
+  production or staging provider credentials are used.
+- `STUDY_BUDDY_E2E_TEST_MODE=true` permits the built app to use an HTTP
+  loopback canonical origin only when the database and Supabase URLs are also
+  loopback-only and no Railway or Vercel deployment indicators exist.
+
+Never set `STUDY_BUDDY_E2E_TEST_MODE` in Railway, Vercel, staging or production.
+The application refuses the exception when deployment indicators are present,
+but the variable must still remain test-only.
+
+## CI execution
+
+The `Real Next.js E2E` job in `.github/workflows/ci.yml`:
+
+1. starts disposable digest-pinned pgvector PostgreSQL;
+2. installs locked dependencies and Chromium;
+3. recreates the `_e2e` database, applies every Prisma migration and seeds a
+   synthetic learner and question attempt;
+4. builds the production Next.js application;
+5. starts the local Auth fake and built application under Playwright;
+6. runs the anonymous and authenticated journeys; and
+7. uploads JSON, JUnit, HTML, trace, screenshot and video evidence as
+   applicable.
+
+The job is independent of the existing full CI job, so a failure in either
+layer blocks the pull request when both checks are required.
+
+## Local execution
+
+Use Node `24.22.3`, Docker and the repository's locked dependencies. The values
+below are synthetic and local-only.
+
+```bash
+docker run --rm --name study-buddy-e2e-postgres \
+  -e POSTGRES_PASSWORD=e2e-only-password-not-a-secret-12345 \
+  -e POSTGRES_DB=postgres \
+  -p 127.0.0.1:55432:5432 \
+  pgvector/pgvector@sha256:b513c48566e4777cd3370451400000c78eda6a08131d68f4c31d4a76f27bd8fd
+
+export E2E_DATABASE_URL='postgresql://postgres:e2e-only-password-not-a-secret-12345@127.0.0.1:55432/studybuddy_e2e'
+export DATABASE_URL="$E2E_DATABASE_URL"
+export DIRECT_URL="$E2E_DATABASE_URL"
+export APP_ORIGIN='http://127.0.0.1:3200'
+export CSRF_TRUSTED_ORIGINS='http://127.0.0.1:3200'
+export STUDY_BUDDY_E2E_TEST_MODE='true'
+export SUPABASE_URL='http://127.0.0.1:55431'
+export NEXT_PUBLIC_SUPABASE_URL='http://127.0.0.1:55431'
+export SUPABASE_PUBLISHABLE_KEY='sb_publishable_e2e_test_only'
+export NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY='sb_publishable_e2e_test_only'
+export NEXT_PUBLIC_CAPTCHA_ENABLED='false'
+export RATE_LIMIT_HASH_SECRET='e2e-only-hash-secret-at-least-32-bytes-long'
+export TRUSTED_PROXY_PROVIDER='direct'
+export SECURITY_AUDIT_DB_ENABLED='false'
+export AI_CHAT_PROVIDER='fake'
+export AI_EMBEDDING_PROVIDER='fake'
+
+npm run test:e2e:prepare
+npm run build
+npx --no-install playwright install chromium
+npm run test:e2e
+docker stop study-buddy-e2e-postgres
+```
+
+The setup step intentionally destroys only the validated local `_e2e`
+database. Stop the container after the run; `--rm` removes it automatically.
+
+## Failure triage
+
+- Migration failure: inspect the named Prisma migration and confirm the local
+  image supplies pgvector; do not point the setup script at a shared database.
+- Auth failure: inspect only the fake server's unexpected-route event and the
+  Playwright trace. Do not replace it with live Supabase credentials.
+- Browser failure: download the E2E artifact and inspect the JUnit/JSON result,
+  trace, screenshot and video retained for the failed attempt.
+- Flaky result: treat it as a failure. The critical journey must be stable
+  before promotion.
+
+## Deliberate limitations
+
+Chromium is the first browser target. This harness does not prove real provider
+delivery, Cloudflare Access, Railway networking, deployed headers, email links,
+payments, WhatsApp, AI provider behavior or production readiness. Those remain
+separate provider-contract, protected-staging and release-gate workstreams in
+the testing roadmap.
