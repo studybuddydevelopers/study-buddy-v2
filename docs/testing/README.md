@@ -159,6 +159,7 @@ need an owner, reason and expiry; they cannot silently satisfy a release gate.
 ## Related documentation
 
 - [Testing roadmap](./TESTING_ROADMAP.md)
+- [CI testing baseline](./CI_BASELINE.md)
 - [Deployment and security change process](../DEPLOYMENT_SECURITY_CHANGE_PROCESS.md)
 - [Frontend change process](../FRONTEND_CHANGE_PROCESS.md)
 - [AI change process](../AI_CHANGE_PROCESS.md)
