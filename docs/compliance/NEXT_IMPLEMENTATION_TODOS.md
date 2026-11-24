@@ -1,7 +1,7 @@
 # Next Implementation TODOs
 
 Status: public-safe roadmap
-Last updated: 1 November 2026
+Last updated: 24 November 2026
 
 This file records categories and launch gates only. Detailed security and
 compliance tickets—including exact weaknesses, controls, thresholds, routes,
@@ -89,6 +89,13 @@ time-limited, and reviewable without copying conversation content into logs.
 
 Gate: current private evidence exists and no release-blocking finding remains
 open.
+
+Current public-safe note: the 24 November dependency baseline passed protected
+staging and production release checks and GitHub reported no open Dependabot
+security alerts after deployment. This does not complete the wider security
+gate. The withdrawn-advisory exception has been removed; complete the
+restoration and provider-access evidence, and commission the independent manual
+review before a large public or paid launch.
 
 ## P1 — Retention and deletion
 
