@@ -198,3 +198,55 @@ jobs:
           path: output/playwright-e2e/
           if-no-files-found: warn
           retention-days: 14
+
+  database-security:
+    name: Database migrations, roles and RLS
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: pgvector/pgvector@sha256:b513c48566e4777cd3370451400000c78eda6a08131d68f4c31d4a76f27bd8fd
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: database-security-e2e-only-password
+          POSTGRES_DB: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      CI: "true"
+      E2E_DATABASE_URL: postgresql://postgres:database-security-e2e-only-password@127.0.0.1:5432/studybuddy_security_e2e
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.0.2
+        with:
+          persist-credentials: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24.22.3
+          cache: npm
+
+      - name: Install PostgreSQL client
+        run: sudo apt-get update && sudo apt-get install --yes postgresql-client
+
+      - name: Install locked dependencies
+        run: npm ci
+
+      - name: Verify migrations, roles, grants and RLS
+        run: npm run test:database-security
+
+      - name: Upload database-security evidence
+        if: ${{ always() }}
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: database-security-${{ github.run_id }}-${{ github.run_attempt }}
+          path: output/test-results/database-security.json
+          if-no-files-found: error
+          retention-days: 14
