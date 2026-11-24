@@ -217,6 +217,13 @@ current defensive posture.
 - Dependabot, secret scanning, and an approved non-production ZAP baseline form
   part of the release checks. Authenticated or active penetration testing needs
   separately signed rules of engagement.
+- The 24 November 2026 dependency baseline is deployed in production on the
+  exact Node.js runtime declared by `package.json` and `.nvmrc`. Its protected
+  staging and production gates passed, and GitHub reported no open Dependabot
+  security alerts after release. The advisory behind the earlier exact
+  transitive audit exception was withdrawn, so the obsolete exception and its
+  special-case tests were removed. Every current moderate-or-higher audit
+  finding now fails the gate.
 - Exact production values, internal service addresses, thresholds, access
   rosters, scan evidence, and open findings are deliberately not documented in
   this public repository. See the public-safe [deployment guide](./docs/DEPLOYMENT.md),
@@ -564,6 +571,24 @@ npx prisma db seed
   Dependabot and `npm audit` results, then run the full test, lint, and production
   build checks before dependency deployments. Do not deploy with an unresolved
   critical/high advisory affecting the production runtime.
+- Use the exact Node.js version declared by `package.json` and `.nvmrc`; CI and
+  Railway builds must use that same runtime contract. The current baseline is
+  Node.js 24.22.3 with matching Node 24 TypeScript definitions and OpenAI SDK
+  7.62.0. The repository rejects installs from unsupported Node runtimes.
+- The production dependency release at commit `69bb2bbc` passed locked install,
+  provenance checks, the fail-closed dependency audit, application and script
+  tests, 210 isolated browser checks, production build, protected staging, and
+  live production health/header verification. GitHub showed no open Dependabot
+  security alerts after release.
+- GitHub withdrew the earlier `picomatch` advisory on 18 November 2026. Its
+  temporary exception and special-case tests have been removed; the audit gate
+  now blocks every current moderate-or-higher finding without package-specific
+  allowances.
+- Tailwind 4 and Prisma 7 are intentionally not routine dependency bumps.
+  Tailwind requires a visual/build migration; Prisma requires the CLI and
+  client to move together with generator, driver, pooling, migration, staging,
+  and rollback validation. Keep the current matched versions until those
+  dedicated migrations are approved.
 
 ## Environment
 
