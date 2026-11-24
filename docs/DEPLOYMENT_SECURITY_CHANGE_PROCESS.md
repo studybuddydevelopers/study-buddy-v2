@@ -1,6 +1,6 @@
 # Deployment and Security Change Process
 
-Last reviewed: 12 November 2026
+Last reviewed: 24 November 2026
 
 This is the required change-control process for anything that can affect the
 deployment, security, privacy, reliability, or recovery of Study Buddy. It
@@ -210,7 +210,14 @@ before merging to the default branch.
 
 - Triage privately using reachability, runtime use, severity, and exposure.
 - Update on a dedicated branch and review lockfile and transitive changes.
+- Check available registry signatures and attestations, unexpected lifecycle
+  scripts, engine changes, and newly introduced transitive packages.
 - Run the full test, lint, build, staging smoke, and relevant security checks.
+- Coordinate packages that must remain compatible. A Prisma major upgrade, for
+  example, moves the CLI and client together and includes generator, driver,
+  pooling, migration, staging, and rollback verification.
+- Treat a framework/build-system major such as Tailwind as an application and
+  visual migration, not a routine automated merge.
 - Do not publish exploit details for an unresolved production dependency.
 - A temporary audit exception must be exact, fail closed for graph changes,
   have automated regression tests, identify an expiry date, and be removed as
