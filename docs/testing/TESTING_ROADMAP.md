@@ -112,6 +112,9 @@ testing baseline, not the original baseline commit.
 
 #### 1. `test/ci-testing-baseline-gate`
 
+Implementation details and maintenance rules are recorded in the
+[CI testing baseline](./CI_BASELINE.md).
+
 - Make pull requests targeting `docs/testing-baseline-and-roadmap` run complete
   CI.
 - Publish unit/browser/build artifacts and a machine-readable test summary.
