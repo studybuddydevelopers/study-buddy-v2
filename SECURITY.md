@@ -83,6 +83,9 @@ that:
 - staging and production use separate data and provider credentials;
 - automated tests, dependency review, secret scanning, and the approved
   staging security scan passed;
+- the lockfile was reviewed as the deployable graph, available registry
+  signatures/attestations were checked, and any temporary audit exception is
+  exact, tested, unexpired, and privately owned;
 - health monitoring, security alerts, scheduled jobs, backup restoration, and
   rollback were exercised; and
 - no critical or high-severity security finding remains open.
