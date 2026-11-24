@@ -34,7 +34,8 @@ function validateConfiguredOrigin(value: string) {
 
   if (
     process.env.NODE_ENV === "production" &&
-    (url.protocol !== "https:" || isLoopbackHostname(url.hostname))
+    (url.protocol !== "https:" || isLoopbackHostname(url.hostname)) &&
+    !isIsolatedE2eLoopbackOrigin(url)
   ) {
     throw new Error(
       "APP_ORIGIN must be a public HTTPS origin in production."
@@ -42,6 +43,54 @@ function validateConfiguredOrigin(value: string) {
   }
 
   return origin;
+}
+
+function isIsolatedE2eLoopbackOrigin(appOrigin: URL) {
+  if (
+    process.env.STUDY_BUDDY_E2E_TEST_MODE !== "true" ||
+    process.env.RAILWAY_ENVIRONMENT_ID ||
+    process.env.RAILWAY_SERVICE_ID ||
+    process.env.VERCEL ||
+    appOrigin.protocol !== "http:" ||
+    !isLoopbackHostname(appOrigin.hostname)
+  ) {
+    return false;
+  }
+
+  return (
+    isLoopbackDatabaseUrl(process.env.DATABASE_URL) &&
+    isLoopbackHttpUrl(
+      process.env.SUPABASE_URL ?? process.env.NEXT_PUBLIC_SUPABASE_URL
+    )
+  );
+}
+
+function isLoopbackDatabaseUrl(value: string | undefined) {
+  if (!value?.trim()) return false;
+
+  try {
+    const url = new URL(value);
+    return (
+      (url.protocol === "postgres:" || url.protocol === "postgresql:") &&
+      isLoopbackHostname(url.hostname)
+    );
+  } catch {
+    return false;
+  }
+}
+
+function isLoopbackHttpUrl(value: string | undefined) {
+  if (!value?.trim()) return false;
+
+  try {
+    const url = new URL(value);
+    return (
+      (url.protocol === "http:" || url.protocol === "https:") &&
+      isLoopbackHostname(url.hostname)
+    );
+  } catch {
+    return false;
+  }
 }
 
 function validateHttpOrigin(value: string, requireOriginOnly: boolean) {

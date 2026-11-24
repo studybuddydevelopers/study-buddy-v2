@@ -60,6 +60,11 @@ export default defineConfig({
     },
     // These scripts use Node's built-in test runner so they can be executed in
     // CI without loading the application test environment.
-    exclude: [...configDefaults.exclude, "scripts/*.test.mjs", "tests/browser/**"],
+    exclude: [
+      ...configDefaults.exclude,
+      "scripts/*.test.mjs",
+      "tests/browser/**",
+      "tests/e2e/**",
+    ],
   },
 });

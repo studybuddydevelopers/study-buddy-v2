@@ -117,7 +117,19 @@ npm run test:browser
 npm run build
 ```
 
-These commands are the current baseline, not the complete target programme.
+The real production-build harness has separate commands and requires a
+disposable local pgvector database plus the documented synthetic environment:
+
+```bash
+npm run test:e2e:prepare
+npm run build
+npm run test:e2e
+```
+
+See [Real Next.js E2E harness](./REAL_NEXT_E2E_HARNESS.md) for the safe setup,
+cleanup, CI behavior and limitations.
+
+These commands are not the complete target programme.
 `npm run test:browser` uses a test-only component server and mocked requests. It
 does not start Next.js or prove real authentication, database, middleware,
 provider or deployment behavior.
@@ -160,6 +172,7 @@ need an owner, reason and expiry; they cannot silently satisfy a release gate.
 
 - [Testing roadmap](./TESTING_ROADMAP.md)
 - [CI testing baseline](./CI_BASELINE.md)
+- [Real Next.js E2E harness](./REAL_NEXT_E2E_HARNESS.md)
 - [Deployment and security change process](../DEPLOYMENT_SECURITY_CHANGE_PROCESS.md)
 - [Frontend change process](../FRONTEND_CHANGE_PROCESS.md)
 - [AI change process](../AI_CHANGE_PROCESS.md)

@@ -28,6 +28,53 @@ describe("authentication email redirects", () => {
     );
   });
 
+  it("allows a loopback production origin only for the isolated E2E harness", () => {
+    vi.stubEnv("NODE_ENV", "production");
+    vi.stubEnv("APP_ORIGIN", "http://127.0.0.1:3200");
+    vi.stubEnv("STUDY_BUDDY_E2E_TEST_MODE", "true");
+    vi.stubEnv(
+      "DATABASE_URL",
+      "postgresql://postgres:test@127.0.0.1:55432/studybuddy_e2e"
+    );
+    vi.stubEnv("SUPABASE_URL", "http://127.0.0.1:55431");
+
+    expect(trustedAppOrigin()).toBe("http://127.0.0.1:3200");
+  });
+
+  it("rejects the E2E exception in a deployed Railway environment", () => {
+    vi.stubEnv("NODE_ENV", "production");
+    vi.stubEnv("APP_ORIGIN", "http://127.0.0.1:3200");
+    vi.stubEnv("STUDY_BUDDY_E2E_TEST_MODE", "true");
+    vi.stubEnv("RAILWAY_ENVIRONMENT_ID", "production");
+    vi.stubEnv(
+      "DATABASE_URL",
+      "postgresql://postgres:test@127.0.0.1:55432/studybuddy_e2e"
+    );
+    vi.stubEnv("SUPABASE_URL", "http://127.0.0.1:55431");
+
+    expect(() => trustedAppOrigin()).toThrow(
+      "APP_ORIGIN must be a public HTTPS origin in production."
+    );
+  });
+
+  it("rejects the E2E exception when a dependency is not loopback-only", () => {
+    const remoteDatabaseUrl = new URL(
+      "postgresql://db.example/studybuddy_e2e"
+    );
+    remoteDatabaseUrl.username = "postgres";
+    remoteDatabaseUrl.password = "test";
+
+    vi.stubEnv("NODE_ENV", "production");
+    vi.stubEnv("APP_ORIGIN", "http://127.0.0.1:3200");
+    vi.stubEnv("STUDY_BUDDY_E2E_TEST_MODE", "true");
+    vi.stubEnv("DATABASE_URL", remoteDatabaseUrl.toString());
+    vi.stubEnv("SUPABASE_URL", "http://127.0.0.1:55431");
+
+    expect(() => trustedAppOrigin()).toThrow(
+      "APP_ORIGIN must be a public HTTPS origin in production."
+    );
+  });
+
   it("does not accept a path in APP_ORIGIN", () => {
     vi.stubEnv("APP_ORIGIN", "https://studybuddyng.com/login");
 

@@ -124,3 +124,77 @@ jobs:
             output/playwright/results.json
           if-no-files-found: warn
           retention-days: 14
+
+  real-next-e2e:
+    name: Real Next.js E2E
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    services:
+      postgres:
+        image: pgvector/pgvector@sha256:b513c48566e4777cd3370451400000c78eda6a08131d68f4c31d4a76f27bd8fd
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: e2e-only-password-not-a-secret-12345
+          POSTGRES_DB: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      CI: "true"
+      NEXT_TELEMETRY_DISABLED: "1"
+      E2E_DATABASE_URL: postgresql://postgres:e2e-only-password-not-a-secret-12345@127.0.0.1:5432/studybuddy_e2e
+      DATABASE_URL: postgresql://postgres:e2e-only-password-not-a-secret-12345@127.0.0.1:5432/studybuddy_e2e
+      DIRECT_URL: postgresql://postgres:e2e-only-password-not-a-secret-12345@127.0.0.1:5432/studybuddy_e2e
+      APP_ORIGIN: http://127.0.0.1:3200
+      CSRF_TRUSTED_ORIGINS: http://127.0.0.1:3200
+      STUDY_BUDDY_E2E_TEST_MODE: "true"
+      SUPABASE_URL: http://127.0.0.1:55431
+      NEXT_PUBLIC_SUPABASE_URL: http://127.0.0.1:55431
+      SUPABASE_PUBLISHABLE_KEY: sb_publishable_e2e_test_only
+      NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: sb_publishable_e2e_test_only
+      NEXT_PUBLIC_CAPTCHA_ENABLED: "false"
+      RATE_LIMIT_HASH_SECRET: e2e-only-hash-secret-at-least-32-bytes-long
+      TRUSTED_PROXY_PROVIDER: direct
+      SECURITY_AUDIT_DB_ENABLED: "false"
+      AI_CHAT_PROVIDER: fake
+      AI_EMBEDDING_PROVIDER: fake
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.0.2
+        with:
+          persist-credentials: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24.22.3
+          cache: npm
+
+      - name: Install locked dependencies
+        run: npm ci
+
+      - name: Install Chromium
+        run: npx --no-install playwright install --with-deps chromium
+
+      - name: Prepare disposable database
+        run: npm run test:e2e:prepare
+
+      - name: Build production application
+        run: npm run build
+
+      - name: Run real Next.js browser journeys
+        run: npm run test:e2e
+
+      - name: Upload real E2E evidence
+        if: ${{ always() }}
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: real-next-e2e-${{ github.run_id }}-${{ github.run_attempt }}
+          path: output/playwright-e2e/
+          if-no-files-found: warn
+          retention-days: 14
