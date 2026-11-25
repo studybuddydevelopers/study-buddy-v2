@@ -162,12 +162,13 @@ export default function ExamInstanceClient({
   }, []);
 
   const saveProgress = useCallback(
-    async (snapshot: Record<string, string> = latestAnswersRef.current) => {
+    async () => {
       if (savingRef.current || submittedRef.current) return;
       savingRef.current = true;
       setSaving(true);
       setError(null);
       try {
+        const snapshot = latestAnswersRef.current;
         const payloadAnswers = data.answers.map((a) => ({
           answerId: a.id,
           userAnswer: snapshot[a.id]?.trim() ?? "",
@@ -203,7 +204,7 @@ export default function ExamInstanceClient({
   useEffect(() => {
     if (submitted) return;
     const interval = setInterval(() => {
-      void saveProgress(latestAnswersRef.current);
+      void saveProgress();
     }, 15000);
     saveIntervalRef.current = interval;
     return () => {

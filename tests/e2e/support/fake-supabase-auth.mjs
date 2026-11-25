@@ -10,6 +10,7 @@ const sessions = new Map();
 const tokens = new Map();
 const outbox = [];
 const failedDeliveries = new Set();
+const failedCompletions = new Set();
 
 for (const seed of Object.values(fixtureUsers)) {
   createUser({ ...seed, confirmedAt: new Date().toISOString(), metadata: { accountStatus: "ACTIVE" } });
@@ -58,6 +59,24 @@ async function handleRequest(request, response) {
     if (failedDeliveries.delete(recipient)) return sendJson(response, 503, { error: "Simulated delivery failure" });
     outbox.push({ to: recipient, subject: body.subject, html: body.html });
     return sendJson(response, 200, { id: randomUUID() });
+  }
+  if (method === "POST" && pathname === "/openai/fail-next-completion" && typeof body.prompt === "string") {
+    failedCompletions.add(body.prompt);
+    return response.writeHead(204).end();
+  }
+  if (method === "POST" && pathname === "/openai/v1/chat/completions") {
+    if (bearer !== "e2e-fake-openai" || !Array.isArray(body.messages)) {
+      return sendJson(response, 400, { error: { message: "Invalid synthetic completion request" } });
+    }
+    if (failedCompletions.delete(body.messages.at(-1)?.content)) {
+      response.setHeader("x-should-retry", "false");
+      return sendJson(response, 503, { error: { message: "Simulated completion failure" } });
+    }
+    return sendJson(response, 200, {
+      id: randomUUID(), model: body.model,
+      choices: [{ message: { role: "assistant", content: "Fake tutor response." }, finish_reason: "stop" }],
+      usage: { prompt_tokens: 20, completion_tokens: 4, total_tokens: 24 },
+    });
   }
 
   if (method === "POST" && pathname === "/auth/v1/signup") {

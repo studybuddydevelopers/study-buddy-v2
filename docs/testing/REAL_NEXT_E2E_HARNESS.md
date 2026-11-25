@@ -39,6 +39,8 @@ browser layer. It does not start Next.js or PostgreSQL.
 - Supabase Auth and transactional email use a localhost-only deterministic HTTP
   fake. Playwright starts the server with synthetic keys and a test preload that
   sends Resend requests to the local outbox and rejects external `fetch` calls.
+  The chat client uses the OpenAI SDK against a localhost-only completion
+  endpoint that can return a deterministic response or fail one synthetic prompt.
 - `STUDY_BUDDY_E2E_TEST_MODE=true` permits the built app to use an HTTP
   loopback canonical origin only when the database and Supabase URLs are also
   loopback-only and no Railway or Vercel deployment indicators exist. The same
@@ -58,12 +60,34 @@ The `Real Next.js E2E` job in `.github/workflows/ci.yml`:
    synthetic learner and question attempt;
 4. builds the production Next.js application;
 5. starts the local Auth and email fake and built application under Playwright;
-6. runs the anonymous, authenticated and account lifecycle journeys; and
+6. runs the account lifecycle, API authorization and student journeys; and
 7. uploads JSON, JUnit, HTML, trace, screenshot and video evidence as
    applicable.
 
 The job is independent of the existing full CI job, so a failure in either
 layer blocks the pull request when both checks are required.
+
+## Student journeys
+
+The [student journey suite](../../tests/e2e/student-journeys.spec.ts) follows
+these flows in Chromium against the built app and a fresh PostgreSQL database.
+
+- Open practice from the materials page, recover a draft after reload, submit
+  and review a quiz, and verify the updated progress after another reload.
+- Start an objective mock, save and resume the answer, submit and grade, and
+  verify a repeated submission leaves the saved answer and grade intact.
+- Send and find a saved chat, retry a failed AI generation without duplicating
+  the question, and recover from a failed report submission.
+- Request a written-paper marking review, open a seeded support decision from
+  notifications, verify the read state and confirm a second learner cannot
+  view the decision.
+
+The review test starts from a pre-marked paper and supplies the support decision
+as fixture data. It exercises the learner-facing review and inbox. Other tests
+cover the marking workflow and the support endpoint.
+
+After local setup and a fresh seed, run just this suite with
+`npm run test:e2e -- student-journeys.spec.ts`.
 
 ## Local execution
 
