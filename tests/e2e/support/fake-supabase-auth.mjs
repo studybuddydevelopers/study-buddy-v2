@@ -1,148 +1,233 @@
+import { randomUUID } from "node:crypto";
 import http from "node:http";
 
 const HOST = "127.0.0.1";
-const PORT = Number.parseInt(process.env.E2E_FAKE_SUPABASE_PORT ?? "55431", 10);
-const USER = Object.freeze({
+const PORT = 55431;
+const APP_ORIGIN = "http://127.0.0.1:3200";
+const users = new Map();
+const sessions = new Map();
+const tokens = new Map();
+const outbox = [];
+const failedDeliveries = new Set();
+
+createUser({
   id: "11111111-1111-4111-8111-111111111111",
   email: "e2e.student@example.test",
   password: "E2E-password-123!",
+  confirmedAt: new Date().toISOString(),
+  metadata: { accountStatus: "ACTIVE" },
 });
-const REFRESH_TOKEN = "e2e-refresh-token";
-const ACCESS_TOKEN = createAccessToken();
 
 const server = http.createServer(async (request, response) => {
-  const url = new URL(request.url ?? "/", `http://${HOST}:${PORT}`);
+  try {
+    await handleRequest(request, response);
+  } catch {
+    sendJson(response, 500, { error: "Invalid fake provider request" });
+  }
+});
 
-  if (request.method === "GET" && url.pathname === "/health") {
+async function handleRequest(request, response) {
+  const { pathname, searchParams } = new URL(request.url ?? "/", `http://${HOST}:${PORT}`);
+  const method = request.method;
+  const bearer = request.headers.authorization?.replace(/^Bearer /, "");
+  const session = sessions.get(bearer);
+  const body = method === "POST" || method === "PUT" ? await readJsonBody(request) : {};
+
+  if (request.headers.origin === APP_ORIGIN) {
+    response.setHeader("Access-Control-Allow-Origin", APP_ORIGIN);
+    response.setHeader("Vary", "Origin");
+  }
+  if (method === "OPTIONS" && pathname.startsWith("/auth/v1/")) {
+    response.setHeader("Access-Control-Allow-Methods", "GET, POST, PUT, OPTIONS");
+    response.setHeader("Access-Control-Allow-Headers", "apikey, authorization, content-type, x-client-info, x-supabase-api-version");
+    return response.writeHead(204).end();
+  }
+  if (method === "GET" && pathname === "/health") {
     return sendJson(response, 200, { status: "ok" });
   }
-
-  if (request.method === "POST" && url.pathname === "/auth/v1/token") {
-    const body = await readJsonBody(request);
-    const grantType = url.searchParams.get("grant_type");
-
-    if (
-      grantType === "password" &&
-      body?.email === USER.email &&
-      body?.password === USER.password
-    ) {
-      return sendJson(response, 200, sessionPayload());
+  if (method === "GET" && pathname === "/outbox") {
+    const recipient = searchParams.get("to");
+    return sendJson(response, 200, outbox.filter((email) => email.to === recipient));
+  }
+  if (method === "POST" && pathname === "/outbox/fail-next-delivery" && isFixtureEmail(body.to)) {
+    failedDeliveries.add(body.to);
+    return response.writeHead(204).end();
+  }
+  if (method === "POST" && pathname === "/resend/emails") {
+    const recipient = body.to?.[0];
+    if (bearer !== "e2e-fake-resend" || !isFixtureEmail(recipient) || body.to.length !== 1) {
+      return sendJson(response, 400, { error: "Invalid synthetic email" });
     }
-    if (grantType === "refresh_token" && body?.refresh_token === REFRESH_TOKEN) {
-      return sendJson(response, 200, sessionPayload());
-    }
-
-    return sendJson(response, 400, {
-      code: "invalid_credentials",
-      error_code: "invalid_credentials",
-      msg: "Invalid login credentials",
-    });
+    if (failedDeliveries.delete(recipient)) return sendJson(response, 503, { error: "Simulated delivery failure" });
+    outbox.push({ to: recipient, subject: body.subject, html: body.html });
+    return sendJson(response, 200, { id: randomUUID() });
   }
 
-  if (request.method === "GET" && url.pathname === "/auth/v1/user") {
-    if (request.headers.authorization === `Bearer ${ACCESS_TOKEN}`) {
-      return sendJson(response, 200, userPayload());
+  if (method === "POST" && pathname === "/auth/v1/signup") {
+    if (!isFixtureEmail(body.email) || typeof body.password !== "string" || findUser(body.email)) {
+      return authError(response, 400, "invalid_credentials", "Invalid synthetic signup");
     }
-    return sendJson(response, 401, {
-      code: "bad_jwt",
-      error_code: "bad_jwt",
-      msg: "Invalid JWT",
-    });
+    const user = createUser({ email: body.email, password: body.password, metadata: body.data });
+    deliverAuthLink(user, "email", `${APP_ORIGIN}/auth/confirm`);
+    return sendJson(response, 200, userPayload(user));
+  }
+  if (method === "POST" && pathname === "/auth/v1/recover") {
+    const user = findUser(body.email);
+    const redirect = searchParams.get("redirect_to");
+    if (redirect !== `${APP_ORIGIN}/auth/password-reset`) {
+      return authError(response, 400, "validation_failed", "Invalid synthetic recovery redirect");
+    }
+    if (user?.confirmedAt && !user.banned) {
+      deliverAuthLink(user, "recovery", redirect);
+    }
+    return sendJson(response, 200, {});
+  }
+  if (method === "POST" && pathname === "/auth/v1/verify") {
+    const token = tokens.get(body.token_hash);
+    if (!token || token.type !== body.type || token.user.banned || !users.has(token.user.id)) {
+      return authError(response, 403, "otp_expired", "Email link is invalid or has expired");
+    }
+    tokens.delete(body.token_hash);
+    if (token.type === "email") token.user.confirmedAt = new Date().toISOString();
+    return sendJson(response, 200, issueSession(token.user));
+  }
+  if (method === "POST" && pathname === "/auth/v1/token") {
+    const grantType = searchParams.get("grant_type");
+    if (grantType === "password") {
+      const user = findUser(body.email);
+      if (user?.confirmedAt && !user.banned && body.password === user.password) {
+        return sendJson(response, 200, issueSession(user));
+      }
+    }
+    if (grantType === "refresh_token") {
+      const record = [...sessions.values()].find((item) => item.refreshToken === body.refresh_token);
+      if (record && !record.user.banned) return sendJson(response, 200, issueSession(record.user));
+    }
+    return authError(response, 400, "invalid_credentials", "Invalid login credentials");
+  }
+  if (pathname === "/auth/v1/user" && (method === "GET" || method === "PUT")) {
+    if (!session || session.user.banned) return authError(response, 401, "bad_jwt", "Invalid JWT");
+    if (method === "PUT") session.user.password = body.password;
+    return sendJson(response, 200, userPayload(session.user));
+  }
+  if (method === "POST" && pathname === "/auth/v1/logout") {
+    if (session) {
+      if (searchParams.get("scope") === "local") sessions.delete(bearer);
+      else revokeSessions(session.user);
+    }
+    return response.writeHead(204).end();
   }
 
-  if (request.method === "POST" && url.pathname === "/auth/v1/logout") {
-    response.writeHead(204);
-    return response.end();
+  const adminId = pathname.match(/^\/auth\/v1\/admin\/users\/([^/]+)$/)?.[1];
+  if (adminId && request.headers.apikey === "sb_secret_e2e_only") {
+    const user = users.get(adminId);
+    if (!user) return authError(response, 404, "user_not_found", "User not found");
+    if (method === "GET") return sendJson(response, 200, userPayload(user));
+    if (method === "PUT") {
+      if (body.user_metadata) user.metadata = body.user_metadata;
+      if (typeof body.password === "string") user.password = body.password;
+      if (typeof body.ban_duration === "string") {
+        user.banned = body.ban_duration !== "none";
+        if (user.banned) revokeSessions(user);
+      }
+      return sendJson(response, 200, userPayload(user));
+    }
+    if (method === "DELETE") {
+      revokeSessions(user);
+      users.delete(adminId);
+      return sendJson(response, 200, {});
+    }
   }
 
-  console.error(
-    JSON.stringify({
-      event: "unexpected_fake_supabase_request",
-      method: request.method,
-      path: url.pathname,
-    })
-  );
+  console.error(JSON.stringify({ event: "unexpected_fake_supabase_request", method, path: pathname }));
   return sendJson(response, 404, { error: "Not found" });
-});
+}
 
-server.listen(PORT, HOST, () => {
-  console.log(`Fake Supabase Auth listening on http://${HOST}:${PORT}`);
-});
+function isFixtureEmail(email) {
+  return typeof email === "string" && /^[a-z0-9.-]+@example\.test$/.test(email);
+}
 
-function userPayload() {
-  const timestamp = "2026-01-01T00:00:00.000Z";
+function createUser({ id = randomUUID(), email, password, confirmedAt, metadata = {} }) {
+  const user = { id, email, password, metadata, confirmedAt, createdAt: new Date().toISOString() };
+  users.set(id, user);
+  return user;
+}
+
+function findUser(email) {
+  return [...users.values()].find((user) => user.email === email);
+}
+
+function userPayload(user) {
   return {
-    id: USER.id,
+    id: user.id,
     aud: "authenticated",
     role: "authenticated",
-    email: USER.email,
-    email_confirmed_at: timestamp,
+    email: user.email,
+    email_confirmed_at: user.confirmedAt,
     phone: "",
-    confirmed_at: timestamp,
-    last_sign_in_at: timestamp,
+    confirmed_at: user.confirmedAt,
+    last_sign_in_at: user.lastSignInAt,
     app_metadata: { provider: "email", providers: ["email"] },
-    user_metadata: { accountStatus: "ACTIVE" },
-    identities: [],
-    created_at: timestamp,
-    updated_at: timestamp,
+    user_metadata: user.metadata,
+    identities: [{ id: user.id, user_id: user.id, provider: "email" }],
+    created_at: user.createdAt,
+    updated_at: user.createdAt,
     is_anonymous: false,
   };
 }
 
-function sessionPayload() {
+function issueSession(user) {
+  const now = Math.floor(Date.now() / 1000);
+  const claims = { sub: user.id, aud: "authenticated", role: "authenticated", iat: now, exp: now + 3600 };
+  const encode = (value) => Buffer.from(JSON.stringify(value)).toString("base64url");
+  const accessToken = [encode({ alg: "HS256", typ: "JWT" }), encode(claims), randomUUID()].join(".");
+  const refreshToken = randomUUID();
+  user.lastSignInAt = new Date().toISOString();
+  sessions.set(accessToken, { user, refreshToken });
   return {
-    access_token: ACCESS_TOKEN,
+    access_token: accessToken,
     token_type: "bearer",
     expires_in: 3600,
-    expires_at: Math.floor(Date.now() / 1000) + 3600,
-    refresh_token: REFRESH_TOKEN,
-    user: userPayload(),
+    expires_at: now + 3600,
+    refresh_token: refreshToken,
+    user: userPayload(user),
   };
 }
 
-function createAccessToken() {
-  const now = Math.floor(Date.now() / 1000);
-  return [
-    base64Url({ alg: "HS256", typ: "JWT" }),
-    base64Url({
-      sub: USER.id,
-      aud: "authenticated",
-      role: "authenticated",
-      email: USER.email,
-      iat: now,
-      exp: now + 3600,
-    }),
-    "synthetic-e2e-signature",
-  ].join(".");
+function revokeSessions(user) {
+  for (const [accessToken, session] of sessions) {
+    if (session.user === user) sessions.delete(accessToken);
+  }
 }
 
-function base64Url(value) {
-  return Buffer.from(JSON.stringify(value)).toString("base64url");
+function deliverAuthLink(user, type, target) {
+  for (const [token, entry] of tokens) {
+    if (entry.user === user && entry.type === type) tokens.delete(token);
+  }
+  const token = randomUUID();
+  tokens.set(token, { user, type });
+  const link = new URL(target);
+  link.searchParams.set("token_hash", token);
+  link.searchParams.set("type", type);
+  outbox.push({ to: user.email, subject: type === "email" ? "Confirm your email" : "Reset your password", link: link.href });
 }
 
 async function readJsonBody(request) {
   const chunks = [];
   for await (const chunk of request) chunks.push(chunk);
-  if (chunks.length === 0) return {};
+  return chunks.length ? JSON.parse(Buffer.concat(chunks).toString("utf8")) : {};
+}
 
-  try {
-    return JSON.parse(Buffer.concat(chunks).toString("utf8"));
-  } catch {
-    return null;
-  }
+function authError(response, status, code, message) {
+  return sendJson(response, status, { code, error_code: code, msg: message });
 }
 
 function sendJson(response, status, body) {
-  response.writeHead(status, {
-    "Content-Type": "application/json",
-    "Cache-Control": "no-store",
-  });
+  response.writeHead(status, { "Content-Type": "application/json", "Cache-Control": "no-store" });
   response.end(JSON.stringify(body));
 }
 
-function shutdown() {
-  server.close(() => process.exit(0));
+server.listen(PORT, HOST, () => console.log(`Fake Auth and email services listening on http://${HOST}:${PORT}`));
+for (const signal of ["SIGTERM", "SIGINT"]) {
+  process.on(signal, () => server.close(() => process.exit(0)));
 }
-
-process.on("SIGTERM", shutdown);
-process.on("SIGINT", shutdown);
