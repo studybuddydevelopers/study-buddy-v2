@@ -129,7 +129,7 @@ export default function ResetPasswordClient() {
 
           {success && (
             <p role="status" className="text-green-700 text-sm mb-4">
-              Reset link sent! Check your inbox.
+              Password reset requested.
             </p>
           )}
 
