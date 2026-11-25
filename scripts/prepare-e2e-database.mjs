@@ -1,13 +1,10 @@
 import { spawnSync } from "node:child_process";
 import { pathToFileURL } from "node:url";
 import pg from "pg";
+import fixtureUsers from "../tests/e2e/support/fixture-users.json" with { type: "json" };
 
-export const E2E_USER = Object.freeze({
-  id: "11111111-1111-4111-8111-111111111111",
-  email: "e2e.student@example.test",
-  password: "E2E-password-123!",
-  firstName: "E2E",
-});
+export const E2E_USER = Object.freeze(fixtureUsers.learner);
+const E2E_PEER = Object.freeze(fixtureUsers.peer);
 
 const E2E_SUBJECT_ID = "22222222-2222-4222-8222-222222222222";
 const E2E_TOPIC_ID = "33333333-3333-4333-8333-333333333333";
@@ -118,6 +115,22 @@ async function seedSyntheticJourney(databaseUrl) {
         settings: { create: {} },
         subscriptions: {
           create: { plan: "free", status: "active", startDate: now },
+        },
+      },
+    });
+
+    await prisma.user.create({
+      data: {
+        id: E2E_PEER.id,
+        accountStatus: "ACTIVE",
+        aiAccessAuthorized: true,
+        profile: {
+          create: {
+            firstName: E2E_PEER.firstName,
+            lastNames: "Student",
+            phoneNumber: "00000000001",
+            preferredSubjects: [],
+          },
         },
       },
     });
