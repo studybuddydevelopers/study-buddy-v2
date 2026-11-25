@@ -45,8 +45,9 @@ export default function CheckEmailClient() {
 
         {/* Body Text */}
         <p className="text-center text-gray-600 mb-6 px-4">
-          If an account exists for the email you entered, you’ll receive a
-          password reset link shortly.
+          If there’s an account for that email and we can process the request,
+          we’ll send a password reset link. If it doesn’t arrive, check your
+          spam folder or try again.
         </p>
 
         {/* Buttons / Actions */}
