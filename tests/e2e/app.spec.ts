@@ -1,7 +1,7 @@
 import { expect, test } from "@playwright/test";
+import fixtureUsers from "./support/fixture-users.json";
 
-const E2E_EMAIL = "e2e.student@example.test";
-const E2E_PASSWORD = "E2E-password-123!";
+const { email: E2E_EMAIL, password: E2E_PASSWORD } = fixtureUsers.learner;
 
 test("an anonymous visitor is redirected and public routing stays healthy", async ({
   page,

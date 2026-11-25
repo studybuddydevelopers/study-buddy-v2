@@ -113,6 +113,21 @@ The quote-ready scope, provider shortlist, rules of engagement, deliverables and
 large-public/paid-launch penetration-test gate are in
 [`INDEPENDENT_SECURITY_REVIEW.md`](./docs/INDEPENDENT_SECURITY_REVIEW.md).
 
+### Deferred staging checks
+
+Run these with disposable accounts and inboxes on protected staging. The
+automated suite uses simulated email, so the live delivery checks remain open.
+
+- [ ] Register and verify an adult account by email. Reset its password and
+  sign in with the new password.
+- [ ] Verify a synthetic learner account aged 13–17. Confirm access is
+  restricted, then approve learning from the guardian email with AI permission
+  off. Confirm the learner can study and AI access remains restricted.
+- [ ] Request permanent deletion, follow the confirmation email, check that
+  the pending-deletion email arrives, then sign in and cancel the request.
+
+See the [protected staging smoke checklist](./docs/testing/REAL_NEXT_E2E_HARNESS.md#protected-staging-smoke).
+
 ## Legal And Compliance Status
 
 The repository contains a practical compliance draft for the current product,

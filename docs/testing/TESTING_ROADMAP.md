@@ -174,6 +174,9 @@ the approved staging smoke subset passes with disposable accounts.
 
 #### 5. `test/api-authorization-validation-matrix`
 
+The [API authorization matrix](./API_AUTHORIZATION_MATRIX.md) documents the
+route inventory check and the disposable HTTP coverage.
+
 - Generate and maintain a method-by-method matrix for every first-party route.
 - Test unauthenticated, restricted, wrong-owner, support-only, invalid input,
   oversized input and unsupported-method behavior as applicable.
