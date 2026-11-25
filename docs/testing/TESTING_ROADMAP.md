@@ -143,8 +143,7 @@ journey against the built application without production credentials.
 
 #### 3. `test/database-migrations-roles-rls`
 
-Implementation status: implemented on the named workstream branch; promotion
-requires its complete CI and protected-staging checks to pass.
+Implementation status: merged into `staging` and `main` on 24 November 2026.
 
 - Provision disposable PostgreSQL with the required extensions.
 - Apply the complete migration chain from an empty database.
@@ -159,6 +158,9 @@ Exit: empty-to-current migration and runtime-role checks pass automatically,
 and failure leaves no shared database state.
 
 #### 4. `test/auth-guardian-account-lifecycle-e2e`
+
+The automated coverage and provider smoke steps are recorded in the
+[real Next.js E2E harness guide](./REAL_NEXT_E2E_HARNESS.md).
 
 - Cover signup, verification, login, logout, password reset/lock/recovery,
   age verification, guardian decision, restricted account, deactivation,

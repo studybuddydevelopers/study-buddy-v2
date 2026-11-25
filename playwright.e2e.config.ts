@@ -40,6 +40,15 @@ export default defineConfig({
     {
       command: "npm start -- --hostname 127.0.0.1 --port 3200",
       url: `${appUrl}/api/health`,
+      env: {
+        NODE_OPTIONS: "--import=./tests/e2e/support/isolate-providers.mjs",
+        SUPABASE_SECRET_KEY: "sb_secret_e2e_only",
+        RESEND_API_KEY: "e2e-fake-resend",
+        TRANSACTIONAL_EMAIL_FROM: "Study Buddy <e2e@example.test>",
+        TRANSACTIONAL_EMAIL_REPLY_TO: "e2e@example.test",
+        ACCOUNT_DELETION_CRON_SECRET: "e2e-account-deletion-cron-secret-only",
+        PASSWORD_RESET_RATE_LIMIT_ACCOUNT_MAX: "3",
+      },
       reuseExistingServer: false,
       timeout: 120_000,
       gracefulShutdown: { signal: "SIGTERM", timeout: 5_000 },

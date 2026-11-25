@@ -14,7 +14,7 @@ import {
 import { fetchWithTimeout } from "@/lib/security/timeouts";
 import { getSupabaseAdminClient } from "@/lib/supabase/admin";
 import { getServerSupabaseConfig } from "@/lib/supabase/config";
-import { authRedirectUrl } from "@/lib/supabase/auth-redirect";
+import { authRedirectUrl, trustedAppOrigin } from "@/lib/supabase/auth-redirect";
 import { SECURITY_EMAIL } from "@/lib/legal-entity";
 
 const TOKEN_PATTERN = /^[A-Za-z0-9_-]{43}$/;
@@ -721,22 +721,10 @@ async function sendPasswordResetLockConfirmationEmail(input: {
 function securityEmailConfiguration() {
   const apiKey = process.env.RESEND_API_KEY?.trim();
   const from = process.env.TRANSACTIONAL_EMAIL_FROM?.trim();
-  const configuredOrigin = process.env.APP_ORIGIN?.trim();
   if (!apiKey || !from) {
     throw new Error("Password security email delivery is not configured.");
   }
-  if (!configuredOrigin) {
-    if (process.env.NODE_ENV === "production") {
-      throw new Error("APP_ORIGIN is required for password security emails.");
-    }
-    return { apiKey, from, appOrigin: "http://localhost:3000" };
-  }
-
-  const url = new URL(configuredOrigin);
-  if (process.env.NODE_ENV === "production" && url.protocol !== "https:") {
-    throw new Error("APP_ORIGIN must use HTTPS in production.");
-  }
-  return { apiKey, from, appOrigin: url.origin };
+  return { apiKey, from, appOrigin: trustedAppOrigin() };
 }
 
 async function recordEventBestEffort(
