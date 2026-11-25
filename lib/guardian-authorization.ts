@@ -1,6 +1,7 @@
 import { createHash, randomBytes } from "node:crypto";
 import { fetchWithTimeout } from "@/lib/security/timeouts";
 import { getSupabaseAdminClient } from "@/lib/supabase/admin";
+import { trustedAppOrigin } from "@/lib/supabase/auth-redirect";
 import {
   logSecurityEvent,
   securityFingerprint,
@@ -54,7 +55,7 @@ export async function sendGuardianAuthorizationEmail(input: {
   const apiKey = process.env.RESEND_API_KEY?.trim();
   const from = process.env.TRANSACTIONAL_EMAIL_FROM?.trim();
   const replyTo = process.env.TRANSACTIONAL_EMAIL_REPLY_TO?.trim();
-  const appOrigin = productionAppOrigin();
+  const appOrigin = trustedAppOrigin();
 
   if (!apiKey || !from) {
     throw new Error("Guardian authorization email delivery is not configured.");
@@ -127,21 +128,6 @@ export async function syncAuthAccountStatus(
       accountStatus,
     });
   }
-}
-
-function productionAppOrigin() {
-  const configured = process.env.APP_ORIGIN?.trim();
-  if (configured) {
-    const url = new URL(configured);
-    if (process.env.NODE_ENV === "production" && url.protocol !== "https:") {
-      throw new Error("APP_ORIGIN must use HTTPS in production.");
-    }
-    return url.origin;
-  }
-  if (process.env.NODE_ENV === "production") {
-    throw new Error("APP_ORIGIN is required for guardian authorization emails.");
-  }
-  return "http://localhost:3000";
 }
 
 function escapeHtml(value: string) {
