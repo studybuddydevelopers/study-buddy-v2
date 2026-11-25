@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import http from "node:http";
+import fixtureUsers from "./fixture-users.json" with { type: "json" };
 
 const HOST = "127.0.0.1";
 const PORT = 55431;
@@ -10,13 +11,9 @@ const tokens = new Map();
 const outbox = [];
 const failedDeliveries = new Set();
 
-createUser({
-  id: "11111111-1111-4111-8111-111111111111",
-  email: "e2e.student@example.test",
-  password: "E2E-password-123!",
-  confirmedAt: new Date().toISOString(),
-  metadata: { accountStatus: "ACTIVE" },
-});
+for (const seed of Object.values(fixtureUsers)) {
+  createUser({ ...seed, confirmedAt: new Date().toISOString(), metadata: { accountStatus: "ACTIVE" } });
+}
 
 const server = http.createServer(async (request, response) => {
   try {
