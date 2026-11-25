@@ -89,6 +89,28 @@ cover the marking workflow and the support endpoint.
 After local setup and a fresh seed, run just this suite with
 `npm run test:e2e -- student-journeys.spec.ts`.
 
+## Auth and email contracts
+
+- The [Resend HTTP tests](../../lib/email-provider-contract.test.ts) run the
+  application’s email senders and timeout handling against a local HTTP server.
+  They check recipient, sender, reply-to, both message formats, links and
+  idempotency keys. They simulate rate limiting, a service error and a stalled
+  response, then verify an explicit retry of the same message.
+- The [password recovery browser test](../../tests/e2e/provider-email.spec.ts)
+  verifies the public acknowledgement for a throttled request and a missing
+  account. A retry for the synthetic account checks that the Auth request uses
+  PKCE and the email link and callback use the configured app origin.
+- The [account lifecycle browser tests](../../tests/e2e/account-lifecycle.spec.ts)
+  cover a rejected guardian resend followed by a successful retry. They also
+  verify that a rejected final deletion email is reported separately from the
+  deletion state and that the user can still cancel.
+
+Run `npm test -- lib/email-provider-contract.test.ts` for the Resend tests.
+After the local harness setup below, run
+`npm run test:e2e -- provider-email.spec.ts account-lifecycle.spec.ts` for the
+browser cases. These cases use synthetic inboxes. Live delivery and callback
+checks remain in the [README checklist](../../README.md#deferred-staging-checks).
+
 ## Local execution
 
 Use Node `24.22.3`, Docker and the repository's locked dependencies. The values
