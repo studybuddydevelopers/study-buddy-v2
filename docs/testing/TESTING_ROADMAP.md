@@ -191,6 +191,9 @@ expectation; security-critical omissions block CI.
 
 #### 6. `test/chat-learning-exam-e2e`
 
+The [student journeys](./REAL_NEXT_E2E_HARNESS.md#student-journeys) describe the
+browser cases and which provider and staff actions are simulated.
+
 Add database-backed browser journeys for chat/history/search/retry/report,
 materials, practice, past questions, mock exams, progress, notifications and
 marking reviews. Verify refresh, duplicate submission, partial failure and
