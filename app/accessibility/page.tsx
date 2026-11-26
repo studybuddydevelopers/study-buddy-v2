@@ -4,7 +4,7 @@ import PolicyDocumentPage, {
 import { SUPPORT_EMAIL } from "@/lib/legal-entity";
 import { createPageMetadata } from "@/lib/site-metadata";
 
-const LAST_UPDATED = "8 September 2026";
+const LAST_UPDATED = "26 November 2026";
 
 export const metadata = createPageMetadata({
   title: "Accessibility Statement",
@@ -19,11 +19,11 @@ const sections: PolicyDocumentSection[] = [
     title: "Our commitment",
     content: (
       <p>
-        Study Buddy wants students, parents, teachers, and school staff to use the
-        service regardless of disability, device, connection quality, or assistive
-        technology. We are working toward the Web Content Accessibility
-        Guidelines (WCAG) 2.2 Level AA. This is an aim, not a claim that every
-        page currently conforms.
+        Study Buddy wants students and families to use the service regardless
+        of disability, device, connection quality, or assistive technology. We
+        are working toward{" "}
+        <a href="https://www.w3.org/TR/WCAG22/">WCAG 2.2 Level AA</a>.
+        Independent conformance testing is pending.
       </p>
     ),
   },
@@ -32,13 +32,12 @@ const sections: PolicyDocumentSection[] = [
     title: "Accessibility considered in the product",
     content: (
       <ul>
-        <li>semantic headings, labels, links, buttons, and form messages;</li>
-        <li>keyboard-accessible navigation and controls where implemented;</li>
-        <li>visible focus treatment and readable colour contrast;</li>
-        <li>responsive layouts for mobile and enlarged text;</li>
-        <li>text alternatives or decorative treatment for meaningful imagery;</li>
-        <li>plain-language instructions and error feedback; and</li>
-        <li>low-data controls for slower or more expensive connections.</li>
+        <li>Page headings, labelled fields and form error messages</li>
+        <li>Keyboard navigation and visible focus in core controls</li>
+        <li>Form labels that identify the question in written practice</li>
+        <li>Responsive layouts for smaller screens</li>
+        <li>Text summaries of daily learning activity</li>
+        <li>Low-data controls for selected images on slower connections</li>
       </ul>
     ),
   },
@@ -48,18 +47,15 @@ const sections: PolicyDocumentSection[] = [
     content: (
       <>
         <p>
-          We have not yet completed an independent WCAG 2.2 AA audit. The
-          following areas require particular testing and remediation before we
-          can make a formal conformance claim:
+          Further testing is planned for the following parts of the service.
         </p>
         <ul>
-          <li>dynamic AI-chat announcements and long conversation navigation;</li>
-          <li>timed mock-exam controls and status updates;</li>
-          <li>CAPTCHA and account-recovery experiences;</li>
-          <li>charts, progress explanations, and complex learning graphics;</li>
-          <li>uploaded PDFs, textbooks, and third-party learning resources;</li>
-          <li>zoom, reflow, reduced-motion, and screen-reader behaviour; and</li>
-          <li>keyboard operation across every authenticated workflow.</li>
+          <li>Chat announcements and navigation through long conversations</li>
+          <li>Timed mock exams and written marking reviews</li>
+          <li>Bot checks and account recovery</li>
+          <li>Text alternatives for practice diagrams and progress charts</li>
+          <li>Zoom, reflow and reduced motion on different devices</li>
+          <li>Screen-reader and keyboard operation across signed-in routes</li>
         </ul>
       </>
     ),
@@ -95,10 +91,9 @@ const sections: PolicyDocumentSection[] = [
     title: "Reviewing this statement",
     content: (
       <p>
-        This statement will be reviewed after material interface changes and
-        after each formal accessibility audit. The conformance target, tested
-        pages, testing methods, unresolved failures, and review date should be
-        updated once an independent audit has been completed.
+        We review this statement after material interface changes. After a
+        formal audit, we will update it with the areas tested, the methods
+        used, and any remaining barriers.
       </p>
     ),
   },
