@@ -2,7 +2,7 @@
 import { NextResponse } from "next/server";
 import { MockExamFormat, MockExamSection } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
-import { requireUser } from "@/lib/auth";
+import { readAiAccessRestriction, requireUser } from "@/lib/auth";
 import { buildMockExamMcqChoices } from "@/lib/mock-exam-multiple-choice";
 import { WRITTEN_MOCK_AI_CREDIT_COST } from "@/lib/mock-exam-ai-credits";
 import { parseJsonObjectRequest } from "@/lib/security/request-body";
@@ -47,6 +47,16 @@ export async function POST(req: Request) {
     );
   }
 
+  if (template.format === MockExamFormat.WRITTEN) {
+    const restriction = await readAiAccessRestriction(dbUser);
+    if (restriction) {
+      return NextResponse.json(restriction, {
+        status: 403,
+        headers: { "Cache-Control": "no-store" },
+      });
+    }
+  }
+
   // -------------------------------------
   // 4. FETCH QUESTIONS FOR SUBJECT
   // -------------------------------------
@@ -78,17 +88,6 @@ export async function POST(req: Request) {
   }
 
   if (template.format === MockExamFormat.WRITTEN) {
-    if (!dbUser.aiAccessAuthorized) {
-      return NextResponse.json(
-        {
-          error: "AI_AUTHORIZATION_REQUIRED",
-          message:
-            "AI access must be authorised before starting a written mock exam.",
-        },
-        { status: 403, headers: { "Cache-Control": "no-store" } }
-      );
-    }
-
     const creditResponse = await reserveDailyAiCredits(
       dbUser.id,
       WRITTEN_MOCK_AI_CREDIT_COST,
