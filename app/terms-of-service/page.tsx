@@ -239,10 +239,11 @@ export default function TermsOfServicePage() {
               A user aged 13–17 may register, but the account remains locked
               until a parent or legal guardian approves it through our expiring,
               one-time email process. The adult reviews these terms and the
-              privacy notices and confirms their authority. Approval for
-              learning and permission for AI are separate choices. A school
-              cannot approve an account or access student information through
-              Study Buddy.
+              privacy notices and confirms their authority. Approval opens
+              ordinary study features such as practice questions and progress
+              tracking. AI features, including the tutor and written Paper 2
+              marking, are paused for users under 18. A school cannot approve
+              an account or access student information through Study Buddy.
             </p>
             <p>
               We do not routinely request identity documents to verify age or
