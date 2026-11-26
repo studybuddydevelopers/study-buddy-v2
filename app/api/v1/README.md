@@ -124,8 +124,8 @@ Subscriptions
 
 Payments
 --------
-- POST `/payments/verify` (auth) — Body: `reference`. Calls Paystack verify, records transaction if not already stored, returns `{ provider: "paystack", verified: true, transaction, duplicate? }`.
-- POST `/payments/webhook` — Paystack webhook (raw body, signature checked). Requires `metadata.userId` from Paystack payload; creates transaction unless reference already exists. Returns `{ success: true }` or `{ received: true }`.
+- POST `/payments/verify` (auth) — Body: `reference`. Records a successful Paystack charge bound to the current account and returns `{ provider: "paystack", verified: true, transaction, duplicate? }`. An inconsistent saved payment returns a reconciliation error.
+- POST `/payments/webhook` — Checks the signature against the raw body and records successful charge events with valid payment fields and `metadata.userId`. Both payment routes use the same unique transaction reference. Returns `{ success: true }` or `{ received: true }`.
 
 WhatsApp webhook
 ----------------
