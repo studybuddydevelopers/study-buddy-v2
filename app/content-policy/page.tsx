@@ -5,7 +5,7 @@ import PolicyDocumentPage, {
 import { SUPPORT_EMAIL } from "@/lib/legal-entity";
 import { createPageMetadata } from "@/lib/site-metadata";
 
-const LAST_UPDATED = "12 September 2026";
+const LAST_UPDATED = "26 November 2026";
 
 export const metadata = createPageMetadata({
   title: "Content and Copyright Policy",
@@ -35,20 +35,18 @@ const sections: PolicyDocumentSection[] = [
         <p>
           Study Buddy and its licensors retain their rights in the service,
           software, branding, original explanations, illustrations, and learning
-          materials. The current question bank contains AI-generated practice
-          questions rather than genuine past questions. Study Buddy has the
-          rights to use the current practice questions and owns the current
-          learner-visible explanations. Third-party material remains owned by
+          materials. The current bank contains Study Buddy practice questions,
+          including AI-generated questions. Study Buddy has the rights to use
+          its current practice bank and owns the explanations it publishes.
+          Third-party material remains owned by
           its respective owner. Nothing on the service transfers ownership to a
           user unless expressly stated in writing.
         </p>
         <p>
-          The current service does not display textbooks or describe any
-          question as a genuine past examination question. Contractor materials
-          and future third-party resources are not approved for publication
-          until their source and permitted use have been recorded. Genuine past
-          questions and textbooks will be introduced only where Study Buddy has
-          the necessary permission.
+          Practice questions and mock papers are written for revision in an
+          exam style. We will publish genuine past questions, textbooks,
+          contractor materials, and other third-party resources only after
+          recording their source and confirming the rights needed for use.
         </p>
       </>
     ),
@@ -59,9 +57,8 @@ const sections: PolicyDocumentSection[] = [
     content: (
       <>
         <p>
-          A user may access available content for personal, non-commercial study
-          and revision. An authorised teacher or school may use content for the
-          educational purpose permitted by its Study Buddy agreement.
+          You may access available content for personal, non-commercial study
+          and revision. Contact Study Buddy for permission for any wider use.
         </p>
         <p>
           Unless the owner or law permits it, users may not republish, sell,
@@ -78,8 +75,8 @@ const sections: PolicyDocumentSection[] = [
     content: (
       <>
         <p>
-          Users keep rights they hold in their own messages, answers, feedback,
-          and uploads. By submitting material, a user gives Study Buddy the
+          Users keep rights they hold in their own messages, answers and feedback.
+          By submitting material, a user gives Study Buddy the
           limited licence described in the Terms of Service to process it for the
           service.
         </p>
@@ -114,8 +111,9 @@ const sections: PolicyDocumentSection[] = [
         To report an incorrect answer, explanation, mark scheme, topic mapping,
         or source label, email <a href={`mailto:${SUPPORT_EMAIL}`}>{SUPPORT_EMAIL}</a>{" "}
         with the subject, topic, page, question identifier, and a short
-        explanation. We will review credible reports and may correct, qualify, or
-        remove content while it is checked.
+        explanation. Use <strong>Report response</strong> for an AI tutor reply
+        or <strong>Report this marking for review</strong> for a written mock mark.
+        We may correct, clarify, or remove content while it is checked.
       </p>
     ),
   },
