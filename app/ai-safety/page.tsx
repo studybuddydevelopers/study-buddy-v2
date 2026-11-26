@@ -5,7 +5,7 @@ import PolicyDocumentPage, {
 import { SUPPORT_EMAIL } from "@/lib/legal-entity";
 import { createPageMetadata } from "@/lib/site-metadata";
 
-const LAST_UPDATED = "23 September 2026";
+const LAST_UPDATED = "26 November 2026";
 
 export const metadata = createPageMetadata({
   title: "AI Safety and Responsible Use",
@@ -21,11 +21,11 @@ const sections: PolicyDocumentSection[] = [
     content: (
       <>
         <p>
-          Study Buddy&apos;s AI is a learning aid for explanations, revision,
-          practice, study planning, and automated marking of written Paper 2
-          practice. It is not a teacher, official examiner, counsellor, medical
-          professional, lawyer, emergency service, or official source of
-          examination instructions.
+          Use Study Buddy&apos;s AI tutor to ask for explanations, work through
+          examples, and plan revision. You can return to saved chats. Written
+          Paper 2 practice also uses AI to mark answers and give feedback.
+          Ask your teacher or check official examination materials for exam
+          rules and marking instructions.
         </p>
         <p>
           This policy supplements our <Link href="/terms-of-service">Terms of Service</Link>,{" "}
@@ -123,8 +123,12 @@ const sections: PolicyDocumentSection[] = [
           Students can use <strong>Report this marking for review</strong> beside
           an awarded mark and explain what appears wrong. Study Buddy attaches
           the exam, question, answer, marking guide, AI rationale, and score to a
-          tracked case. The student receives a reference and can follow its
-          status while support either upholds or changes the mark.
+          tracked case. Open <Link href="/marking-reviews">Marking reviews</Link>{" "}
+          to find the reference and check the status. Look in{" "}
+          <Link href="/notifications">Notifications</Link> for the decision. You
+          can see whether the mark was upheld or changed in the review details.
+          The <Link href="/terms-of-service#ai-features">Terms of Service</Link> explain
+          how credits are charged for new practice attempts.
         </p>
       </>
     ),
@@ -176,10 +180,16 @@ const sections: PolicyDocumentSection[] = [
     content: (
       <>
         <p>
-          Email <a href={`mailto:${SUPPORT_EMAIL}`}>{SUPPORT_EMAIL}</a> with the
-          subject “AI safety report”. Include the date, feature used, a short
-          description, and a screenshot or conversation reference if safe to do
-          so. Do not forward unnecessary personal or harmful material.
+          Choose <strong>Report response</strong> on the tutor reply and select
+          a reason. You can add details if they help. The report identifies
+          that reply and the question it answered. Reopen the report to check
+          its reference and status.
+        </p>
+        <p>
+          If you cannot use the report button, email{" "}
+          <a href={`mailto:${SUPPORT_EMAIL}`}>{SUPPORT_EMAIL}</a> with the
+          subject “AI safety report”. Include the date, the feature, and a
+          short description. Share only what we need to investigate.
         </p>
         <p>
           A student should also tell a parent, guardian, teacher, or trusted adult
@@ -197,7 +207,7 @@ export default function AiSafetyPage() {
     <PolicyDocumentPage
       title="AI Safety and Responsible Use"
       eyebrow="Safe study with AI"
-      introduction="Study Buddy AI should help students learn—not replace judgement, enable cheating, or put personal information and safety at risk."
+      introduction="Learn how to use AI for study, check its answers, and report an unsafe response or disputed practice mark."
       icon="chat"
       lastUpdated={LAST_UPDATED}
       sections={sections}
