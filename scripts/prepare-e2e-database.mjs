@@ -130,6 +130,7 @@ async function seedSyntheticJourney(databaseUrl) {
             lastNames: "Student",
             phoneNumber: "00000000001",
             preferredSubjects: [],
+            dateOfBirth: new Date("2000-01-01T00:00:00.000Z"),
           },
         },
       },
