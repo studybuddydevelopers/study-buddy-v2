@@ -1,13 +1,13 @@
 # Real Next.js end-to-end harness
 
-Last reviewed: 24 November 2026
+Last reviewed: 25 November 2026
 
 ## Purpose
 
 This harness tests the assembled production build rather than the isolated
 component fixture server. It starts the built Next.js application, a
-deterministic local Supabase Auth fake and a disposable pgvector PostgreSQL
-database containing synthetic records only.
+deterministic local Supabase Auth and email fake and a disposable pgvector
+PostgreSQL database containing synthetic records only.
 
 It currently proves:
 
@@ -15,8 +15,16 @@ It currently proves:
   protected page;
 - public health, static-asset and API routing work through the real server;
 - a synthetic learner can log in through the real login UI and route handler;
-- the Supabase SSR cookie survives a full browser refresh; and
-- the dashboard and authenticated APIs read seeded data from PostgreSQL.
+- the Supabase SSR cookie survives a full browser refresh and logout takes
+  effect across tabs;
+- the dashboard and authenticated APIs read seeded data from PostgreSQL;
+- age-gated signup, one-time verification and legacy age checks work;
+- guardian approval without AI permission, denial, expiry and resend enforce
+  the expected learner and AI access;
+- password reset limits send a warning and the explicit lock and recovery
+  steps restore access through a fresh reset email; and
+- deactivation, reactivation, deletion email retry, confirmation, cancellation
+  and scheduled deletion update persisted account state.
 
 The existing `npm run test:browser` suite remains a separate, faster fixture
 browser layer. It does not start Next.js or PostgreSQL.
@@ -28,11 +36,15 @@ browser layer. It does not start Next.js or PostgreSQL.
 - The database is recreated for every run and contains synthetic test data.
 - CI uses a digest-pinned pgvector container and creates only the compatibility
   roles and schema needed by the complete migration chain.
-- Supabase Auth is replaced by a localhost-only deterministic HTTP fake. No
-  production or staging provider credentials are used.
+- Supabase Auth and transactional email use a localhost-only deterministic HTTP
+  fake. Playwright starts the server with synthetic keys and a test preload that
+  sends Resend requests to the local outbox and rejects external `fetch` calls.
+  The chat client uses the OpenAI SDK against a localhost-only completion
+  endpoint that can return a deterministic response or fail one synthetic prompt.
 - `STUDY_BUDDY_E2E_TEST_MODE=true` permits the built app to use an HTTP
   loopback canonical origin only when the database and Supabase URLs are also
-  loopback-only and no Railway or Vercel deployment indicators exist.
+  loopback-only and no Railway or Vercel deployment indicators exist. The same
+  guard allows the browser to contact local Auth for password recovery.
 
 Never set `STUDY_BUDDY_E2E_TEST_MODE` in Railway, Vercel, staging or production.
 The application refuses the exception when deployment indicators are present,
@@ -47,13 +59,79 @@ The `Real Next.js E2E` job in `.github/workflows/ci.yml`:
 3. recreates the `_e2e` database, applies every Prisma migration and seeds a
    synthetic learner and question attempt;
 4. builds the production Next.js application;
-5. starts the local Auth fake and built application under Playwright;
-6. runs the anonymous and authenticated journeys; and
+5. starts the local Auth and email fake and built application under Playwright;
+6. runs the account lifecycle, API authorization and student journeys; and
 7. uploads JSON, JUnit, HTML, trace, screenshot and video evidence as
    applicable.
 
 The job is independent of the existing full CI job, so a failure in either
 layer blocks the pull request when both checks are required.
+
+## Student journeys
+
+The [student journey suite](../../tests/e2e/student-journeys.spec.ts) follows
+these flows in Chromium against the built app and a fresh PostgreSQL database.
+
+- Open practice from the materials page, recover a draft after reload, submit
+  and review a quiz, and verify the updated progress after another reload.
+- Start an objective mock, save and resume the answer, submit and grade, and
+  verify a repeated submission leaves the saved answer and grade intact.
+- Send and find a saved chat, retry a failed AI generation without duplicating
+  the question, and recover from a failed report submission.
+- Request a written-paper marking review, open a seeded support decision from
+  notifications, verify the read state and confirm a second learner cannot
+  view the decision.
+
+The review test starts from a pre-marked paper and supplies the support decision
+as fixture data. It exercises the learner-facing review and inbox. Other tests
+cover the marking workflow and the support endpoint.
+
+After local setup and a fresh seed, run just this suite with
+`npm run test:e2e -- student-journeys.spec.ts`.
+
+## Auth and email contracts
+
+- The [Resend HTTP tests](../../lib/email-provider-contract.test.ts) run the
+  application’s email senders and timeout handling against a local HTTP server.
+  They check recipient, sender, reply-to, both message formats, links and
+  idempotency keys. They simulate rate limiting, a service error and a stalled
+  response, then verify an explicit retry of the same message.
+- The [password recovery browser test](../../tests/e2e/provider-email.spec.ts)
+  verifies the public acknowledgement for a throttled request and a missing
+  account. A retry for the synthetic account checks that the Auth request uses
+  PKCE and the email link and callback use the configured app origin.
+- The [account lifecycle browser tests](../../tests/e2e/account-lifecycle.spec.ts)
+  cover a rejected guardian resend followed by a successful retry. They also
+  verify that a rejected final deletion email is reported separately from the
+  deletion state and that the user can still cancel.
+
+Run `npm test -- lib/email-provider-contract.test.ts` for the Resend tests.
+After the local harness setup below, run
+`npm run test:e2e -- provider-email.spec.ts account-lifecycle.spec.ts` for the
+browser cases. These cases use synthetic inboxes. Live delivery and callback
+checks remain in the [README checklist](../../README.md#deferred-staging-checks).
+
+## Payments and scheduled jobs
+
+The [payments and cron suite](../../tests/e2e/payments-cron.spec.ts) uses a
+loopback Paystack verification endpoint, signed synthetic notifications and
+the disposable application database. It checks signature rejection, charge
+validation, unrelated events, concurrent delivery across both payment routes,
+provider errors, account ownership and reconciliation of inconsistent saved
+records. A recorded payment leaves the learner’s subscription count unchanged.
+
+The same suite exercises an inactivity notice after a missed window, a
+transient delivery failure, a successful retry and a repeat run. It also
+checks that recommendations catch up after a missed run and skip recent
+results on a subsequent run. The
+[account lifecycle suite](../../tests/e2e/account-lifecycle.spec.ts) verifies
+that an overdue purge recovers after a temporary Auth failure and that two
+concurrent retries complete the deletion once.
+
+Run `npm run test:e2e -- payments-cron.spec.ts account-lifecycle.spec.ts` after
+the local harness setup below. Paid launch still requires an approved Paystack
+test-mode checkout, a server-owned order and expected price, and acceptance
+tests for fulfilment, renewal, cancellation and refunds.
 
 ## Local execution
 
@@ -91,8 +169,10 @@ npm run test:e2e
 docker stop study-buddy-e2e-postgres
 ```
 
-The setup step intentionally destroys only the validated local `_e2e`
-database. Stop the container after the run; `--rm` removes it automatically.
+The setup step intentionally recreates the validated local `_e2e` database.
+Run `npm run test:e2e:prepare` before repeating the suite so registrations and
+rate-limit records start fresh. Stop the container after the run. Docker
+removes the container automatically because it was started with `--rm`.
 
 ## Failure triage
 
@@ -107,8 +187,26 @@ database. Stop the container after the run; `--rm` removes it automatically.
 
 ## Deliberate limitations
 
-Chromium is the first browser target. This harness does not prove real provider
-delivery, Cloudflare Access, Railway networking, deployed headers, email links,
-payments, WhatsApp, AI provider behavior or production readiness. Those remain
-separate provider-contract, protected-staging and release-gate workstreams in
-the testing roadmap.
+Chromium is the first browser target. The local mailbox exercises links using
+synthetic Supabase emails and the app's own transactional email templates.
+Real Supabase templates and delivery, Turnstile, Cloudflare Access, Railway
+networking, deployed headers and the other providers require staging evidence.
+
+## Protected staging smoke
+
+Use disposable learner accounts and inboxes controlled by the test operator.
+Keep Turnstile and Cloudflare Access in their normal staging configuration.
+
+1. Register an adult account, open its delivered verification email and sign
+   in. After logout, request a reset, follow the delivered link and sign in
+   with the changed password.
+2. Register a synthetic learner aged 13–17. Verify the learner email, confirm
+   the account is restricted, then use the email delivered to the test guardian
+   to approve ordinary study. Verify that practice and progress are available
+   and that the AI tutor and written Paper 2 remain paused for this account.
+3. Request permanent deletion for a disposable account. Check the confirmation
+   and pending-deletion emails, then cancel in the app. The isolated automated
+   suite covers advancing the scheduled date and running the purge.
+
+Record the deployed revision and pass/fail per step. Keep addresses, passwords,
+provider responses and full email URLs out of shared artifacts.

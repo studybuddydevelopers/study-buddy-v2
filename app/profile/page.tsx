@@ -5,6 +5,7 @@ import StudyBuddyIcon, {
   type StudyBuddyIconName,
 } from "@/components/StudyBuddyIcon";
 import { requireUser } from "@/lib/auth";
+import { getAiAccessRestriction } from "@/lib/ai-access";
 import { MATERIALS_SUBJECT_LABELS } from "@/lib/materials-display";
 import { prisma } from "@/lib/prisma";
 import { getDailyAiCreditBalance } from "@/lib/security/rate-limit";
@@ -73,6 +74,7 @@ export default async function ProfilePage() {
           examYear: true,
           preferredSubjects: true,
           avatarUrl: true,
+          dateOfBirth: true,
         },
       }),
       prisma.userSettings.findUnique({ where: { userId: dbUser.id } }),
@@ -104,6 +106,7 @@ export default async function ProfilePage() {
   );
   const planLabel = formatPlan(subscription?.plan);
   const planStatus = subscription?.status ?? "active";
+  const aiRestriction = getAiAccessRestriction(profile?.dateOfBirth, dbUser.aiAccessAuthorized);
 
   return (
     <div className="mx-auto w-full max-w-6xl space-y-8 py-4 pb-24 sm:py-8 lg:pb-8">
@@ -192,14 +195,10 @@ export default async function ProfilePage() {
           <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
             <p className="text-sm font-medium text-gray-500">AI credits today</p>
             <p className="mt-2 text-2xl font-bold tabular-nums text-gray-950">
-              {dbUser.aiAccessAuthorized
-                ? `${aiCredits.remaining} / ${aiCredits.limit}`
-                : "Not enabled"}
+              {aiRestriction ? "Not enabled" : `${aiCredits.remaining} / ${aiCredits.limit}`}
             </p>
             <p className="mt-1 text-xs text-gray-500">
-              {dbUser.aiAccessAuthorized
-                ? "Resets daily"
-                : "AI access requires authorisation"}
+              {aiRestriction?.message ?? "Resets daily"}
             </p>
           </div>
           <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">

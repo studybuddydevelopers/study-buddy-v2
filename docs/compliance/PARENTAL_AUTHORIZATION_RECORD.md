@@ -26,7 +26,9 @@ For the current direct-to-learner product:
   one-time email link;
 - a school is not an authoriser in the current workflow;
 - the account is restricted before approval;
-- AI access is a separate optional guardian choice; and
+- guardian approval enables ordinary study. AI access stays paused for
+  learners under 18, including those with a previous AI permission record.
+  WhatsApp tutoring is unavailable; and
 - withdrawal currently uses the verified privacy-email process while an online
   guardian self-service route remains pending.
 

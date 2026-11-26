@@ -1,5 +1,4 @@
 // app/api/v1/payments/webhook/route.ts
-import { prisma } from "@/lib/prisma";
 import { NextResponse } from "next/server";
 import crypto from "crypto";
 import {
@@ -11,6 +10,8 @@ import {
   securityFingerprint,
 } from "@/lib/security/audit-log";
 import { getClientIp } from "@/lib/security/rate-limit";
+import { parseSuccessfulPaystackCharge, paystackSecretKey, recordPaystackCharge } from "@/lib/paystack-payments";
+import { isRecord } from "@/lib/type-utils";
 
 export async function POST(req: Request) {
   try {
@@ -25,9 +26,11 @@ export async function POST(req: Request) {
     // 2. Validate Paystack signature
     // -----------------------------------------------------
     const signature = req.headers.get("x-paystack-signature");
+    const secret = paystackSecretKey();
+    if (!secret) return NextResponse.json({ error: "Payments unavailable" }, { status: 503 });
 
     const expectedSignature = crypto
-      .createHmac("sha512", process.env.PAYSTACK_SECRET_KEY!)
+      .createHmac("sha512", secret)
       .update(rawBody)
       .digest("hex");
 
@@ -45,56 +48,19 @@ export async function POST(req: Request) {
     // -----------------------------------------------------
     // 3. Parse JSON AFTER validating signature
     // -----------------------------------------------------
-    const event = JSON.parse(rawBody);
-
-    const data = event.data;
-
-    if (!data || !data.reference) {
-      // Paystack sometimes sends pings with no data
+    const event: unknown = JSON.parse(rawBody);
+    if (!isRecord(event) || event.event !== "charge.success") {
       return NextResponse.json({ received: true });
     }
-
-    const reference = data.reference;
-    const amount = data.amount / 100;
-    const currency = data.currency || "NGN";
-    const status = data.status; // "success"
-    const userId = data.metadata?.userId; // send from frontend
-
-    if (!userId) {
-      logSecurityEvent("payment_webhook_missing_user", "warn", {
+    const charge = parseSuccessfulPaystackCharge(event.data);
+    if (!charge) {
+      logSecurityEvent("payment_webhook_invalid_charge", "warn", {
         provider: "paystack",
       });
       return NextResponse.json({ received: true });
     }
-
-    // -----------------------------------------------------
-    // 4. Prevent duplicates
-    // -----------------------------------------------------
-    const existing = await prisma.transaction.findFirst({
-      where: { reference },
-    });
-
-    if (existing) {
-      return NextResponse.json({ received: true }); // Already processed
-    }
-
-    // -----------------------------------------------------
-    // 5. Log transaction in DB
-    // -----------------------------------------------------
-    await prisma.transaction.create({
-      data: {
-        userId,
-        amount,
-        reference,
-        currency,
-        status,
-      },
-    });
-
-    // -----------------------------------------------------
-    // 6. Respond OK (required by Paystack)
-    // -----------------------------------------------------
-    return NextResponse.json({ success: true });
+    const created = await recordPaystackCharge(charge);
+    return NextResponse.json(created ? { success: true } : { received: true });
   } catch {
     logSecurityEvent("payment_webhook_processing_failed", "error", {
       provider: "paystack",

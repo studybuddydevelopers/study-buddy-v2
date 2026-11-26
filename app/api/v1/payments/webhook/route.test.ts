@@ -2,15 +2,14 @@ import { createHmac } from "node:crypto";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
-  findFirst: vi.fn(),
-  create: vi.fn(),
+  createMany: vi.fn(),
   getClientIp: vi.fn(),
   logSecurityEvent: vi.fn(),
 }));
 
 vi.mock("@/lib/prisma", () => ({
   prisma: {
-    transaction: { findFirst: mocks.findFirst, create: mocks.create },
+    transaction: { createMany: mocks.createMany },
   },
 }));
 vi.mock("@/lib/security/rate-limit", () => ({
@@ -30,8 +29,7 @@ describe("Paystack webhook boundary", () => {
     vi.clearAllMocks();
     vi.stubEnv("PAYSTACK_SECRET_KEY", secret);
     mocks.getClientIp.mockReturnValue("203.0.113.9");
-    mocks.findFirst.mockResolvedValue(null);
-    mocks.create.mockResolvedValue({ id: "transaction-1" });
+    mocks.createMany.mockResolvedValue({ count: 1 });
   });
 
   afterEach(() => vi.unstubAllEnvs());
@@ -45,8 +43,7 @@ describe("Paystack webhook boundary", () => {
     await expect(response.json()).resolves.toEqual({
       error: "Invalid Paystack signature",
     });
-    expect(mocks.findFirst).not.toHaveBeenCalled();
-    expect(mocks.create).not.toHaveBeenCalled();
+    expect(mocks.createMany).not.toHaveBeenCalled();
     expect(mocks.logSecurityEvent).toHaveBeenCalledWith(
       "webhook_signature_failed",
       "warn",
@@ -65,22 +62,18 @@ describe("Paystack webhook boundary", () => {
 
     expect(response.status).toBe(413);
     expect(response.headers.get("Cache-Control")).toBe("no-store");
-    expect(mocks.findFirst).not.toHaveBeenCalled();
-    expect(mocks.create).not.toHaveBeenCalled();
+    expect(mocks.createMany).not.toHaveBeenCalled();
   });
 
   it("acknowledges a previously processed reference without duplicating it", async () => {
-    mocks.findFirst.mockResolvedValue({ id: "existing-transaction" });
+    mocks.createMany.mockResolvedValue({ count: 0 });
     const body = paymentEvent();
 
     const response = await POST(request(body, signature(body)));
 
     expect(response.status).toBe(200);
     await expect(response.json()).resolves.toEqual({ received: true });
-    expect(mocks.findFirst).toHaveBeenCalledWith({
-      where: { reference: "paystack-reference-1" },
-    });
-    expect(mocks.create).not.toHaveBeenCalled();
+    expect(mocks.createMany).toHaveBeenCalledOnce();
   });
 
   it("persists a valid signed payment using Paystack's minor currency unit", async () => {
@@ -90,14 +83,15 @@ describe("Paystack webhook boundary", () => {
 
     expect(response.status).toBe(200);
     await expect(response.json()).resolves.toEqual({ success: true });
-    expect(mocks.create).toHaveBeenCalledWith({
-      data: {
+    expect(mocks.createMany).toHaveBeenCalledWith({
+      data: [{
         userId: "user-1",
         amount: 25,
         reference: "paystack-reference-1",
         currency: "NGN",
         status: "success",
-      },
+      }],
+      skipDuplicates: true,
     });
   });
 
@@ -108,12 +102,21 @@ describe("Paystack webhook boundary", () => {
 
     expect(response.status).toBe(500);
     await expect(response.json()).resolves.toEqual({ error: "Webhook error" });
-    expect(mocks.create).not.toHaveBeenCalled();
+    expect(mocks.createMany).not.toHaveBeenCalled();
     expect(mocks.logSecurityEvent).toHaveBeenCalledWith(
       "payment_webhook_processing_failed",
       "error",
       { provider: "paystack" }
     );
+  });
+
+  it("requires a configured payment key", async () => {
+    vi.stubEnv("PAYSTACK_SECRET_KEY", "replace-me");
+    const body = paymentEvent();
+    const response = await POST(request(body, signature(body)));
+
+    expect(response.status).toBe(503);
+    expect(mocks.createMany).not.toHaveBeenCalled();
   });
 });
 

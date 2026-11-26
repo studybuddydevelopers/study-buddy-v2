@@ -1,6 +1,7 @@
 import { createHash, randomBytes } from "node:crypto";
 import { fetchWithTimeout } from "@/lib/security/timeouts";
 import { PRIVACY_EMAIL } from "@/lib/legal-entity";
+import { trustedAppOrigin } from "@/lib/supabase/auth-redirect";
 
 const DEFAULT_CONFIRMATION_TTL_HOURS = 24;
 
@@ -167,19 +168,7 @@ function emailConfiguration() {
     throw new Error("Account deletion email delivery is not configured.");
   }
 
-  const configuredOrigin = process.env.APP_ORIGIN?.trim();
-  if (!configuredOrigin) {
-    if (process.env.NODE_ENV === "production") {
-      throw new Error("APP_ORIGIN is required for account deletion emails.");
-    }
-    return { apiKey, from, replyTo, appOrigin: "http://localhost:3000" };
-  }
-
-  const url = new URL(configuredOrigin);
-  if (process.env.NODE_ENV === "production" && url.protocol !== "https:") {
-    throw new Error("APP_ORIGIN must use HTTPS in production.");
-  }
-  return { apiKey, from, replyTo, appOrigin: url.origin };
+  return { apiKey, from, replyTo, appOrigin: trustedAppOrigin() };
 }
 
 function escapeHtml(value: string) {

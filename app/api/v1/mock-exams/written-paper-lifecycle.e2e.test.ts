@@ -60,6 +60,7 @@ vi.mock("@/lib/prisma", () => ({
 }));
 
 vi.mock("@/lib/auth", () => ({
+  readAiAccessRestriction: vi.fn().mockResolvedValue(null),
   requireUser: vi.fn().mockResolvedValue({
     user: { id: "learner-1" },
     dbUser: { id: "learner-1", aiAccessAuthorized: true },

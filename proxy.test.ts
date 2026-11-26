@@ -124,6 +124,22 @@ describe("production route controls", () => {
     expect(imagePolicy).toBe("img-src 'self' data: blob:");
   });
 
+  it("allows browser Auth on loopback only in the isolated E2E environment", async () => {
+    vi.stubEnv("NODE_ENV", "production");
+    vi.stubEnv("STUDY_BUDDY_E2E_TEST_MODE", "true");
+    vi.stubEnv("APP_ORIGIN", "http://127.0.0.1:3200");
+    vi.stubEnv("SUPABASE_URL", "http://127.0.0.1:55431");
+    vi.stubEnv("DATABASE_URL", "postgresql://127.0.0.1/studybuddy_e2e");
+    const request = new NextRequest("http://127.0.0.1:3200/api/health");
+
+    const local = await proxy(request);
+    expect(local.headers.get("Content-Security-Policy")).toMatch(/connect-src [^;]+http:\/\/127\.0\.0\.1:55431/);
+
+    vi.stubEnv("RAILWAY_ENVIRONMENT_ID", "hosted");
+    const hosted = await proxy(request);
+    expect(hosted.headers.get("Content-Security-Policy")).not.toContain("http://127.0.0.1:55431");
+  });
+
   it("rejects a cross-origin mutation carrying a Supabase session cookie", async () => {
     vi.stubEnv("NODE_ENV", "production");
     vi.stubEnv("APP_ORIGIN", "https://studybuddy.example");

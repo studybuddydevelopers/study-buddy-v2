@@ -143,8 +143,7 @@ journey against the built application without production credentials.
 
 #### 3. `test/database-migrations-roles-rls`
 
-Implementation status: implemented on the named workstream branch; promotion
-requires its complete CI and protected-staging checks to pass.
+Implementation status: merged into `staging` and `main` on 24 November 2026.
 
 - Provision disposable PostgreSQL with the required extensions.
 - Apply the complete migration chain from an empty database.
@@ -160,6 +159,9 @@ and failure leaves no shared database state.
 
 #### 4. `test/auth-guardian-account-lifecycle-e2e`
 
+The automated coverage and provider smoke steps are recorded in the
+[real Next.js E2E harness guide](./REAL_NEXT_E2E_HARNESS.md).
+
 - Cover signup, verification, login, logout, password reset/lock/recovery,
   age verification, guardian decision, restricted account, deactivation,
   deletion confirmation/cancellation and scheduled deletion.
@@ -171,6 +173,9 @@ Exit: all launch-critical account states have real-Next browser evidence and
 the approved staging smoke subset passes with disposable accounts.
 
 #### 5. `test/api-authorization-validation-matrix`
+
+The [API authorization matrix](./API_AUTHORIZATION_MATRIX.md) documents the
+route inventory check and the disposable HTTP coverage.
 
 - Generate and maintain a method-by-method matrix for every first-party route.
 - Test unauthenticated, restricted, wrong-owner, support-only, invalid input,
@@ -186,6 +191,9 @@ expectation; security-critical omissions block CI.
 
 #### 6. `test/chat-learning-exam-e2e`
 
+The [student journeys](./REAL_NEXT_E2E_HARNESS.md#student-journeys) describe the
+browser cases and which provider and staff actions are simulated.
+
 Add database-backed browser journeys for chat/history/search/retry/report,
 materials, practice, past questions, mock exams, progress, notifications and
 marking reviews. Verify refresh, duplicate submission, partial failure and
@@ -193,12 +201,18 @@ cross-account isolation.
 
 #### 7. `test/provider-contracts-and-email`
 
+The [Auth and email contracts](./REAL_NEXT_E2E_HARNESS.md#auth-and-email-contracts)
+describe the first set of local Supabase and Resend checks.
+
 Use controlled local HTTP fakes for exact request/response, timeout, retry and
 error mapping. Add bounded staging contracts for Supabase Auth, Resend, OpenAI,
 Paystack and WhatsApp only when the feature is approved. Do not expose provider
 credentials or real message content in artifacts.
 
 #### 8. `test/payments-webhooks-scheduled-jobs`
+
+The [payments and scheduled jobs](./REAL_NEXT_E2E_HARNESS.md#payments-and-scheduled-jobs)
+section records the simulated integration coverage and the paid launch gates.
 
 Cover webhook signatures, replay/idempotency and out-of-order delivery;
 test-mode checkout verification; renewal/cancellation/refund rules; duplicated

@@ -6,7 +6,7 @@ import { fetchWithTimeout } from "@/lib/security/timeouts";
 import { validateCookieMutationOrigin } from "@/lib/security/csrf";
 import { logSecurityEvent } from "@/lib/security/audit-log";
 import { accountStatusDestination } from "@/lib/account-status";
-import { authRedirectUrl } from "@/lib/supabase/auth-redirect";
+import { authRedirectUrl, isolatedE2eSupabaseOrigin } from "@/lib/supabase/auth-redirect";
 
 const protectedPaths = [
   "/dashboard",
@@ -178,6 +178,7 @@ function buildContentSecurityPolicy(nonce: string) {
     "blob:",
     ...configuredSupabaseOrigins(isDevelopment),
   ];
+  const testAuthOrigin = isolatedE2eSupabaseOrigin();
 
   return [
     "default-src 'self'",
@@ -190,7 +191,7 @@ function buildContentSecurityPolicy(nonce: string) {
     "style-src-attr 'unsafe-inline'",
     `img-src ${imageSources.join(" ")}`,
     "font-src 'self' data:",
-    "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://challenges.cloudflare.com https://*.hcaptcha.com",
+    `connect-src 'self' https://*.supabase.co wss://*.supabase.co https://challenges.cloudflare.com https://*.hcaptcha.com${testAuthOrigin ? ` ${testAuthOrigin}` : ""}`,
     "frame-src https://challenges.cloudflare.com https://*.hcaptcha.com",
     "worker-src 'self' blob:",
     "object-src 'none'",

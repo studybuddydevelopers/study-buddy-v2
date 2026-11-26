@@ -1,7 +1,7 @@
 // app/api/v1/mock-exams/mock-exam-templates/route.ts
 import { NextResponse } from "next/server";
 import { MockExamFormat } from "@prisma/client";
-import { requireUser } from "@/lib/auth";
+import { readAiAccessRestriction, requireUser } from "@/lib/auth";
 import { WRITTEN_MOCK_AI_CREDIT_COST } from "@/lib/mock-exam-ai-credits";
 import { prisma } from "@/lib/prisma";
 import { logSecurityEvent } from "@/lib/security/audit-log";
@@ -27,7 +27,10 @@ export async function GET() {
         },
       },
     });
-    const aiCredits = await getDailyAiCreditBalance(dbUser.id);
+    const [aiCredits, aiRestriction] = await Promise.all([
+      getDailyAiCreditBalance(dbUser.id),
+      readAiAccessRestriction(dbUser),
+    ]);
 
     // -------------------------------------
     // 2. FORMAT RESPONSE
@@ -37,12 +40,12 @@ export async function GET() {
         const requiresAiCredit = t.format === MockExamFormat.WRITTEN;
         const canStart =
           !requiresAiCredit ||
-          (dbUser.aiAccessAuthorized &&
+          (!aiRestriction &&
             aiCredits.remaining >= WRITTEN_MOCK_AI_CREDIT_COST);
         const startBlockedReason = !requiresAiCredit
           ? null
-          : !dbUser.aiAccessAuthorized
-            ? "AI access must be authorised before you can start this written paper."
+          : aiRestriction
+            ? aiRestriction.message
             : !canStart
               ? `You need ${WRITTEN_MOCK_AI_CREDIT_COST} AI credits to start this written paper. Your daily credits reset tomorrow.`
               : null;

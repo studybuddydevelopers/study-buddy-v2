@@ -70,9 +70,10 @@ const supportNotes: {
   proposal?: StudyBuddyIconName;
 }[] = [
   {
-    title: "Reply window",
-    description: "We usually reply within one business day, Monday to Friday.",
-    proposal: "clock",
+    title: "Protect your information",
+    description:
+      "Leave out passwords, verification codes, payment-card numbers, and personal details we do not need to help.",
+    proposal: "shield",
   },
   {
     title: "Account help",
@@ -163,9 +164,9 @@ export default function ContactUsPage() {
               weight="medium"
               className="max-w-2xl leading-relaxed text-gray-800"
             >
-              Send a clear message about your account, a bug, a content issue,
-              or a school partnership. The more detail you include, the faster
-              we can respond usefully.
+              Get help with your account, report a problem, or ask about a
+              partnership. Choose a subject to send your message to the right
+              email address.
             </Paragraph>
           </div>
 
@@ -225,9 +226,10 @@ export default function ContactUsPage() {
             ) : (
               <div className="space-y-5">
                 <div>
-                  <Heading2 gutter="sm">Send us a message</Heading2>
+                  <Heading2 gutter="sm">Prepare an email</Heading2>
                   <Paragraph variant="muted" className="text-sm">
-                    Required fields are marked with an asterisk.
+                    The form opens a draft in your email app. Review the draft
+                    there and press Send. Required fields have an asterisk.
                   </Paragraph>
                 </div>
 

@@ -28,6 +28,11 @@ export function trustedAppOrigin(requestUrl?: string) {
   return LOCAL_DEVELOPMENT_ORIGIN;
 }
 
+export function isolatedE2eSupabaseOrigin() {
+  const value = process.env.APP_ORIGIN?.trim() ?? "";
+  return URL.canParse(value) ? getIsolatedE2eSupabaseOrigin(new URL(value)) : null;
+}
+
 function validateConfiguredOrigin(value: string) {
   const origin = validateHttpOrigin(value, true);
   const url = new URL(origin);
@@ -35,7 +40,7 @@ function validateConfiguredOrigin(value: string) {
   if (
     process.env.NODE_ENV === "production" &&
     (url.protocol !== "https:" || isLoopbackHostname(url.hostname)) &&
-    !isIsolatedE2eLoopbackOrigin(url)
+    !getIsolatedE2eSupabaseOrigin(url)
   ) {
     throw new Error(
       "APP_ORIGIN must be a public HTTPS origin in production."
@@ -45,24 +50,27 @@ function validateConfiguredOrigin(value: string) {
   return origin;
 }
 
-function isIsolatedE2eLoopbackOrigin(appOrigin: URL) {
+function getIsolatedE2eSupabaseOrigin(appOrigin: URL) {
   if (
     process.env.STUDY_BUDDY_E2E_TEST_MODE !== "true" ||
     process.env.RAILWAY_ENVIRONMENT_ID ||
     process.env.RAILWAY_SERVICE_ID ||
     process.env.VERCEL ||
     appOrigin.protocol !== "http:" ||
-    !isLoopbackHostname(appOrigin.hostname)
+    !isLoopbackHostname(appOrigin.hostname) ||
+    !isLoopbackDatabaseUrl(process.env.DATABASE_URL)
   ) {
-    return false;
+    return null;
   }
 
-  return (
-    isLoopbackDatabaseUrl(process.env.DATABASE_URL) &&
-    isLoopbackHttpUrl(
-      process.env.SUPABASE_URL ?? process.env.NEXT_PUBLIC_SUPABASE_URL
-    )
-  );
+  const value = process.env.SUPABASE_URL ?? process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
+  if (!URL.canParse(value)) return null;
+
+  const url = new URL(value);
+  return (url.protocol === "http:" || url.protocol === "https:") &&
+    isLoopbackHostname(url.hostname) && !url.username && !url.password
+    ? url.origin
+    : null;
 }
 
 function isLoopbackDatabaseUrl(value: string | undefined) {
@@ -72,20 +80,6 @@ function isLoopbackDatabaseUrl(value: string | undefined) {
     const url = new URL(value);
     return (
       (url.protocol === "postgres:" || url.protocol === "postgresql:") &&
-      isLoopbackHostname(url.hostname)
-    );
-  } catch {
-    return false;
-  }
-}
-
-function isLoopbackHttpUrl(value: string | undefined) {
-  if (!value?.trim()) return false;
-
-  try {
-    const url = new URL(value);
-    return (
-      (url.protocol === "http:" || url.protocol === "https:") &&
       isLoopbackHostname(url.hostname)
     );
   } catch {

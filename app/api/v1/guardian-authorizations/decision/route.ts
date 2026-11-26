@@ -57,7 +57,7 @@ export async function POST(request: Request) {
       { status: 400 }
     );
   }
-  const aiAuthorized = granting && parsed.data.aiAuthorized === true;
+  // A guardian can approve ordinary study. AI access for minors is paused.
   const ipFingerprint = securityFingerprint(getClientIp(request.headers));
   const changed = await prisma.$transaction(async (transaction) => {
     const update = await transaction.guardianAuthorization.updateMany({
@@ -65,7 +65,7 @@ export async function POST(request: Request) {
       data: {
         status: granting ? "GRANTED" : "DENIED",
         decidedAt: new Date(),
-        aiAuthorized: granting ? aiAuthorized : false,
+        aiAuthorized: false,
       },
     });
     if (!update.count) return false;
@@ -74,7 +74,7 @@ export async function POST(request: Request) {
       where: { id: authorization.studentUserId },
       data: {
         accountStatus: granting ? "ACTIVE" : "GUARDIAN_AUTHORIZATION_DENIED",
-        aiAccessAuthorized: aiAuthorized,
+        aiAccessAuthorized: false,
       },
     });
     await transaction.guardianAuthorizationEvent.create({
@@ -83,9 +83,7 @@ export async function POST(request: Request) {
         eventType: granting ? "GRANTED" : "DENIED",
         actorType: "GUARDIAN",
         ipFingerprint,
-        details: granting
-          ? { accountAndLearningAuthorized: true, aiAuthorized }
-          : { accountAndLearningAuthorized: false, aiAuthorized: false },
+        details: { accountAndLearningAuthorized: granting, aiAuthorized: false },
       },
     });
     return true;
@@ -99,7 +97,7 @@ export async function POST(request: Request) {
   await syncAuthAccountStatus(authorization.studentUserId, accountStatus);
   logSecurityEvent(`guardian_authorization_${granting ? "granted" : "denied"}`, "info", {
     accountFingerprint: securityFingerprint(authorization.studentUserId),
-    aiAuthorized,
+    aiAuthorized: false,
   });
 
   return NextResponse.json({ success: true, decision });

@@ -1,7 +1,7 @@
 import { expect, test } from "@playwright/test";
+import fixtureUsers from "./support/fixture-users.json";
 
-const E2E_EMAIL = "e2e.student@example.test";
-const E2E_PASSWORD = "E2E-password-123!";
+const { email: E2E_EMAIL, password: E2E_PASSWORD } = fixtureUsers.learner;
 
 test("an anonymous visitor is redirected and public routing stays healthy", async ({
   page,
@@ -70,6 +70,7 @@ test("a synthetic user logs in and reads database-backed dashboard data", async 
     return { status: response.status, body: await response.json() };
   });
   expect(statsResponse.status).toBe(200);
-  expect(statsResponse.body.todaySummary.questionsAttempted).toBe(1);
+  // The fixture is seeded before the build, which can cross midnight in CI.
+  expect(statsResponse.body.weeklySummary).toMatchObject({ questionsAttempted: 1, correctAnswers: 1 });
   expect(pageErrors).toEqual([]);
 });

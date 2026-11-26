@@ -28,9 +28,9 @@ Auth & Account
 - POST `/account/security/password-reset-lock` — Exchanges the security-alert link token after explicit learner confirmation. Display incomplete-link, working, success and failure states; opening a page must not perform the action.
 - POST `/account/security/password-reset-recovery` — Exchanges the recovery link token after explicit confirmation and requests the next recovery step. Never log or display the token in diagnostic UI.
 - POST `/account/security/password-reset-recovery/complete` (recovery session) — Completes recovery when server-side checks pass; do not infer completion solely from a client-side success screen.
-- POST `/account/age-verification` (auth) — Body: `dateOfBirth`, `acceptedTerms`, plus `guardianName`, `guardianEmail`, and `guardianRelationship` (`PARENT` or `LEGAL_GUARDIAN`) for a learner aged 13–17. Adults who accept the current terms continue to `/dashboard`; under-13 accounts are restricted; 13–17 accounts move to guardian authorisation with AI access disabled until separately approved. Follow the returned `nextPath` and do not treat email delivery as proof of authorisation.
+- POST `/account/age-verification` (auth) — Body: `dateOfBirth`, `acceptedTerms`, plus `guardianName`, `guardianEmail`, and `guardianRelationship` (`PARENT` or `LEGAL_GUARDIAN`) for a learner aged 13–17. Adults who accept the current terms continue to `/dashboard`. Under-13 accounts are restricted. Learners aged 13–17 require guardian authorisation for ordinary study. AI access is paused for users under 18. Follow the returned `nextPath`.
 - POST `/guardian-authorizations/lookup` — Body: `token`. Returns the bounded guardian/student display details, request status and expiry state needed to render the decision page. Responses are not cacheable; never put the token in logs, screenshots or analytics.
-- POST `/guardian-authorizations/decision` — Body: `token`, `decision` (`GRANT` or `DENY`). Granting also requires `confirmsAuthority: true` and `acceptsNotices: true`; `aiAuthorized` is a separate optional choice and is never implied by account approval. A request can be decided only once.
+- POST `/guardian-authorizations/decision` — Body: `token`, `decision` (`GRANT` or `DENY`). Granting also requires `confirmsAuthority: true` and `acceptsNotices: true`. Approval enables ordinary study features. A request can be decided only once.
 - POST `/guardian-authorizations/resend` (auth, restricted account allowed) — Reissues the current learner's pending/expired guardian request and returns the masked guardian email. It does not let the learner change the guardian details.
 - GET `/me` (auth) — Returns user basics, profile, and latest subscription `{ id, createdAt, profile, subscription }`; 404 if no DB user record.
 
@@ -124,8 +124,8 @@ Subscriptions
 
 Payments
 --------
-- POST `/payments/verify` (auth) — Body: `reference`. Calls Paystack verify, records transaction if not already stored, returns `{ provider: "paystack", verified: true, transaction, duplicate? }`.
-- POST `/payments/webhook` — Paystack webhook (raw body, signature checked). Requires `metadata.userId` from Paystack payload; creates transaction unless reference already exists. Returns `{ success: true }` or `{ received: true }`.
+- POST `/payments/verify` (auth) — Body: `reference`. Records a successful Paystack charge bound to the current account and returns `{ provider: "paystack", verified: true, transaction, duplicate? }`. An inconsistent saved payment returns a reconciliation error.
+- POST `/payments/webhook` — Checks the signature against the raw body and records successful charge events with valid payment fields and `metadata.userId`. Both payment routes use the same unique transaction reference. Returns `{ success: true }` or `{ received: true }`.
 
 WhatsApp webhook
 ----------------
