@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 import Button from "@/components/Button";
 import Heading1 from "@/components/Heading1";
@@ -30,13 +31,13 @@ const productAreas: ProductArea[] = [
   {
     title: "Practice that feels close to exam day",
     description:
-      "Students can work through topic-based practice questions and mock exams while Study Buddy records scores, timing, and progress.",
+      "Students can practise by topic, resume saved attempts, and take mock exams. Written Paper 2 practice includes AI marking and an option to request a review.",
     proposal: "exams",
   },
   {
     title: "A chat space for study support",
     description:
-      "The current AI chat keeps conversation history and helps students reason through questions. Grounded resource-backed tutoring stays disabled until it passes validation.",
+      "Ask for an explanation or a worked example, return to a saved conversation, and report a reply if it looks wrong or unsafe.",
     proposal: "support",
   },
   {
@@ -88,6 +89,13 @@ export default function AboutUsPage() {
             <p className="mt-4 max-w-2xl text-sm leading-relaxed text-gray-600">
               Study Buddy is operated by {LEGAL_ENTITY_NAME}, a Nigerian private
               company limited by shares (RC {COMPANY_REGISTRATION_NUMBER}).
+            </p>
+            <p className="mt-3 max-w-2xl text-sm leading-relaxed text-gray-600">
+              Study Buddy is independent of WAEC. Our{" "}
+              <Link href="/content-policy" className="text-primary-700 underline">
+                Content Policy
+              </Link>{" "}
+              explains where our practice questions and explanations come from.
             </p>
             <div className="mt-8 flex flex-col gap-3 sm:flex-row">
               <Button href="/sign-up"
@@ -148,8 +156,8 @@ export default function AboutUsPage() {
                     AI chat
                   </p>
                   <p className="mt-1 text-sm text-gray-700">
-                    Persistent conversations for general study help while
-                    grounded tutoring remains under validation.
+                    Saved conversations for explanations, worked examples and
+                    revision.
                   </p>
                 </div>
               </div>
@@ -243,10 +251,13 @@ export default function AboutUsPage() {
               <div className="flex flex-1 flex-col justify-center px-6 py-8 sm:px-10 md:py-10">
                 <Heading2 gutter="sm">Careful with AI claims</Heading2>
                 <Paragraph className="max-w-2xl leading-relaxed text-gray-700">
-                  We are keeping the live chatbot as a persistent general AI study
-                  assistant. Resource-grounded answers, citations, and advanced
-                  tutoring modes will only be enabled after they pass safety and
-                  quality validation.
+                  The tutor provides general study help. We are still testing
+                  answers backed by a library of study materials. Our{" "}
+                  <Link href="/ai-safety" className="text-primary-700 underline">
+                    AI Safety Policy
+                  </Link>{" "}
+                  explains how to check an answer, report a reply, or request a
+                  marking review.
                 </Paragraph>
               </div>
             </div>
