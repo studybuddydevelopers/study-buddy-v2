@@ -1,6 +1,7 @@
 // lib/auth.ts
 import { NextResponse } from "next/server";
 import { cookies, headers } from "next/headers";
+import type { User } from "@prisma/client";
 import { createServerClient } from "@supabase/ssr";
 import { prisma } from "@/lib/prisma";
 import { getServerSupabaseConfig } from "@/lib/supabase/config";
@@ -11,6 +12,7 @@ import {
 import { fetchWithTimeout } from "@/lib/security/timeouts";
 import { accountStatusDestination } from "@/lib/account-status";
 import { passwordResetSecurityRestrictionIsActive } from "@/lib/password-reset-security";
+import { getAiAccessRestriction } from "@/lib/ai-access";
 
 export async function requireAuthenticatedUser(
   options: { allowPasswordResetSecurityRecovery?: boolean } = {}
@@ -121,18 +123,24 @@ export async function requireUser() {
   return { user, dbUser };
 }
 
+export async function readAiAccessRestriction(dbUser: Pick<User, "id" | "aiAccessAuthorized">) {
+  const profile = await prisma.userProfile.findUnique({
+    where: { userId: dbUser.id },
+    select: { dateOfBirth: true },
+  });
+  return getAiAccessRestriction(profile?.dateOfBirth, dbUser.aiAccessAuthorized);
+}
+
 export async function requireAiUser() {
   const base = await requireUser();
   if ("errorResponse" in base) return base;
 
   const { user, dbUser } = base;
-  if (!dbUser.aiAccessAuthorized) {
+  const restriction = await readAiAccessRestriction(dbUser);
+  if (restriction) {
     return {
       errorResponse: NextResponse.json(
-        {
-          error: "AI_AUTHORIZATION_REQUIRED",
-          message: "AI features have not been authorised for this account.",
-        },
+        restriction,
         { status: 403, headers: { "Cache-Control": "no-store" } }
       ),
     };
