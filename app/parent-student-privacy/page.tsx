@@ -2,10 +2,10 @@ import Link from "next/link";
 import PolicyDocumentPage, {
   type PolicyDocumentSection,
 } from "@/components/PolicyDocumentPage";
-import { PRIVACY_EMAIL } from "@/lib/legal-entity";
+import { PRIVACY_EMAIL, SECURITY_EMAIL } from "@/lib/legal-entity";
 import { createPageMetadata } from "@/lib/site-metadata";
 
-const LAST_UPDATED = "23 September 2026";
+const LAST_UPDATED = "26 November 2026";
 
 export const metadata = createPageMetadata({
   title: "Parent and Student Privacy Notice",
@@ -22,8 +22,9 @@ const sections: PolicyDocumentSection[] = [
       <>
         <p>
           This is a shorter, student-friendly explanation of our{" "}
-          <Link href="/privacy-policy">Privacy Policy</Link>. The full policy
-          controls if the two documents differ.
+          <Link href="/privacy-policy">Privacy Policy</Link>. Read it for more
+          detail about who receives your information, your rights and how long
+          we keep data.
         </p>
         <p>
           Students should read this notice with a parent, guardian, teacher, or
@@ -43,8 +44,8 @@ const sections: PolicyDocumentSection[] = [
           <li>parent or legal guardian contact details and their authorisation decision if the student is aged 13–17;</li>
           <li>grade, exam year, preferred subjects, and profile image;</li>
           <li>questions, answers, drafts, scores, Paper 2 AI marking reasons and confidence labels, marking-review cases and decisions, AI-credit use, progress, and study activity;</li>
-          <li>messages sent to the Study Buddy AI or WhatsApp bot;</li>
-          <li>subscription and payment-status records; and</li>
+          <li>saved AI chats and reports about specific replies;</li>
+          <li>the account&apos;s plan and status; and</li>
           <li>device, sign-in, security, and abuse-prevention information.</li>
         </ul>
         <p>
@@ -65,8 +66,8 @@ const sections: PolicyDocumentSection[] = [
           <li>provide and secure the account;</li>
           <li>save learning work and calculate progress;</li>
           <li>suggest topics and generate AI study support;</li>
-          <li>connect and continue WhatsApp tutoring conversations;</li>
-          <li>process subscriptions and respond to support requests;</li>
+          <li>review a reported reply or a disputed practice mark;</li>
+          <li>respond to requests for help;</li>
           <li>prevent cheating, abuse, fraud, and unauthorised access; and</li>
           <li>improve the service using appropriate safeguards.</li>
         </ul>
@@ -82,11 +83,22 @@ const sections: PolicyDocumentSection[] = [
     content: (
       <>
         <p>
+          A guardian can approve learning on its own. Using an AI feature also
+          needs separate permission for an account holder aged 13–17. A student
+          can practise questions and follow their progress without using AI.
+        </p>
+        <p>
           A message sent to an AI feature, plus relevant conversation and
           learning context, may be sent to OpenAI so it can generate a response.
           Only a limited amount of recent relevant conversation is sent for a
           new answer. Study Buddy keeps the saved conversation while the account
           remains active so the student can revisit their study history.
+        </p>
+        <p>
+          Select <strong>Report response</strong> beside a chat reply if
+          something is wrong or unsafe. Support can see that reply, the
+          question it answers and the details the student chooses to share.
+          Students can reopen the report to check its status.
         </p>
         <p>
           Study Buddy plans to use selected conversation data to test or improve
@@ -114,7 +126,9 @@ const sections: PolicyDocumentSection[] = [
           <strong> Report this marking for review</strong> beside a mark to open
           a tracked case. Study Buddy attaches the marking evidence, gives the
           student a reference and status, and records whether support approves
-          or changes the mark.
+          or changes the mark. A decision appears under{" "}
+          <Link href="/marking-reviews">Marking reviews</Link> and in the
+          notification inbox.
         </p>
       </>
     ),
@@ -188,11 +202,9 @@ const sections: PolicyDocumentSection[] = [
           inconsistent, or appears suspicious, and delete that evidence after
           recording the result unless the law requires limited retention. The adult
           may later withdraw authorisation through a verified request to{" "}
-          <a href={`mailto:${PRIVACY_EMAIL}`}>{PRIVACY_EMAIL}</a>. Once verified,
-          we sign the student out, restrict the account, stop new AI and WhatsApp
-          activity, and notify both the student and the adult. Existing data is
-          kept securely only while the adult chooses reauthorisation or permanent
-          deletion, subject to any limited retention required by law.
+          <a href={`mailto:${PRIVACY_EMAIL}`}>{PRIVACY_EMAIL}</a>. We will
+          verify the request and explain to the student and adult how access
+          will be restricted and what can happen to the account and saved work.
         </p>
       </>
     ),
@@ -213,7 +225,8 @@ const sections: PolicyDocumentSection[] = [
         </ul>
         <p>
           An account holder can deactivate the account or request permanent
-          deletion in Settings. For other requests, or if the account cannot be
+          deletion under <Link href="/settings/account">Account management</Link>{" "}
+          in Settings. For other requests, or if the account cannot be
           accessed, email <a href={`mailto:${PRIVACY_EMAIL}`}>{PRIVACY_EMAIL}</a>.
           We normally reply to confirm receipt within two working days and
           complete a sufficiently verified request within 30 calendar days. We
@@ -221,22 +234,20 @@ const sections: PolicyDocumentSection[] = [
           parental or guardian authority. If someone asks for a copy, we provide
           eligible information through a private, expiring download link. If we
           cannot complete all or part of a request, we explain why and how to ask
-          us to reconsider or complain to the NDPC. A web AI chat has a
-          permanent-delete control.
-          WhatsApp users can send <strong>DELETE MY CHAT</strong> and confirm the
-          displayed instruction within 15 minutes to delete only their saved
-          WhatsApp conversation. Submitted answers, practice and mock-exam
-          results, and progress history are kept while the account is active.
+          us to reconsider or complain to the NDPC.
+        </p>
+        <p>
+          A student can delete a saved web chat in the chat settings. We keep
+          submitted answers, practice and mock-exam results, and progress while
+          the account is active.
           A deactivated account and that study history are kept for 36 months so
           they can be restored if the student reactivates; we email warnings 90,
           60, 15, and 1 day before automatic deletion. A permanent request must
           be confirmed using a one-time account-email link. Confirmation locks
-          the account, starts a 15-day cancellation window, removes active-system
-          personal data within 30 days unless law requires limited retention,
-          and ages protected backup copies out within 90 days. Essential payment
-          and transaction records are separated from the ordinary account link
-          and kept for seven years for financial and tax obligations. You may
-          also complain to the{" "}
+          the account and starts a 15-day cancellation window. The deletion
+          schedule is up to 30 days for live systems and up to 90 days for
+          protected backup copies. The Privacy Policy explains when we must
+          keep limited records longer. You may also complain to the{" "}
           <a
             href="https://www.ndpc.gov.ng/contact/"
             target="_blank"
@@ -265,8 +276,8 @@ const sections: PolicyDocumentSection[] = [
           will warn the affected people immediately in clear, age-appropriate
           language unless a specific legal exception applies. Report suspected
           account access or exposed information to{" "}
-          <a href="mailto:security@studybuddyng.com">
-            security@studybuddyng.com
+          <a href={`mailto:${SECURITY_EMAIL}`}>
+            {SECURITY_EMAIL}
           </a>
           . Do not email passwords, one-time codes, or unnecessary copies of the
           exposed information.
