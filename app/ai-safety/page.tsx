@@ -24,6 +24,7 @@ const sections: PolicyDocumentSection[] = [
           Use Study Buddy&apos;s AI tutor to ask for explanations, work through
           examples, and plan revision. You can return to saved chats. Written
           Paper 2 practice also uses AI to mark answers and give feedback.
+          AI features are currently paused for users under 18.
           Ask your teacher or check official examination materials for exam
           rules and marking instructions.
         </p>
