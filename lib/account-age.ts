@@ -1,7 +1,7 @@
 export const MINIMUM_ACCOUNT_AGE = 13;
 export const INDEPENDENT_ACCOUNT_AGE = 18;
-export const CHILD_PRIVACY_NOTICE_VERSION = "2026-09-09";
-export const TERMS_VERSION = "2026-09-09";
+export const CHILD_PRIVACY_NOTICE_VERSION = "2026-11-26";
+export const TERMS_VERSION = "2026-11-26";
 
 export type AgeBand = "TOO_YOUNG" | "MINOR" | "ADULT";
 
