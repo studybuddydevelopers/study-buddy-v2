@@ -13,8 +13,10 @@ import StudyBuddyIcon, {
   type StudyBuddyIconName,
 } from "@/components/StudyBuddyIcon";
 import {
+  BILLING_EMAIL,
   COMPANY_REGISTRATION_NUMBER,
   LEGAL_ENTITY_NAME,
+  PRIVACY_EMAIL,
   REGISTERED_OFFICE_ADDRESS,
   SUPPORT_EMAIL,
 } from "@/lib/legal-entity";
@@ -27,7 +29,7 @@ export const metadata = createPageMetadata({
   path: "/terms-of-service",
 });
 
-const LAST_UPDATED = "23 September 2026";
+const LAST_UPDATED = "26 November 2026";
 
 const summaryItems: {
   title: string;
@@ -200,17 +202,16 @@ export default function TermsOfServicePage() {
         <div className="min-w-0 rounded-lg border border-gray-200 bg-white px-5 py-2 shadow-sm sm:px-8">
           <TermsSection id="agreement" title="1. Agreement to these terms">
             <p>
-              By creating an account, visiting the website, using the chatbot,
-              attempting practice questions, taking mock exams, or using related
-              Study Buddy AI services, you agree to these Terms of Service and
-              our{" "}
+              When you accept these terms while creating or activating an
+              account, you agree to the rules for using Study Buddy. Our{" "}
               <Link
                 href="/privacy-policy"
                 className="font-medium text-primary-600 hover:underline"
               >
                 Privacy Policy
               </Link>
-              .
+              {" "}explains how we handle personal data and which choices are
+              separate from accepting these terms.
             </p>
             <p>
               These terms form an agreement between you and {LEGAL_ENTITY_NAME}
@@ -237,11 +238,11 @@ export default function TermsOfServicePage() {
             <p>
               A user aged 13–17 may register, but the account remains locked
               until a parent or legal guardian approves it through our expiring,
-              one-time email process. The adult must review these terms and our
-              privacy notices, confirm their authority, and separately choose
-              whether to permit AI features. A school does not replace this
-              approval. Study Buddy does not currently provide a school-managed
-              account process or school-staff access to student information.
+              one-time email process. The adult reviews these terms and the
+              privacy notices and confirms their authority. Approval for
+              learning and permission for AI are separate choices. A school
+              cannot approve an account or access student information through
+              Study Buddy.
             </p>
             <p>
               We do not routinely request identity documents to verify age or
@@ -254,11 +255,9 @@ export default function TermsOfServicePage() {
               We may restrict an account if the date of birth or adult authority
               appears inaccurate. A parent or legal guardian may withdraw
               authorisation through a verified request to
-              privacy@studybuddyng.com. Once verified, we sign the student out,
-              restrict the account, stop new AI and WhatsApp activity, and notify
-              both parties. Existing data remains secured only while the adult
-              chooses reauthorisation or permanent deletion, subject to limited
-              retention required by law.
+              <a href={`mailto:${PRIVACY_EMAIL}`}>{PRIVACY_EMAIL}</a>. We verify
+              the request and explain the restriction, what happens to saved
+              work and how to choose reauthorisation or permanent deletion.
             </p>
           </TermsSection>
 
@@ -339,11 +338,12 @@ export default function TermsOfServicePage() {
               You keep any ownership rights you have in messages, answers,
               profile content, feedback, and other material you submit. You give
               Study Buddy a limited, non-exclusive licence to host, copy,
-              process, transmit, and display that content only as reasonably
-              needed to provide, secure, support, and improve the service in
-              accordance with our Privacy Policy. This licence ends when the
-              content is deleted from our systems, except for lawful retention,
-              backups, and anonymised information.
+              process, transmit, and display that content as reasonably needed
+              to provide, secure, and support the service described in our
+              Privacy Policy. Any future use of conversations to train or
+              evaluate our own AI requires a separate voluntary choice. This
+              licence ends when the content is deleted from our systems, subject
+              to the retention described in the Privacy Policy.
             </p>
             <p>
               You confirm that you have the rights and permissions needed to
@@ -408,15 +408,20 @@ export default function TermsOfServicePage() {
               another five credits.
             </p>
             <p>
+              Use <strong>Report response</strong> beside a completed chat answer
+              to flag a problem. The report identifies the selected reply and
+              the associated question for support. You can reopen the report
+              to check its reference and status.
+            </p>
+            <p>
               AI prompts and relevant context are processed by providers such as
               OpenAI as explained in our Privacy Policy. Do not include passwords,
               payment-card details, health information, or other sensitive data.
-              Saved AI and WhatsApp conversations remain available while your
-              account is active unless you delete them. For each new response,
-              we send only bounded recent context rather than your complete
-              saved archive. Web chat deletion is permanent; WhatsApp users can
-              start the chat-only deletion process by sending DELETE MY CHAT and
-              must confirm the displayed instruction within 15 minutes.
+              Saved web conversations remain available while your account is
+              active unless you delete them. For each new response, we send a
+              limited amount of relevant context. The Privacy Policy describes
+              chat deletion and the retention rules. WhatsApp tutoring is
+              planned for a future release.
               We may monitor AI usage patterns to protect the service and improve
               safety. Staff do not routinely read individual conversations;
               the narrow support, safety, security, technical, fraud/abuse, and
@@ -441,10 +446,11 @@ export default function TermsOfServicePage() {
               accurate, but errors can happen.
             </p>
             <p>
-              The current service does not display textbooks or describe any
-              question as a genuine past examination question. Those materials
-              may be introduced later only after Study Buddy records the source
-              and confirms the necessary permission.
+              The current question bank contains Study Buddy practice questions
+              and original explanations. We will publish genuine past papers,
+              textbooks, and other third-party material only after checking its
+              source and the rights for the proposed use. See our{" "}
+              <Link href="/content-policy">Content and Copyright Policy</Link>.
             </p>
             <p>
               If you notice a question, answer, explanation, or topic mapping
@@ -466,15 +472,11 @@ export default function TermsOfServicePage() {
 
           <TermsSection id="payments" title="9. Payments, renewals, and refunds">
             <p>
-              If paid plans or subscriptions are available, prices, billing
-              periods, taxes, plan limits, and any renewal terms will be shown
-              before you pay. By completing checkout, you authorise the stated
-              charge through a payment provider such as Paystack. When paid
-              subscriptions are enabled, they will renew automatically for the
-              billing period disclosed at checkout until cancelled. Before the
-              first payment, we will clearly show the recurring price, billing
-              frequency, expected renewal timing, and cancellation method and
-              ask you to authorise recurring billing.
+              The current release provides free learning access. If we launch
+              paid plans, checkout will show the total price, taxes, billing
+              period, plan limits, renewal timing, and cancellation method
+              before asking you to authorise payment. Future paid subscriptions
+              will renew automatically for the disclosed period until cancelled.
             </p>
             <p>
               We do not store card numbers or bank details. Payment providers
@@ -487,12 +489,13 @@ export default function TermsOfServicePage() {
               audit, chargeback, dispute, investigation, or legal hold.
             </p>
             <p>
-              You may cancel a future automatic renewal under Settings →
+              Once paid subscriptions launch, you may cancel renewal under Settings →
               Subscription by selecting “Cancel subscription” and confirming
               the request before the next billing date. We will email a
               cancellation confirmation. If you cannot use the in-app control,
-              email billing@studybuddyng.com from your account email address and
-              include the payment reference. Cancellation stops the next
+              email <a href={`mailto:${BILLING_EMAIL}`}>{BILLING_EMAIL}</a> from
+              your account email address and include the payment reference.
+              Cancellation stops the next
               renewal, and paid access ends on the cancellation date. Paid
               subscription time remaining between cancellation and the next
               scheduled renewal will be calculated on a prorated basis and
@@ -557,18 +560,16 @@ export default function TermsOfServicePage() {
               36-month deactivation period so they can be restored if you
               reactivate. Unless you reactivate, the account and that study
               history are automatically deleted after 36 months; we send
-              notices 90, 60, 15, and 1 day before that deadline. A permanent
-              request first requires a one-time email link and a deliberate
-              confirmation on the linked page. The account remains active until
-              that confirmation.
-              Confirmation locks the account, starts a 15-day cancellation window, and schedules
-              active-system personal data for deletion within 30 days, subject
-              to records we must retain by law or under a documented legal hold;
-              protected backup copies age out within 90 days of confirmation.
-              You may cancel before the purge begins or contact
-              privacy@studybuddyng.com during the 15-day window. For other
-              privacy requests or access problems, email
-              privacy@studybuddyng.com. If we discontinue a paid service before
+              notices 90, 60, 15, and 1 day before that deadline. To request
+              permanent deletion, open <Link href="/settings/account">Account
+              management</Link> in Settings, enter your current password and
+              type DELETE. Then open the one-time email link and confirm on
+              the linked page. Confirmation restricts access and starts a
+              15-day cancellation window. Sign in and choose the cancellation
+              option while it is available, or contact{" "}
+              <a href={`mailto:${PRIVACY_EMAIL}`}>{PRIVACY_EMAIL}</a>. Our
+              deletion schedule and exceptions are in the Privacy Policy.
+              If we discontinue a paid service before
               the end of a prepaid period for reasons unrelated to your breach,
               we will provide the remedy required by applicable law.
             </p>
@@ -596,13 +597,9 @@ export default function TermsOfServicePage() {
               information and meeting exam or school deadlines.
             </p>
             <p>
-              To the extent permitted by law, Study Buddy is not responsible for
-              losses that were not reasonably foreseeable, indirect or
-              consequential losses, exam outcomes, or decisions made solely from
-              unverified AI output. Nothing in these terms excludes or limits
-              liability, remedies, warranties, or consumer rights that cannot
-              lawfully be excluded or limited, including rights under the Federal
-              Competition and Consumer Protection Act.
+              You retain your rights and remedies for defective or interrupted
+              service and under the Federal Competition and Consumer Protection
+              Act and other applicable law.
             </p>
           </TermsSection>
 
