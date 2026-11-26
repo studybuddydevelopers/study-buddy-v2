@@ -111,6 +111,28 @@ After the local harness setup below, run
 browser cases. These cases use synthetic inboxes. Live delivery and callback
 checks remain in the [README checklist](../../README.md#deferred-staging-checks).
 
+## Payments and scheduled jobs
+
+The [payments and cron suite](../../tests/e2e/payments-cron.spec.ts) uses a
+loopback Paystack verification endpoint, signed synthetic notifications and
+the disposable application database. It checks signature rejection, charge
+validation, unrelated events, concurrent delivery across both payment routes,
+provider errors, account ownership and reconciliation of inconsistent saved
+records. A recorded payment leaves the learner’s subscription count unchanged.
+
+The same suite exercises an inactivity notice after a missed window, a
+transient delivery failure, a successful retry and a repeat run. It also
+checks that recommendations catch up after a missed run and skip recent
+results on a subsequent run. The
+[account lifecycle suite](../../tests/e2e/account-lifecycle.spec.ts) verifies
+that an overdue purge recovers after a temporary Auth failure and that two
+concurrent retries complete the deletion once.
+
+Run `npm run test:e2e -- payments-cron.spec.ts account-lifecycle.spec.ts` after
+the local harness setup below. Paid launch still requires an approved Paystack
+test-mode checkout, a server-owned order and expected price, and acceptance
+tests for fulfilment, renewal, cancellation and refunds.
+
 ## Local execution
 
 Use Node `24.22.3`, Docker and the repository's locked dependencies. The values

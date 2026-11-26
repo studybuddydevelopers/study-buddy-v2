@@ -20,6 +20,10 @@ globalThis.fetch = function fetchE2eProvider(input, init) {
   if (url.href === "https://api.resend.com/emails" && !(input instanceof Request)) {
     return realFetch("http://127.0.0.1:55431/resend/emails", init);
   }
+  if (url.origin === "https://api.paystack.co" &&
+      url.pathname.startsWith("/transaction/verify/") && !(input instanceof Request)) {
+    return realFetch(`http://127.0.0.1:55431/paystack${url.pathname}`, init);
+  }
   if (url.origin === process.env.SUPABASE_URL || url.origin === process.env.APP_ORIGIN) {
     return realFetch(input, init);
   }

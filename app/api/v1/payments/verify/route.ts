@@ -4,6 +4,8 @@ import { requireUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { parseJsonObjectRequest } from "@/lib/security/request-body";
 import { fetchWithTimeout } from "@/lib/security/timeouts";
+import { parseSuccessfulPaystackCharge, paystackSecretKey, recordPaystackCharge } from "@/lib/paystack-payments";
+import { isRecord } from "@/lib/type-utils";
 
 export async function POST(req: Request) {
   // -------------------------------------------------------
@@ -33,30 +35,35 @@ export async function POST(req: Request) {
   // -------------------------------------------------------
   // 3. VERIFY WITH PAYSTACK
   // -------------------------------------------------------
-  const verifyRes = await fetchWithTimeout(
-    `https://api.paystack.co/transaction/verify/${encodeURIComponent(reference)}`,
-    {
-      headers: {
-        Authorization: `Bearer ${process.env.PAYSTACK_SECRET_KEY}`,
-      },
+  const secret = paystackSecretKey();
+  if (!secret) return NextResponse.json({ error: "Payments unavailable" }, { status: 503 });
+
+  let verifyData: unknown;
+  try {
+    const response = await fetchWithTimeout(
+      `https://api.paystack.co/transaction/verify/${encodeURIComponent(reference)}`,
+      { headers: { Authorization: `Bearer ${secret}` } }
+    );
+    if (!response.ok) {
+      const status = response.status >= 500 || response.status === 429 ? 503 : 400;
+      return NextResponse.json({ error: "Failed verifying Paystack payment" }, { status });
     }
-  );
+    verifyData = await response.json();
+  } catch {
+    return NextResponse.json({ error: "Failed verifying Paystack payment" }, { status: 503 });
+  }
 
-  const verifyData = await verifyRes.json();
-
-  if (!verifyRes.ok || !verifyData.status || !verifyData.data) {
+  if (!isRecord(verifyData) || verifyData.status !== true || !isRecord(verifyData.data)) {
     return NextResponse.json(
       { error: "Failed verifying Paystack payment" },
       { status: 400 }
     );
   }
 
-  const tx = verifyData.data;
+  const charge = parseSuccessfulPaystackCharge(verifyData.data);
 
   if (
-    tx.status !== "success" ||
-    tx.reference !== reference ||
-    tx.metadata?.userId !== dbUser.id
+    !charge || charge.reference !== reference || charge.userId !== dbUser.id
   ) {
     return NextResponse.json(
       { error: "Payment does not belong to this account" },
@@ -67,39 +74,18 @@ export async function POST(req: Request) {
   // -------------------------------------------------------
   // 4. PREVENT DUPLICATE RECORDS
   // -------------------------------------------------------
-  const existing = await prisma.transaction.findFirst({
-    where: { reference },
-  });
-
-
-  if (existing) {
-    return NextResponse.json({
-      verified: true,
-      provider: "paystack",
-      transaction: existing,
-      duplicate: true,
-    });
+  const created = await recordPaystackCharge(charge);
+  const record = await prisma.transaction.findUnique({ where: { reference } });
+  if (!record || record.userId !== dbUser.id) {
+    return NextResponse.json({ error: "Payment does not belong to this account" }, { status: 403 });
   }
-
-  // -------------------------------------------------------
-  // 5. SAVE TRANSACTION
-  // -------------------------------------------------------
-  const record = await prisma.transaction.create({
-    data: {
-      userId: dbUser.id,
-      amount: tx.amount / 100,
-      currency: tx.currency,
-      status: tx.status,     // "success"
-      reference: tx.reference,
-    },
-  });
-
-  // -------------------------------------------------------
-  // 6. RESPOND
-  // -------------------------------------------------------
+  if (record.amount !== charge.amount || record.currency !== charge.currency || record.status !== charge.status) {
+    return NextResponse.json({ error: "Payment record requires reconciliation" }, { status: 409 });
+  }
   return NextResponse.json({
     provider: "paystack",
     verified: true,
     transaction: record,
+    ...(!created && { duplicate: true }),
   });
 }

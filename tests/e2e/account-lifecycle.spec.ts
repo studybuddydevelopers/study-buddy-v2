@@ -321,14 +321,25 @@ test("deactivation, deletion cancellation and due deletion preserve the expected
   expect(await runCron()).toMatchObject({ completed: 0, failed: 0 });
   const due = await withDatabase((database) => database.accountDeletionRequest.update({
     where: { userId },
-    data: { scheduledFor: new Date(Date.now() - 60_000) },
+    data: { scheduledFor: new Date(Date.now() - 2 * 24 * 60 * 60_000) },
   }));
-  expect(await runCron()).toMatchObject({ completed: 1, failed: 0 });
+  const authFailure = await request.post(`${MAILBOX}/fail-next-auth-deletion`, { data: { to: email } });
+  expect(authFailure.status()).toBe(204);
+  expect(await runCron()).toMatchObject({ completed: 0, failed: 1 });
+  await withDatabase(async (database) => {
+    expect(await database.user.findUnique({ where: { id: userId } })).toBeNull();
+    expect(await database.accountDeletionRequest.findUnique({ where: { id: due.id } })).toMatchObject({
+      status: "FAILED", authUserId: userId, lastFailureCode: "AUTH_DELETE_FAILED", attemptCount: 1,
+    });
+  });
+  const retriedRuns = await Promise.all([runCron(), runCron()]);
+  expect(retriedRuns.map((result) => result.completed).sort()).toEqual([0, 1]);
+  expect(retriedRuns.every((result) => result.failed === 0)).toBe(true);
   expect(await runCron()).toMatchObject({ completed: 0, failed: 0 });
   await withDatabase(async (database) => {
     expect(await database.user.findUnique({ where: { id: userId } })).toBeNull();
     expect(await database.accountDeletionRequest.findUnique({ where: { id: due.id } })).toMatchObject({
-      status: "COMPLETED", userId: null, authUserId: null,
+      status: "COMPLETED", userId: null, authUserId: null, attemptCount: 2,
     });
   });
   await login(page, email);

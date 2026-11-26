@@ -10,6 +10,7 @@ const sessions = new Map();
 const tokens = new Map();
 const outbox = [];
 const failedDeliveries = new Set();
+const failedAuthDeletions = new Set();
 const throttledRecoveries = new Set();
 const failedCompletions = new Set();
 
@@ -51,6 +52,21 @@ async function handleRequest(request, response) {
   if (method === "POST" && pathname === "/outbox/fail-next-delivery" && isFixtureEmail(body.to)) {
     failedDeliveries.add(body.to);
     return response.writeHead(204).end();
+  }
+  if (method === "POST" && pathname === "/outbox/fail-next-auth-deletion" && isFixtureEmail(body.to)) {
+    failedAuthDeletions.add(body.to);
+    return response.writeHead(204).end();
+  }
+  if (method === "GET" && pathname.startsWith("/paystack/transaction/verify/")) {
+    const reference = decodeURIComponent(pathname.split("/").at(-1));
+    if (bearer !== "e2e-fake-paystack" || !reference.startsWith("synthetic-paystack-")) {
+      return sendJson(response, 400, { status: false });
+    }
+    if (reference.endsWith("-unavailable")) return response.writeHead(503).end();
+    const userId = reference.endsWith("-peer") ? fixtureUsers.peer.id : fixtureUsers.learner.id;
+    return sendJson(response, 200, { status: true, data: {
+      reference, status: "success", amount: 2_500, currency: "NGN", metadata: { userId },
+    } });
   }
   if (method === "POST" && pathname === "/outbox/throttle-next-recovery" && isFixtureEmail(body.to)) {
     throttledRecoveries.add(body.to);
@@ -159,6 +175,9 @@ async function handleRequest(request, response) {
       return sendJson(response, 200, userPayload(user));
     }
     if (method === "DELETE") {
+      if (failedAuthDeletions.delete(user.email)) {
+        return authError(response, 500, "unexpected_failure", "Simulated Auth deletion failure");
+      }
       revokeSessions(user);
       users.delete(adminId);
       return sendJson(response, 200, {});
