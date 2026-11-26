@@ -65,8 +65,7 @@ const sections: PolicyDocumentSection[] = [
         <ul>
           <li>provide and secure the account;</li>
           <li>save learning work and calculate progress;</li>
-          <li>suggest topics and generate AI study support;</li>
-          <li>review a reported reply or a disputed practice mark;</li>
+          <li>suggest topics to practise;</li>
           <li>respond to requests for help;</li>
           <li>prevent cheating, abuse, fraud, and unauthorised access; and</li>
           <li>improve the service using appropriate safeguards.</li>
@@ -79,26 +78,22 @@ const sections: PolicyDocumentSection[] = [
   },
   {
     id: "ai",
-    title: "What happens when a student uses AI",
+    title: "AI access during the beta",
     content: (
       <>
         <p>
-          A guardian can approve learning on its own. Using an AI feature also
-          needs separate permission for an account holder aged 13–17. A student
-          can practise questions and follow their progress without using AI.
+          AI Tutor, AI study recommendations, and AI marking for written
+          Paper 2 are paused for students under 18. With guardian approval,
+          students aged 13–17 can practise questions, take multiple-choice
+          mock exams, and follow their progress. WhatsApp tutoring is
+          currently unavailable.
         </p>
         <p>
-          A message sent to an AI feature, plus relevant conversation and
-          learning context, may be sent to OpenAI so it can generate a response.
-          Only a limited amount of recent relevant conversation is sent for a
-          new answer. Study Buddy keeps the saved conversation while the account
-          remains active so the student can revisit their study history.
-        </p>
-        <p>
-          Select <strong>Report response</strong> beside a chat reply if
-          something is wrong or unsafe. Support can see that reply, the
-          question it answers and the details the student chooses to share.
-          Students can reopen the report to check its status.
+          If the student already has a saved AI conversation, email{" "}
+          <a href={`mailto:${PRIVACY_EMAIL}`}>{PRIVACY_EMAIL}</a> to request
+          access or deletion while AI chat is paused. The{" "}
+          <Link href="/privacy-policy#ai-and-personalisation">Privacy Policy</Link>{" "}
+          explains how AI features handle information when available.
         </p>
         <p>
           Study Buddy plans to use selected conversation data to test or improve
@@ -109,26 +104,6 @@ const sections: PolicyDocumentSection[] = [
           will not take away the normal Study Buddy service. Selected data must
           have identifying details removed and be checked to remove unnecessary
           private information.
-        </p>
-        <p>
-          AI can misunderstand a question or give a wrong answer. A student
-          should check important information with a teacher, textbook, or
-          official source.
-        </p>
-        <p>
-          Study Buddy also uses AI to mark written Paper 2 practice. The
-          question, the student&apos;s submitted answer, model answer, marking
-          guide, and maximum mark are sent to OpenAI. It returns a practice
-          mark, reason, and confidence label, which Study Buddy saves with the
-          mock result. AI can mark valid work incorrectly. This is a Study Buddy
-          practice grade, not an official WAEC or school grade, and it does not
-          decide admission or an examination result. The student can select
-          <strong> Report this marking for review</strong> beside a mark to open
-          a tracked case. Study Buddy attaches the marking evidence, gives the
-          student a reference and status, and records whether support approves
-          or changes the mark. A decision appears under{" "}
-          <Link href="/marking-reviews">Marking reviews</Link> and in the
-          notification inbox.
         </p>
       </>
     ),
@@ -163,8 +138,7 @@ const sections: PolicyDocumentSection[] = [
           Study Buddy uses some companies outside Nigeria to run the service.
           Our main Supabase database is in Stockholm, Sweden. Railway hosts the
           app, Cloudflare helps protect it, Resend sends important account
-          emails, and OpenAI receives limited information when an approved AI
-          feature is used. These companies or their approved service providers
+          emails. These companies or their approved service providers
           may handle limited information in other countries too.
         </p>
         <p>
@@ -195,8 +169,8 @@ const sections: PolicyDocumentSection[] = [
         <p>
           We email the named adult an expiring, one-time link. They confirm that
           they are the parent or legal guardian, read the current notices, and
-          approve or deny the learning account. AI permission is a separate,
-          optional choice. We record the decision and notice versions. The adult
+          approve or deny the learning account. We record the decision and
+          notice versions. The adult
           and student are not routinely asked for identity documents. We ask for
           minimal extra evidence only if the age or adult&apos;s authority is disputed,
           inconsistent, or appears suspicious, and delete that evidence after
@@ -237,7 +211,8 @@ const sections: PolicyDocumentSection[] = [
           us to reconsider or complain to the NDPC.
         </p>
         <p>
-          A student can delete a saved web chat in the chat settings. We keep
+          Where chat access is available, a student can delete a saved web chat
+          in chat settings. We keep
           submitted answers, practice and mock-exam results, and progress while
           the account is active.
           A deactivated account and that study history are kept for 36 months so
