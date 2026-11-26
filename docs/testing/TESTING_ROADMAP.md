@@ -211,6 +211,9 @@ credentials or real message content in artifacts.
 
 #### 8. `test/payments-webhooks-scheduled-jobs`
 
+The [payments and scheduled jobs](./REAL_NEXT_E2E_HARNESS.md#payments-and-scheduled-jobs)
+section records the simulated integration coverage and the paid launch gates.
+
 Cover webhook signatures, replay/idempotency and out-of-order delivery;
 test-mode checkout verification; renewal/cancellation/refund rules; duplicated
 or missed cron runs; and alerting. This work does not enable paid launch.
