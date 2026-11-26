@@ -1,3 +1,4 @@
+import Link from "next/link";
 import PolicyDocumentPage, {
   type PolicyDocumentSection,
 } from "@/components/PolicyDocumentPage";
@@ -8,7 +9,7 @@ import {
 } from "@/lib/legal-entity";
 import { createPageMetadata } from "@/lib/site-metadata";
 
-const LAST_UPDATED = "11 September 2026";
+const LAST_UPDATED = "26 November 2026";
 
 export const metadata = createPageMetadata({
   title: "Refund and Cancellation Policy",
@@ -22,14 +23,21 @@ const sections: PolicyDocumentSection[] = [
     id: "scope",
     title: "Scope",
     content: (
-      <p>
-        This policy applies when {LEGAL_ENTITY_NAME} (RC{" "}
-        {COMPANY_REGISTRATION_NUMBER}), operating as Study Buddy, offers a paid
-        plan, subscription, or other paid digital service directly to a
-        customer. It forms part of our Terms of Service. If checkout presents
-        additional plan-specific terms, those terms also apply, but they do not
-        remove rights that cannot lawfully be excluded.
-      </p>
+      <>
+        <p>
+          Study Buddy offers free learning access in the current release.
+          Paid checkout and automatic renewal are planned for a future release.
+          Contact <a href={`mailto:${BILLING_EMAIL}`}>{BILLING_EMAIL}</a> if you
+          see a charge you do not recognise.
+        </p>
+        <p>
+          This policy applies when {LEGAL_ENTITY_NAME} (RC{" "}
+          {COMPANY_REGISTRATION_NUMBER}), operating as Study Buddy, offers
+          paid plans. It forms part of our{" "}
+          <Link href="/terms-of-service">Terms of Service</Link>. You retain
+          any rights and remedies provided by applicable law.
+        </p>
+      </>
     ),
   },
   {
@@ -98,12 +106,10 @@ const sections: PolicyDocumentSection[] = [
           <li>Nigerian consumer law otherwise requires a refund.</li>
         </ul>
         <p>
-          An accidental purchase, change of mind, claimed unauthorised payment,
-          outage, technical problem, or general dissatisfaction is not a
-          separate discretionary refund ground unless the facts also meet one
-          of the grounds above. This does not limit any refund or other remedy
-          required by law, and you may still raise an unauthorised transaction
-          with your payment provider or bank.
+          If a technical problem prevents delivery of the paid service, contact
+          us so we can review what happened. For an unauthorised transaction,
+          you can also contact your bank or payment provider. Rights and remedies
+          required by law apply to all claims.
         </p>
       </>
     ),
@@ -154,10 +160,8 @@ const sections: PolicyDocumentSection[] = [
           method.
         </p>
         <p>
-          Provider fees or reasonable deductions will be applied only when
-          lawfully permitted and clearly explained. A failed or reversed payment
-          that Study Buddy never received is not a refund, but we will help you
-          identify the appropriate provider or bank process.
+          If a payment failed or was reversed before Study Buddy received it,
+          we will help you identify the appropriate provider or bank process.
         </p>
       </>
     ),

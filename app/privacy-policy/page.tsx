@@ -25,7 +25,7 @@ export const metadata = createPageMetadata({
   path: "/privacy-policy",
 });
 
-const LAST_UPDATED = "23 September 2026";
+const LAST_UPDATED = "26 November 2026";
 
 const summaryItems: {
   title: string;
@@ -48,7 +48,7 @@ const summaryItems: {
   {
     title: "Trusted services process data",
     description:
-      "Supabase, OpenAI, Resend, GoDaddy/Microsoft 365, Meta/WhatsApp, Paystack, Railway, and Cloudflare help us run the platform.",
+      "Service providers help us host and protect the app, deliver email, manage sign-in and provide AI features.",
     proposal: "lock",
   },
   {
@@ -274,18 +274,20 @@ export default function PrivacyPolicyPage() {
               <ListItem>
                 <strong>AI conversations:</strong> messages you send to our AI
                 tutoring features and the responses generated, including model
-                and token-usage information.
+                and token-usage information. A report identifies the selected
+                reply and its associated question. We record the reason, any
+                optional details you provide, the reference, and the outcome.
               </ListItem>
               <ListItem>
-                <strong>WhatsApp information:</strong> your WhatsApp number or
-                sender identifier and messages when you use the WhatsApp bot.
+                <strong>Optional future WhatsApp data:</strong> if we enable
+                WhatsApp tutoring and you choose to use it, we may process
+                your sender identifier and the messages you send.
               </ListItem>
               <ListItem>
-                <strong>Payment records:</strong> transaction reference, amount,
-                currency, payment status, subscription plan, and dates. Paystack
-                processes the card, bank, or other payment details needed to
-                complete payment; Study Buddy does not store full card or bank
-                account details.
+                <strong>Plan and payment records:</strong> plan, status and
+                dates. If paid plans launch, we may also process the payment
+                reference, amount, currency and payment status. The payment
+                provider processes full card or bank details for checkout.
               </ListItem>
               <ListItem>
                 <strong>Support information:</strong> your name, email, subject,
@@ -322,7 +324,7 @@ export default function PrivacyPolicyPage() {
                 <strong>To provide the service and take requested steps:</strong>{" "}
                 create and secure accounts; provide practice, mock exams,
                 AI-assisted Paper 2 marking, saved drafts, progress tracking,
-                AI support, WhatsApp tutoring, subscriptions, and support. For
+                AI support and support requests. For
                 an adult, we rely on performance of our agreement with you or
                 steps you request before entering it. For a user aged 13–17, we
                 require verified consent from a parent or legal guardian and
@@ -373,12 +375,19 @@ export default function PrivacyPolicyPage() {
               history, and limited learning context may be sent to OpenAI to
               generate a response. We limit provider context to recent relevant
               messages rather than sending your complete saved archive each
-              time. Web and WhatsApp conversations are stored while the account
-              remains active so you can revisit and continue your study history.
+              time. Saved web conversations remain available while the account
+              is active unless you delete them.
               OpenAI may keep API content and related logs under its own service
               terms and data controls. Study Buddy has not opted in to share API
               prompts or responses with OpenAI for model training or
               improvement.
+            </p>
+            <p>
+              When you select <strong>Report response</strong>, authorised
+              support can see the reported reply, the associated question, and
+              the details you choose to share. Reopen the report to see its
+              reference and status. A marking review uses the separate process
+              below.
             </p>
             <p>
               Study Buddy staff do not routinely read individual AI or WhatsApp
@@ -438,8 +447,11 @@ export default function PrivacyPolicyPage() {
               rationale, and score. We give you a reference and status. An
               authorised support reviewer may uphold or change the mark; a
               change recalculates the paper total and applicable progress. The
-              original and revised marks remain in the case audit history. Apart
-              from this disclosed Paper 2 practice marking, our progress
+              original and revised marks remain in the case history. When
+              support decides your case, Study Buddy creates an in-app
+              notification. You can find decisions in{" "}
+              <Link href="/marking-reviews">Marking reviews</Link> or{" "}
+              <Link href="/notifications">Notifications</Link>. Our progress
               summaries and recommendations do not make official grading,
               admission, employment, credit, or other decisions with legal or
               similarly significant effects. You may also ask us to explain or
@@ -472,11 +484,10 @@ export default function PrivacyPolicyPage() {
                 </ExternalPolicyLink>
               </ListItem>
               <ListItem>
-                <strong>Resend</strong> for transactional email delivery,
-                including guardian-authorisation and account-lifecycle
-                messages. Supabase Auth creates account-verification and
-                password-reset workflows, with Resend selected as its production
-                custom SMTP delivery provider.{" "}
+                <strong>Resend</strong> delivers account-verification and
+                password-reset emails triggered by Supabase Auth. It also
+                delivers guardian-authorisation and account-lifecycle emails
+                sent by Study Buddy.{" "}
                 <ExternalPolicyLink href="https://resend.com/legal/privacy-policy">
                   Resend privacy policy
                 </ExternalPolicyLink>
@@ -507,16 +518,16 @@ export default function PrivacyPolicyPage() {
                 </ExternalPolicyLink>
               </ListItem>
               <ListItem>
-                <strong>Meta/WhatsApp Cloud API</strong> if you use our
-                WhatsApp tutoring bot. Meta receives message and account-routing
-                information needed to deliver messages.{" "}
+                <strong>Meta/WhatsApp Cloud API</strong> for WhatsApp tutoring
+                if we enable that optional service. Meta would receive message
+                and account-routing information needed for delivery.{" "}
                 <ExternalPolicyLink href="https://www.whatsapp.com/legal/privacy-policy">
                   WhatsApp privacy policy
                 </ExternalPolicyLink>
               </ListItem>
               <ListItem>
-                <strong>Paystack</strong> for subscription payments. We share
-                only what Paystack requires for billing.{" "}
+                <strong>Paystack</strong> for checkout and billing if paid
+                subscriptions launch.{" "}
                 <ExternalPolicyLink href="https://paystack.com/privacy">
                   Paystack privacy policy
                 </ExternalPolicyLink>
@@ -601,9 +612,11 @@ export default function PrivacyPolicyPage() {
             <p>
               We use essential authentication and security cookies to keep you
               signed in and protect requests. The app can also use browser local
-              storage to keep unfinished practice answers on your device. If you
-              enable cloud draft saving, the draft is also stored with your
-              account. CAPTCHA providers may use their own necessary technologies
+              storage to keep unfinished practice answers and store chat
+              identifiers and opening times for the Last opened list. If you
+              enable cloud draft saving, eligible drafts can also be saved to
+              your account. CAPTCHA
+              providers may use their own necessary technologies
               to assess abuse. Study Buddy does not currently use advertising,
               advertising pixels, session replay, or behavioural/product
               analytics. Essential application, Cloudflare, Railway, Supabase,
@@ -626,9 +639,11 @@ export default function PrivacyPolicyPage() {
               registration details, but the account remains restricted until a
               parent or legal guardian approves it. We send the adult an
               expiring, one-time link; the adult must confirm their authority,
-              review the current notices, and make a separate choice about AI
-              features. A school does not replace this approval in the current
-              product.
+              review the current notices, and approve or decline learning
+              access. We use the date of birth on the account to restrict AI
+              features, including the tutor and Paper 2 marking, to adults.
+              WhatsApp tutoring is currently unavailable. A school cannot
+              approve the account on the adult&apos;s behalf.
             </p>
             <p>
               We store the date of birth to enforce the age rule and keep an
@@ -652,11 +667,9 @@ export default function PrivacyPolicyPage() {
               A parent or guardian may withdraw authorisation through a verified
               request, or ask about, correct, or delete a child&apos;s data, subject
               to the child&apos;s own rights and other applicable legal requirements.
-              After a withdrawal is verified, we sign the child out, restrict
-              the account, stop new AI and WhatsApp activity, and notify the
-              child and adult. Existing data is kept securely only while the
-              adult chooses reauthorisation or permanent deletion, except for
-              limited retention required by law. Email{" "}
+              We verify the withdrawal, handle account restrictions, tell the
+              child and adult what happens to saved work, and explain how to
+              choose reauthorisation or permanent deletion. Email{" "}
               <a
                 href={`mailto:${PRIVACY_EMAIL}`}
                 className="font-medium text-primary-600 hover:underline"
@@ -695,18 +708,13 @@ export default function PrivacyPolicyPage() {
                 covered by a documented legal hold.
               </ListItem>
               <ListItem>
-                Web AI and WhatsApp conversation content is kept while your
+                Web AI conversation content is kept while your
                 account remains active so you can access your saved study
                 history. It is deleted when you delete the conversation,
                 permanently delete the account, or reach the 36-month
-                deactivated-account expiry. WhatsApp users can request chat-only
-                deletion by sending <strong>DELETE MY CHAT</strong> and then
-                confirming the displayed instruction within 15 minutes, or by
-                contacting{" "}
-                <a href="mailto:privacy@studybuddyng.com">
-                  privacy@studybuddyng.com
-                </a>
-                .
+                deactivated-account expiry. Contact{" "}
+                <a href={`mailto:${PRIVACY_EMAIL}`}>{PRIVACY_EMAIL}</a> if you
+                need help deleting a conversation.
               </ListItem>
               <ListItem>
                 If you deactivate your account, access is locked but your
@@ -717,13 +725,13 @@ export default function PrivacyPolicyPage() {
                 them or a documented legal hold applies.
               </ListItem>
               <ListItem>
-                If you request permanent account deletion in Settings, we send
-                a one-time confirmation link to your account email. The account
-                remains active until you confirm on the linked page. Confirmation
-                restricts access immediately and starts a 15-day cancellation
-                window; active-system deletion then proceeds and is completed
-                within 30 days of confirmation. Limited records may be retained
-                where the law requires it or a documented legal hold applies.
+                You can request deletion in Settings → Account management.
+                Enter your current password, type DELETE, and confirm using
+                the one-time link sent to your account email. Confirmation
+                restricts access and starts a 15-day cancellation window.
+                Our schedule is to delete personal data from active systems
+                within 30 days of confirmation. We may keep limited records
+                required by law or a documented legal hold.
               </ListItem>
               <ListItem>
                 A chat deleted in the product is permanently removed from the
@@ -748,8 +756,9 @@ export default function PrivacyPolicyPage() {
                 the applicable period ends.
               </ListItem>
               <ListItem>
-                Local practice drafts remain on your device until submitted,
-                cleared, or removed through browser controls.
+                Local practice drafts and recently opened chat information
+                are held on that browser. Clear the site&apos;s browser storage
+                to remove local copies from a shared device.
               </ListItem>
             </ul>
             <p>
@@ -846,9 +855,9 @@ export default function PrivacyPolicyPage() {
               protect personal data, including HTTPS/TLS in transit, access
               controls, service authentication, rate limiting, and security
               monitoring. When repeated password-reset requests reach our
-              account limit, we may warn the verified account owner and offer a
-              user-confirmed 24-hour lock. Opening the warning link alone does
-              not lock an account. Supabase Auth manages password credentials;
+              account limit, we may warn the verified account owner and offer
+              a temporary lock. The lock requires an explicit confirmation on
+              the page opened from the email. Supabase Auth manages password credentials;
               Study Buddy does not store plaintext passwords in its application
               database.
             </p>

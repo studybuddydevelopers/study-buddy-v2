@@ -110,6 +110,62 @@ test("learner, AI and support boundaries enforce account status and permissions"
   }
 });
 
+test("AI access uses the learner's saved age even when an earlier AI permission is present", async ({ peerRequest: request }) => {
+  const database = new PrismaClient({ datasourceUrl: process.env.E2E_DATABASE_URL });
+  const profileWhere = { userId: E2E_PEER.id };
+  const subject = await database.subject.findFirstOrThrow({ where: { examCode: "WAEC-MATH" } });
+  const [written, objective] = await Promise.all([
+    database.mockExamTemplate.create({ data: {
+      subjectId: subject.id, title: "Age gate written paper", questionCount: 1, format: "WRITTEN",
+    } }),
+    database.mockExamTemplate.create({ data: {
+      subjectId: subject.id, title: "Age gate objective paper", questionCount: 1, format: "OBJECTIVE",
+    } }),
+  ]);
+  try {
+    expect((await request.get("/api/v1/ai/chats")).status()).toBe(200);
+
+    const now = new Date();
+    const minorBirthDate = new Date(Date.UTC(now.getUTCFullYear() - 15, 0, 1));
+    await database.userProfile.update({ where: profileWhere, data: { dateOfBirth: minorBirthDate } });
+    expect(await database.user.findUnique({ where: { id: E2E_PEER.id } })).toMatchObject({ aiAccessAuthorized: true });
+
+    for (const { method, path } of authMethods.filter(({ access }) => access === "ai")) {
+      await test.step(`Under-18 learner is denied ${method} ${path}`, async () => {
+        const response = await call(request, method, samplePath(path), method === "GET" ? undefined : {});
+        expect(response.status()).toBe(403);
+        expect(await response.json()).toMatchObject({ error: "AI_AGE_RESTRICTED" });
+      });
+    }
+
+    const templates = await request.get("/api/v1/mock-exams/mock-exam-templates");
+    expect(templates.status()).toBe(200);
+    expect(await templates.json()).toEqual(expect.arrayContaining([
+      expect.objectContaining({ id: written.id, canStart: false, startBlockedReason: expect.stringContaining("under 18") }),
+      expect.objectContaining({ id: objective.id, canStart: true }),
+    ]));
+
+    const startWritten = await call(request, "POST", "/api/v1/mock-exams/start", { templateId: written.id });
+    expect(startWritten.status()).toBe(403);
+    expect(await startWritten.json()).toMatchObject({ error: "AI_AGE_RESTRICTED" });
+    expect(await database.mockExamInstance.count({ where: { templateId: written.id } })).toBe(0);
+    expect((await call(request, "POST", "/api/v1/mock-exams/start", { templateId: objective.id })).status()).toBe(200);
+
+    await database.userProfile.update({ where: profileWhere, data: { dateOfBirth: null } });
+    const unknownAge = await request.get("/api/v1/ai/chats");
+    expect(unknownAge.status()).toBe(403);
+    expect(await unknownAge.json()).toMatchObject({ error: "AI_AGE_REQUIRED" });
+  } finally {
+    try {
+      await database.userProfile.update({ where: profileWhere, data: { dateOfBirth: new Date("2000-01-01T00:00:00.000Z") } });
+      await database.mockExamInstance.deleteMany({ where: { templateId: objective.id, userId: E2E_PEER.id } });
+      await database.mockExamTemplate.deleteMany({ where: { id: { in: [written.id, objective.id] } } });
+    } finally {
+      await database.$disconnect();
+    }
+  }
+});
+
 test("browser mutations with a session cookie require a trusted origin", async ({ peerRequest: request }) => {
   const mutations = API_ROUTE_CONTRACTS.filter(({ path, method, access }) =>
     path.startsWith("/api/") && ["POST", "PUT", "PATCH", "DELETE"].includes(method) &&

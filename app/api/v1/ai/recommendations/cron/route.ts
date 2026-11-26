@@ -5,6 +5,7 @@ import OpenAI from "openai";
 import { openAiClientOptions } from "@/lib/security/timeouts";
 import { withGlobalAiTokenBudget } from "@/lib/security/ai-budget";
 import { logSecurityEvent, securityFingerprint } from "@/lib/security/audit-log";
+import { getAiAccessRestriction } from "@/lib/ai-access";
 
 // Simple cron endpoint: call with a secret header every 24h from a scheduler
 export async function POST(req: Request) {
@@ -21,7 +22,7 @@ export async function POST(req: Request) {
 
   const users = await prisma.user.findMany({
     where: { accountStatus: "ACTIVE", aiAccessAuthorized: true },
-    select: { id: true },
+    select: { id: true, aiAccessAuthorized: true, profile: { select: { dateOfBirth: true } } },
   });
   const now = Date.now();
 
@@ -30,6 +31,10 @@ export async function POST(req: Request) {
   const errors: Array<{ userId: string; error: string }> = [];
 
   for (const user of users) {
+    if (getAiAccessRestriction(user.profile?.dateOfBirth, user.aiAccessAuthorized)) {
+      skipped.push(user.id);
+      continue;
+    }
     try {
       // Skip if a recommendation exists in last 23h
       const recent = await prisma.recommendation.findFirst({

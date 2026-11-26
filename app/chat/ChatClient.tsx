@@ -209,6 +209,7 @@ export default function ChatClient() {
   const [savingChat, setSavingChat] = useState(false);
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [accessRestriction, setAccessRestriction] = useState<string | null>(null);
   const [citationPreview, setCitationPreview] =
     useState<CitationPreviewResponse | null>(null);
   const [loadingCitationId, setLoadingCitationId] = useState<string | null>(null);
@@ -441,6 +442,14 @@ export default function ChatClient() {
           setSubjects(data.subjects ?? []);
         }
         if (!chatsResponse.ok) {
+          if (chatsResponse.status === 403) {
+            const denial = await chatsResponse.json().catch(() => null);
+            if (["AI_AGE_REQUIRED", "AI_AGE_RESTRICTED", "AI_AUTHORIZATION_REQUIRED"].includes(denial?.error) &&
+                typeof denial.message === "string") {
+              setAccessRestriction(denial.message);
+              return;
+            }
+          }
           throw new Error("Could not load chat history.");
         }
 
@@ -912,6 +921,16 @@ export default function ChatClient() {
       {historyList(searchMode === "inline" && location === "mobile" && searchingTitles)}
     </div>
   );
+
+  if (accessRestriction) {
+    return (
+      <section className="mx-auto my-8 w-full max-w-2xl space-y-4 rounded-2xl border border-gray-200 bg-white p-6">
+        <h1 className="text-2xl font-bold text-gray-900">AI Study Chat</h1>
+        <p role="status" className="text-gray-700">{accessRestriction}</p>
+        <Button href="/materials" variant="primary">Browse practice materials</Button>
+      </section>
+    );
+  }
 
   return (
     <div className="mx-auto my-3 flex h-[calc(100dvh-12rem-env(safe-area-inset-bottom))] min-h-[400px] w-full max-w-[1600px] overflow-hidden rounded-2xl border border-accent-700 bg-white min-[1110px]:h-[calc(100dvh-8rem)]">

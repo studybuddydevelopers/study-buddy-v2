@@ -66,19 +66,31 @@ test("recommendations catch up after a missed run and skip existing recent resul
     return response.json();
   };
   try {
+    const minorBirthDate = new Date(Date.UTC(new Date().getUTCFullYear() - 15, 0, 1));
+    await database.userProfile.update({
+      where: { userId: peer.id }, data: { dateOfBirth: minorBirthDate },
+    });
     await database.recommendation.create({ data: {
       userId: learner.id, recommendationText: "Synthetic recommendation from a prior run",
       createdAt: new Date(Date.now() - 48 * 60 * 60_000),
     } });
     const caughtUp = await run();
     expect(caughtUp.created).toContain(learner.id);
+    expect(caughtUp.skipped).toContain(peer.id);
+    expect(await database.recommendation.count({ where: { userId: peer.id } })).toBe(0);
     expect(caughtUp.errorCount).toBe(0);
     const repeated = await run();
     expect(repeated.skipped).toContain(learner.id);
     expect(repeated.createdCount).toBe(0);
     expect(await database.recommendation.count({ where: { userId: learner.id } })).toBe(2);
   } finally {
-    await database.$disconnect();
+    try {
+      await database.userProfile.update({
+        where: { userId: peer.id }, data: { dateOfBirth: new Date("2000-01-01T00:00:00.000Z") },
+      });
+    } finally {
+      await database.$disconnect();
+    }
   }
 });
 

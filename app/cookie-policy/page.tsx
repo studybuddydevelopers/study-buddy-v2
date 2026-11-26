@@ -4,7 +4,7 @@ import PolicyDocumentPage, {
 } from "@/components/PolicyDocumentPage";
 import { createPageMetadata } from "@/lib/site-metadata";
 
-const LAST_UPDATED = "8 September 2026";
+const LAST_UPDATED = "26 November 2026";
 
 export const metadata = createPageMetadata({
   title: "Cookie and Local Storage Policy",
@@ -45,10 +45,18 @@ const sections: PolicyDocumentSection[] = [
             <tr>
               <td className="px-3 py-3">Authentication cookies</td>
               <td className="px-3 py-3">
-                Keep a user signed in, refresh a session, and protect account
-                requests.
+                Keep a user signed in, refresh a session, protect account
+                requests, and complete supported verification or recovery flows.
               </td>
               <td className="px-3 py-3">The user&apos;s browser.</td>
+            </tr>
+            <tr>
+              <td className="px-3 py-3">Recently opened chats</td>
+              <td className="px-3 py-3">
+                Store chat identifiers and opening times for the Last opened
+                list. Conversation messages are stored with your account.
+              </td>
+              <td className="px-3 py-3">The user&apos;s browser storage.</td>
             </tr>
             <tr>
               <td className="px-3 py-3">Local practice drafts</td>
@@ -61,8 +69,8 @@ const sections: PolicyDocumentSection[] = [
             <tr>
               <td className="px-3 py-3">CAPTCHA technology</td>
               <td className="px-3 py-3">
-                Help Cloudflare Turnstile or hCaptcha distinguish legitimate
-                account activity from automated abuse.
+                When enabled, help the configured CAPTCHA provider distinguish
+                legitimate account activity from automated abuse.
               </td>
               <td className="px-3 py-3">
                 The browser and the configured CAPTCHA provider.
@@ -108,16 +116,16 @@ const sections: PolicyDocumentSection[] = [
       <>
         <p>
           Browser settings can show, block, or delete cookies and local storage.
-          Clearing Study Buddy storage may sign you out and remove unfinished
-          drafts stored only on that device. It does not automatically delete
-          information already saved to your Study Buddy account.
+          Clearing Study Buddy storage may sign you out and remove local
+          drafts and recently opened chat information from that browser. To
+          delete a saved conversation, use the delete option in chat settings.
         </p>
         <p>
-          Cloud draft saving, account deactivation, and permanent account
-          deletion can be managed in Study Buddy settings. Permanent deletion
-          clears the server-side account on the stated schedule, but local-only
-          drafts on other devices must be cleared through those devices or their
-          browser controls.
+          Manage cloud draft saving in{" "}
+          <Link href="/settings/study-preferences">Study preferences</Link>.
+          Deactivate or request deletion in{" "}
+          <Link href="/settings/account">Account management</Link>. Use the
+          browser controls on each device to clear any remaining local copies.
         </p>
       </>
     ),
@@ -161,7 +169,7 @@ export default function CookiePolicyPage() {
     <PolicyDocumentPage
       title="Cookie and Local Storage Policy"
       eyebrow="Browser storage"
-      introduction="Study Buddy currently uses essential account technologies, local practice drafts, and CAPTCHA protection—not advertising trackers."
+      introduction="Learn how Study Buddy uses browser storage for sign-in, account protection, practice drafts and recently opened chats."
       icon="lock"
       lastUpdated={LAST_UPDATED}
       sections={sections}

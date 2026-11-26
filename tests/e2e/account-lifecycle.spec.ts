@@ -175,6 +175,8 @@ for (const approval of [true, false]) {
       }
 
       await openEmail(guardian, link);
+      await expect(guardian.getByText(/AI features, including written Paper 2 marking, are paused/)).toBeVisible();
+      await expect(guardian.getByRole("checkbox")).toHaveCount(2);
       await guardian.getByRole("checkbox", { name: /I confirm I am this student/ }).check();
       await guardian.getByRole("checkbox", { name: /I reviewed/ }).check();
       await guardian.getByRole("button", { name: approval ? "Approve account" : "Deny request" }).click();
@@ -190,7 +192,22 @@ for (const approval of [true, false]) {
     expect((await page.request.get("/api/v1/me")).status()).toBe(approval ? 200 : 403);
     const chat = await page.request.get("/api/v1/ai/chats");
     expect(chat.status()).toBe(403);
-    expect(await chat.json()).toMatchObject({ error: approval ? "AI_AUTHORIZATION_REQUIRED" : "ACCOUNT_RESTRICTED" });
+    expect(await chat.json()).toMatchObject({ error: approval ? "AI_AGE_RESTRICTED" : "ACCOUNT_RESTRICTED" });
+    if (approval) {
+      const learnerId = await getUserId(page);
+      const updated = await withDatabase((database) => database.user.findUniqueOrThrow({
+        where: { id: learnerId },
+        select: { aiAccessAuthorized: true, guardianAuthorizations: {
+          where: { status: "GRANTED" }, select: { aiAuthorized: true },
+        } },
+      }));
+      expect(updated).toEqual({ aiAccessAuthorized: false, guardianAuthorizations: [{ aiAuthorized: false }] });
+      await page.goto("/chat");
+      await expect(page.getByText("AI features are currently paused for users under 18.")).toBeVisible();
+      await expect(page.getByRole("textbox", { name: "Message to AI Study Buddy Tutor" })).toHaveCount(0);
+      await page.getByRole("link", { name: "Browse practice materials" }).click();
+      await expect(page).toHaveURL(/\/materials$/);
+    }
   });
 }
 
