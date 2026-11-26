@@ -640,8 +640,10 @@ export default function PrivacyPolicyPage() {
               parent or legal guardian approves it. We send the adult an
               expiring, one-time link; the adult must confirm their authority,
               review the current notices, and approve or decline learning
-              access. Permission for AI features is a separate choice. A
-              school cannot approve the account on the adult&apos;s behalf.
+              access. We use the date of birth on the account to restrict AI
+              features, including the tutor and Paper 2 marking, to adults.
+              WhatsApp tutoring is currently unavailable. A school cannot
+              approve the account on the adult&apos;s behalf.
             </p>
             <p>
               We store the date of birth to enforce the age rule and keep an
