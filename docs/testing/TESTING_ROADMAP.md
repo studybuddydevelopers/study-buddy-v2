@@ -201,6 +201,9 @@ cross-account isolation.
 
 #### 7. `test/provider-contracts-and-email`
 
+The [Auth and email contracts](./REAL_NEXT_E2E_HARNESS.md#auth-and-email-contracts)
+describe the first set of local Supabase and Resend checks.
+
 Use controlled local HTTP fakes for exact request/response, timeout, retry and
 error mapping. Add bounded staging contracts for Supabase Auth, Resend, OpenAI,
 Paystack and WhatsApp only when the feature is approved. Do not expose provider

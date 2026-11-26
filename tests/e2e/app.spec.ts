@@ -70,6 +70,7 @@ test("a synthetic user logs in and reads database-backed dashboard data", async 
     return { status: response.status, body: await response.json() };
   });
   expect(statsResponse.status).toBe(200);
-  expect(statsResponse.body.todaySummary.questionsAttempted).toBe(1);
+  // The fixture is seeded before the build, which can cross midnight in CI.
+  expect(statsResponse.body.weeklySummary).toMatchObject({ questionsAttempted: 1, correctAnswers: 1 });
   expect(pageErrors).toEqual([]);
 });

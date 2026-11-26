@@ -10,6 +10,7 @@ const sessions = new Map();
 const tokens = new Map();
 const outbox = [];
 const failedDeliveries = new Set();
+const throttledRecoveries = new Set();
 const failedCompletions = new Set();
 
 for (const seed of Object.values(fixtureUsers)) {
@@ -51,6 +52,10 @@ async function handleRequest(request, response) {
     failedDeliveries.add(body.to);
     return response.writeHead(204).end();
   }
+  if (method === "POST" && pathname === "/outbox/throttle-next-recovery" && isFixtureEmail(body.to)) {
+    throttledRecoveries.add(body.to);
+    return response.writeHead(204).end();
+  }
   if (method === "POST" && pathname === "/resend/emails") {
     const recipient = body.to?.[0];
     if (bearer !== "e2e-fake-resend" || !isFixtureEmail(recipient) || body.to.length !== 1) {
@@ -90,11 +95,16 @@ async function handleRequest(request, response) {
   if (method === "POST" && pathname === "/auth/v1/recover") {
     const user = findUser(body.email);
     const redirect = searchParams.get("redirect_to");
-    if (redirect !== `${APP_ORIGIN}/auth/password-reset`) {
-      return authError(response, 400, "validation_failed", "Invalid synthetic recovery redirect");
+    if (!isFixtureEmail(body.email) || redirect !== `${APP_ORIGIN}/auth/password-reset` ||
+        request.headers.apikey !== "sb_publishable_e2e_test_only") {
+      return authError(response, 400, "validation_failed", "Invalid synthetic recovery request");
+    }
+    if (throttledRecoveries.delete(body.email)) {
+      return authError(response, 429, "over_email_send_rate_limit", "Simulated provider throttling");
     }
     if (user?.confirmedAt && !user.banned) {
-      deliverAuthLink(user, "recovery", redirect);
+      const pkceS256 = body.code_challenge_method === "s256" && /^[\w-]{43}$/.test(body.code_challenge ?? "");
+      deliverAuthLink(user, "recovery", redirect, { pkceS256 });
     }
     return sendJson(response, 200, {});
   }
@@ -216,7 +226,7 @@ function revokeSessions(user) {
   }
 }
 
-function deliverAuthLink(user, type, target) {
+function deliverAuthLink(user, type, target, requestMetadata = {}) {
   for (const [token, entry] of tokens) {
     if (entry.user === user && entry.type === type) tokens.delete(token);
   }
@@ -225,7 +235,10 @@ function deliverAuthLink(user, type, target) {
   const link = new URL(target);
   link.searchParams.set("token_hash", token);
   link.searchParams.set("type", type);
-  outbox.push({ to: user.email, subject: type === "email" ? "Confirm your email" : "Reset your password", link: link.href });
+  outbox.push({
+    to: user.email, subject: type === "email" ? "Confirm your email" : "Reset your password",
+    link: link.href, ...requestMetadata,
+  });
 }
 
 async function readJsonBody(request) {

@@ -162,7 +162,14 @@ for (const approval of [true, false]) {
         }));
         await openEmail(guardian, link);
         await expect(guardian.getByText(/invalid, expired, already decided/)).toBeVisible();
-        await page.getByRole("button", { name: "Resend approval email" }).click();
+        const failure = await request.post(`${MAILBOX}/fail-next-delivery`, { data: { to: guardianEmail } });
+        expect(failure.status()).toBe(204);
+        const resend = page.getByRole("button", { name: "Resend approval email" });
+        await resend.click();
+        await expect(page.getByRole("main").getByRole("alert")).toContainText("We could not send the email");
+        await expect(page.getByText(/A new approval link was sent/)).toHaveCount(0);
+        await mail(request, guardianEmail, /^Approve /);
+        await resend.click();
         await expect(page.getByText(/A new approval link was sent/)).toBeVisible();
         link = emailLink(await mail(request, guardianEmail, /^Approve /, 2), "/guardian-authorization");
       }
@@ -276,11 +283,19 @@ test("deactivation, deletion cancellation and due deletion preserve the expected
     const confirm = page.getByRole("button", { name: "Confirm permanent deletion" });
     await expect(confirm).toBeEnabled();
     expect(await getUserId(page)).toBe(userId);
+    if (cancel) {
+      const finalEmailFailure = await request.post(`${MAILBOX}/fail-next-delivery`, { data: { to: email } });
+      expect(finalEmailFailure.status()).toBe(204);
+    }
     await confirm.click();
     await expect(page.getByText("Account access is now restricted")).toBeVisible();
-    await mail(request, email, /pending deletion$/, cancel ? 1 : 2);
 
     if (cancel) {
+      await expect(page.getByText("The final email could not be sent")).toBeVisible();
+      const outbox = await request.get(MAILBOX, { params: { to: email } });
+      expect(outbox.ok()).toBe(true);
+      const delivered = (await outbox.json()) as Mail[];
+      expect(delivered.some((message) => /pending deletion$/.test(message.subject))).toBe(false);
       await openEmail(page, link);
       await confirm.click();
       await expect(page.getByText(/invalid, expired, or already used/)).toBeVisible();
@@ -292,6 +307,8 @@ test("deactivation, deletion cancellation and due deletion preserve the expected
       await login(page, email);
       await expect(page).toHaveURL(/\/dashboard$/);
       expect(await getUserId(page)).toBe(userId);
+    } else {
+      await mail(request, email, /pending deletion$/);
     }
   }
 
