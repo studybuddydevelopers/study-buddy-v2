@@ -202,8 +202,8 @@ Keep Turnstile and Cloudflare Access in their normal staging configuration.
    with the changed password.
 2. Register a synthetic learner aged 13–17. Verify the learner email, confirm
    the account is restricted, then use the email delivered to the test guardian
-   to approve learning with AI permission left unchecked. Verify learning
-   access and the AI restriction after the decision.
+   to approve ordinary study. Verify that practice and progress are available
+   and that the AI tutor and written Paper 2 remain paused for this account.
 3. Request permanent deletion for a disposable account. Check the confirmation
    and pending-deletion emails, then cancel in the app. The isolated automated
    suite covers advancing the scheduled date and running the purge.
