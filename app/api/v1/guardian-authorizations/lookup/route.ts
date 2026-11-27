@@ -28,11 +28,13 @@ export async function POST(request: Request) {
       status: true,
       tokenExpiresAt: true,
       student: {
-        select: { profile: { select: { firstName: true, lastNames: true } } },
+        select: { accountStatus: true, profile: { select: { firstName: true, lastNames: true } } },
       },
     },
   });
-  if (!authorization) return invalidLink();
+  if (!authorization || authorization.student.accountStatus === "GUARDIAN_AUTHORIZATION_WITHDRAWN") {
+    return invalidLink();
+  }
 
   return NextResponse.json(
     {
