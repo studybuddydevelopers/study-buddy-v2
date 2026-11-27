@@ -1,6 +1,7 @@
 export function accountStatusDestination(status: string | null | undefined) {
   if (status === "AGE_VERIFICATION_REQUIRED") return "/age-verification";
   if (status === "BELOW_MINIMUM_AGE") return "/account-unavailable";
+  if (status === "GUARDIAN_AUTHORIZATION_WITHDRAWN") return "/guardian-authorization-withdrawn";
   if (
     status === "GUARDIAN_AUTHORIZATION_REQUIRED" ||
     status === "GUARDIAN_AUTHORIZATION_DENIED"

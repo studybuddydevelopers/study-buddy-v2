@@ -7,6 +7,7 @@ import { validateCookieMutationOrigin } from "@/lib/security/csrf";
 import { logSecurityEvent } from "@/lib/security/audit-log";
 import { accountStatusDestination } from "@/lib/account-status";
 import { authRedirectUrl, isolatedE2eSupabaseOrigin } from "@/lib/supabase/auth-redirect";
+import { clearSupabaseAuthCookies } from "@/lib/supabase/sign-out-response";
 
 const protectedPaths = [
   "/dashboard",
@@ -133,6 +134,15 @@ export async function proxy(req: NextRequest) {
     typeof user?.user_metadata?.accountStatus === "string"
       ? user.user_metadata.accountStatus
       : null;
+
+  if (accountStatus === "GUARDIAN_AUTHORIZATION_WITHDRAWN") {
+    const protectedPage = protectedPaths.some((path) => pathMatches(pathname, path));
+    const response = protectedPage
+      ? NextResponse.redirect(authRedirectUrl("/guardian-authorization-withdrawn", req.url))
+      : res;
+    clearSupabaseAuthCookies(response, [...req.cookies.getAll(), ...res.cookies.getAll()]);
+    return withContentSecurityPolicy(response, contentSecurityPolicy);
+  }
 
   if (protectedPaths.some((path) => pathMatches(pathname, path)) && !user) {
     return withContentSecurityPolicy(

@@ -329,6 +329,31 @@ async function collectAndAssertDatabaseEvidence(config) {
       rolconnlimit: 20,
     });
 
+    await admin.query("BEGIN");
+    try {
+      await admin.query("INSERT INTO auth.sessions (id, user_id) VALUES (gen_random_uuid(), $1::uuid)", [E2E_USER.id]);
+      await admin.query("INSERT INTO auth.refresh_tokens (user_id) VALUES ($1)", [E2E_USER.id]);
+      await admin.query(`SET LOCAL ROLE ${RUNTIME_ROLE}`);
+      const { rows: [privileges] } = await admin.query(
+        "SELECT has_schema_privilege(current_user, 'auth', 'USAGE') AS can_access_auth"
+      );
+      assert.equal(privileges.can_access_auth, false);
+      await admin.query(
+        'UPDATE public."User" SET "accountStatus" = \'GUARDIAN_AUTHORIZATION_WITHDRAWN\' WHERE id = $1',
+        [E2E_USER.id]
+      );
+      await admin.query("RESET ROLE");
+      const { rows: [remaining] } = await admin.query(
+        `SELECT
+          (SELECT count(*)::int FROM auth.sessions WHERE user_id = $1::uuid) AS sessions,
+          (SELECT count(*)::int FROM auth.refresh_tokens WHERE user_id = $1::text) AS refresh_tokens`,
+        [E2E_USER.id]
+      );
+      assert.deepEqual(remaining, { sessions: 0, refresh_tokens: 0 });
+    } finally {
+      await admin.query("ROLLBACK");
+    }
+
     const [security] = (
       await admin.query(
         `SELECT
@@ -423,6 +448,7 @@ async function collectAndAssertDatabaseEvidence(config) {
       requiredIndexes: EXPECTED_INDEXES,
       rollbackPreserved: true,
       runtimeDdlDenied: true,
+      withdrawnSessionsRevokedWithoutRuntimeAuthGrants: true,
     };
   } finally {
     await runtime.end();

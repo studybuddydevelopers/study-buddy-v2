@@ -61,6 +61,17 @@ async function recreateDatabase(connectionUrl, databaseName) {
   await databaseClient.connect();
   try {
     await databaseClient.query("CREATE SCHEMA IF NOT EXISTS extensions");
+    // The local Auth fake keeps HTTP sessions in memory. These tables model
+    // the managed Auth rows for database revocation assertions.
+    await databaseClient.query(`
+      CREATE SCHEMA auth;
+      CREATE TABLE auth.sessions (id UUID PRIMARY KEY, user_id UUID NOT NULL);
+      CREATE TABLE auth.refresh_tokens (
+        id SERIAL PRIMARY KEY,
+        user_id VARCHAR(255) NOT NULL,
+        session_id UUID REFERENCES auth.sessions(id) ON DELETE CASCADE
+      );
+    `);
   } finally {
     await databaseClient.end();
   }

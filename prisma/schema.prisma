@@ -151,6 +151,7 @@ enum AccountStatus {
   GUARDIAN_AUTHORIZATION_DENIED
   DEACTIVATED
   DELETION_PENDING
+  GUARDIAN_AUTHORIZATION_WITHDRAWN
 }
 
 enum AccountDeletionRequestStatus {
@@ -453,6 +454,8 @@ model GuardianAuthorization {
   requestedAt        DateTime                    @default(now())
   decidedAt          DateTime?
   withdrawnAt        DateTime?
+  withdrawalStudentNotifiedAt  DateTime?
+  withdrawalGuardianNotifiedAt DateTime?
   createdAt          DateTime                    @default(now())
   updatedAt          DateTime                    @updatedAt
 

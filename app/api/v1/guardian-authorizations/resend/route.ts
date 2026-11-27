@@ -39,17 +39,23 @@ export async function POST(request: Request) {
 
   const token = createGuardianAuthorizationToken();
   const expiresAt = guardianAuthorizationExpiry();
-  await prisma.$transaction([
-    prisma.guardianAuthorization.update({
-      where: { id: pending.id },
+  const resent = await prisma.$transaction(async (tx) => {
+    const update = await tx.guardianAuthorization.updateMany({
+      where: {
+        id: pending.id,
+        tokenHash: pending.tokenHash,
+        status: { in: ["PENDING", "EXPIRED"] },
+        student: { accountStatus: "GUARDIAN_AUTHORIZATION_REQUIRED" },
+      },
       data: {
         status: "PENDING",
         tokenHash: token.tokenHash,
         tokenExpiresAt: expiresAt,
         requestedAt: new Date(),
       },
-    }),
-    prisma.guardianAuthorizationEvent.create({
+    });
+    if (!update.count) return false;
+    await tx.guardianAuthorizationEvent.create({
       data: {
         authorizationId: pending.id,
         eventType: "REQUESTED",
@@ -57,8 +63,12 @@ export async function POST(request: Request) {
         ipFingerprint: securityFingerprint(getClientIp(request.headers)),
         details: { resend: true },
       },
-    }),
-  ]);
+    });
+    return true;
+  });
+  if (!resent) {
+    return NextResponse.json({ error: "NOT_PENDING", message: "No guardian authorisation is pending for this account." }, { status: 409 });
+  }
 
   try {
     await sendGuardianAuthorizationEmail({

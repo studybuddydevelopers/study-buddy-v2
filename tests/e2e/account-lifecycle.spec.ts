@@ -1,6 +1,7 @@
-import { createHash } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import { PrismaClient } from "@prisma/client";
 import { expect, test, type APIRequestContext, type Page } from "@playwright/test";
+import fixtureUsers from "./support/fixture-users.json";
 
 const APP_ORIGIN = "http://127.0.0.1:3200";
 const MAILBOX = "http://127.0.0.1:55431/outbox";
@@ -101,6 +102,15 @@ async function withDatabase<T>(operation: (database: PrismaClient) => Promise<T>
     await database.$disconnect();
   }
 }
+
+test.beforeEach(async () => {
+  // Independent auth journeys share the same loopback IP in the harness.
+  await withDatabase((database) =>
+    database.rateLimitBucket.deleteMany({
+      where: { scope: { in: ["auth:signup:ip", "auth:login:ip"] } },
+    })
+  );
+});
 
 test("sign-up checks age, verifies email once and signs out across tabs", async ({ page, request, context }) => {
   await fillSignUp(page, "too-young@example.test", 12);
@@ -210,6 +220,79 @@ for (const approval of [true, false]) {
     }
   });
 }
+
+test("a verified guardian withdrawal revokes sessions, holds saved work and retries a failed notice", async ({ page, browser, request, playwright }) => {
+  const studentEmail = "withdrawal-student@example.test";
+  const guardianEmail = "withdrawal-guardian@example.test";
+  await verifyEmail(page, await signUp(page, request, studentEmail, guardianEmail));
+
+  const guardian = await browser.newPage();
+  const operator = await playwright.request.newContext({ baseURL: APP_ORIGIN });
+  const secondDevice = await playwright.request.newContext({ baseURL: APP_ORIGIN });
+  try {
+    const link = emailLink(await mail(request, guardianEmail, /^Approve /), "/guardian-authorization");
+    await openEmail(guardian, link);
+    await guardian.getByRole("checkbox", { name: /I confirm I am this student/ }).check();
+    await guardian.getByRole("checkbox", { name: /I reviewed/ }).check();
+    await guardian.getByRole("button", { name: "Approve account" }).click();
+    await expect(guardian.getByText(/Your decision has been recorded/)).toBeVisible();
+
+    await login(page, studentEmail);
+    await expect(page).toHaveURL(/\/dashboard$/);
+    const studentId = await getUserId(page);
+    const signIn = (client: APIRequestContext, identifier: string, password: string) =>
+      client.post("/api/v1/login", { headers: { Origin: APP_ORIGIN }, data: { identifier, password } });
+    expect((await signIn(secondDevice, studentEmail, PASSWORD)).status()).toBe(200);
+    expect((await secondDevice.get("/api/v1/me")).status()).toBe(200);
+    expect((await signIn(operator, fixtureUsers.learner.email, fixtureUsers.learner.password)).status()).toBe(200);
+
+    const otherUserId = fixtureUsers.peer.id;
+    const grant = await withDatabase(async (database) => {
+      for (const userId of [studentId, studentId, otherUserId]) {
+        const sessionId = randomUUID();
+        await database.$executeRaw`INSERT INTO auth.sessions VALUES (${sessionId}::uuid, ${userId}::uuid)`;
+        await database.$executeRaw`INSERT INTO auth.refresh_tokens (user_id, session_id) VALUES (${userId}, ${sessionId}::uuid)`;
+      }
+      await database.$executeRaw`INSERT INTO auth.refresh_tokens (user_id) VALUES (${studentId})`;
+      await database.aiChat.create({ data: { userId: studentId, title: "Earlier saved study chat" } });
+      return database.guardianAuthorization.findFirstOrThrow({ where: { studentUserId: studentId, status: "GRANTED" } });
+    });
+    const payload = { authorizationId: grant.id, caseReference: "synthetic-case-001", verified: true };
+    const withdraw = (client: APIRequestContext, data = payload) =>
+      client.post("/api/v1/support/guardian-withdrawals", { headers: { Origin: APP_ORIGIN }, data });
+
+    expect((await withdraw(page.request)).status()).toBe(403);
+    expect((await withdraw(operator, { ...payload, verified: false })).status()).toBe(400);
+    expect((await request.post(`${MAILBOX}/fail-next-delivery`, { data: { to: guardianEmail } })).status()).toBe(204);
+
+    const first = await withdraw(operator);
+    expect(first.status()).toBe(200);
+    expect(await first.json()).toEqual({ restricted: true, studentNotified: true, guardianNotified: false });
+    expect((await page.request.get("/api/v1/me")).status()).toBe(403);
+    expect((await secondDevice.get("/api/v1/me")).status()).toBe(403);
+    const attemptedSignIn = await signIn(secondDevice, studentEmail, PASSWORD);
+    expect(attemptedSignIn.headers()["x-study-buddy-next"]).toBe("/guardian-authorization-withdrawn");
+    expect((await secondDevice.get("/api/v1/me")).status()).toBe(401);
+
+    expect((await withdraw(operator, { ...payload, caseReference: "different-case-02" })).status()).toBe(409);
+    expect(await (await withdraw(operator)).json()).toEqual({ restricted: true, studentNotified: true, guardianNotified: true });
+    expect(await (await withdraw(operator)).json()).toEqual({ restricted: true, studentNotified: true, guardianNotified: true });
+    await mail(request, studentEmail, /^Guardian authorisation withdrawn/);
+    await mail(request, guardianEmail, /^Guardian authorisation withdrawn/);
+
+    await withDatabase(async (database) => {
+      const account = await database.user.findUniqueOrThrow({ where: { id: studentId } });
+      expect(account).toMatchObject({ accountStatus: "GUARDIAN_AUTHORIZATION_WITHDRAWN", aiAccessAuthorized: false });
+      expect(await database.aiChat.count({ where: { userId: studentId } })).toBe(1);
+      expect(await database.guardianAuthorizationEvent.findMany({ where: { authorizationId: grant.id, eventType: "WITHDRAWN" } }))
+        .toEqual([expect.objectContaining({ actorType: "PRIVACY_OPERATOR", details: { caseReference: payload.caseReference, operatorUserId: fixtureUsers.learner.id } })]);
+      expect(await database.$queryRaw`SELECT user_id::text FROM auth.sessions WHERE user_id IN (${studentId}::uuid, ${otherUserId}::uuid)`).toEqual([{ user_id: otherUserId }]);
+      expect(await database.$queryRaw`SELECT user_id FROM auth.refresh_tokens WHERE user_id IN (${studentId}, ${otherUserId})`).toEqual([{ user_id: otherUserId }]);
+    });
+  } finally {
+    await Promise.all([guardian.close(), operator.dispose(), secondDevice.dispose()]);
+  }
+});
 
 test("password-reset warnings require confirmation and a locked account can recover", async ({ page, request }) => {
   const email = "reset-student@example.test";

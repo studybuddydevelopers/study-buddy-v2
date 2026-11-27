@@ -20,7 +20,7 @@ Auth & Account
 - POST `/signup` — Submit the account form: names, email, phone, password, date of birth, terms acceptance, and guardian/CAPTCHA fields when required. On success, follow the response's `X-Study-Buddy-Next` destination for verification or guardian authorisation; do not assume unrestricted access immediately after signup.
 - POST `/login` — Sign in with `identifier` (email or phone) and `password`. Sets Supabase cookies, returns `{ success: true }` or `{ error }`.
 - POST `/logout` — Clears Supabase session cookies. Body unused. Returns `{ ok: true }`.
-- GET `/account/lifecycle` (auth, including restricted accounts) — Returns the current account status and any scheduled permanent-deletion date.
+- GET `/account/lifecycle` (auth) — Returns account lifecycle status and any scheduled permanent-deletion date for an eligible signed-in account.
 - POST `/account/lifecycle` (auth, including restricted accounts) — Body action is `DEACTIVATE`, `REQUEST_DELETION`, `REACTIVATE`, or `CANCEL_DELETION`. `REQUEST_DELETION` requires the current password and exact `confirmation: "DELETE"`, then sends a 24-hour one-time email link without restricting the account. Deactivation, reactivation, and cancellation clear the browser session.
 - POST `/account/deletion/confirm` — Public token exchange used by the email-confirmation page. A valid unused token immediately locks the account, starts the 15-day cancellation window, schedules the retryable purge, clears any browser session, and sends the final pending-deletion notice.
 - Scheduled account lifecycle processing is server-to-server, not a frontend action. Keep its credentials and operating procedure out of client code and public examples.
@@ -109,6 +109,7 @@ Mock Exams
 Marking Review Support
 ----------------------
 - GET `/support/marking-reviews` (authorised support) — Query: `status=PENDING|RESOLVED|ALL`. Returns the restricted review queue with case evidence and audit events.
+- POST `/support/guardian-withdrawals` (authorised privacy operator) — Records a verified withdrawal, revokes the learner's existing sessions, and reports both notice outcomes. Use the same private case reference to retry an incomplete notice.
 - PATCH `/support/marking-reviews/:id` (authorised support) — Body: `decision` (`UPHOLD` or `ADJUST`), `note`, and integer `score` for an adjustment. Resolves a pending case once. An adjustment updates the answer, recalculates the paper total and updates the subject progress record when this is the learner's latest graded paper in that subject. The decision and learner notification are recorded atomically.
 
 Progress

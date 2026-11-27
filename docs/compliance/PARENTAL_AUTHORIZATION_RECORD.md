@@ -126,10 +126,14 @@ approved Data Retention and Deletion Schedule and legal holds.
 - [x] Consent is not preselected or bundled with marketing.
 - [x] Routine age/authority evidence is minimised to date of birth, email-link
   control, and the adult declaration; stepped-up evidence is exception-only.
-- [ ] Every grant, denial, expiry, and withdrawal creates an append-only event. Grant, denial, expiry, replacement and resend events are implemented; the operator withdrawal action remains pending.
-- [ ] Verified-email withdrawal signs the child out, restricts features, stops
-  new AI/WhatsApp activity, notifies both parties, and enters the approved
-  reauthorisation-or-deletion review state.
+- [x] The withdrawal action records an append-only decision event with the
+  operator and the private case reference.
+- [x] Once the verified request is recorded by an authorised privacy operator,
+  the account is restricted and existing Auth sessions are revoked. The action
+  records each notice separately so a failed notice can be retried. Saved
+  work is held for a decision through the verified privacy process.
+- [ ] Record live acceptance and the operating evidence for verified
+  reauthorisation and deletion requests after a withdrawal.
 - [ ] Support cannot disclose child data without verifying authority.
 - [x] School staff cannot authorise or view learners because no school-facing
   account or access role is currently provided.

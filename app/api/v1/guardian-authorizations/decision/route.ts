@@ -5,6 +5,8 @@ import { enforceRateLimitRules, getClientIp } from "@/lib/security/rate-limit";
 import { hashGuardianAuthorizationToken, syncAuthAccountStatus } from "@/lib/guardian-authorization";
 import { logSecurityEvent, securityFingerprint } from "@/lib/security/audit-log";
 
+const outdatedGuardianDecision = new Error("The authorisation link changed.");
+
 export async function POST(request: Request) {
   const parsed = await parseJsonObjectRequest(request, REQUEST_LIMITS.publicFormJson);
   if (!parsed.ok) return parsed.response;
@@ -60,6 +62,15 @@ export async function POST(request: Request) {
   // A guardian can approve ordinary study. AI access for minors is paused.
   const ipFingerprint = securityFingerprint(getClientIp(request.headers));
   const changed = await prisma.$transaction(async (transaction) => {
+    const user = await transaction.user.updateMany({
+      where: { id: authorization.studentUserId, accountStatus: "GUARDIAN_AUTHORIZATION_REQUIRED" },
+      data: {
+        accountStatus: granting ? "ACTIVE" : "GUARDIAN_AUTHORIZATION_DENIED",
+        aiAccessAuthorized: false,
+      },
+    });
+    if (!user.count) return false;
+
     const update = await transaction.guardianAuthorization.updateMany({
       where: { id: authorization.id, status: "PENDING", tokenExpiresAt: { gt: new Date() } },
       data: {
@@ -68,15 +79,7 @@ export async function POST(request: Request) {
         aiAuthorized: false,
       },
     });
-    if (!update.count) return false;
-
-    await transaction.user.update({
-      where: { id: authorization.studentUserId },
-      data: {
-        accountStatus: granting ? "ACTIVE" : "GUARDIAN_AUTHORIZATION_DENIED",
-        aiAccessAuthorized: false,
-      },
-    });
+    if (!update.count) throw outdatedGuardianDecision;
     await transaction.guardianAuthorizationEvent.create({
       data: {
         authorizationId: authorization.id,
@@ -87,6 +90,9 @@ export async function POST(request: Request) {
       },
     });
     return true;
+  }).catch((error: unknown) => {
+    if (error === outdatedGuardianDecision) return false;
+    throw error;
   });
 
   if (!changed) {
