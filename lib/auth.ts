@@ -67,6 +67,19 @@ export async function requireAuthenticatedUser(
     };
   }
 
+  if (dbUser.accountStatus === "GUARDIAN_AUTHORIZATION_WITHDRAWN") {
+    return {
+      errorResponse: NextResponse.json(
+        {
+          error: "ACCOUNT_RESTRICTED",
+          message: "Guardian authorisation has been withdrawn for this account.",
+          nextPath: "/guardian-authorization-withdrawn",
+        },
+        { status: 403, headers: { "Cache-Control": "no-store" } },
+      ),
+    };
+  }
+
   if (
     !options.allowPasswordResetSecurityRecovery &&
     passwordResetSecurityRestrictionIsActive(
