@@ -103,6 +103,13 @@ async function withDatabase<T>(operation: (database: PrismaClient) => Promise<T>
   }
 }
 
+test.beforeEach(async () => {
+  // Independent signup scenarios share the same loopback IP in the harness.
+  await withDatabase((database) =>
+    database.rateLimitBucket.deleteMany({ where: { scope: "auth:signup:ip" } })
+  );
+});
+
 test("sign-up checks age, verifies email once and signs out across tabs", async ({ page, request, context }) => {
   await fillSignUp(page, "too-young@example.test", 12);
   await expect(page.getByText(/accounts are available from age 13/)).toBeVisible();
