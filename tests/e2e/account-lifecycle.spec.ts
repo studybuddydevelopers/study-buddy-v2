@@ -104,9 +104,11 @@ async function withDatabase<T>(operation: (database: PrismaClient) => Promise<T>
 }
 
 test.beforeEach(async () => {
-  // Independent signup scenarios share the same loopback IP in the harness.
+  // Independent auth journeys share the same loopback IP in the harness.
   await withDatabase((database) =>
-    database.rateLimitBucket.deleteMany({ where: { scope: "auth:signup:ip" } })
+    database.rateLimitBucket.deleteMany({
+      where: { scope: { in: ["auth:signup:ip", "auth:login:ip"] } },
+    })
   );
 });
 
