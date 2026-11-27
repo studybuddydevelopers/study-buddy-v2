@@ -1,3 +1,5 @@
+BEGIN;
+
 ALTER TYPE public."AccountStatus" ADD VALUE 'GUARDIAN_AUTHORIZATION_WITHDRAWN';
 
 ALTER TABLE public."GuardianAuthorization"
@@ -28,3 +30,5 @@ WHEN (
   AND NEW."accountStatus"::text = 'GUARDIAN_AUTHORIZATION_WITHDRAWN'
 )
 EXECUTE FUNCTION public.revoke_withdrawn_guardian_sessions();
+
+COMMIT;
