@@ -1,4 +1,5 @@
 import { defineConfig } from "@playwright/test";
+import fixtureUsers from "./tests/e2e/support/fixture-users.json";
 
 const appUrl = "http://127.0.0.1:3200";
 
@@ -50,6 +51,7 @@ export default defineConfig({
         RECOMMENDATIONS_CRON_SECRET: "e2e-recommendations-cron-secret-only",
         PASSWORD_RESET_RATE_LIMIT_ACCOUNT_MAX: "3",
         MARKING_REVIEW_SUPPORT_USER_IDS: "",
+        GUARDIAN_WITHDRAWAL_OPERATOR_USER_IDS: fixtureUsers.learner.id,
         PAYSTACK_SECRET_KEY: "e2e-fake-paystack",
         AI_CHAT_PROVIDER: "openai",
         AI_CHAT_MODEL: "gpt-4o-mini",
