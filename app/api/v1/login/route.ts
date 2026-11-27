@@ -22,6 +22,7 @@ import {
 import { syncAuthAccountStatus } from "@/lib/guardian-authorization";
 import { accountStatusDestination } from "@/lib/account-status";
 import { validateAuthMutationRequest } from "@/lib/security/auth-mutation";
+import { clearSupabaseAuthCookies } from "@/lib/supabase/sign-out-response";
 
 export async function POST(req: Request) {
   const requestRejection = validateAuthMutationRequest(req);
@@ -89,6 +90,7 @@ export async function POST(req: Request) {
 
   let authenticatedUserId: string | undefined;
   let authMetadataAccountStatus: string | undefined;
+  let accessToken: string | undefined;
   try {
     const result = isEmail
       ? await supabase.auth.signInWithPassword({
@@ -104,6 +106,7 @@ export async function POST(req: Request) {
     if (!result.error) {
       authenticatedUserId = result.data?.user?.id;
       authMetadataAccountStatus = result.data?.user?.user_metadata?.accountStatus;
+      accessToken = result.data.session?.access_token;
     }
   } catch {
     // Network/provider failures deliberately use the same outward response as
@@ -132,6 +135,25 @@ export async function POST(req: Request) {
     });
     res.headers.set("X-Study-Buddy-Next", "/unauthorized");
     return res;
+  }
+
+  if (dbUser.accountStatus === "GUARDIAN_AUTHORIZATION_WITHDRAWN") {
+    if (accessToken) {
+      try {
+        const { error } = await supabase.auth.admin.signOut(accessToken, "local");
+        if (error) throw error;
+      } catch {
+        logSecurityEvent("guardian_withdrawal_login_session_revoke_failed", "warn", {
+          accountFingerprint: securityFingerprint(authenticatedUserId),
+        });
+      }
+    }
+    const restricted = NextResponse.json(
+      { success: true },
+      { headers: { "Cache-Control": "no-store", "X-Study-Buddy-Next": "/guardian-authorization-withdrawn" } },
+    );
+    clearSupabaseAuthCookies(restricted, parseCookieHeader(req.headers.get("cookie")));
+    return restricted;
   }
 
   if (isEmail) {
