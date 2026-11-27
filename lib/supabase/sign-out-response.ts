@@ -37,7 +37,15 @@ export async function signedOutJsonResponse(
     // below makes sign-out fail closed even during an Auth provider outage.
   }
 
-  for (const { name } of incomingCookies) {
+  clearSupabaseAuthCookies(response, incomingCookies);
+  return response;
+}
+
+export function clearSupabaseAuthCookies(
+  response: NextResponse,
+  cookies: { name: string }[],
+) {
+  for (const { name } of cookies) {
     if (SUPABASE_AUTH_COOKIE.test(name)) {
       response.cookies.set(name, "", {
         path: "/",
@@ -49,7 +57,6 @@ export async function signedOutJsonResponse(
     }
   }
 
-  return response;
 }
 
 function parseCookieHeader(cookieHeader: string | null) {
