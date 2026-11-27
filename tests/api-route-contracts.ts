@@ -108,6 +108,7 @@ const routes: Record<string, Partial<Record<HttpMethod, Contract>>> = {
   "/api/v1/subscriptions/[id]/status": { GET: rule("learner", "Owned subscription ID") },
   "/api/v1/subscriptions/list": { GET: rule("learner", "Own subscriptions, filters and bounded pagination") },
   "/api/v1/support/chat-reports/[id]": { PATCH: rule("support", "Report ID, decision and note") },
+  "/api/v1/support/guardian-withdrawals": { POST: rule("support", "Designated privacy operator and verified withdrawal reference") },
   "/api/v1/support/marking-reviews": { GET: rule("support", "Supported status filter") },
   "/api/v1/support/marking-reviews/[id]": { PATCH: rule("support", "Review ID, decision, note and score when adjusted") },
   "/api/v1/whatsapp/webhook": {
